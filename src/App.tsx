@@ -5,6 +5,7 @@ import {
   File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X 
 } from "lucide-react";
 
+// Add these type definitions
 interface Competition {
   id: string;
   title: string;
@@ -40,4 +41,6 @@ interface Transaction {
   amount: number;
   date: string;
 }
+
+// Then paste the rest of your component code below
 // ... (your existing component code)
