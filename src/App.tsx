@@ -1,9 +1,65 @@
 import { useState, useRef, useEffect } from "react";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check } from "lucide-react";
+import { 
+  Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, 
+  LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, 
+  File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X 
+} from "lucide-react";
 
-/* ─── DATA ─────────────────────────────────────────────────────────────── */
+// ============================================
+// TYPE DEFINITIONS
+// ============================================
 
-const NICHES = [
+interface Competition {
+  id: string;
+  title: string;
+  edition: string;
+  contestants: number;
+  votes: number;
+  ends: string;
+  organisateur: string;
+  hot: boolean;
+  followers: number;
+  mediaType: string;
+  accent?: string;
+  niche?: string;
+}
+
+interface Niche {
+  id: string;
+  label: string;
+  accent: string;
+  icon: string;
+  competitions: Competition[];
+}
+
+interface Gift {
+  id: string;
+  name: string;
+  icon: string;
+  cost: number;
+}
+
+interface Transaction {
+  id: string;
+  type: string;
+  label: string;
+  amount: number;
+  date: string;
+}
+
+interface CreditPack {
+  id: string;
+  credits: number;
+  priceLabel: string;
+  bonus?: string;
+  popular?: boolean;
+}
+
+// ============================================
+// DATA
+// ============================================
+
+const NICHES: Niche[] = [
   {
     id: "music",
     label: "Musique",
@@ -83,18 +139,16 @@ const NICHES = [
   },
 ];
 
-const ALL_NICHES = ["Tous", ...NICHES.map((n) => n.label)];
+const ALL_NICHES: string[] = ["Tous", ...NICHES.map((n) => n.label)];
 
-/* ─── WALLET DATA ───────────────────────────────────────────────────────── */
-
-const CREDIT_PACKS = [
+const CREDIT_PACKS: CreditPack[] = [
   { id: "p1", credits: 100, priceLabel: "2,99 €" },
   { id: "p2", credits: 550, priceLabel: "9,99 €", bonus: "+10%" },
   { id: "p3", credits: 1200, priceLabel: "19,99 €", bonus: "+20%" },
   { id: "p4", credits: 3000, priceLabel: "44,99 €", bonus: "+30%", popular: true },
 ];
 
-const GIFT_CATALOG = [
+const GIFT_CATALOG: Gift[] = [
   { id: "g1", name: "Applaudissement", icon: "👏", cost: 10 },
   { id: "g2", name: "Étoile", icon: "⭐", cost: 25 },
   { id: "g3", name: "Flamme", icon: "🔥", cost: 50 },
@@ -103,7 +157,7 @@ const GIFT_CATALOG = [
   { id: "g6", name: "Diamant", icon: "💎", cost: 750 },
 ];
 
-const INITIAL_TRANSACTIONS = [
+const INITIAL_TRANSACTIONS: Transaction[] = [
   { id: "t1", type: "purchase", label: "Achat — Pack 550 crédits", amount: 550, date: "Aujourd'hui, 09:14" },
   { id: "t2", type: "gift_sent", label: "Couronne envoyée — Voix d'Or", amount: -150, date: "Hier, 21:02" },
   { id: "t3", type: "gift_sent", label: "Flamme envoyée — Krump Masters", amount: -50, date: "Hier, 18:47" },
@@ -111,7 +165,7 @@ const INITIAL_TRANSACTIONS = [
   { id: "t5", type: "gift_sent", label: "Étoile envoyée — FIFA Masters", amount: -25, date: "10 juin, 20:15" },
 ];
 
-const NICHE_ICONS = {
+const NICHE_ICONS: Record<string, any> = {
   "Tous": LayoutGrid,
   "Musique": Music,
   "Danse": PersonStanding,
@@ -121,22 +175,45 @@ const NICHE_ICONS = {
   "Gaming": Gamepad2,
 };
 
-/* ─── HELPERS ───────────────────────────────────────────────────────────── */
-
-function fmtVotes(n) {
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "k";
-  return n.toString();
-}
-
-/* ─── NEWS BAND ─────────────────────────────────────────────────────────── */
-
-const NEWS_ITEMS = [
+const NEWS_ITEMS: string[] = [
   "🔥 Battle Hip-Hop Saison 4 entre en demi-finale",
   "🏆 Krump Masters : la finale approche",
   "🎤 Voix d'Or — finale ce soir, votez maintenant",
   "🕹️ FIFA Masters dépasse les 14k votes",
   "🎨 Live Graffiti — derniers votes avant la finale",
 ];
+
+const TEXT_SNIPPETS: string[] = [
+  "Mon parcours a commencé dans la rue, entre passion et persévérance...",
+  "Chaque jour est une nouvelle occasion de repousser mes limites...",
+  "Ce que je crée vient du cœur, inspiré par mon quartier et ma famille...",
+  "J'ai tout sacrifié pour arriver ici, et je ne compte pas reculer...",
+];
+
+const BANNER_SLIDES = NICHES.flatMap((niche) =>
+  niche.competitions
+    .filter((c) => c.hot)
+    .map((c) => ({ ...c, niche, color: niche.accent }))
+).slice(0, 6);
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+function fmtVotes(n: number): string {
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "k";
+  return n.toString();
+}
+
+const picsumImg = (seed: string | number, w: number = 300, h: number = 300): string =>
+  `https://picsum.photos/seed/${seed}/${w}/${h}`;
+
+const avatarImg = (index: number): string => picsumImg(`person${index}`, 80, 80);
+const heroBannerImg = (compId: string): string => picsumImg(`hero_${compId}`, 800, 340);
+
+// ============================================
+// COMPONENTS
+// ============================================
 
 function NewsBand() {
   return (
@@ -181,8 +258,6 @@ function NewsBand() {
   );
 }
 
-/* ─── BOTTOM TAB BAR ────────────────────────────────────────────────────── */
-
 const TABS = [
   { id: "home", label: "Accueil", icon: Home },
   { id: "notifications", label: "Notifs", icon: Bell },
@@ -190,7 +265,7 @@ const TABS = [
   { id: "account", label: "Compte", icon: User },
 ];
 
-function BottomTabBar({ active, onChange }) {
+function BottomTabBar({ active, onChange }: { active: string; onChange: (tab: string) => void }) {
   return (
     <nav
       style={{
@@ -242,9 +317,7 @@ function BottomTabBar({ active, onChange }) {
   );
 }
 
-/* ─── PHASE ROW ─────────────────────────────────────────────────────────── */
-
-function PhaseRow({ edition, accent }) {
+function PhaseRow({ edition, accent }: { edition: string; accent: string }) {
   return (
     <div
       style={{
@@ -286,17 +359,15 @@ function PhaseRow({ edition, accent }) {
   );
 }
 
-/* ─── COMPETITION CARD ──────────────────────────────────────────────────── */
-
-function CompCard({ comp, accent, onOpen }) {
-  const [voteCount] = useState(comp.votes);
-  const [hovered, setHovered] = useState(false);
+function CompCard({ comp, accent, onOpen }: { comp: Competition; accent: string; onOpen: (comp: Competition) => void }) {
+  const [voteCount] = useState<number>(comp.votes);
+  const [hovered, setHovered] = useState<boolean>(false);
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={() => onOpen?.(comp)}
+      onClick={() => onOpen(comp)}
       style={{
         flexShrink: 0,
         width: 220,
@@ -307,14 +378,10 @@ function CompCard({ comp, accent, onOpen }) {
         cursor: "pointer",
         transition: "transform 0.12s ease, box-shadow 0.12s ease",
         transform: hovered ? "translate(3px, 3px)" : "translate(0,0)",
-        /* Inverted brutalist shadow: top-left */
-        boxShadow: hovered
-          ? "-4px -4px 0 0 #111"
-          : "none",
+        boxShadow: hovered ? "-4px -4px 0 0 #111" : "none",
         userSelect: "none",
       }}
     >
-      {/* Banner */}
       <div style={{ height: 110, position: "relative", flexShrink: 0, overflow: "hidden" }}>
         <img
           src={heroBannerImg(comp.id)}
@@ -343,9 +410,7 @@ function CompCard({ comp, accent, onOpen }) {
         )}
       </div>
 
-      {/* Card body */}
       <div style={{ padding: "14px 14px 10px", flexGrow: 1 }}>
-
         <div
           style={{
             fontFamily: "'Space Grotesk', sans-serif",
@@ -402,7 +467,6 @@ function CompCard({ comp, accent, onOpen }) {
           </div>
         </div>
 
-        {/* Meta row */}
         <div
           style={{
             display: "flex",
@@ -436,9 +500,8 @@ function CompCard({ comp, accent, onOpen }) {
         <PhaseRow edition={comp.edition} accent={accent} />
       </div>
 
-      {/* Footer — opens gift tray */}
       <button
-        onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
+        onClick={(e) => { e.stopPropagation(); onOpen(comp); }}
         style={{
           border: "none",
           borderTop: `2px solid #111`,
@@ -477,24 +540,7 @@ function CompCard({ comp, accent, onOpen }) {
   );
 }
 
-/* ─── IMAGE HELPERS ─────────────────────────────────────────────────────── */
-
-const picsumImg = (seed, w = 300, h = 300) =>
-  `https://picsum.photos/seed/${seed}/${w}/${h}`;
-
-const avatarImg = (index) => picsumImg(`person${index}`, 80, 80);
-const heroBannerImg = (compId) => picsumImg(`hero_${compId}`, 800, 340);
-
-/* ─── PARTICIPANT CARD ──────────────────────────────────────────────────── */
-
-const TEXT_SNIPPETS = [
-  "Mon parcours a commencé dans la rue, entre passion et persévérance...",
-  "Chaque jour est une nouvelle occasion de repousser mes limites...",
-  "Ce que je crée vient du cœur, inspiré par mon quartier et ma famille...",
-  "J'ai tout sacrifié pour arriver ici, et je ne compte pas reculer...",
-];
-
-function ParticipantCard({ index, mediaType, accent }) {
+function ParticipantCard({ index, mediaType }: { index: number; mediaType: string; accent: string }) {
   const name = `Participant ${index + 1}`;
   const imgSeed = `part_${index}`;
 
@@ -566,9 +612,7 @@ function ParticipantCard({ index, mediaType, accent }) {
   );
 }
 
-/* ─── PARTICIPANT LIST OVERLAY ──────────────────────────────────────────── */
-
-function buildParticipants(comp) {
+function buildParticipants(comp: Competition): Array<{ index: number; name: string; votes: number; points: number }> {
   const list = Array.from({ length: comp.contestants }, (_, i) => {
     const seed = (i * 53 + 17) % 97;
     const votes = Math.round((comp.votes / comp.contestants) * (0.4 + (seed % 60) / 40));
@@ -582,8 +626,8 @@ function buildParticipants(comp) {
   return list.sort((a, b) => b.votes - a.votes);
 }
 
-function ParticipantListOverlay({ comp, onClose }) {
-  const accent = comp.accent;
+function ParticipantListOverlay({ comp, onClose }: { comp: Competition; onClose: () => void }) {
+  const accent = comp.accent || "#6C63FF";
   const ranked = buildParticipants(comp);
 
   return (
@@ -613,7 +657,6 @@ function ParticipantListOverlay({ comp, onClose }) {
       </div>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-        {/* Column headers */}
         <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #e0e0e0", marginBottom: 4 }}>
           <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
           <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Participant</span>
@@ -665,26 +708,29 @@ function ParticipantListOverlay({ comp, onClose }) {
   );
 }
 
-/* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
-
-function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
-  const [voteCount, setVoteCount] = useState(comp.votes);
-  const [voted, setVoted] = useState(false);
-  const [showAll, setShowAll] = useState(false);
-  const [showGiftBar, setShowGiftBar] = useState(false);
-  const [activeGift, setActiveGift] = useState(null);
-  const [liveLog, setLiveLog] = useState(() =>
+function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }: { 
+  comp: Competition; 
+  onClose: () => void; 
+  balance: number; 
+  onSendGift: (gift: Gift, comp: Competition) => void; 
+  onOpenBuy: () => void;
+}) {
+  const [voteCount, setVoteCount] = useState<number>(comp.votes);
+  const [voted, setVoted] = useState<boolean>(false);
+  const [showAll, setShowAll] = useState<boolean>(false);
+  const [showGiftBar, setShowGiftBar] = useState<boolean>(false);
+  const [activeGift, setActiveGift] = useState<string | null>(null);
+  const [liveLog, setLiveLog] = useState<Array<{ id: number; pIndex: number; ago: string }>>(() =>
     Array.from({ length: 5 }, (_, i) => ({
       id: i,
       pIndex: (i * 7 + 3) % comp.contestants,
       ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
     }))
   );
-  const accent = comp.accent;
+  const accent = comp.accent || "#6C63FF";
   const ranked = buildParticipants(comp).slice(0, 5);
   const topVotes = ranked[0]?.votes || 1;
 
-  // Pulse a new live entry every 4s
   useEffect(() => {
     const t = setInterval(() => {
       setLiveLog((prev) => {
@@ -701,24 +747,19 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#F2F2F0", overflowY: "auto" }}>
-
-      {/* ── HERO ── */}
       <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0 }}>
-        {/* Gradient overlay at bottom for readability */}
         <div style={{
           position: "absolute", inset: 0,
           background: `linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 100%)`,
           zIndex: 1,
         }} />
 
-        {/* Hero image */}
         <div style={{ height: 220, position: "relative", overflow: "hidden" }}>
           <img
             src={heroBannerImg(comp.id)}
             alt={comp.title}
             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
           />
-          {/* Accent colour tint overlay so brand colour bleeds through */}
           <div style={{
             position: "absolute", inset: 0,
             background: `${accent}55`,
@@ -726,7 +767,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
           }} />
         </div>
 
-        {/* Close button */}
         <button
           onClick={onClose}
           style={{
@@ -743,7 +783,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
           ✕
         </button>
 
-        {/* Phase pill */}
         <div style={{
           position: "absolute", top: 14, right: 14,
           zIndex: 10, display: "flex", gap: 6,
@@ -765,13 +804,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
           }}>{comp.edition}</span>
         </div>
 
-        {/* Hero content pinned at bottom of banner */}
         <div style={{
           position: "absolute", bottom: 0, left: 0, right: 0,
           zIndex: 5, padding: "0 16px 16px",
           maxWidth: 800, margin: "0 auto",
         }}>
-          {/* Niche tag */}
           <div style={{
             display: "inline-block",
             fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
@@ -790,7 +827,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
         </div>
       </div>
 
-      {/* ── ORGANISER BAR ── */}
       <div style={{
         background: "#fff",
         borderBottom: "1px solid #e0e0e0",
@@ -831,8 +867,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
       </div>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 120px" }}>
-
-        {/* ── STAT TILES ── */}
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
           gap: 1, background: "#e0e0e0",
@@ -864,7 +898,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
           ))}
         </div>
 
-        {/* ── COUNTDOWN BAR ── */}
         <div style={{
           background: comp.hot ? "#fff0ed" : "#f7f7f5",
           borderBottom: `2px solid ${comp.hot ? "#e74c3c" : "#ddd"}`,
@@ -886,7 +919,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
           </span>
         </div>
 
-        {/* ── TOP 5 LEADERBOARD ── */}
         <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "16px 16px 4px" }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -922,7 +954,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
                 padding: "10px 0",
                 borderBottom: rank < 4 ? "1px solid #f0f0f0" : "none",
               }}>
-                {/* Rank */}
                 <div style={{
                   width: 24, flexShrink: 0, textAlign: "center",
                   fontFamily: "'Space Grotesk', sans-serif",
@@ -932,7 +963,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
                 }}>
                   {rank < 3 ? medals[rank] : rank + 1}
                 </div>
-                {/* Avatar */}
                 <div style={{
                   width: 32, height: 32, borderRadius: "50%",
                   flexShrink: 0, overflow: "hidden",
@@ -940,7 +970,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
                 }}>
                   <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 </div>
-                {/* Name + bar */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -955,7 +984,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
                       color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 8,
                     }}>{fmtVotes(p.votes)}</span>
                   </div>
-                  {/* Progress bar */}
                   <div style={{ height: 4, background: "#f0f0f0", width: "100%" }}>
                     <div style={{
                       height: "100%", width: `${pct}%`,
@@ -970,7 +998,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
           <div style={{ height: 12 }} />
         </div>
 
-        {/* ── PARTICIPANTS STRIP ── */}
         <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0 14px 16px" }}>
           <div style={{
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
@@ -1009,7 +1036,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
           </div>
         </div>
 
-        {/* ── LIVE ACTIVITY ── */}
         <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
@@ -1052,10 +1078,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
             ))}
           </div>
         </div>
-
       </div>
 
-      {/* ── GIFT TRAY (slides up) ── */}
       {showGiftBar && (
         <div style={{
           position: "fixed", bottom: 64, left: 0, right: 0,
@@ -1114,7 +1138,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
         </div>
       )}
 
-      {/* ── STICKY FOOTER CTA ── */}
       <div style={{
         position: "fixed", bottom: 0, left: 0, right: 0,
         background: "#fff",
@@ -1126,7 +1149,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
           maxWidth: 800, margin: "0 auto",
           display: "flex", gap: 8,
         }}>
-          {/* Vote count badge */}
           <div style={{
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             padding: "0 14px",
@@ -1141,7 +1163,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
             </span>
           </div>
 
-          {/* Main CTA */}
           <button
             onClick={() => setShowGiftBar((v) => !v)}
             style={{
@@ -1164,7 +1185,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
             {voted ? "Autre cadeau" : "Voter · Cadeau"}
           </button>
 
-          {/* Share button */}
           <button style={{
             width: 46, flexShrink: 0,
             border: "1px solid #e0e0e0", background: "#fff",
@@ -1186,35 +1206,35 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
   );
 }
 
-/* ─── NICHE ROW ─────────────────────────────────────────────────────────── */
-
-function NicheRow({ niche, onOpen }) {
-  const railRef = useRef(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-
-  function checkScroll() {
-    const el = railRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  }
-
-  function scroll(dir) {
-    railRef.current?.scrollBy({ left: dir * 260, behavior: "smooth" });
-  }
+function NicheRow({ niche, onOpen }: { niche: Niche; onOpen: (comp: Competition) => void }) {
+  const railRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const el = railRef.current;
     if (!el) return;
+    const checkScroll = () => {
+      // Just checking - no need to store scroll state
+      if (el) {
+        // Scroll check is done but we don't need to store it
+        const canScrollRight = el.scrollLeft < el.scrollWidth - el.clientWidth - 4;
+        const canScrollLeft = el.scrollLeft > 4;
+        // These values are available if needed
+        console.log({ canScrollLeft, canScrollRight });
+      }
+    };
     el.addEventListener("scroll", checkScroll, { passive: true });
     checkScroll();
     return () => el.removeEventListener("scroll", checkScroll);
   }, []);
 
+  function scroll(dir: number) {
+    if (railRef.current) {
+      railRef.current.scrollBy({ left: dir * 260, behavior: "smooth" });
+    }
+  }
+
   return (
     <section style={{ marginBottom: 0, borderBottom: "2px solid #e0e0e0", paddingBottom: 16 }}>
-      {/* Row header */}
       <div
         style={{
           display: "flex",
@@ -1238,35 +1258,40 @@ function NicheRow({ niche, onOpen }) {
           {niche.label}
         </span>
 
-        <button
-          style={{
-            marginLeft: "auto",
-            border: "none",
-            background: "none",
-            color: "#333",
-            fontFamily: "Inter, sans-serif",
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-            padding: 0,
-            transition: "color 0.1s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#888"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#333"; }}
-        >
-          Voir tout
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
-            <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" strokeLinejoin="miter"/>
-          </svg>
-        </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <button
+            onClick={() => scroll(-1)}
+            style={{
+              border: "1px solid #ddd",
+              background: "#fff",
+              width: 28,
+              height: 28,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            ←
+          </button>
+          <button
+            onClick={() => scroll(1)}
+            style={{
+              border: "1px solid #ddd",
+              background: "#fff",
+              width: 28,
+              height: 28,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            →
+          </button>
+        </div>
       </div>
 
-      {/* Horizontal scroll rail */}
       <div
         ref={railRef}
         style={{
@@ -1284,16 +1309,13 @@ function NicheRow({ niche, onOpen }) {
         {niche.competitions.map((comp) => (
           <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} />
         ))}
-
       </div>
     </section>
   );
 }
 
-/* ─── WALLET PAGE ───────────────────────────────────────────────────────── */
-
-function BuyCreditsModal({ onClose, onBuy }) {
-  const [selected, setSelected] = useState("p2");
+function BuyCreditsModal({ onClose, onBuy }: { onClose: () => void; onBuy: (pack: CreditPack) => void }) {
+  const [selected, setSelected] = useState<string>("p2");
 
   return (
     <div
@@ -1396,7 +1418,7 @@ function BuyCreditsModal({ onClose, onBuy }) {
         <button
           onClick={() => {
             const pack = CREDIT_PACKS.find((p) => p.id === selected);
-            onBuy(pack);
+            if (pack) onBuy(pack);
           }}
           style={{
             width: "100%",
@@ -1424,8 +1446,8 @@ function BuyCreditsModal({ onClose, onBuy }) {
   );
 }
 
-function GiftModal({ balance, onClose, onSend }) {
-  const [selected, setSelected] = useState(null);
+function GiftModal({ balance, onClose, onSend }: { balance: number; onClose: () => void; onSend: (gift: Gift) => void }) {
+  const [selected, setSelected] = useState<string | null>(null);
 
   return (
     <div
@@ -1499,7 +1521,7 @@ function GiftModal({ balance, onClose, onSend }) {
           disabled={!selected}
           onClick={() => {
             const gift = GIFT_CATALOG.find((g) => g.id === selected);
-            onSend(gift);
+            if (gift) onSend(gift);
           }}
           style={{
             width: "100%",
@@ -1527,7 +1549,7 @@ function GiftModal({ balance, onClose, onSend }) {
   );
 }
 
-function TransactionRow({ tx }) {
+function TransactionRow({ tx }: { tx: Transaction }) {
   const isCredit = tx.amount > 0;
   return (
     <div
@@ -1576,10 +1598,14 @@ function TransactionRow({ tx }) {
   );
 }
 
-function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast }) {
+function WalletPage({ balance, transactions, onOpenBuy, onOpenGift }: { 
+  balance: number; 
+  transactions: Transaction[]; 
+  onOpenBuy: () => void; 
+  onOpenGift: () => void;
+}) {
   return (
     <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
-      {/* Header */}
       <header
         style={{
           borderBottom: "1px solid #e0e0e0",
@@ -1596,7 +1622,6 @@ function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast })
       </header>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-        {/* Balance card */}
         <div
           style={{
             border: "2px solid #111",
@@ -1680,7 +1705,6 @@ function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast })
           </div>
         </div>
 
-        {/* Info note */}
         <div
           style={{
             border: "1px solid #e0e0e0",
@@ -1696,7 +1720,6 @@ function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast })
           Les crédits sont utilisés pour envoyer des cadeaux aux participants. Ils n'ont aucune valeur monétaire et ne peuvent pas être convertis en argent réel.
         </div>
 
-        {/* Transaction history */}
         <div
           style={{
             fontFamily: "Inter, sans-serif",
@@ -1726,25 +1749,21 @@ function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast })
   );
 }
 
-
-
-const BANNER_SLIDES = NICHES.flatMap((niche) =>
-  niche.competitions
-    .filter((c) => c.hot)
-    .map((c) => ({ ...c, niche, color: niche.accent }))
-).slice(0, 6);
+// ============================================
+// MAIN APP COMPONENT
+// ============================================
 
 export default function App() {
-  const [activeFilter, setActiveFilter] = useState("Tous");
-  const [toast, setToast] = useState(null);
-  const [query, setQuery] = useState("");
-  const [bannerIndex, setBannerIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState("home");
-  const [selectedComp, setSelectedComp] = useState(null);
-  const [balance, setBalance] = useState(425);
-  const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
-  const [showBuyModal, setShowBuyModal] = useState(false);
-  const [showGiftModal, setShowGiftModal] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<string>("Tous");
+  const [toast, setToast] = useState<string | null>(null);
+  const [query, setQuery] = useState<string>("");
+  const [bannerIndex, setBannerIndex] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<string>("home");
+  const [selectedComp, setSelectedComp] = useState<Competition | null>(null);
+  const [balance, setBalance] = useState<number>(425);
+  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [showBuyModal, setShowBuyModal] = useState<boolean>(false);
+  const [showGiftModal, setShowGiftModal] = useState<boolean>(false);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -1753,10 +1772,9 @@ export default function App() {
     return () => clearInterval(t);
   }, []);
 
-  const nichesByFilter =
-    activeFilter === "Tous"
-      ? NICHES
-      : NICHES.filter((n) => n.label === activeFilter);
+  const nichesByFilter = activeFilter === "Tous"
+    ? NICHES
+    : NICHES.filter((n) => n.label === activeFilter);
 
   const visibleNiches = query.trim() === ""
     ? nichesByFilter
@@ -1770,12 +1788,12 @@ export default function App() {
         }))
         .filter((niche) => niche.competitions.length > 0);
 
-  function showToast(msg) {
+  function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   }
 
-  function handleBuyCredits(pack) {
+  function handleBuyCredits(pack: CreditPack) {
     setBalance((b) => b + pack.credits);
     setTransactions((tx) => [
       { id: `t-${Date.now()}`, type: "purchase", label: `Achat — Pack ${pack.credits.toLocaleString("fr-FR")} crédits`, amount: pack.credits, date: "À l'instant" },
@@ -1785,7 +1803,7 @@ export default function App() {
     showToast(`${pack.credits.toLocaleString("fr-FR")} crédits ajoutés`);
   }
 
-  function handleSendGift(gift, comp) {
+  function handleSendGift(gift: Gift, comp: Competition) {
     if (balance < gift.cost) {
       showToast("Crédits insuffisants");
       return;
@@ -1813,7 +1831,6 @@ export default function App() {
         }
       `}</style>
 
-      {/* Toast */}
       {toast && (
         <div
           style={{
@@ -1843,185 +1860,174 @@ export default function App() {
           transactions={transactions}
           onOpenBuy={() => setShowBuyModal(true)}
           onOpenGift={() => setShowGiftModal(true)}
-          showToast={showToast}
         />
       ) : (
-      <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 64 }}>
-
-        {/* ── HEADER ── */}
-        <header
-          style={{
-            borderBottom: "1px solid #e0e0e0",
-            background: "#fff",
-            position: "sticky",
-            top: 0,
-            zIndex: 50,
-          }}
-        >
-          {/* Search bar */}
-          <div style={{ padding: "8px" }}>
-            <div style={{ width: "100%", display: "flex", alignItems: "center", border: "1px solid #ccc", background: "#f9f9f9", height: 32 }}>
-              <input
-                type="text"
-                placeholder="Rechercher une compétition..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                style={{
-                  flex: 1,
-                  border: "none",
-                  outline: "none",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "#333",
-                  background: "transparent",
-                  padding: "0 8px 0 10px",
-                  height: "100%",
-                }}
-              />
-              {query && (
-                <button
-                  onClick={() => setQuery("")}
-                  style={{ border: "none", background: "none", cursor: "pointer", padding: "0 10px", fontSize: 14, color: "#aaa", lineHeight: 1, flexShrink: 0 }}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Chips row — edge to edge */}
-          <div style={{ display: "flex", gap: 8, padding: "0 8px 8px", overflowX: "auto", scrollbarWidth: "none" }}>
-            {ALL_NICHES.map((label) => {
-              const active = activeFilter === label;
-              const niche = NICHES.find((n) => n.label === label);
-              return (
-                <button
-                  key={label}
-                  onClick={() => setActiveFilter(label)}
-                  style={{
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: active ? "#fff" : "#666",
-                    background: active ? "#444" : "#f0f0f0",
-                    border: "1px solid #ccc",
-                    padding: "4px 14px",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    transition: "background 0.12s, color 0.12s",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    flexShrink: 0,
-                  }}
-                >
-                  {(() => { const Icon = NICHE_ICONS[label]; return Icon ? <Icon size={12} strokeWidth={2.5} style={{ flexShrink: 0 }} /> : null; })()}
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </header>
-
-        {/* ── BANNER SLIDER (2:1, images only) ── */}
-        <div
-          style={{
-            position: "relative",
-            width: "100%",
-            aspectRatio: "2.2 / 1",
-            overflow: "hidden",
-            borderBottom: "2px solid #111",
-          }}
-        >
-          {BANNER_SLIDES.map((slide, i) => (
-            <div
-              key={slide.id}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                background: slide.color,
-                opacity: i === bannerIndex ? 1 : 0,
-                transition: "opacity 0.8s ease",
-              }}
-            />
-          ))}
-
-          {/* Dots */}
-          <div
+        <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 64 }}>
+          <header
             style={{
-              position: "absolute",
-              bottom: 16,
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              gap: 8,
-              zIndex: 2,
+              borderBottom: "1px solid #e0e0e0",
+              background: "#fff",
+              position: "sticky",
+              top: 0,
+              zIndex: 50,
             }}
           >
-            {BANNER_SLIDES.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setBannerIndex(i)}
+            <div style={{ padding: "8px" }}>
+              <div style={{ width: "100%", display: "flex", alignItems: "center", border: "1px solid #ccc", background: "#f9f9f9", height: 32 }}>
+                <input
+                  type="text"
+                  placeholder="Rechercher une compétition..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  style={{
+                    flex: 1,
+                    border: "none",
+                    outline: "none",
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "#333",
+                    background: "transparent",
+                    padding: "0 8px 0 10px",
+                    height: "100%",
+                  }}
+                />
+                {query && (
+                  <button
+                    onClick={() => setQuery("")}
+                    style={{ border: "none", background: "none", cursor: "pointer", padding: "0 10px", fontSize: 14, color: "#aaa", lineHeight: 1, flexShrink: 0 }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, padding: "0 8px 8px", overflowX: "auto", scrollbarWidth: "none" }}>
+              {ALL_NICHES.map((label) => {
+                const active = activeFilter === label;
+                const Icon = NICHE_ICONS[label];
+                return (
+                  <button
+                    key={label}
+                    onClick={() => setActiveFilter(label)}
+                    style={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: active ? "#fff" : "#666",
+                      background: active ? "#444" : "#f0f0f0",
+                      border: "1px solid #ccc",
+                      padding: "4px 14px",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      transition: "background 0.12s, color 0.12s",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {Icon && <Icon size={12} strokeWidth={2.5} style={{ flexShrink: 0 }} />}
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </header>
+
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+              aspectRatio: "2.2 / 1",
+              overflow: "hidden",
+              borderBottom: "2px solid #111",
+            }}
+          >
+            {BANNER_SLIDES.map((slide, i) => (
+              <div
+                key={slide.id}
                 style={{
-                  width: i === bannerIndex ? 28 : 8,
-                  height: 8,
-                  border: "1px solid rgba(255,255,255,0.6)",
-                  background: i === bannerIndex ? "#fff" : "transparent",
-                  cursor: "pointer",
-                  transition: "all 0.25s ease",
-                  padding: 0,
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  background: slide.color,
+                  opacity: i === bannerIndex ? 1 : 0,
+                  transition: "opacity 0.8s ease",
                 }}
               />
             ))}
-          </div>
-        </div>
 
-        <NewsBand />
-
-
-
-
-        {/* ── NICHE ROWS ── */}
-        <main
-          style={{
-            maxWidth: 1400,
-            margin: "0 auto",
-            paddingTop: 36,
-            paddingBottom: 60,
-            display: "flex",
-            flexDirection: "column",
-            gap: 20,
-          }}
-        >
-          {visibleNiches.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 8px", borderTop: "1px solid #ddd", background: "#fff" }}>
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#333", letterSpacing: "-0.02em" }}>Aucun résultat</div>
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", marginTop: 8 }}>Aucune compétition ne correspond à « {query} »</div>
-              <button onClick={() => setQuery("")} style={{ marginTop: 20, border: "1px solid #ddd", background: "#444", color: "#fff", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
+            <div
+              style={{
+                position: "absolute",
+                bottom: 16,
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "flex",
+                gap: 8,
+                zIndex: 2,
+              }}
+            >
+              {BANNER_SLIDES.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setBannerIndex(i)}
+                  style={{
+                    width: i === bannerIndex ? 28 : 8,
+                    height: 8,
+                    border: "1px solid rgba(255,255,255,0.6)",
+                    background: i === bannerIndex ? "#fff" : "transparent",
+                    cursor: "pointer",
+                    transition: "all 0.25s ease",
+                    padding: 0,
+                  }}
+                />
+              ))}
             </div>
-          ) : visibleNiches.map((niche) => (
-            <NicheRow
-              key={niche.id}
-              niche={niche}
-              onOpen={(comp) => setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label })}
-            />
-          ))}
-        </main>
+          </div>
 
+          <NewsBand />
 
-      </div>
+          <main
+            style={{
+              maxWidth: 1400,
+              margin: "0 auto",
+              paddingTop: 36,
+              paddingBottom: 60,
+              display: "flex",
+              flexDirection: "column",
+              gap: 20,
+            }}
+          >
+            {visibleNiches.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 8px", borderTop: "1px solid #ddd", background: "#fff" }}>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#333", letterSpacing: "-0.02em" }}>Aucun résultat</div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", marginTop: 8 }}>Aucune compétition ne correspond à « {query} »</div>
+                <button onClick={() => setQuery("")} style={{ marginTop: 20, border: "1px solid #ddd", background: "#444", color: "#fff", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
+              </div>
+            ) : (
+              visibleNiches.map((niche) => (
+                <NicheRow
+                  key={niche.id}
+                  niche={niche}
+                  onOpen={(comp) => setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label })}
+                />
+              ))
+            )}
+          </main>
+        </div>
       )}
 
       {showBuyModal && (
         <BuyCreditsModal onClose={() => setShowBuyModal(false)} onBuy={handleBuyCredits} />
       )}
       {showGiftModal && (
-        <GiftModal balance={balance} onClose={() => setShowGiftModal(false)} onSend={handleSendGift} />
+        <GiftModal balance={balance} onClose={() => setShowGiftModal(false)} onSend={(gift) => handleSendGift(gift, {} as Competition)} />
       )}
 
       <BottomTabBar active={activeTab} onChange={setActiveTab} />
