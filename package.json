@@ -1,16 +1,17 @@
 {
-  "name": "competition-voting-app",
+  "name": "konkouht",
   "version": "1.0.0",
   "type": "module",
+  "description": "Competition voting platform with gift system",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "lucide-react": "^0.263.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "lucide-react": "^0.263.1"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
