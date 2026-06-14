@@ -315,29 +315,23 @@ function CompCard({ comp, accent, onOpen }) {
       }}
     >
       {/* Banner */}
-      <div style={{ height: 110, position: "relative", flexShrink: 0, overflow: "hidden" }}>
-        <img
-          src={heroBannerImg(comp.id)}
-          alt={comp.title}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        />
-        <div style={{
-          position: "absolute", inset: 0,
-          background: `${accent}66`,
-          mixBlendMode: "multiply",
-        }} />
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 100%)",
-        }} />
+      <div style={{ height: 90, background: accent, position: "relative", flexShrink: 0 }}>
         {comp.hot && (
-          <div style={{
-            position: "absolute", top: 10, left: 10,
-            fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
-            textTransform: "uppercase", color: "#fff",
-            background: "rgba(0,0,0,0.45)", padding: "2px 7px",
-            fontFamily: "Inter, sans-serif",
-          }}>
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "#fff",
+              background: "rgba(0,0,0,0.45)",
+              padding: "2px 7px",
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
             EN VUE
           </div>
         )}
@@ -477,14 +471,6 @@ function CompCard({ comp, accent, onOpen }) {
   );
 }
 
-/* ─── IMAGE HELPERS ─────────────────────────────────────────────────────── */
-
-const picsumImg = (seed, w = 300, h = 300) =>
-  `https://picsum.photos/seed/${seed}/${w}/${h}`;
-
-const avatarImg = (index) => picsumImg(`person${index}`, 80, 80);
-const heroBannerImg = (compId) => picsumImg(`hero_${compId}`, 800, 340);
-
 /* ─── PARTICIPANT CARD ──────────────────────────────────────────────────── */
 
 const TEXT_SNIPPETS = [
@@ -496,67 +482,31 @@ const TEXT_SNIPPETS = [
 
 function ParticipantCard({ index, mediaType, accent }) {
   const name = `Participant ${index + 1}`;
-  const imgSeed = `part_${index}`;
+  const hueShift = (index * 37) % 360;
 
   return (
     <div style={{ border: "1px solid #e0e0e0", background: "#fff", display: "flex", flexDirection: "column" }}>
       {mediaType === "photo" && (
-        <div style={{ aspectRatio: "1 / 1", overflow: "hidden", position: "relative" }}>
-          <img
-            src={picsumImg(imgSeed, 240, 240)}
-            alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          />
-        </div>
+        <div style={{ aspectRatio: "1 / 1", background: `hsl(${hueShift}, 55%, 65%)` }} />
       )}
       {mediaType === "video" && (
-        <div style={{ aspectRatio: "1 / 1", overflow: "hidden", position: "relative" }}>
-          <img
-            src={picsumImg(`vid_${index}`, 240, 240)}
-            alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.6)" }}
-          />
-          <div style={{
-            position: "absolute", inset: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.4)" }}>
-              <Play size={14} color="#fff" fill="#fff" />
-            </div>
+        <div style={{ aspectRatio: "1 / 1", background: "#222", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Play size={16} color="#fff" fill="#fff" />
           </div>
         </div>
       )}
       {mediaType === "text" && (
-        <div style={{ aspectRatio: "1 / 1", overflow: "hidden", position: "relative" }}>
-          <img
-            src={picsumImg(`txt_${index}`, 240, 240)}
-            alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.4)" }}
-          />
-          <div style={{
-            position: "absolute", inset: 0, padding: 10,
-            display: "flex", alignItems: "center",
-          }}>
-            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "rgba(255,255,255,0.85)", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", margin: 0 }}>
-              {TEXT_SNIPPETS[index % TEXT_SNIPPETS.length]}
-            </p>
-          </div>
+        <div style={{ aspectRatio: "1 / 1", background: "#f7f7f5", padding: 10, display: "flex", alignItems: "center" }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#888", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical" }}>
+            {TEXT_SNIPPETS[index % TEXT_SNIPPETS.length]}
+          </p>
         </div>
       )}
       {mediaType === "pdf" && (
-        <div style={{ aspectRatio: "1 / 1", overflow: "hidden", position: "relative" }}>
-          <img
-            src={picsumImg(`doc_${index}`, 240, 240)}
-            alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.3) saturate(0.4)" }}
-          />
-          <div style={{
-            position: "absolute", inset: 0,
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
-          }}>
-            <File size={28} color="#fff" strokeWidth={1.5} />
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>Dossier.pdf</span>
-          </div>
+        <div style={{ aspectRatio: "1 / 1", background: "#f7f7f5", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <File size={32} color={accent} strokeWidth={1.5} />
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa", fontWeight: 600 }}>Dossier.pdf</span>
         </div>
       )}
       <div style={{ padding: "8px 10px" }}>
@@ -643,13 +593,15 @@ function ParticipantListOverlay({ comp, onClose }) {
               {rank + 1}
             </span>
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{
-                  width: 28, height: 28, borderRadius: "50%",
-                  flexShrink: 0, overflow: "hidden",
-                  border: "1px solid #e0e0e0",
-                }}>
-                <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              </div>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: `hsl(${(p.index * 37) % 360}, 55%, 65%)`,
+                  flexShrink: 0,
+                }}
+              />
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 600 }}>{p.name}</span>
             </div>
             <span style={{ width: 90, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#333" }}>
@@ -672,440 +624,325 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [showGiftBar, setShowGiftBar] = useState(false);
-  const [activeGift, setActiveGift] = useState(null);
-  const [liveLog, setLiveLog] = useState(() =>
-    Array.from({ length: 5 }, (_, i) => ({
-      id: i,
-      pIndex: (i * 7 + 3) % comp.contestants,
-      ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
-    }))
-  );
   const accent = comp.accent;
-  const ranked = buildParticipants(comp).slice(0, 5);
-  const topVotes = ranked[0]?.votes || 1;
 
-  // Pulse a new live entry every 4s
-  useEffect(() => {
-    const t = setInterval(() => {
-      setLiveLog((prev) => {
-        const pIndex = Math.floor(Math.random() * comp.contestants);
-        const entry = { id: Date.now(), pIndex, ago: "À l'instant" };
-        return [entry, ...prev.slice(0, 4)].map((e, i) => ({
-          ...e,
-          ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
-        }));
-      });
-    }, 4000);
-    return () => clearInterval(t);
-  }, [comp.contestants]);
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#F2F2F0", overflowY: "auto" }}>
-
-      {/* ── HERO ── */}
-      <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0 }}>
-        {/* Gradient overlay at bottom for readability */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: `linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 100%)`,
-          zIndex: 1,
-        }} />
-
-        {/* Hero image */}
-        <div style={{ height: 220, position: "relative", overflow: "hidden" }}>
-          <img
-            src={heroBannerImg(comp.id)}
-            alt={comp.title}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          />
-          {/* Accent colour tint overlay so brand colour bleeds through */}
-          <div style={{
-            position: "absolute", inset: 0,
-            background: `${accent}55`,
-            mixBlendMode: "multiply",
-          }} />
-        </div>
-
-        {/* Close button */}
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "#F2F2F0",
+        overflowY: "auto",
+      }}
+    >
+      {/* Banner */}
+      <div style={{ position: "relative", width: "100%", aspectRatio: "2.2 / 1", background: accent }}>
         <button
           onClick={onClose}
           style={{
-            position: "absolute", top: 14, left: 14,
-            width: 36, height: 36,
-            border: "1px solid rgba(255,255,255,0.4)",
-            background: "rgba(0,0,0,0.35)",
-            color: "#fff", fontSize: 18,
-            cursor: "pointer", zIndex: 10,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            backdropFilter: "blur(4px)",
+            position: "absolute",
+            top: 14,
+            left: 14,
+            width: 36,
+            height: 36,
+            border: "1px solid rgba(255,255,255,0.5)",
+            background: "rgba(0,0,0,0.3)",
+            color: "#fff",
+            fontSize: 18,
+            cursor: "pointer",
+            zIndex: 2,
           }}
         >
           ✕
         </button>
-
-        {/* Phase pill */}
-        <div style={{
-          position: "absolute", top: 14, right: 14,
-          zIndex: 10, display: "flex", gap: 6,
-        }}>
-          {comp.hot && (
-            <span style={{
-              fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              color: "#fff", background: "rgba(0,0,0,0.45)",
+        {comp.hot && (
+          <div
+            style={{
+              position: "absolute",
+              top: 14,
+              right: 14,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "#fff",
+              background: "rgba(0,0,0,0.45)",
               padding: "4px 9px",
-            }}>EN VUE</span>
-          )}
-          <span style={{
-            fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-            letterSpacing: "0.1em", textTransform: "uppercase",
-            color: "#fff", background: accent,
-            padding: "4px 9px",
-            border: "1px solid rgba(255,255,255,0.3)",
-          }}>{comp.edition}</span>
-        </div>
-
-        {/* Hero content pinned at bottom of banner */}
-        <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0,
-          zIndex: 5, padding: "0 16px 16px",
-          maxWidth: 800, margin: "0 auto",
-        }}>
-          {/* Niche tag */}
-          <div style={{
-            display: "inline-block",
-            fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-            letterSpacing: "0.14em", textTransform: "uppercase",
-            color: "rgba(255,255,255,0.7)", marginBottom: 6,
-          }}>{comp.niche}</div>
-          <div style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: "clamp(22px, 5vw, 34px)",
-            fontWeight: 800,
-            color: "#fff",
-            letterSpacing: "-0.02em",
-            lineHeight: 1.05,
-            textShadow: "0 1px 8px rgba(0,0,0,0.4)",
-          }}>{comp.title}</div>
-        </div>
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            EN VUE
+          </div>
+        )}
       </div>
 
-      {/* ── ORGANISER BAR ── */}
-      <div style={{
-        background: "#fff",
-        borderBottom: "1px solid #e0e0e0",
-        padding: "12px 16px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        maxWidth: 800, margin: "0 auto",
-        boxSizing: "border-box", width: "100%",
-        position: "relative", left: "50%", transform: "translateX(-50%)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: "50%",
-            background: accent, color: "#fff",
-            fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
-          }}>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "20px 16px 100px" }}>
+        {/* Title */}
+        <div
+          style={{
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontSize: "clamp(24px, 5vw, 38px)",
+            fontWeight: 700,
+            color: "#333",
+            letterSpacing: "-0.02em",
+            lineHeight: 1.1,
+            marginBottom: 14,
+            paddingBottom: 16,
+            borderBottom: "1px solid #e0e0e0",
+          }}
+        >
+          {comp.title}
+        </div>
+
+        {/* Organisateur */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #e0e0e0" }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              background: accent,
+              color: "#fff",
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: 15,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
             {comp.organisateur.charAt(0)}
           </div>
           <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#111", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
               {comp.organisateur}
-              <BadgeCheck size={13} strokeWidth={2.5} color={accent} />
+              <BadgeCheck size={14} strokeWidth={2.5} color={accent} />
             </span>
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 500 }}>
-              {fmtVotes(comp.followers)} abonnés
+              {fmtVotes(comp.followers)} abonnés · {comp.niche}
             </span>
           </div>
         </div>
-        <button style={{
-          border: `1px solid ${accent}`,
-          background: "transparent",
-          color: accent,
-          fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-          letterSpacing: "0.08em", textTransform: "uppercase",
-          padding: "6px 14px", cursor: "pointer",
-        }}>Suivre</button>
-      </div>
 
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 120px" }}>
+        {/* Stats grid */}
+        <div style={{ display: "flex", gap: 0, marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #e0e0e0" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 700, color: "#333", lineHeight: 1 }}>
+              {comp.contestants}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4 }}>
+              candidats
+            </div>
+          </div>
+          <div style={{ flex: 1, borderLeft: "1px solid #e8e8e8", paddingLeft: 16 }}>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 700, color: "#333", lineHeight: 1 }}>
+              {fmtVotes(voteCount)}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4 }}>
+              votes
+            </div>
+          </div>
+          <div style={{ flex: 1, borderLeft: "1px solid #e8e8e8", paddingLeft: 16 }}>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 700, color: comp.hot ? "#c0392b" : "#333", lineHeight: 1 }}>
+              {comp.ends}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4 }}>
+              fin dans
+            </div>
+          </div>
+        </div>
 
-        {/* ── STAT TILES ── */}
-        <div style={{
-          display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 1, background: "#e0e0e0",
-          borderBottom: "1px solid #e0e0e0",
-          marginBottom: 0,
-        }}>
-          {[
-            { value: comp.contestants, label: "Candidats" },
-            { value: fmtVotes(voteCount), label: "Votes", accent: true },
-            { value: comp.ends, label: "Fin dans", hot: comp.hot },
-          ].map((s, i) => (
-            <div key={i} style={{
-              background: "#fff",
-              padding: "16px 12px",
-              display: "flex", flexDirection: "column", alignItems: "center",
-            }}>
-              <div style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: 26, fontWeight: 800,
-                color: s.hot ? "#c0392b" : s.accent ? accent : "#111",
-                lineHeight: 1,
-              }}>{s.value}</div>
-              <div style={{
-                fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa",
-                textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 4,
-                fontWeight: 600,
-              }}>{s.label}</div>
+        {/* Phase */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #e0e0e0" }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Phase
+          </span>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: accent }}>
+            {comp.edition}
+          </span>
+        </div>
+
+        {/* Participants */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 12,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: 11,
+              color: "#888",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            Participants ({comp.contestants})
+          </span>
+          <button
+            onClick={() => setShowAll(true)}
+            style={{
+              border: "none",
+              background: "none",
+              color: "#333",
+              fontFamily: "Inter, sans-serif",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: 0,
+            }}
+          >
+            Voir tout
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+              <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" strokeLinejoin="miter"/>
+            </svg>
+          </button>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            overflowX: "auto",
+            paddingBottom: 4,
+            marginBottom: 20,
+            scrollbarWidth: "none",
+          }}
+        >
+          <style>{`div::-webkit-scrollbar{display:none}`}</style>
+          {Array.from({ length: comp.contestants }, (_, i) => (
+            <div key={i} style={{ flexShrink: 0, width: 140 }}>
+              <ParticipantCard index={i} mediaType={comp.mediaType} accent={accent} />
             </div>
           ))}
         </div>
 
-        {/* ── COUNTDOWN BAR ── */}
-        <div style={{
-          background: comp.hot ? "#fff0ed" : "#f7f7f5",
-          borderBottom: `2px solid ${comp.hot ? "#e74c3c" : "#ddd"}`,
-          padding: "10px 16px",
-          display: "flex", alignItems: "center", gap: 10,
-        }}>
-          <span style={{
-            width: 8, height: 8, borderRadius: "50%",
-            background: comp.hot ? "#e74c3c" : "#bbb",
-            display: "inline-block", flexShrink: 0,
-            animation: comp.hot ? "pulse-dot 1.2s infinite" : "none",
-          }} />
-          <style>{`@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
-          <span style={{
-            fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-            color: comp.hot ? "#c0392b" : "#888",
-          }}>
-            {comp.hot ? `Compétition très active — se termine dans ${comp.ends}` : `Se termine dans ${comp.ends}`}
-          </span>
+        {/* Live votes */}
+        <div
+          style={{
+            fontFamily: "Inter, sans-serif",
+            fontSize: 11,
+            color: "#888",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginBottom: 12,
+            paddingTop: 16,
+            borderTop: "1px solid #e0e0e0",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#e74c3c", display: "inline-block" }} />
+          Votes en direct
         </div>
-
-        {/* ── TOP 5 LEADERBOARD ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "16px 16px 4px" }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 14,
-          }}>
-            <span style={{
-              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-            }}>Classement · Top 5</span>
-            <button
-              onClick={() => setShowAll(true)}
-              style={{
-                border: "none", background: "none", color: accent,
-                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                letterSpacing: "0.08em", textTransform: "uppercase",
-                cursor: "pointer", padding: 0,
-                display: "flex", alignItems: "center", gap: 4,
-              }}
-            >
-              Voir tout ({comp.contestants})
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
-              </svg>
-            </button>
-          </div>
-
-          {ranked.map((p, rank) => {
-            const pct = Math.round((p.votes / topVotes) * 100);
-            const medals = ["🥇", "🥈", "🥉"];
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {Array.from({ length: 6 }, (_, i) => {
+            const pIndex = (i * 3 + 1) % comp.contestants;
             return (
-              <div key={p.index} style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "10px 0",
-                borderBottom: rank < 4 ? "1px solid #f0f0f0" : "none",
-              }}>
-                {/* Rank */}
-                <div style={{
-                  width: 24, flexShrink: 0, textAlign: "center",
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontSize: rank < 3 ? 18 : 13,
-                  fontWeight: 700,
-                  color: rank < 3 ? accent : "#ccc",
-                }}>
-                  {rank < 3 ? medals[rank] : rank + 1}
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "9px 0",
+                  borderBottom: i < 5 ? "1px solid #eee" : "none",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      background: `hsl(${(pIndex * 37) % 360}, 55%, 65%)`,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 600 }}>
+                    Quelqu'un a voté pour <span style={{ color: accent, fontWeight: 700 }}>Participant {pIndex + 1}</span>
+                  </span>
                 </div>
-                {/* Avatar */}
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  flexShrink: 0, overflow: "hidden",
-                  border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                }}>
-                  <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                </div>
-                {/* Name + bar */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    marginBottom: 4,
-                  }}>
-                    <span style={{
-                      fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                      color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    }}>{p.name}</span>
-                    <span style={{
-                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                      color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 8,
-                    }}>{fmtVotes(p.votes)}</span>
-                  </div>
-                  {/* Progress bar */}
-                  <div style={{ height: 4, background: "#f0f0f0", width: "100%" }}>
-                    <div style={{
-                      height: "100%", width: `${pct}%`,
-                      background: rank === 0 ? accent : "#ddd",
-                      transition: "width 0.4s ease",
-                    }} />
-                  </div>
-                </div>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 500, flexShrink: 0, marginLeft: 10 }}>
+                  il y a {i === 0 ? "quelques secondes" : `${i * 2} min`}
+                </span>
               </div>
             );
           })}
-          <div style={{ height: 12 }} />
-        </div>
-
-        {/* ── PARTICIPANTS STRIP ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0 14px 16px" }}>
-          <div style={{
-            fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-            color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-            marginBottom: 12, paddingRight: 16,
-          }}>
-            Participants ({comp.contestants})
-          </div>
-          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4, paddingRight: 16, scrollbarWidth: "none" }}>
-            <style>{`div::-webkit-scrollbar{display:none}`}</style>
-            {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => (
-              <div key={i} style={{ flexShrink: 0, width: 120 }}>
-                <ParticipantCard index={i} mediaType={comp.mediaType} accent={accent} />
-              </div>
-            ))}
-            {comp.contestants > 12 && (
-              <div
-                onClick={() => setShowAll(true)}
-                style={{
-                  flexShrink: 0, width: 120,
-                  border: "1px dashed #ddd", background: "#fafafa",
-                  display: "flex", flexDirection: "column",
-                  alignItems: "center", justifyContent: "center",
-                  gap: 6, cursor: "pointer",
-                  aspectRatio: "1/1",
-                }}
-              >
-                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#bbb" }}>
-                  +{comp.contestants - 12}
-                </span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                  Voir tout
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── LIVE ACTIVITY ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
-            fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-            color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-          }}>
-            <span style={{
-              width: 7, height: 7, borderRadius: "50%", background: "#e74c3c",
-              display: "inline-block", animation: "pulse-dot 1s infinite",
-            }} />
-            Activité en direct
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {liveLog.map((entry, i) => (
-              <div key={entry.id} style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "8px 0",
-                borderBottom: i < liveLog.length - 1 ? "1px solid #f5f5f5" : "none",
-                opacity: i === 0 ? 1 : 0.55 + (0.45 * (1 - i / liveLog.length)),
-                transition: "opacity 0.5s",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{
-                    width: 26, height: 26, borderRadius: "50%",
-                    flexShrink: 0, overflow: "hidden",
-                    border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                  }}>
-                    <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                  </div>
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 500 }}>
-                    Vote pour{" "}
-                    <span style={{ color: accent, fontWeight: 700 }}>Participant {entry.pIndex + 1}</span>
-                  </span>
-                </div>
-                <span style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb",
-                  fontWeight: 500, flexShrink: 0, marginLeft: 10,
-                }}>{entry.ago}</span>
-              </div>
-            ))}
-          </div>
         </div>
 
       </div>
 
-      {/* ── GIFT TRAY (slides up) ── */}
+      {/* Gift bar — slides up above footer */}
       {showGiftBar && (
-        <div style={{
-          position: "fixed", bottom: 64, left: 0, right: 0,
-          background: "#fff",
-          borderTop: `2px solid ${accent}`,
-          zIndex: 1001, padding: "14px 16px 8px",
-          boxShadow: "0 -4px 24px rgba(0,0,0,0.1)",
-        }}>
+        <div
+          style={{
+            position: "fixed",
+            bottom: 64,
+            left: 0,
+            right: 0,
+            background: "#fff",
+            borderTop: "1px solid #e0e0e0",
+            zIndex: 1001,
+            padding: "12px 12px 4px",
+          }}
+        >
           <div style={{ maxWidth: 800, margin: "0 auto" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                 Envoyer un cadeau
               </span>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>
-                💳 {balance.toLocaleString("fr-FR")} crédits
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#333" }}>
+                {balance.toLocaleString("fr-FR")} crédits
               </span>
             </div>
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 12, scrollbarWidth: "none" }}>
+              <style>{`div::-webkit-scrollbar{display:none}`}</style>
               {GIFT_CATALOG.map((gift) => {
                 const affordable = balance >= gift.cost;
-                const isSelected = activeGift === gift.id;
                 return (
                   <button
                     key={gift.id}
                     onClick={() => {
-                      if (!affordable) { onOpenBuy(); return; }
-                      setActiveGift(gift.id);
-                      setTimeout(() => {
-                        onSendGift(gift, comp);
-                        setVoteCount((v) => v + 1);
-                        setVoted(true);
-                        setShowGiftBar(false);
-                        setActiveGift(null);
-                      }, 300);
+                      if (!affordable) {
+                        onOpenBuy();
+                        return;
+                      }
+                      onSendGift(gift, comp);
+                      setVoteCount((v) => v + 1);
+                      setVoted(true);
+                      setShowGiftBar(false);
                     }}
                     style={{
-                      flexShrink: 0, width: 72,
-                      display: "flex", flexDirection: "column",
-                      alignItems: "center", gap: 4,
-                      border: `1px solid ${isSelected ? accent : "#ddd"}`,
-                      background: isSelected ? `${accent}15` : affordable ? "#fff" : "#f7f7f5",
+                      flexShrink: 0,
+                      width: 76,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 4,
+                      border: "1px solid #ddd",
+                      background: affordable ? "#fff" : "#f7f7f5",
                       padding: "10px 4px",
-                      cursor: affordable ? "pointer" : "default",
-                      opacity: affordable ? 1 : 0.4,
-                      transition: "border-color 0.15s, background 0.15s",
+                      cursor: "pointer",
+                      opacity: affordable ? 1 : 0.5,
                     }}
                   >
-                    <span style={{ fontSize: 22, lineHeight: 1 }}>{gift.icon}</span>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#555", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.06em" }}>{gift.name}</span>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: affordable ? accent : "#bbb" }}>{gift.cost}</span>
+                    <span style={{ fontSize: 24, lineHeight: 1 }}>{gift.icon}</span>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#333", textAlign: "center" }}>{gift.name}</span>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, color: accent }}>{gift.cost}</span>
                   </button>
                 );
               })}
@@ -1114,69 +951,49 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
         </div>
       )}
 
-      {/* ── STICKY FOOTER CTA ── */}
-      <div style={{
-        position: "fixed", bottom: 0, left: 0, right: 0,
-        background: "#fff",
-        borderTop: showGiftBar ? `1px solid ${accent}` : "1px solid #e0e0e0",
-        padding: "10px 12px",
-        zIndex: 1001,
-      }}>
-        <div style={{
-          maxWidth: 800, margin: "0 auto",
-          display: "flex", gap: 8,
-        }}>
-          {/* Vote count badge */}
-          <div style={{
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            padding: "0 14px",
-            borderRight: "1px solid #e8e8e8",
-            flexShrink: 0,
-          }}>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 800, color: "#111", lineHeight: 1 }}>
-              {fmtVotes(voteCount)}
-            </span>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
-              votes
-            </span>
-          </div>
-
-          {/* Main CTA */}
-          <button
-            onClick={() => setShowGiftBar((v) => !v)}
-            style={{
-              flex: 1,
-              border: "none",
-              background: showGiftBar ? accent : "#111",
-              color: "#fff",
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontWeight: 700,
-              fontSize: 13,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              padding: "13px 16px",
-              cursor: "pointer",
-              transition: "background 0.2s",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            }}
-          >
-            <Gift size={15} strokeWidth={2.5} />
-            {voted ? "Autre cadeau" : "Voter · Cadeau"}
-          </button>
-
-          {/* Share button */}
-          <button style={{
-            width: 46, flexShrink: 0,
-            border: "1px solid #e0e0e0", background: "#fff",
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="square">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-              <polyline points="16 6 12 2 8 6"/>
-              <line x1="12" y1="2" x2="12" y2="15"/>
-            </svg>
-          </button>
-        </div>
+      {/* Gift footer */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: "#fff",
+          borderTop: "1px solid #e0e0e0",
+          padding: 12,
+          zIndex: 1001,
+        }}
+      >
+        <button
+          onClick={() => setShowGiftBar((v) => !v)}
+          style={{
+            width: "100%",
+            maxWidth: 800,
+            margin: "0 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            border: "none",
+            background: showGiftBar ? accent : "#111",
+            color: "#fff",
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: 14,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            padding: "14px 20px",
+            cursor: "pointer",
+            transition: "background 0.15s",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Gift size={16} strokeWidth={2.5} />
+            {voted ? "Envoyer un autre cadeau" : "Voter avec un cadeau"}
+          </span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, opacity: 0.75 }}>
+            {fmtVotes(voteCount)}
+          </span>
+        </button>
       </div>
 
       {showAll && (
@@ -1859,7 +1676,7 @@ export default function App() {
           }}
         >
           {/* Search bar */}
-          <div style={{ padding: "8px" }}>
+          <div style={{ padding: "8px 8px 0" }}>
             <div style={{ width: "100%", display: "flex", alignItems: "center", border: "1px solid #ccc", background: "#f9f9f9", height: 32 }}>
               <input
                 type="text"
@@ -1891,7 +1708,7 @@ export default function App() {
           </div>
 
           {/* Chips row — edge to edge */}
-          <div style={{ display: "flex", gap: 8, padding: "0 8px 8px", overflowX: "auto", scrollbarWidth: "none" }}>
+          <div style={{ display: "flex", gap: 6, padding: "8px 8px 8px", overflowX: "auto", scrollbarWidth: "none" }}>
             {ALL_NICHES.map((label) => {
               const active = activeFilter === label;
               const niche = NICHES.find((n) => n.label === label);
@@ -1901,24 +1718,25 @@ export default function App() {
                   onClick={() => setActiveFilter(label)}
                   style={{
                     fontFamily: "Inter, sans-serif",
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: 700,
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
                     color: active ? "#fff" : "#666",
                     background: active ? "#444" : "#f0f0f0",
                     border: "1px solid #ccc",
-                    padding: "4px 14px",
+                    padding: "7px 14px",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
                     transition: "background 0.12s, color 0.12s",
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
+                    gap: 5,
                     flexShrink: 0,
+                    lineHeight: 1,
                   }}
                 >
-                  {(() => { const Icon = NICHE_ICONS[label]; return Icon ? <Icon size={12} strokeWidth={2.5} style={{ flexShrink: 0 }} /> : null; })()}
+                  {(() => { const Icon = NICHE_ICONS[label]; return Icon ? <Icon size={10} strokeWidth={2.5} style={{ flexShrink: 0 }} /> : null; })()}
                   {label}
                 </button>
               );
@@ -2013,7 +1831,26 @@ export default function App() {
           ))}
         </main>
 
-
+        {/* ── FOOTER ── */}
+        <footer
+          style={{
+            borderTop: "1px solid #ddd",
+            background: "#fff",
+            padding: "20px 8px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 10,
+          }}
+        >
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 14, color: "#333", letterSpacing: "-0.01em" }}>
+            VOTEX
+          </span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", letterSpacing: "0.04em" }}>
+            Résultats mis à jour en temps réel · Données de démonstration
+          </span>
+        </footer>
       </div>
       )}
 
