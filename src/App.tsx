@@ -477,7 +477,36 @@ function CompCard({ comp, accent, onOpen }) {
   );
 }
 
-/* ─── IMAGE HELPERS ─────────────────────────────────────────────────────── */
+/* ─── SKELETON CARD (feature 1) ─────────────────────────────────────────── */
+function SkeletonCard() {
+  return (
+    <div style={{ flexShrink: 0, width: 220, border: "1px solid #ddd", background: "#fff" }}>
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: -400px 0; }
+          100% { background-position: 400px 0; }
+        }
+        .sk { background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite; }
+      `}</style>
+      <div className="sk" style={{ height: 110 }} />
+      <div style={{ padding: "14px 14px 10px" }}>
+        <div className="sk" style={{ height: 16, marginBottom: 10 }} />
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
+          <div className="sk" style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div className="sk" style={{ height: 10, marginBottom: 4 }} />
+            <div className="sk" style={{ height: 9, width: "60%" }} />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, borderTop: "1px solid #e8e8e8", paddingTop: 10 }}>
+          <div style={{ flex: 1 }}><div className="sk" style={{ height: 18, marginBottom: 4 }} /><div className="sk" style={{ height: 9 }} /></div>
+          <div style={{ flex: 1, borderLeft: "1px solid #e8e8e8", paddingLeft: 10 }}><div className="sk" style={{ height: 11, marginBottom: 4 }} /><div className="sk" style={{ height: 13 }} /></div>
+        </div>
+      </div>
+      <div className="sk" style={{ height: 40 }} />
+    </div>
+  );
+}
 
 const picsumImg = (seed, w = 300, h = 300) =>
   `https://picsum.photos/seed/${seed}/${w}/${h}`;
@@ -683,6 +712,26 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
   const accent = comp.accent;
   const ranked = buildParticipants(comp).slice(0, 5);
   const topVotes = ranked[0]?.votes || 1;
+  const scrollRef = useRef(null);
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => setScrollY(el.scrollTop);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const SCROLL_THRESHOLD = 140;
+  const t = Math.min(scrollY / SCROLL_THRESHOLD, 1);
+  const headerBg = `rgba(255,255,255,${t})`;
+  const closeColor = t > 0.5 ? "#111" : "#fff";
+  const closeBg = t > 0.5 ? `rgba(0,0,0,0.06)` : `rgba(0,0,0,${0.35 * (1 - t) + 0.06 * t})`;
+  const closeBorder = t > 0.5 ? `1px solid rgba(0,0,0,0.12)` : `1px solid rgba(255,255,255,${0.4 * (1 - t)})`;
+  const pillTextColor = t > 0.5 ? "#333" : "#fff";
+  const pillBg = t > 0.5 ? `rgba(0,0,0,0.07)` : accent;
+  const borderColor = t > 0.5 ? `rgba(0,0,0,0.1)` : `rgba(255,255,255,0.3)`;
 
   // Pulse a new live entry every 4s
   useEffect(() => {
@@ -700,10 +749,46 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
   }, [comp.contestants]);
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#F2F2F0", overflowY: "auto" }}>
+    <div ref={scrollRef} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#F2F2F0", overflowY: "auto" }}>
+
+      {/* ── STICKY TRANSPARENT HEADER ── */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 50,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "7px 12px",
+        background: headerBg,
+        backdropFilter: t < 0.8 ? "blur(6px)" : "none",
+        WebkitBackdropFilter: t < 0.8 ? "blur(6px)" : "none",
+        borderBottom: t > 0.5 ? `1px solid rgba(0,0,0,${0.08 * t})` : "none",
+        pointerEvents: "none",
+      }}>
+        <button onClick={onClose} style={{
+          width: 30, height: 30, border: closeBorder, background: closeBg,
+          color: closeColor, fontSize: 15, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          pointerEvents: "all", transition: "background 0.2s, color 0.2s, border 0.2s",
+        }}>✕</button>
+        <div style={{ display: "flex", gap: 5, pointerEvents: "all" }}>
+          {comp.hot && (
+            <span style={{
+              fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+              letterSpacing: "0.12em", textTransform: "uppercase",
+              color: pillTextColor, background: t > 0.5 ? "rgba(0,0,0,0.07)" : "rgba(0,0,0,0.45)",
+              padding: "3px 7px", transition: "color 0.2s, background 0.2s",
+            }}>EN VUE</span>
+          )}
+          <span style={{
+            fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+            letterSpacing: "0.1em", textTransform: "uppercase",
+            color: pillTextColor, background: pillBg,
+            padding: "3px 7px", border: `1px solid ${borderColor}`,
+            transition: "color 0.2s, background 0.2s, border-color 0.2s",
+          }}>{comp.edition}</span>
+        </div>
+      </div>
 
       {/* ── HERO ── */}
-      <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0 }}>
+      <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0, marginTop: -44 }}>
         {/* Gradient overlay at bottom for readability */}
         <div style={{
           position: "absolute", inset: 0,
@@ -724,45 +809,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
             background: `${accent}55`,
             mixBlendMode: "multiply",
           }} />
-        </div>
-
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute", top: 14, left: 14,
-            width: 36, height: 36,
-            border: "1px solid rgba(255,255,255,0.4)",
-            background: "rgba(0,0,0,0.35)",
-            color: "#fff", fontSize: 18,
-            cursor: "pointer", zIndex: 10,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            backdropFilter: "blur(4px)",
-          }}
-        >
-          ✕
-        </button>
-
-        {/* Phase pill */}
-        <div style={{
-          position: "absolute", top: 14, right: 14,
-          zIndex: 10, display: "flex", gap: 6,
-        }}>
-          {comp.hot && (
-            <span style={{
-              fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              color: "#fff", background: "rgba(0,0,0,0.45)",
-              padding: "4px 9px",
-            }}>EN VUE</span>
-          )}
-          <span style={{
-            fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-            letterSpacing: "0.1em", textTransform: "uppercase",
-            color: "#fff", background: accent,
-            padding: "4px 9px",
-            border: "1px solid rgba(255,255,255,0.3)",
-          }}>{comp.edition}</span>
         </div>
 
         {/* Hero content pinned at bottom of banner */}
@@ -1213,7 +1259,7 @@ function NicheRow({ niche, onOpen }) {
   }, []);
 
   return (
-    <section style={{ marginBottom: 0, borderBottom: "2px solid #e0e0e0", paddingBottom: 16 }}>
+    <section style={{ marginBottom: 0, borderBottom: "2px solid #e0e0e0", paddingBottom: 8, paddingTop: 8 }}>
       {/* Row header */}
       <div
         style={{
@@ -1222,7 +1268,9 @@ function NicheRow({ niche, onOpen }) {
           gap: 10,
           paddingLeft: 8,
           paddingRight: 8,
-          marginBottom: 16,
+          paddingTop: 0,
+          paddingBottom: 0,
+          marginBottom: 2,
         }}
       >
         {(() => { const Icon = NICHE_ICONS[niche.label]; return Icon ? <Icon size={16} strokeWidth={2.5} color={niche.accent} style={{ flexShrink: 0 }} /> : null; })()}
@@ -1275,7 +1323,7 @@ function NicheRow({ niche, onOpen }) {
           overflowX: "auto",
           paddingLeft: 8,
           paddingRight: 8,
-          paddingBottom: 4,
+          paddingBottom: 0,
           scrollbarWidth: "none",
           msOverflowStyle: "none",
         }}
@@ -1995,7 +2043,7 @@ export default function App() {
             paddingBottom: 60,
             display: "flex",
             flexDirection: "column",
-            gap: 20,
+            gap: 0,
           }}
         >
           {visibleNiches.length === 0 ? (
