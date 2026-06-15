@@ -34,13 +34,7 @@ html {
 }
 
 /* Better touch targets for mobile */
-button,
-a,
-[role="button"] {
-    touch-action: manipulation;
-    min-height: 44px;
-    min-width: 44px;
-}
+
 
 /* Custom scrollbar - thinner for mobile */
 ::-webkit-scrollbar {
