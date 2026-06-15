@@ -291,6 +291,8 @@ function PhaseRow({ edition, accent }) {
 function CompCard({ comp, accent, onOpen }) {
   const [voteCount] = useState(comp.votes);
   const [hovered, setHovered] = useState(false);
+  const [followed, setFollowed] = useState(false);
+  const [followerCount, setFollowerCount] = useState(comp.followers);
 
   return (
     <div
@@ -391,15 +393,49 @@ function CompCard({ comp, accent, onOpen }) {
           >
             {comp.organisateur.charAt(0)}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#666", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}>
-              {comp.organisateur}
+          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2, flex: 1, minWidth: 0 }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#666", fontWeight: 600, display: "flex", alignItems: "center", gap: 3, overflow: "hidden" }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{comp.organisateur}</span>
               <BadgeCheck size={12} strokeWidth={2.5} color={accent} style={{ flexShrink: 0 }} />
             </span>
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa", fontWeight: 500 }}>
-              {fmtVotes(comp.followers)} abonnés
+              {fmtVotes(followerCount)} abonnés
             </span>
           </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setFollowed((f) => !f);
+              setFollowerCount((c) => followed ? c - 1 : c + 1);
+            }}
+            style={{
+              flexShrink: 0,
+              border: followed ? `1px solid ${accent}` : "1px solid #ddd",
+              background: followed ? accent : "transparent",
+              color: followed ? "#fff" : "#666",
+              fontFamily: "Inter, sans-serif",
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              padding: "3px 7px",
+              cursor: "pointer",
+              transition: "background 0.15s, color 0.15s, border-color 0.15s",
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              lineHeight: 1.4,
+            }}
+          >
+            {followed ? (
+              <>
+                <Check size={9} strokeWidth={3} />
+                Abonné
+              </>
+            ) : (
+              "+ Suivre"
+            )}
+          </button>
         </div>
 
         {/* Meta row */}
@@ -524,7 +560,7 @@ const TEXT_SNIPPETS = [
 ];
 
 function ParticipantCard({ index, mediaType, accent }) {
-  const name = `Participant ${index + 1}`;
+  const name = fakeName(index);
   const imgSeed = `part_${index}`;
 
   return (
@@ -595,6 +631,23 @@ function ParticipantCard({ index, mediaType, accent }) {
   );
 }
 
+/* ─── FAKE NAME POOL ────────────────────────────────────────────────────── */
+
+const FAKE_FIRST = [
+  "Marie", "Jean", "Claudine", "Pierre", "Roseline", "Widlène", "Édouard",
+  "Fabiola", "Kévin", "Nadège", "Josué", "Mirlande", "Christophe", "Yanick",
+  "Lovely", "Réginald", "Sabrina", "Frantz", "Guerlande", "Olivier",
+  "Stéphanie", "Duckens", "Nathalie", "Carline", "Jude", "Ketsia",
+  "Wilner", "Sophonie", "Berlange", "Alix",
+];
+const FAKE_LAST_INIT = "ABCDEFGHJKLMNPRSTW";
+
+function fakeName(index) {
+  const first = FAKE_FIRST[index % FAKE_FIRST.length];
+  const lastInit = FAKE_LAST_INIT[(index * 7 + 3) % FAKE_LAST_INIT.length];
+  return `${first} ${lastInit}.`;
+}
+
 /* ─── PARTICIPANT LIST OVERLAY ──────────────────────────────────────────── */
 
 function buildParticipants(comp) {
@@ -603,7 +656,7 @@ function buildParticipants(comp) {
     const votes = Math.round((comp.votes / comp.contestants) * (0.4 + (seed % 60) / 40));
     return {
       index: i,
-      name: `Participant ${i + 1}`,
+      name: fakeName(i),
       votes,
       points: Math.round(votes / 10),
     };
@@ -1087,7 +1140,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
                   </div>
                   <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 500 }}>
                     Vote pour{" "}
-                    <span style={{ color: accent, fontWeight: 700 }}>Participant {entry.pIndex + 1}</span>
+                    <span style={{ color: accent, fontWeight: 700 }}>{fakeName(entry.pIndex)}</span>
                   </span>
                 </div>
                 <span style={{
