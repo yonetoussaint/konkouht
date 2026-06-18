@@ -801,7 +801,8 @@ function ParticipantListOverlay({ comp, onClose }) {
 
 /* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
 
-function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
+function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast }) {
+  const isRegistration = comp.phase === "registration";
   const [voteCount, setVoteCount] = useState(comp.votes);
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -814,7 +815,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
       ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
     }))
   );
-  const accent = comp.accent;
+  const accent = isRegistration ? "#6C63FF" : comp.accent;
   const ranked = buildParticipants(comp).slice(0, 5);
   const topVotes = ranked[0]?.votes || 1;
   const scrollRef = useRef(null);
@@ -990,11 +991,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
           borderBottom: "1px solid #e0e0e0",
           marginBottom: 0,
         }}>
-          {[
+          {isRegistration ? [
+            { value: comp.registeredCount, label: "Inscrits" },
+            { value: comp.contestants, label: "Places", accent: true },
+            { value: comp.ends, label: "Fin inscr.", hot: comp.hot },
+          ] : [
             { value: comp.contestants, label: "Candidats" },
             { value: fmtVotes(voteCount), label: "Votes", accent: true },
             { value: comp.ends, label: "Fin dans", hot: comp.hot },
-          ].map((s, i) => (
+          ]}.map((s, i) => (
             <div key={i} style={{
               background: "#fff",
               padding: "16px 12px",
@@ -1017,197 +1022,243 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
 
         {/* ── COUNTDOWN BAR ── */}
         <div style={{
-          background: comp.hot ? "#fff0ed" : "#f7f7f5",
-          borderBottom: `2px solid ${comp.hot ? "#e74c3c" : "#ddd"}`,
+          background: isRegistration ? "#f0ebff" : comp.hot ? "#fff0ed" : "#f7f7f5",
+          borderBottom: `2px solid ${isRegistration ? "#6C63FF" : comp.hot ? "#e74c3c" : "#ddd"}`,
           padding: "10px 16px",
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{
             width: 8, height: 8, borderRadius: "50%",
-            background: comp.hot ? "#e74c3c" : "#bbb",
+            background: isRegistration ? "#6C63FF" : comp.hot ? "#e74c3c" : "#bbb",
             display: "inline-block", flexShrink: 0,
-            animation: comp.hot ? "pulse-dot 1.2s infinite" : "none",
+            animation: (isRegistration || comp.hot) ? "pulse-dot 1.2s infinite" : "none",
           }} />
           <style>{`@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
           <span style={{
             fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-            color: comp.hot ? "#c0392b" : "#888",
+            color: isRegistration ? "#6C63FF" : comp.hot ? "#c0392b" : "#888",
           }}>
-            {comp.hot ? `Compétition très active — se termine dans ${comp.ends}` : `Se termine dans ${comp.ends}`}
+            {isRegistration 
+              ? `Inscriptions ouvertes — ${comp.contestants - comp.registeredCount} place${comp.contestants - comp.registeredCount !== 1 ? 's' : ''} disponible${comp.contestants - comp.registeredCount !== 1 ? 's' : ''}` 
+              : comp.hot ? `Compétition très active — se termine dans ${comp.ends}` : `Se termine dans ${comp.ends}`}
           </span>
         </div>
 
-        {/* ── TOP 5 LEADERBOARD ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "16px 16px 4px" }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 14,
-          }}>
-            <span style={{
-              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-            }}>Classement · Top 5</span>
-            <button
-              onClick={() => setShowAll(true)}
-              style={{
-                border: "none", background: "none", color: accent,
+        {/* ── TOP 5 LEADERBOARD or REGISTRATION INFO ── */}
+        {isRegistration ? (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "16px 16px 4px" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 14,
+            }}>
+              <span style={{
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                letterSpacing: "0.08em", textTransform: "uppercase",
-                cursor: "pointer", padding: 0,
-                display: "flex", alignItems: "center", gap: 4,
-              }}
-            >
-              Voir tout ({comp.contestants})
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
-              </svg>
-            </button>
-          </div>
-
-          {ranked.map((p, rank) => {
-            const pct = Math.round((p.votes / topVotes) * 100);
-            const medals = ["🥇", "🥈", "🥉"];
-            return (
-              <div key={p.index} style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "10px 0",
-                borderBottom: rank < 4 ? "1px solid #f0f0f0" : "none",
+                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              }}>Inscription en cours</span>
+            </div>
+            <div style={{
+              padding: "20px", background: "#f8f7fc", border: "1px solid #e0d5ff",
+              textAlign: "center", marginBottom: 12,
+            }}>
+              <div style={{
+                fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700,
+                color: "#6C63FF", marginBottom: 4,
               }}>
-                {/* Rank */}
-                <div style={{
-                  width: 24, flexShrink: 0, textAlign: "center",
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontSize: rank < 3 ? 18 : 13,
-                  fontWeight: 700,
-                  color: rank < 3 ? accent : "#ccc",
-                }}>
-                  {rank < 3 ? medals[rank] : rank + 1}
-                </div>
-                {/* Avatar */}
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  flexShrink: 0, overflow: "hidden",
-                  border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                }}>
-                  <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                </div>
-                {/* Name + bar */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    marginBottom: 4,
-                  }}>
-                    <span style={{
-                      fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                      color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    }}>{p.name}</span>
-                    <span style={{
-                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                      color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 8,
-                    }}>{fmtVotes(p.votes)}</span>
-                  </div>
-                  {/* Progress bar */}
-                  <div style={{ height: 4, background: "#f0f0f0", width: "100%" }}>
-                    <div style={{
-                      height: "100%", width: `${pct}%`,
-                      background: rank === 0 ? accent : "#ddd",
-                      transition: "width 0.4s ease",
-                    }} />
-                  </div>
-                </div>
+                {comp.registeredCount}/{comp.contestants}
               </div>
-            );
-          })}
-          <div style={{ height: 12 }} />
-        </div>
-
-        {/* ── PARTICIPANTS STRIP ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0 14px 16px" }}>
-          <div style={{
-            fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-            color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-            marginBottom: 12, paddingRight: 16,
-          }}>
-            Participants ({comp.contestants})
+              <div style={{
+                fontFamily: "Inter, sans-serif", fontSize: 12, color: "#666",
+                marginBottom: 16,
+              }}>
+                personnes inscrites
+              </div>
+              <div style={{
+                fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999",
+                lineHeight: 1.5,
+              }}>
+                {comp.contestants - comp.registeredCount > 0 
+                  ? `${comp.contestants - comp.registeredCount} place${comp.contestants - comp.registeredCount !== 1 ? 's' : ''} encore disponible${comp.contestants - comp.registeredCount !== 1 ? 's' : ''}`
+                  : "Les inscriptions sont complètes"}
+              </div>
+            </div>
+            <div style={{ height: 12 }} />
           </div>
-          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4, paddingRight: 16, scrollbarWidth: "none" }}>
-            <style>{`div::-webkit-scrollbar{display:none}`}</style>
-            {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => (
-              <div key={i} style={{ flexShrink: 0, width: 120 }}>
-                <ParticipantCard index={i} mediaType={comp.mediaType} accent={accent} />
-              </div>
-            ))}
-            {comp.contestants > 12 && (
-              <div
+        ) : (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "16px 16px 4px" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 14,
+            }}>
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              }}>Classement · Top 5</span>
+              <button
                 onClick={() => setShowAll(true)}
                 style={{
-                  flexShrink: 0, width: 120,
-                  border: "1px dashed #ddd", background: "#fafafa",
-                  display: "flex", flexDirection: "column",
-                  alignItems: "center", justifyContent: "center",
-                  gap: 6, cursor: "pointer",
-                  aspectRatio: "1/1",
+                  border: "none", background: "none", color: accent,
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  cursor: "pointer", padding: 0,
+                  display: "flex", alignItems: "center", gap: 4,
                 }}
               >
-                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#bbb" }}>
-                  +{comp.contestants - 12}
-                </span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                  Voir tout
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
+                Voir tout ({comp.contestants})
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+                </svg>
+              </button>
+            </div>
 
-        {/* ── LIVE ACTIVITY ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
-            fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-            color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-          }}>
-            <span style={{
-              width: 7, height: 7, borderRadius: "50%", background: "#e74c3c",
-              display: "inline-block", animation: "pulse-dot 1s infinite",
-            }} />
-            Activité en direct
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {liveLog.map((entry, i) => (
-              <div key={entry.id} style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "8px 0",
-                borderBottom: i < liveLog.length - 1 ? "1px solid #f5f5f5" : "none",
-                opacity: i === 0 ? 1 : 0.55 + (0.45 * (1 - i / liveLog.length)),
-                transition: "opacity 0.5s",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {ranked.map((p, rank) => {
+              const pct = Math.round((p.votes / topVotes) * 100);
+              const medals = ["🥇", "🥈", "🥉"];
+              return (
+                <div key={p.index} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 0",
+                  borderBottom: rank < 4 ? "1px solid #f0f0f0" : "none",
+                }}>
+                  {/* Rank */}
                   <div style={{
-                    width: 26, height: 26, borderRadius: "50%",
-                    flexShrink: 0, overflow: "hidden",
-                    border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                    width: 24, flexShrink: 0, textAlign: "center",
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: rank < 3 ? 18 : 13,
+                    fontWeight: 700,
+                    color: rank < 3 ? accent : "#ccc",
                   }}>
-                    <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    {rank < 3 ? medals[rank] : rank + 1}
                   </div>
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 500 }}>
-                    Vote pour{" "}
-                    <span style={{ color: accent, fontWeight: 700 }}>{fakeName(entry.pIndex)}</span>
+                  {/* Avatar */}
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    flexShrink: 0, overflow: "hidden",
+                    border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                  }}>
+                    <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  </div>
+                  {/* Name + bar */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      marginBottom: 4,
+                    }}>
+                      <span style={{
+                        fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                        color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      }}>{p.name}</span>
+                      <span style={{
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                        color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 8,
+                      }}>{fmtVotes(p.votes)}</span>
+                    </div>
+                    {/* Progress bar */}
+                    <div style={{ height: 4, background: "#f0f0f0", width: "100%" }}>
+                      <div style={{
+                        height: "100%", width: `${pct}%`,
+                        background: rank === 0 ? accent : "#ddd",
+                        transition: "width 0.4s ease",
+                      }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ height: 12 }} />
+          </div>
+        )}
+
+        {/* ── PARTICIPANTS STRIP (only for voting phase) ── */}
+        {!isRegistration && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0 14px 16px" }}>
+            <div style={{
+              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              marginBottom: 12, paddingRight: 16,
+            }}>
+              Participants ({comp.contestants})
+            </div>
+            <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4, paddingRight: 16, scrollbarWidth: "none" }}>
+              <style>{`div::-webkit-scrollbar{display:none}`}</style>
+              {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => (
+                <div key={i} style={{ flexShrink: 0, width: 120 }}>
+                  <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} />
+                </div>
+              ))}
+              {comp.contestants > 12 && (
+                <div
+                  onClick={() => setShowAll(true)}
+                  style={{
+                    flexShrink: 0, width: 120,
+                    border: "1px dashed #ddd", background: "#fafafa",
+                    display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center",
+                    gap: 6, cursor: "pointer",
+                    aspectRatio: "1/1",
+                  }}
+                >
+                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#bbb" }}>
+                    +{comp.contestants - 12}
+                  </span>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    Voir tout
                   </span>
                 </div>
-                <span style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb",
-                  fontWeight: 500, flexShrink: 0, marginLeft: 10,
-                }}>{entry.ago}</span>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* ── LIVE ACTIVITY (only for voting phase) ── */}
+        {!isRegistration && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
+              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+            }}>
+              <span style={{
+                width: 7, height: 7, borderRadius: "50%", background: "#e74c3c",
+                display: "inline-block", animation: "pulse-dot 1s infinite",
+              }} />
+              Activité en direct
+            </div>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {liveLog.map((entry, i) => (
+                <div key={entry.id} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "8px 0",
+                  borderBottom: i < liveLog.length - 1 ? "1px solid #f5f5f5" : "none",
+                  opacity: i === 0 ? 1 : 0.55 + (0.45 * (1 - i / liveLog.length)),
+                  transition: "opacity 0.5s",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 26, height: 26, borderRadius: "50%",
+                      flexShrink: 0, overflow: "hidden",
+                      border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                    }}>
+                      <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    </div>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 500 }}>
+                      Vote pour{" "}
+                      <span style={{ color: accent, fontWeight: 700 }}>{fakeName(entry.pIndex)}</span>
+                    </span>
+                  </div>
+                  <span style={{
+                    fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb",
+                    fontWeight: 500, flexShrink: 0, marginLeft: 10,
+                  }}>{entry.ago}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
 
-      {/* ── GIFT TRAY (slides up) ── */}
-      {showGiftBar && (
+      {/* ── GIFT TRAY (slides up, only for voting phase) ── */}
+      {!isRegistration && showGiftBar && (
         <div style={{
           position: "fixed", bottom: 64, left: 0, right: 0,
           background: "#fff",
@@ -1269,7 +1320,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
       <div style={{
         position: "fixed", bottom: 0, left: 0, right: 0,
         background: "#fff",
-        borderTop: showGiftBar ? `1px solid ${accent}` : "1px solid #e0e0e0",
+        borderTop: !isRegistration && showGiftBar ? `1px solid ${accent}` : "1px solid #e0e0e0",
         padding: "10px 12px",
         zIndex: 1001,
       }}>
@@ -1277,58 +1328,87 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
           maxWidth: 800, margin: "0 auto",
           display: "flex", gap: 8,
         }}>
-          {/* Vote count badge */}
-          <div style={{
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            padding: "0 14px",
-            borderRight: "1px solid #e8e8e8",
-            flexShrink: 0,
-          }}>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 800, color: "#111", lineHeight: 1 }}>
-              {fmtVotes(voteCount)}
-            </span>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
-              votes
-            </span>
-          </div>
+          {isRegistration ? (
+            // Registration footer
+            <button
+              onClick={() => {
+                onRegister?.(comp);
+                onClose();
+              }}
+              style={{
+                flex: 1,
+                border: "none",
+                background: "#6C63FF",
+                color: "#fff",
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: 13,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                padding: "13px 16px",
+                cursor: "pointer",
+                transition: "background 0.2s",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              }}
+            >
+              <Plus size={15} strokeWidth={2.5} />
+              S'inscrire maintenant
+            </button>
+          ) : (
+            // Voting footer
+            <>
+              {/* Vote count badge */}
+              <div style={{
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                padding: "0 14px",
+                borderRight: "1px solid #e8e8e8",
+                flexShrink: 0,
+              }}>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 800, color: "#111", lineHeight: 1 }}>
+                  {fmtVotes(voteCount)}
+                </span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
+                  votes
+                </span>
+              </div>
 
-          {/* Main CTA */}
-          <button
-            onClick={() => setShowGiftBar((v) => !v)}
-            style={{
-              flex: 1,
-              border: "none",
-              background: showGiftBar ? accent : "#111",
-              color: "#fff",
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontWeight: 700,
-              fontSize: 13,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              padding: "13px 16px",
-              cursor: "pointer",
-              transition: "background 0.2s",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            }}
-          >
-            <Gift size={15} strokeWidth={2.5} />
-            {voted ? "Autre cadeau" : "Voter · Cadeau"}
-          </button>
+              {/* Main CTA */}
+              <button
+                onClick={() => setShowGiftBar((v) => !v)}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  background: showGiftBar ? accent : "#111",
+                  color: "#fff",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  padding: "13px 16px",
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                }}
+              >
+                <Gift size={15} strokeWidth={2.5} />
+                {voted ? "Autre cadeau" : "Voter · Cadeau"}
+              </button>
 
-          {/* Share button */}
-          <button style={{
-            width: 46, flexShrink: 0,
-            border: "1px solid #e0e0e0", background: "#fff",
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="square">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-              <polyline points="16 6 12 2 8 6"/>
-              <line x1="12" y1="2" x2="12" y2="15"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+              {/* Share button */}
+              <button style={{
+                width: 46, flexShrink: 0,
+                border: "1px solid #e0e0e0", background: "#fff",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="square">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                  <polyline points="16 6 12 2 8 6"/>
+                  <line x1="12" y1="2" x2="12" y2="15"/>
+                </svg>
+              </button>
+            </>
+          )}
 
       {showAll && (
         <ParticipantListOverlay comp={comp} onClose={() => setShowAll(false)} />
@@ -2405,6 +2485,8 @@ export default function App() {
           balance={balance}
           onSendGift={handleSendGift}
           onOpenBuy={() => setShowBuyModal(true)}
+          onRegister={handleRegister}
+          showToast={showToast}
         />
       )}
     </>
