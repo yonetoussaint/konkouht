@@ -10,11 +10,11 @@ const NICHES = [
     accent: "#6C63FF",
     icon: "♪",
     competitions: [
-      { id: "m1", title: "Battle Hip-Hop", edition: "Saison 4", contestants: 12, votes: 4820, ends: "2j 14h", organisateur: "Urban Sound Collective", hot: true , followers: 8096 , mediaType: "photo" },
-      { id: "m2", title: "Voix d'Or", edition: "Finale", contestants: 8, votes: 9310, ends: "6h 22m", organisateur: "Studio Voix", hot: true , followers: 2439 , mediaType: "video" },
-      { id: "m3", title: "Guitar Shred", edition: "Quart de finale", contestants: 16, votes: 2140, ends: "4j 02h", organisateur: "Guitar League", hot: false , followers: 18824 , mediaType: "text" },
-      { id: "m4", title: "DJ Set Open", edition: "Éliminatoires", contestants: 24, votes: 1870, ends: "5j 18h", organisateur: "DJ Network Haiti", hot: false , followers: 16849 , mediaType: "pdf" },
-      { id: "m5", title: "Slam Poétique", edition: "Demi-finale", contestants: 6, votes: 3450, ends: "1j 08h", organisateur: "Poésie Vive", hot: true , followers: 15428 , mediaType: "photo" },
+      { id: "m1", title: "Battle Hip-Hop", edition: "Saison 4", phase: "live", contestants: 12, votes: 4820, ends: "2j 14h", organisateur: "Urban Sound Collective", hot: true , followers: 8096 , mediaType: "photo", registeredCount: 12 },
+      { id: "m2", title: "Voix d'Or", edition: "Finale", phase: "live", contestants: 8, votes: 9310, ends: "6h 22m", organisateur: "Studio Voix", hot: true , followers: 2439 , mediaType: "video", registeredCount: 8 },
+      { id: "m3", title: "Guitar Shred", edition: "Quart de finale", phase: "live", contestants: 16, votes: 2140, ends: "4j 02h", organisateur: "Guitar League", hot: false , followers: 18824 , mediaType: "text", registeredCount: 16 },
+      { id: "m4", title: "DJ Set Open", edition: "Éliminatoires", phase: "registration", contestants: 24, votes: 0, ends: "3j 18h", organisateur: "DJ Network Haiti", hot: false , followers: 16849 , mediaType: "pdf", registeredCount: 7 },
+      { id: "m5", title: "Slam Poétique", edition: "Demi-finale", phase: "live", contestants: 6, votes: 3450, ends: "1j 08h", organisateur: "Poésie Vive", hot: true , followers: 15428 , mediaType: "photo", registeredCount: 6 },
     ],
   },
   {
@@ -23,11 +23,11 @@ const NICHES = [
     accent: "#FF4D6D",
     icon: "◈",
     competitions: [
-      { id: "d1", title: "Krump Masters", edition: "Finale", contestants: 10, votes: 7640, ends: "3j 05h", organisateur: "Krump Federation", hot: true , followers: 9944 , mediaType: "video" },
-      { id: "d2", title: "Afrobeats Cup", edition: "Saison 2", contestants: 20, votes: 5230, ends: "6j 11h", organisateur: "Afrobeats Crew", hot: false , followers: 7517 , mediaType: "text" },
-      { id: "d3", title: "Ballet Urbain", edition: "Demi-finale", contestants: 8, votes: 3810, ends: "2j 19h", organisateur: "Ballet Urbain Co.", hot: false , followers: 36541 , mediaType: "pdf" },
-      { id: "d4", title: "Breakdance WC", edition: "Quart de finale", contestants: 32, votes: 11200, ends: "1j 02h", organisateur: "World Cypher", hot: true , followers: 6497 , mediaType: "photo" },
-      { id: "d5", title: "Zumba Battle", edition: "Éliminatoires", contestants: 18, votes: 980, ends: "8j 00h", organisateur: "Zumba Connect", hot: false , followers: 39498 , mediaType: "video" },
+      { id: "d1", title: "Krump Masters", edition: "Finale", phase: "live", contestants: 10, votes: 7640, ends: "3j 05h", organisateur: "Krump Federation", hot: true , followers: 9944 , mediaType: "video", registeredCount: 10 },
+      { id: "d2", title: "Afrobeats Cup", edition: "Saison 2", phase: "registration", contestants: 20, votes: 0, ends: "4j 11h", organisateur: "Afrobeats Crew", hot: false , followers: 7517 , mediaType: "text", registeredCount: 5 },
+      { id: "d3", title: "Ballet Urbain", edition: "Demi-finale", phase: "live", contestants: 8, votes: 3810, ends: "2j 19h", organisateur: "Ballet Urbain Co.", hot: false , followers: 36541 , mediaType: "pdf", registeredCount: 8 },
+      { id: "d4", title: "Breakdance WC", edition: "Quart de finale", phase: "live", contestants: 32, votes: 11200, ends: "1j 02h", organisateur: "World Cypher", hot: true , followers: 6497 , mediaType: "photo", registeredCount: 32 },
+      { id: "d5", title: "Zumba Battle", edition: "Éliminatoires", phase: "registration", contestants: 18, votes: 0, ends: "6j 00h", organisateur: "Zumba Connect", hot: false , followers: 39498 , mediaType: "video", registeredCount: 3 },
     ],
   },
   {
@@ -36,11 +36,11 @@ const NICHES = [
     accent: "#00B894",
     icon: "▲",
     competitions: [
-      { id: "s1", title: "Freestyle Football", edition: "Finale Nationale", contestants: 14, votes: 6540, ends: "12h 00m", organisateur: "Street Football Assoc.", hot: true , followers: 28451 , mediaType: "text" },
-      { id: "s2", title: "Arm Wrestling Pro", edition: "Open", contestants: 28, votes: 3120, ends: "5j 07h", organisateur: "Arm Wrestling League", hot: false , followers: 2882 , mediaType: "pdf" },
-      { id: "s3", title: "Parkour Challenge", edition: "Saison 3", contestants: 10, votes: 8900, ends: "2j 16h", organisateur: "Parkour Nation", hot: true , followers: 2752 , mediaType: "photo" },
-      { id: "s4", title: "Chess Blitz", edition: "Quart de finale", contestants: 64, votes: 4410, ends: "3j 22h", organisateur: "Chess Club PAP", hot: false , followers: 6940 , mediaType: "video" },
-      { id: "s5", title: "Natation Style", edition: "Demi-finale", contestants: 16, votes: 2670, ends: "7j 03h", organisateur: "Fédé Natation", hot: false , followers: 15128 , mediaType: "text" },
+      { id: "s1", title: "Freestyle Football", edition: "Finale Nationale", phase: "live", contestants: 14, votes: 6540, ends: "12h 00m", organisateur: "Street Football Assoc.", hot: true , followers: 28451 , mediaType: "text", registeredCount: 14 },
+      { id: "s2", title: "Arm Wrestling Pro", edition: "Open", phase: "registration", contestants: 28, votes: 0, ends: "3j 07h", organisateur: "Arm Wrestling League", hot: false , followers: 2882 , mediaType: "pdf", registeredCount: 9 },
+      { id: "s3", title: "Parkour Challenge", edition: "Saison 3", phase: "live", contestants: 10, votes: 8900, ends: "2j 16h", organisateur: "Parkour Nation", hot: true , followers: 2752 , mediaType: "photo", registeredCount: 10 },
+      { id: "s4", title: "Chess Blitz", edition: "Quart de finale", phase: "live", contestants: 64, votes: 4410, ends: "3j 22h", organisateur: "Chess Club PAP", hot: false , followers: 6940 , mediaType: "video", registeredCount: 64 },
+      { id: "s5", title: "Natation Style", edition: "Demi-finale", phase: "registration", contestants: 16, votes: 0, ends: "5j 03h", organisateur: "Fédé Natation", hot: false , followers: 15128 , mediaType: "text", registeredCount: 4 },
     ],
   },
   {
@@ -49,11 +49,11 @@ const NICHES = [
     accent: "#FDCB6E",
     icon: "□",
     competitions: [
-      { id: "a1", title: "Live Graffiti", edition: "Finale", contestants: 8, votes: 5580, ends: "18h 30m", organisateur: "Graffiti Collective", hot: true , followers: 16047 , mediaType: "pdf" },
-      { id: "a2", title: "Tatouage Expo", edition: "Saison 1", contestants: 20, votes: 7230, ends: "4j 00h", organisateur: "Ink Studio Expo", hot: true , followers: 33918 , mediaType: "photo" },
-      { id: "a3", title: "Illustration Duel", edition: "Open Digital", contestants: 40, votes: 2310, ends: "6j 14h", organisateur: "Digital Art Hub", hot: false , followers: 40253 , mediaType: "video" },
-      { id: "a4", title: "Photo Street", edition: "Éliminatoires", contestants: 50, votes: 1870, ends: "9j 02h", organisateur: "Street Photo Guild", hot: false , followers: 2539 , mediaType: "text" },
-      { id: "a5", title: "Poterie Battle", edition: "Demi-finale", contestants: 6, votes: 3100, ends: "3j 09h", organisateur: "Poterie Atelier", hot: false , followers: 37581 , mediaType: "pdf" },
+      { id: "a1", title: "Live Graffiti", edition: "Finale", phase: "live", contestants: 8, votes: 5580, ends: "18h 30m", organisateur: "Graffiti Collective", hot: true , followers: 16047 , mediaType: "pdf", registeredCount: 8 },
+      { id: "a2", title: "Tatouage Expo", edition: "Saison 1", phase: "live", contestants: 20, votes: 7230, ends: "4j 00h", organisateur: "Ink Studio Expo", hot: true , followers: 33918 , mediaType: "photo", registeredCount: 20 },
+      { id: "a3", title: "Illustration Duel", edition: "Open Digital", phase: "registration", contestants: 40, votes: 0, ends: "4j 14h", organisateur: "Digital Art Hub", hot: false , followers: 40253 , mediaType: "video", registeredCount: 12 },
+      { id: "a4", title: "Photo Street", edition: "Éliminatoires", phase: "registration", contestants: 50, votes: 0, ends: "7j 02h", organisateur: "Street Photo Guild", hot: false , followers: 2539 , mediaType: "text", registeredCount: 15 },
+      { id: "a5", title: "Poterie Battle", edition: "Demi-finale", phase: "live", contestants: 6, votes: 3100, ends: "3j 09h", organisateur: "Poterie Atelier", hot: false , followers: 37581 , mediaType: "pdf", registeredCount: 6 },
     ],
   },
   {
@@ -62,10 +62,10 @@ const NICHES = [
     accent: "#E17055",
     icon: "◉",
     competitions: [
-      { id: "c1", title: "Stand-up Open Mic", edition: "Saison 5", contestants: 18, votes: 9870, ends: "1j 20h", organisateur: "Comedy Night Productions", hot: true , followers: 13831 , mediaType: "photo" },
-      { id: "c2", title: "Impro Théâtre", edition: "Finale", contestants: 6, votes: 4120, ends: "2j 06h", organisateur: "Théâtre Impro", hot: false , followers: 36513 , mediaType: "video" },
-      { id: "c3", title: "Sketch Battle", edition: "Quart de finale", contestants: 12, votes: 3450, ends: "5j 11h", organisateur: "Sketch Crew", hot: false , followers: 28293 , mediaType: "text" },
-      { id: "c4", title: "Mime & Clown", edition: "Éliminatoires", contestants: 22, votes: 1230, ends: "7j 18h", organisateur: "Mime Collective", hot: false , followers: 15246 , mediaType: "pdf" },
+      { id: "c1", title: "Stand-up Open Mic", edition: "Saison 5", phase: "live", contestants: 18, votes: 9870, ends: "1j 20h", organisateur: "Comedy Night Productions", hot: true , followers: 13831 , mediaType: "photo", registeredCount: 18 },
+      { id: "c2", title: "Impro Théâtre", edition: "Finale", phase: "registration", contestants: 6, votes: 0, ends: "12h 06h", organisateur: "Théâtre Impro", hot: false , followers: 36513 , mediaType: "video", registeredCount: 2 },
+      { id: "c3", title: "Sketch Battle", edition: "Quart de finale", phase: "live", contestants: 12, votes: 3450, ends: "5j 11h", organisateur: "Sketch Crew", hot: false , followers: 28293 , mediaType: "text", registeredCount: 12 },
+      { id: "c4", title: "Mime & Clown", edition: "Éliminatoires", phase: "registration", contestants: 22, votes: 0, ends: "5j 18h", organisateur: "Mime Collective", hot: false , followers: 15246 , mediaType: "pdf", registeredCount: 6 },
     ],
   },
   {
@@ -74,11 +74,11 @@ const NICHES = [
     accent: "#00CEC9",
     icon: "▶",
     competitions: [
-      { id: "g1", title: "FIFA Masters", edition: "Saison 6", contestants: 32, votes: 14500, ends: "6h 00m", organisateur: "FIFA League Haiti", hot: true , followers: 30239 , mediaType: "photo" },
-      { id: "g2", title: "Speedrun Open", edition: "Finale", contestants: 16, votes: 8730, ends: "1j 14h", organisateur: "Speedrun Community", hot: true , followers: 39418 , mediaType: "video" },
-      { id: "g3", title: "Card Game Pro", edition: "Quart de finale", contestants: 64, votes: 3210, ends: "4j 02h", organisateur: "Card Masters Guild", hot: false , followers: 19031 , mediaType: "text" },
-      { id: "g4", title: "Retro Gaming Cup", edition: "Éliminatoires", contestants: 20, votes: 2890, ends: "6j 08h", organisateur: "Retro Gamers Club", hot: false , followers: 1225 , mediaType: "pdf" },
-      { id: "g5", title: "VR Arena", edition: "Demi-finale", contestants: 10, votes: 5670, ends: "2j 22h", organisateur: "VR Arena Pro", hot: false , followers: 11263 , mediaType: "photo" },
+      { id: "g1", title: "FIFA Masters", edition: "Saison 6", phase: "live", contestants: 32, votes: 14500, ends: "6h 00m", organisateur: "FIFA League Haiti", hot: true , followers: 30239 , mediaType: "photo", registeredCount: 32 },
+      { id: "g2", title: "Speedrun Open", edition: "Finale", phase: "live", contestants: 16, votes: 8730, ends: "1j 14h", organisateur: "Speedrun Community", hot: true , followers: 39418 , mediaType: "video", registeredCount: 16 },
+      { id: "g3", title: "Card Game Pro", edition: "Quart de finale", phase: "registration", contestants: 64, votes: 0, ends: "2j 02h", organisateur: "Card Masters Guild", hot: false , followers: 19031 , mediaType: "text", registeredCount: 20 },
+      { id: "g4", title: "Retro Gaming Cup", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "4j 08h", organisateur: "Retro Gamers Club", hot: false , followers: 1225 , mediaType: "pdf", registeredCount: 8 },
+      { id: "g5", title: "VR Arena", edition: "Demi-finale", phase: "live", contestants: 10, votes: 5670, ends: "2j 22h", organisateur: "VR Arena Pro", hot: false , followers: 11263 , mediaType: "photo", registeredCount: 10 },
     ],
   },
 ];
@@ -288,11 +288,12 @@ function PhaseRow({ edition, accent }) {
 
 /* ─── COMPETITION CARD ──────────────────────────────────────────────────── */
 
-function CompCard({ comp, accent, onOpen }) {
+function CompCard({ comp, accent, onOpen, onRegister }) {
   const [voteCount] = useState(comp.votes);
   const [hovered, setHovered] = useState(false);
   const [followed, setFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(comp.followers);
+  const isRegistration = comp.phase === "registration";
 
   return (
     <div
@@ -341,6 +342,18 @@ function CompCard({ comp, accent, onOpen }) {
             fontFamily: "Inter, sans-serif",
           }}>
             EN VUE
+          </div>
+        )}
+        {isRegistration && (
+          <div style={{
+            position: "absolute", top: 10, right: 10,
+            fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
+            textTransform: "uppercase", color: "#fff",
+            background: "#6C63FF", padding: "3px 8px",
+            fontFamily: "Inter, sans-serif",
+            borderRadius: "2px",
+          }}>
+            Inscriptions
           </div>
         )}
       </div>
@@ -453,10 +466,10 @@ function CompCard({ comp, accent, onOpen }) {
         >
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", lineHeight: 1 }}>
-              {comp.contestants}
+              {isRegistration ? comp.registeredCount : comp.contestants}
             </div>
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
-              candidats
+              {isRegistration ? "inscrits" : "candidats"}
             </div>
           </div>
           <div style={{ flex: 1, borderLeft: "1px solid #e8e8e8", paddingLeft: 10 }}>
@@ -472,43 +485,82 @@ function CompCard({ comp, accent, onOpen }) {
         <PhaseRow edition={comp.edition} accent={accent} />
       </div>
 
-      {/* Footer — opens gift tray */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
-        style={{
-          border: "none",
-          borderTop: `2px solid #111`,
-          background: "#111",
-          color: "#fff",
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontWeight: 700,
-          fontSize: 13,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          padding: "11px 14px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          cursor: "pointer",
-          transition: "background 0.15s",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <Gift size={14} strokeWidth={2.5} />
-          Cadeau
-        </span>
-        <span
+      {/* Footer — voting or registration */}
+      {isRegistration ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRegister?.(comp); }}
           style={{
-            fontFamily: "Inter, sans-serif",
-            fontSize: 12,
-            fontWeight: 600,
-            opacity: 0.75,
+            border: "none",
+            borderTop: `2px solid #6C63FF`,
+            background: "#6C63FF",
+            color: "#fff",
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: 13,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            padding: "11px 14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+            transition: "background 0.15s",
+            flexShrink: 0,
           }}
         >
-          {fmtVotes(voteCount)}
-        </span>
-      </button>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Plus size={14} strokeWidth={2.5} />
+            S'inscrire
+          </span>
+          <span
+            style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: 12,
+              fontWeight: 600,
+              opacity: 0.75,
+            }}
+          >
+            {comp.registeredCount}/{comp.contestants}
+          </span>
+        </button>
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
+          style={{
+            border: "none",
+            borderTop: `2px solid #111`,
+            background: "#111",
+            color: "#fff",
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: 13,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            padding: "11px 14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+            transition: "background 0.15s",
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Gift size={14} strokeWidth={2.5} />
+            Cadeau
+          </span>
+          <span
+            style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: 12,
+              fontWeight: 600,
+              opacity: 0.75,
+            }}
+          >
+            {fmtVotes(voteCount)}
+          </span>
+        </button>
+      )}
     </div>
   );
 }
@@ -1287,7 +1339,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy }) {
 
 /* ─── NICHE ROW ─────────────────────────────────────────────────────────── */
 
-function NicheRow({ niche, onOpen }) {
+function NicheRow({ niche, onOpen, onRegister }) {
   const railRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -1383,7 +1435,7 @@ function NicheRow({ niche, onOpen }) {
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {niche.competitions.map((comp) => (
-          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} />
+          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} />
         ))}
 
       </div>
@@ -1628,6 +1680,204 @@ function GiftModal({ balance, onClose, onSend }) {
   );
 }
 
+function RegistrationModal({ comp, onClose, onRegister, showToast }) {
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function handleSubmit() {
+    if (!email || !fullName) {
+      showToast("Veuillez remplir tous les champs");
+      return;
+    }
+    setIsSubmitting(true);
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setIsRegistered(true);
+      onRegister(comp);
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    }, 800);
+  }
+
+  if (isRegistered) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1200,
+          background: "rgba(17,17,17,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        onClick={onClose}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: "100%",
+            maxWidth: 400,
+            background: "#fff",
+            borderTop: "2px solid #6C63FF",
+            padding: 32,
+            textAlign: "center",
+            borderRadius: "2px",
+          }}
+        >
+          <div style={{
+            width: 60, height: 60, borderRadius: "50%",
+            background: "#f0ebff", border: "2px solid #6C63FF",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            margin: "0 auto 16px", fontSize: 32,
+          }}>
+            ✓
+          </div>
+          <span style={{
+            fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700,
+            color: "#333", display: "block", marginBottom: 8,
+          }}>
+            Inscription confirmée!
+          </span>
+          <span style={{
+            fontFamily: "Inter, sans-serif", fontSize: 13, color: "#888",
+            display: "block", lineHeight: 1.5, marginBottom: 16,
+          }}>
+            Vous êtes maintenant enregistré pour {comp.title}. Attendez le début de la compétition pour participer.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1200,
+        background: "rgba(17,17,17,0.5)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 480,
+          background: "#fff",
+          borderTop: "2px solid #6C63FF",
+          padding: 16,
+          maxHeight: "85vh",
+          overflowY: "auto",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+            S'inscrire à {comp.title}
+          </span>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+          <div>
+            <label style={{
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+              color: "#666", display: "block", marginBottom: 6,
+            }}>
+              Nom complet
+            </label>
+            <input
+              type="text"
+              placeholder="ex. Jean Dupont"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              style={{
+                width: "100%",
+                border: "1px solid #ddd", padding: "10px 12px",
+                fontFamily: "Inter, sans-serif", fontSize: 13,
+                background: "#fff", color: "#333",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          <div>
+            <label style={{
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+              color: "#666", display: "block", marginBottom: 6,
+            }}>
+              Adresse e-mail
+            </label>
+            <input
+              type="email"
+              placeholder="exemple@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: "100%",
+                border: "1px solid #ddd", padding: "10px 12px",
+                fontFamily: "Inter, sans-serif", fontSize: 13,
+                background: "#fff", color: "#333",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          <div style={{
+            background: "#f0ebff", border: "1px solid #e0d5ff",
+            padding: "12px 14px", fontSize: 12, fontFamily: "Inter, sans-serif",
+            color: "#6C63FF", lineHeight: 1.4,
+          }}>
+            <strong>Phase:</strong> {comp.edition} — {comp.registeredCount}/{comp.contestants} inscrits
+          </div>
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={isSubmitting || !email || !fullName}
+          style={{
+            width: "100%",
+            border: "none",
+            background: isSubmitting ? "#ddd" : "#6C63FF",
+            color: "#fff",
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: 14,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            padding: "14px 20px",
+            cursor: isSubmitting || !email || !fullName ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+          }}
+        >
+          {isSubmitting ? (
+            <>
+              <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+              Inscription en cours...
+            </>
+          ) : (
+            <>
+              <Plus size={16} strokeWidth={2.5} />
+              S'inscrire maintenant
+            </>
+          )}
+        </button>
+      </div>
+      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 function TransactionRow({ tx }) {
   const isCredit = tx.amount > 0;
   return (
@@ -1846,6 +2096,8 @@ export default function App() {
   const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [registrationComp, setRegistrationComp] = useState(null);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -1898,6 +2150,10 @@ export default function App() {
     ]);
     setShowGiftModal(false);
     showToast(comp ? `Vote enregistré — ${gift.icon} ${gift.name}` : `${gift.icon} ${gift.name} envoyé`);
+  }
+
+  function handleRegister(comp) {
+    showToast(`Inscrit à ${comp.title}!`);
   }
 
   return (
@@ -2110,6 +2366,10 @@ export default function App() {
               key={niche.id}
               niche={niche}
               onOpen={(comp) => setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label })}
+              onRegister={(comp) => {
+                setRegistrationComp({ ...comp, accent: niche.accent, niche: niche.label });
+                setShowRegistrationModal(true);
+              }}
             />
           ))}
         </main>
@@ -2123,6 +2383,17 @@ export default function App() {
       )}
       {showGiftModal && (
         <GiftModal balance={balance} onClose={() => setShowGiftModal(false)} onSend={handleSendGift} />
+      )}
+      {showRegistrationModal && registrationComp && (
+        <RegistrationModal 
+          comp={registrationComp} 
+          onClose={() => {
+            setShowRegistrationModal(false);
+            setRegistrationComp(null);
+          }}
+          onRegister={handleRegister}
+          showToast={showToast}
+        />
       )}
 
       <BottomTabBar active={activeTab} onChange={setActiveTab} />
