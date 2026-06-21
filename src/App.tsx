@@ -600,7 +600,23 @@ const picsumImg = (seed, w = 300, h = 300) =>
   `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
 const avatarImg = (index) => picsumImg(`person${index}`, 80, 80);
-const heroBannerImg = (compId) => picsumImg(`hero_${compId}`, 800, 340);
+
+function getUnsplashId(compId) {
+  const ids = {
+    m1: "1511671783979-2f3a7af261b3",
+    m2: "1459749411615-3ae9b1d1b8ef",
+    m3: "1471083922566-3b1d2c4b7e8f",
+    d1: "1534432581666-6f4b3c5e7d8f",
+    s1: "1574629811986-6c5e1f2c3d4e",
+    a1: "1499788393439-5c5d5f6e7f8f",
+    c1: "1528607284783-4c4e6f7d8e9f",
+    g1: "1511512578047-09c8d2d8e9f0",
+  };
+  return ids[compId] || "1511671783979-2f3a7af261b3";
+}
+
+const heroBannerImg = (compId) =>
+  `https://images.unsplash.com/photo-${getUnsplashId(compId)}?w=800&h=340&fit=crop`;
 
 /* ─── PARTICIPANT CARD ──────────────────────────────────────────────────── */
 
