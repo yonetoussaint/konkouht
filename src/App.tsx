@@ -1198,6 +1198,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [voteCount, setVoteCount] = useState(comp.votes);
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [activeBanner, setActiveBanner] = useState(0);
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [showGiftBar, setShowGiftBar] = useState(false);
   const [activeGift, setActiveGift] = useState(null);
@@ -1354,51 +1355,70 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
       {/* ── HERO ── */}
       <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0, marginTop: -44 }}>
-        {/* Gradient overlay at bottom for readability */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: `linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 100%)`,
-          zIndex: 1,
-        }} />
 
-        {/* Hero image */}
-        <div style={{ height: 220, position: "relative", overflow: "hidden" }}>
-          <img
-            src={heroBannerImg(comp.id)}
-            alt={comp.title}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          />
-          {/* Accent colour tint overlay so brand colour bleeds through */}
-          <div style={{
-            position: "absolute", inset: 0,
-            background: `${accent}55`,
-            mixBlendMode: "multiply",
-          }} />
-        </div>
+        {/* Banner slides */}
+        {(() => {
+          const bannerSeeds = [comp.id, `${comp.id}_b`, `${comp.id}_c`, `${comp.id}_d`];
+          const bannerImgs = [
+            heroBannerImg(comp.id),
+            `https://picsum.photos/seed/hero_${comp.id}_1/800/800`,
+            `https://picsum.photos/seed/hero_${comp.id}_2/800/800`,
+            `https://picsum.photos/seed/hero_${comp.id}_3/800/800`,
+            `https://picsum.photos/seed/hero_${comp.id}_4/800/800`,
+            `https://picsum.photos/seed/hero_${comp.id}_5/800/800`,
+            `https://picsum.photos/seed/hero_${comp.id}_6/800/800`,
+            `https://picsum.photos/seed/hero_${comp.id}_7/800/800`,
+          ];
+          return (
+            <>
+              {/* Main slider */}
+              <div style={{ width: "100%", aspectRatio: "1 / 1", position: "relative", overflow: "hidden" }}>
+                {bannerImgs.map((src, i) => (
+                  <div key={i} style={{
+                    position: "absolute", inset: 0,
+                    opacity: i === activeBanner ? 1 : 0,
+                    transition: "opacity 0.4s ease",
+                  }}>
+                    <img src={src} alt={`${comp.title} ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <div style={{ position: "absolute", inset: 0, background: `${accent}44`, mixBlendMode: "multiply" }} />
+                  </div>
+                ))}
+                <div style={{
+                  position: "absolute", inset: 0,
+                  background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.55) 100%)",
+                  zIndex: 1,
+                }} />
+                {/* Hero content */}
+                <div style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0,
+                  zIndex: 5, padding: "0 16px 16px",
+                }}>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>{comp.niche}</div>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(22px, 5vw, 34px)", fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.05, textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>{comp.title}</div>
+                </div>
+              </div>
 
-        {/* Hero content pinned at bottom of banner */}
-        <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0,
-          zIndex: 5, padding: "0 16px 16px",
-          maxWidth: 800, margin: "0 auto",
-        }}>
-          {/* Niche tag */}
-          <div style={{
-            display: "inline-block",
-            fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-            letterSpacing: "0.14em", textTransform: "uppercase",
-            color: "rgba(255,255,255,0.7)", marginBottom: 6,
-          }}>{comp.niche}</div>
-          <div style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: "clamp(22px, 5vw, 34px)",
-            fontWeight: 800,
-            color: "#fff",
-            letterSpacing: "-0.02em",
-            lineHeight: 1.05,
-            textShadow: "0 1px 8px rgba(0,0,0,0.4)",
-          }}>{comp.title}</div>
-        </div>
+              {/* Thumbnail selector */}
+              <div style={{ display: "flex", gap: 4, padding: "6px 12px", background: "#000", overflowX: "auto", scrollbarWidth: "none" }}>
+                {bannerImgs.map((src, i) => (
+                  <div
+                    key={i}
+                    onClick={() => setActiveBanner(i)}
+                    style={{
+                      width: 64, height: 64, flexShrink: 0,
+                      overflow: "hidden", cursor: "pointer",
+                      outline: i === activeBanner ? `2px solid ${accent}` : "2px solid transparent",
+                      outlineOffset: "-2px",
+                      transition: "outline-color 0.2s",
+                    }}
+                  >
+                    <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: i === activeBanner ? 1 : 0.4, transition: "opacity 0.2s" }} />
+                  </div>
+                ))}
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       {/* ── ORGANISER BAR ── */}
