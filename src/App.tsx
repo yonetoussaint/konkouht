@@ -1007,7 +1007,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           borderBottom: "1px solid #e0e0e0",
           marginBottom: 0,
         }}>
-          {isRegistration ? [
+          {(isRegistration ? [
             { value: comp.registeredCount, label: "Inscrits" },
             { value: comp.contestants, label: "Places", accent: true },
             { value: comp.ends, label: "Fin inscr.", hot: comp.hot },
@@ -1015,7 +1015,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             { value: comp.contestants, label: "Candidats" },
             { value: fmtVotes(voteCount), label: "Votes", accent: true },
             { value: comp.ends, label: "Fin dans", hot: comp.hot },
-          ]}.map((s, i) => (
+          ]).map((s, i) => (
             <div key={i} style={{
               background: "#fff",
               padding: "16px 12px",
@@ -1425,6 +1425,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               </button>
             </>
           )}
+        </div>
+      </div>
 
       {showAll && (
         <ParticipantListOverlay comp={comp} onClose={() => setShowAll(false)} />
@@ -2175,10 +2177,19 @@ function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast })
 
 
 
+const NICHE_BANNER_IMAGES = {
+  music: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1600&q=80",
+  dance: "https://images.unsplash.com/photo-1547153760-18fc86324498?auto=format&fit=crop&w=1600&q=80",
+  sports: "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1600&q=80",
+  art: "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1600&q=80",
+  comedy: "https://images.unsplash.com/photo-1585699324551-f6c309eedeca?auto=format&fit=crop&w=1600&q=80",
+  gaming: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1600&q=80",
+};
+
 const BANNER_SLIDES = NICHES.flatMap((niche) =>
   niche.competitions
     .filter((c) => c.hot)
-    .map((c) => ({ ...c, niche, color: niche.accent }))
+    .map((c) => ({ ...c, niche, color: niche.accent, image: NICHE_BANNER_IMAGES[niche.id] }))
 ).slice(0, 6);
 
 export default function App() {
@@ -2397,11 +2408,38 @@ export default function App() {
                 inset: 0,
                 width: "100%",
                 height: "100%",
-                background: slide.color,
                 opacity: i === bannerIndex ? 1 : 0,
                 transition: "opacity 0.8s ease",
               }}
-            />
+            >
+              <img
+                src={slide.image}
+                alt={slide.title}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  background: slide.color,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: `linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.65) 100%)`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: `linear-gradient(90deg, ${slide.color}55 0%, transparent 60%)`,
+                  mixBlendMode: "multiply",
+                }}
+              />
+            </div>
           ))}
 
           {/* Dots */}
@@ -2436,15 +2474,12 @@ export default function App() {
 
         <NewsBand />
 
-
-
-
         {/* ── NICHE ROWS ── */}
         <main
           style={{
             maxWidth: 1400,
             margin: "0 auto",
-            paddingTop: 36,
+            paddingTop: 14,
             paddingBottom: 60,
             display: "flex",
             flexDirection: "column",
