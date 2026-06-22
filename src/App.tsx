@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -69,6 +69,17 @@ const NICHES = [
     ],
   },
   {
+    id: "beaute",
+    label: "Beauté",
+    accent: "#E91E8C",
+    icon: "✦",
+    competitions: [
+      { id: "b1", title: "Concours de Beauté", edition: "Saison 1", phase: "live", contestants: 12, votes: 6240, ends: "2j 08h", organisateur: "Beauty Crown Haiti", hot: true, followers: 22450, mediaType: "photo", registeredCount: 12 },
+      { id: "b2", title: "Miss Élégance", edition: "Demi-finale", phase: "live", contestants: 8, votes: 4810, ends: "1j 12h", organisateur: "Élégance Studio", hot: true, followers: 18300, mediaType: "photo", registeredCount: 8 },
+      { id: "b3", title: "Top Model Open", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "5j 00h", organisateur: "Model Agency PAP", hot: false, followers: 9120, mediaType: "photo", registeredCount: 7 },
+    ],
+  },
+  {
     id: "gaming",
     label: "Gaming",
     accent: "#00CEC9",
@@ -118,6 +129,7 @@ const NICHE_ICONS = {
   "Sports": Trophy,
   "Art & Design": Palette,
   "Comédie": Laugh,
+  "Beauté": Sparkles,
   "Gaming": Gamepad2,
 };
 
@@ -126,6 +138,23 @@ const NICHE_ICONS = {
 function fmtVotes(n) {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "k";
   return n.toString();
+}
+
+function findCompWithNiche(compId) {
+  for (const niche of NICHES) {
+    const comp = niche.competitions.find((c) => c.id === compId);
+    if (comp) return { comp, niche };
+  }
+  return null;
+}
+
+function hashStr(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (h << 5) - h + str.charCodeAt(i);
+    h |= 0;
+  }
+  return h;
 }
 
 /* ─── NEWS BAND ─────────────────────────────────────────────────────────── */
@@ -185,12 +214,12 @@ function NewsBand() {
 
 const TABS = [
   { id: "home", label: "Accueil", icon: Home },
+  { id: "mycomps", label: "Mes compets", icon: BadgeCheck },
   { id: "notifications", label: "Notifs", icon: Bell },
-  { id: "wallet", label: "Portefeuille", icon: Wallet },
   { id: "account", label: "Compte", icon: User },
 ];
 
-function BottomTabBar({ active, onChange }) {
+function BottomTabBar({ active, onChange, unreadCount }) {
   return (
     <nav
       style={{
@@ -207,6 +236,7 @@ function BottomTabBar({ active, onChange }) {
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const isActive = active === tab.id;
+        const showBadge = tab.id === "notifications" && unreadCount > 0;
         return (
           <button
             key={tab.id}
@@ -222,9 +252,25 @@ function BottomTabBar({ active, onChange }) {
               gap: 4,
               cursor: "pointer",
               color: isActive ? "#111" : "#aaa",
+              position: "relative",
             }}
           >
-            <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+            <div style={{ position: "relative" }}>
+              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              {showBadge && (
+                <div style={{
+                  position: "absolute", top: -4, right: -6,
+                  minWidth: 14, height: 14, borderRadius: "50%",
+                  background: "#e74c3c", color: "#fff",
+                  fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  border: "1.5px solid #fff",
+                  padding: "0 3px",
+                }}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </div>
+              )}
+            </div>
             <span
               style={{
                 fontFamily: "Inter, sans-serif",
@@ -288,17 +334,14 @@ function PhaseRow({ edition, accent }) {
 
 /* ─── COMPETITION CARD ──────────────────────────────────────────────────── */
 
-function CompCard({ comp, accent, onOpen, onRegister }) {
+function CompCard({ comp, accent, onOpen, onRegister, isRegistered }) {
   const [voteCount] = useState(comp.votes);
-  const [hovered, setHovered] = useState(false);
   const [followed, setFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(comp.followers);
   const isRegistration = comp.phase === "registration";
 
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       onClick={() => onOpen?.(comp)}
       style={{
         flexShrink: 0,
@@ -308,12 +351,6 @@ function CompCard({ comp, accent, onOpen, onRegister }) {
         display: "flex",
         flexDirection: "column",
         cursor: "pointer",
-        transition: "transform 0.12s ease, box-shadow 0.12s ease",
-        transform: hovered ? "translate(3px, 3px)" : "translate(0,0)",
-        /* Inverted brutalist shadow: top-left */
-        boxShadow: hovered
-          ? "-4px -4px 0 0 #111"
-          : "none",
         userSelect: "none",
       }}
     >
@@ -487,6 +524,41 @@ function CompCard({ comp, accent, onOpen, onRegister }) {
 
       {/* Footer — voting or registration */}
       {isRegistration ? (
+        isRegistered ? (
+          <div
+            style={{
+              border: "none",
+              borderTop: `2px solid #00B894`,
+              background: "#e8f8f3",
+              color: "#00875A",
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              padding: "11px 14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Check size={14} strokeWidth={2.5} />
+              Inscrit
+            </span>
+            <span
+              style={{
+                fontFamily: "Inter, sans-serif",
+                fontSize: 12,
+                fontWeight: 600,
+                opacity: 0.75,
+              }}
+            >
+              {Math.min(comp.registeredCount + 1, comp.contestants)}/{comp.contestants}
+            </span>
+          </div>
+        ) : (
         <button
           onClick={(e) => { e.stopPropagation(); onRegister?.(comp); }}
           style={{
@@ -523,6 +595,7 @@ function CompCard({ comp, accent, onOpen, onRegister }) {
             {comp.registeredCount}/{comp.contestants}
           </span>
         </button>
+        )
       ) : (
         <button
           onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
@@ -627,21 +700,66 @@ const TEXT_SNIPPETS = [
   "J'ai tout sacrifié pour arriver ici, et je ne compte pas reculer...",
 ];
 
-function ParticipantCard({ index, mediaType, accent }) {
+function ParticipantCard({ index, mediaType, accent, votes }) {
   const name = fakeName(index);
   const imgSeed = `part_${index}`;
 
+  if (mediaType === "photo") {
+    const photoCount = 3 + (index * 7 + 11) % 10; // 3–12 photos per participant
+    return (
+      <div style={{ position: "relative", overflow: "hidden", aspectRatio: "1 / 1", background: "#111" }}>
+        {/* Square photo */}
+        <img
+          src={picsumImg(`beauty_${index}`, 300, 300)}
+          alt={name}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+        {/* Gradient overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 40%, rgba(0,0,0,0.65) 100%)",
+        }} />
+        {/* Photo count badge — top right */}
+        <div style={{
+          position: "absolute", top: 7, right: 7,
+          background: "rgba(0,0,0,0.55)",
+          backdropFilter: "blur(4px)",
+          color: "#fff",
+          fontFamily: "Inter, sans-serif",
+          fontSize: 10, fontWeight: 700,
+          padding: "3px 7px",
+          display: "flex", alignItems: "center", gap: 4,
+        }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/><path d="M21 15l-5-5L5 21"/></svg>
+          {photoCount}
+        </div>
+        {/* Participant avatar — bottom left above name */}
+        <div style={{
+          position: "absolute", bottom: 28, left: 9,
+          width: 28, height: 28, borderRadius: "50%",
+          overflow: "hidden",
+          border: "2px solid #fff",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+        }}>
+          <img src={avatarImg(index)} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        </div>
+        {/* Name + chevron at bottom */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          padding: "5px 9px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {name}
+          </div>
+          <ChevronsUp size={14} color="rgba(255,255,255,0.85)" strokeWidth={2.5} style={{ flexShrink: 0 }} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ border: "1px solid #e0e0e0", background: "#fff", display: "flex", flexDirection: "column" }}>
-      {mediaType === "photo" && (
-        <div style={{ aspectRatio: "1 / 1", overflow: "hidden", position: "relative" }}>
-          <img
-            src={picsumImg(imgSeed, 240, 240)}
-            alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          />
-        </div>
-      )}
       {mediaType === "video" && (
         <div style={{ aspectRatio: "1 / 1", overflow: "hidden", position: "relative" }}>
           <img
@@ -732,6 +850,58 @@ function buildParticipants(comp) {
   return list.sort((a, b) => b.votes - a.votes);
 }
 
+function buildRegistrants(comp) {
+  const fee = 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
+  return Array.from({ length: comp.registeredCount }, (_, i) => {
+    const seed = (i * 37 + 11) % 29;
+    const daysAgo = 1 + (seed % 9); // 1-9 days ago
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    return {
+      index: i,
+      name: fakeName(i),
+      date: date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+      fee,
+    };
+  }).sort((a, b) => a.index - b.index);
+}
+
+const COMMENT_SNIPPETS = [
+  "Bonne chance à tous les participants! 🔥",
+  "C'est qui le favori cette saison?",
+  "J'ai voté pour mon préféré, allez!",
+  "Quand est-ce que les résultats sortent?",
+  "Niveau impressionnant cette année.",
+  "Vivement la finale 👏",
+  "Quelqu'un sait combien de tours il reste?",
+  "Je suis ici depuis la saison 1, toujours au top.",
+  "Ça va être serré jusqu'au bout.",
+  "Respect à l'organisateur pour la qualité de l'événement.",
+];
+
+function buildComments(comp) {
+  const count = 3 + (Math.abs(hashStr(comp.id)) % 6); // 3-8 seed comments
+  return Array.from({ length: count }, (_, i) => {
+    const seed = (i * 41 + 19) % 53;
+    const minutesAgo = 4 + (seed % 240);
+    return {
+      id: `seed-${comp.id}-${i}`,
+      index: 12 + i,
+      name: fakeName(12 + i),
+      text: COMMENT_SNIPPETS[(i * 3 + seed) % COMMENT_SNIPPETS.length],
+      minutesAgo,
+      likes: seed % 14,
+    };
+  }).sort((a, b) => a.minutesAgo - b.minutesAgo);
+}
+
+function fmtCommentTime(minutesAgo) {
+  if (minutesAgo < 60) return `${minutesAgo}min`;
+  const hours = Math.floor(minutesAgo / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}j`;
+}
+
 function ParticipantListOverlay({ comp, onClose }) {
   const accent = comp.accent;
   const ranked = buildParticipants(comp);
@@ -815,25 +985,242 @@ function ParticipantListOverlay({ comp, onClose }) {
   );
 }
 
+/* ─── REGISTRANT LIST OVERLAY ───────────────────────────────────────────── */
+
+function RegistrantListOverlay({ comp, registrants, accent, onClose }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          background: "#fff",
+          borderBottom: "1px solid #e0e0e0",
+          padding: "14px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          zIndex: 1,
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
+        >
+          ←
+        </button>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#333" }}>
+          Membres inscrits — {comp.title}
+        </span>
+      </div>
+
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
+        {/* Column headers */}
+        <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #e0e0e0", marginBottom: 4 }}>
+          <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
+          <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Membre</span>
+          <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Date</span>
+          <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Frais</span>
+        </div>
+
+        {registrants.map((r, i) => (
+          <div
+            key={r.index}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "10px 0",
+              borderBottom: "1px solid #eee",
+            }}
+          >
+            <span
+              style={{
+                width: 32,
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#bbb",
+              }}
+            >
+              {i + 1}
+            </span>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <div style={{
+                  width: 28, height: 28, borderRadius: "50%",
+                  flexShrink: 0, overflow: "hidden",
+                  border: "1px solid #e0e0e0",
+                }}>
+                <img src={avatarImg(r.index)} alt={r.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </div>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+            </div>
+            <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#999" }}>
+              {r.date}
+            </span>
+            <span style={{ width: 80, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: accent }}>
+              {r.fee} cr.
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── ORGANISER BAR (organiser-follow, local state) ────────────────────── */
+
+function OrgBar({ comp, accent }) {
+  const [orgFollowed, setOrgFollowed] = useState(false);
+  const [orgFollowerCount, setOrgFollowerCount] = useState(comp.followers);
+  return (
+    <div style={{
+      background: "#fff",
+      borderBottom: "1px solid #e0e0e0",
+      padding: "12px 16px",
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      maxWidth: 800, margin: "0 auto",
+      boxSizing: "border-box", width: "100%",
+      position: "relative", left: "50%", transform: "translateX(-50%)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: "50%",
+          background: accent, color: "#fff",
+          fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}>
+          {comp.organisateur.charAt(0)}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#111", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+            {comp.organisateur}
+            <BadgeCheck size={13} strokeWidth={2.5} color={accent} />
+          </span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 500 }}>
+            {fmtVotes(orgFollowerCount)} abonnés
+          </span>
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          const wasFollowed = orgFollowed;
+          setOrgFollowed(!wasFollowed);
+          setOrgFollowerCount((c) => wasFollowed ? c - 1 : c + 1);
+        }}
+        style={{
+          border: `1px solid ${orgFollowed ? "#111" : accent}`,
+          background: orgFollowed ? "#111" : "transparent",
+          color: orgFollowed ? "#fff" : accent,
+          fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+          letterSpacing: "0.08em", textTransform: "uppercase",
+          padding: "6px 14px", cursor: "pointer",
+          transition: "background 0.15s, color 0.15s, border-color 0.15s",
+        }}
+      >{orgFollowed ? "✓ Abonné" : "S'abonner"}</button>
+    </div>
+  );
+}
+
+/* ─── ALBUM SHEET ───────────────────────────────────────────────────────── */
+
+function AlbumSheet({ participantIndex, name, accent, onClose }) {
+  const photoCount = 3 + (participantIndex * 7 + 11) % 10;
+  const photos = Array.from({ length: photoCount }, (_, i) => ({
+    id: i,
+    src: `https://picsum.photos/seed/album_${participantIndex}_${i}/600/600`,
+  }));
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1100,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480,
+          background: "#fff",
+          borderTop: `2px solid #111`,
+          maxHeight: "88vh",
+          display: "flex", flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 16px 12px",
+          borderBottom: "1px solid #e0e0e0",
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
+              {name}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 2 }}>
+              {photoCount} photo{photoCount > 1 ? "s" : ""}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Scrollable slides */}
+        <div style={{
+          overflowY: "auto",
+          padding: "12px 16px 24px",
+          display: "flex", flexDirection: "column", gap: 12,
+        }}>
+          {photos.map((photo) => (
+            <div key={photo.id} style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", background: "#f0f0f0", flexShrink: 0 }}>
+              <img
+                src={photo.src}
+                alt={`Photo ${photo.id + 1}`}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
 
-function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast }) {
+function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth }) {
   const isRegistration = comp.phase === "registration";
   const [voteCount, setVoteCount] = useState(comp.votes);
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [showGiftBar, setShowGiftBar] = useState(false);
   const [activeGift, setActiveGift] = useState(null);
-  const [liveLog, setLiveLog] = useState(() =>
-    Array.from({ length: 5 }, (_, i) => ({
-      id: i,
-      pIndex: (i * 7 + 3) % comp.contestants,
-      ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
-    }))
-  );
+  const [giftStep, setGiftStep] = useState("participant"); // "participant" | "gift"
+  const [selectedParticipant, setSelectedParticipant] = useState(null);
+  const [liveLog, setLiveLog] = useState([]);
   const accent = isRegistration ? "#6C63FF" : comp.accent;
-  const ranked = buildParticipants(comp).slice(0, 5);
-  const topVotes = ranked[0]?.votes || 1;
+  // Seed ranked once; liveVotes tracks per-participant live deltas
+  const seedRanked = buildParticipants(comp).slice(0, 5);
+  const [liveVotes, setLiveVotes] = useState(() => {
+    const m = {};
+    seedRanked.forEach((p) => { m[p.index] = p.votes; });
+    return m;
+  });
+  const ranked = seedRanked.map((p) => ({ ...p, votes: liveVotes[p.index] ?? p.votes }));
+  const topVotes = Math.max(...ranked.map((p) => p.votes), 1);
+  // Registration fill counter
+  const [liveRegistered, setLiveRegistered] = useState(comp.registeredCount);
+  const [showAllRegistrants, setShowAllRegistrants] = useState(false);
+  const registrants = isRegistration ? buildRegistrants(comp) : [];
+  const [comments, setComments] = useState(() => buildComments(comp));
+  const [commentDraft, setCommentDraft] = useState("");
+  const [likedCommentIds, setLikedCommentIds] = useState(() => new Set());
   const scrollRef = useRef(null);
   const [scrollY, setScrollY] = useState(0);
 
@@ -855,20 +1242,60 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const pillBg = t > 0.5 ? `rgba(0,0,0,0.07)` : accent;
   const borderColor = t > 0.5 ? `rgba(0,0,0,0.1)` : `rgba(255,255,255,0.3)`;
 
-  // Pulse a new live entry every 4s
+  // Live vote tick — random participant gets +1–4 votes every 1.8s (voting phase only)
   useEffect(() => {
-    const t = setInterval(() => {
-      setLiveLog((prev) => {
-        const pIndex = Math.floor(Math.random() * comp.contestants);
-        const entry = { id: Date.now(), pIndex, ago: "À l'instant" };
-        return [entry, ...prev.slice(0, 4)].map((e, i) => ({
-          ...e,
-          ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
-        }));
+    if (isRegistration) return;
+    const iv = setInterval(() => {
+      setLiveVotes((prev) => {
+        const keys = Object.keys(prev);
+        const key = keys[Math.floor(Math.random() * keys.length)];
+        const delta = 1 + Math.floor(Math.random() * 4);
+        return { ...prev, [key]: prev[key] + delta };
       });
-    }, 4000);
-    return () => clearInterval(t);
-  }, [comp.contestants]);
+      setVoteCount((c) => c + 1 + Math.floor(Math.random() * 4));
+    }, 1800);
+    return () => clearInterval(iv);
+  }, [isRegistration]);
+
+  // Live registration tick — +1 every 6–12s while spots remain (registration phase only)
+  useEffect(() => {
+    if (!isRegistration) return;
+    function scheduleNext() {
+      const delay = 6000 + Math.random() * 6000;
+      return setTimeout(() => {
+        setLiveRegistered((c) => {
+          if (c >= comp.contestants) return c;
+          return c + 1;
+        });
+        timerRef.current = scheduleNext();
+      }, delay);
+    }
+    const timerRef = { current: scheduleNext() };
+    return () => clearTimeout(timerRef.current);
+  }, [isRegistration, comp.contestants]);
+
+  function handlePostComment() {
+    const text = commentDraft.trim();
+    if (!text) return;
+    if (!currentUser) {
+      onRequestAuth?.();
+      return;
+    }
+    setComments((prev) => [
+      { id: `c-${Date.now()}`, index: -1, name: currentUser.fullName, text, minutesAgo: 0, likes: 0, isMine: true },
+      ...prev,
+    ]);
+    setCommentDraft("");
+  }
+
+  function handleToggleLike(commentId) {
+    setLikedCommentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(commentId)) next.delete(commentId);
+      else next.add(commentId);
+      return next;
+    });
+  }
 
   return (
     <div ref={scrollRef} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#F2F2F0", overflowY: "auto" }}>
@@ -890,7 +1317,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           display: "flex", alignItems: "center", justifyContent: "center",
           pointerEvents: "all", transition: "background 0.2s, color 0.2s, border 0.2s",
         }}>✕</button>
-        <div style={{ display: "flex", gap: 5, pointerEvents: "all" }}>
+        <div style={{ display: "flex", gap: 5, alignItems: "center", pointerEvents: "all" }}>
           {comp.hot && (
             <span style={{
               fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
@@ -906,6 +1333,22 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             padding: "3px 7px", border: `1px solid ${borderColor}`,
             transition: "color 0.2s, background 0.2s, border-color 0.2s",
           }}>{comp.edition}</span>
+          {/* Competition follow — separate from organiser follow */}
+          <button
+            onClick={() => onToggleFollow?.(comp)}
+            title={isFollowed ? "Ne plus suivre cette compétition" : "Suivre cette compétition"}
+            style={{
+              width: 30, height: 30,
+              border: isFollowed ? "1px solid rgba(255,255,255,0.9)" : closeBorder,
+              background: isFollowed ? "rgba(255,255,255,0.9)" : closeBg,
+              color: isFollowed ? accent : closeColor,
+              cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "background 0.2s, color 0.2s, border 0.2s",
+            }}
+          >
+            <Bell size={13} strokeWidth={isFollowed ? 2.5 : 2} fill={isFollowed ? accent : "none"} />
+          </button>
         </div>
       </div>
 
@@ -959,44 +1402,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       </div>
 
       {/* ── ORGANISER BAR ── */}
-      <div style={{
-        background: "#fff",
-        borderBottom: "1px solid #e0e0e0",
-        padding: "12px 16px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        maxWidth: 800, margin: "0 auto",
-        boxSizing: "border-box", width: "100%",
-        position: "relative", left: "50%", transform: "translateX(-50%)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: "50%",
-            background: accent, color: "#fff",
-            fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
-          }}>
-            {comp.organisateur.charAt(0)}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#111", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-              {comp.organisateur}
-              <BadgeCheck size={13} strokeWidth={2.5} color={accent} />
-            </span>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 500 }}>
-              {fmtVotes(comp.followers)} abonnés
-            </span>
-          </div>
-        </div>
-        <button style={{
-          border: `1px solid ${accent}`,
-          background: "transparent",
-          color: accent,
-          fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-          letterSpacing: "0.08em", textTransform: "uppercase",
-          padding: "6px 14px", cursor: "pointer",
-        }}>Suivre</button>
-      </div>
+      <OrgBar comp={comp} accent={accent} />
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 120px" }}>
 
@@ -1055,7 +1461,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             color: isRegistration ? "#6C63FF" : comp.hot ? "#c0392b" : "#888",
           }}>
             {isRegistration 
-              ? `Inscriptions ouvertes — ${comp.contestants - comp.registeredCount} place${comp.contestants - comp.registeredCount !== 1 ? 's' : ''} disponible${comp.contestants - comp.registeredCount !== 1 ? 's' : ''}` 
+              ? `Inscriptions ouvertes — ${comp.contestants - liveRegistered} place${comp.contestants - liveRegistered !== 1 ? 's' : ''} disponible${comp.contestants - liveRegistered !== 1 ? 's' : ''}` 
               : comp.hot ? `Compétition très active — se termine dans ${comp.ends}` : `Se termine dans ${comp.ends}`}
           </span>
         </div>
@@ -1079,24 +1485,107 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               <div style={{
                 fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700,
                 color: "#6C63FF", marginBottom: 4,
+                transition: "color 0.2s",
               }}>
-                {comp.registeredCount}/{comp.contestants}
+                {liveRegistered}/{comp.contestants}
               </div>
               <div style={{
                 fontFamily: "Inter, sans-serif", fontSize: 12, color: "#666",
-                marginBottom: 16,
+                marginBottom: 12,
               }}>
                 personnes inscrites
+              </div>
+              {/* Animated fill bar */}
+              <div style={{ height: 6, background: "#e0d5ff", width: "100%", marginBottom: 12 }}>
+                <div
+                  className="bar-shimmer"
+                  style={{
+                    height: "100%",
+                    width: `${Math.round((liveRegistered / comp.contestants) * 100)}%`,
+                    background: liveRegistered >= comp.contestants
+                      ? "linear-gradient(90deg, #00B894 0%, #00d4a8 50%, #00B894 100%)"
+                      : "linear-gradient(90deg, #6C63FF 0%, #a89dff 50%, #6C63FF 100%)",
+                    transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)",
+                  }}
+                />
               </div>
               <div style={{
                 fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999",
                 lineHeight: 1.5,
               }}>
-                {comp.contestants - comp.registeredCount > 0 
-                  ? `${comp.contestants - comp.registeredCount} place${comp.contestants - comp.registeredCount !== 1 ? 's' : ''} encore disponible${comp.contestants - comp.registeredCount !== 1 ? 's' : ''}`
+                {comp.contestants - liveRegistered > 0
+                  ? `${comp.contestants - liveRegistered} place${comp.contestants - liveRegistered !== 1 ? 's' : ''} encore disponible${comp.contestants - liveRegistered !== 1 ? 's' : ''}`
                   : "Les inscriptions sont complètes"}
               </div>
             </div>
+
+            {/* Registered members list */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 10,
+            }}>
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              }}>Membres inscrits</span>
+              {registrants.length > 5 && (
+                <button
+                  onClick={() => setShowAllRegistrants(true)}
+                  style={{
+                    border: "none", background: "none", color: accent,
+                    fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                    letterSpacing: "0.08em", textTransform: "uppercase",
+                    cursor: "pointer", padding: 0,
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}
+                >
+                  Voir tout ({registrants.length})
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {registrants.length === 0 ? (
+              <div style={{
+                padding: "20px 0 24px", textAlign: "center",
+                fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb",
+              }}>
+                Aucune inscription pour le moment.
+              </div>
+            ) : (
+              registrants.slice(0, 5).map((r) => (
+                <div key={r.index} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "9px 0",
+                  borderBottom: "1px solid #f0f0f0",
+                }}>
+                  <div style={{
+                    width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                    background: "#f0ebff", color: "#6C63FF",
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {r.name.charAt(0)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {r.name}
+                    </span>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
+                      Inscrit le {r.date}
+                    </span>
+                  </div>
+                  <span style={{
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                    color: "#6C63FF", flexShrink: 0,
+                  }}>
+                    {r.fee} crédits
+                  </span>
+                </div>
+              ))
+            )}
             <div style={{ height: 12 }} />
           </div>
         ) : (
@@ -1127,7 +1616,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </div>
 
             {ranked.map((p, rank) => {
-              const pct = Math.round((p.votes / topVotes) * 100);
               const medals = ["🥇", "🥈", "🥉"];
               return (
                 <div key={p.index} style={{
@@ -1166,15 +1654,22 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       <span style={{
                         fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
                         color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 8,
+                        transition: "color 0.3s",
                       }}>{fmtVotes(p.votes)}</span>
                     </div>
-                    {/* Progress bar */}
+                    {/* Animated progress bar */}
                     <div style={{ height: 4, background: "#f0f0f0", width: "100%" }}>
-                      <div style={{
-                        height: "100%", width: `${pct}%`,
-                        background: rank === 0 ? accent : "#ddd",
-                        transition: "width 0.4s ease",
-                      }} />
+                      <div
+                        className="bar-shimmer"
+                        style={{
+                          height: "100%",
+                          width: `${Math.round((p.votes / topVotes) * 100)}%`,
+                          background: rank === 0
+                            ? `linear-gradient(90deg, ${accent} 0%, ${accent}cc 50%, ${accent} 100%)`
+                            : "linear-gradient(90deg, #ddd 0%, #eee 50%, #ddd 100%)",
+                          transition: "width 0.5s cubic-bezier(0.4,0,0.2,1)",
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1186,21 +1681,24 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
         {/* ── PARTICIPANTS STRIP (only for voting phase) ── */}
         {!isRegistration && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0 14px 16px" }}>
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", paddingTop: 14, paddingBottom: 14 }}>
             <div style={{
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
               color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              marginBottom: 12, paddingRight: 16,
+              marginBottom: 12, paddingLeft: 16, paddingRight: 16,
             }}>
-              Participants ({comp.contestants})
+              Albums
             </div>
-            <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4, paddingRight: 16, scrollbarWidth: "none" }}>
+            <div style={{ display: "flex", gap: 2, overflowX: "auto", paddingBottom: 0, paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
               <style>{`div::-webkit-scrollbar{display:none}`}</style>
-              {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => (
-                <div key={i} style={{ flexShrink: 0, width: 120 }}>
-                  <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} />
-                </div>
-              ))}
+              {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => {
+                const p = buildParticipants(comp)[i];
+                return (
+                  <div key={i} onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i) })} style={{ flexShrink: 0, width: comp.mediaType === "photo" ? "30vw" : "28vw", maxWidth: 160, cursor: "pointer" }}>
+                    <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
+                  </div>
+                );
+              })}
               {comp.contestants > 12 && (
                 <div
                   onClick={() => setShowAll(true)}
@@ -1240,7 +1738,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               Activité en direct
             </div>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              {liveLog.map((entry, i) => (
+              {liveLog.length === 0 ? (
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb", padding: "8px 0" }}>
+                  Aucun cadeau envoyé pour l'instant.
+                </div>
+              ) : liveLog.map((entry, i) => (
                 <div key={entry.id} style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "8px 0",
@@ -1257,7 +1759,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     </div>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 500 }}>
-                      Vote pour{" "}
+                      <span style={{ fontSize: 14 }}>{entry.gift.icon}</span>{" "}
+                      <span style={{ fontWeight: 700, color: accent }}>{entry.gift.name}</span>
+                      {" "}envoyé à{" "}
                       <span style={{ color: accent, fontWeight: 700 }}>{fakeName(entry.pIndex)}</span>
                     </span>
                   </div>
@@ -1271,6 +1775,114 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </div>
         )}
 
+        {/* ── COMMENTS ── */}
+        <div style={{ background: "#fff", padding: "14px 16px 20px" }}>
+          <div style={{
+            fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+            color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+            marginBottom: 12,
+          }}>
+            Commentaires ({comments.length})
+          </div>
+
+          {/* Composer */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+              background: currentUser ? "#111" : "#e0e0e0", color: "#fff",
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {currentUser ? currentUser.fullName.charAt(0).toUpperCase() : <User size={14} color="#999" />}
+            </div>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="text"
+                value={commentDraft}
+                onChange={(e) => setCommentDraft(e.target.value)}
+                onFocus={() => { if (!currentUser) onRequestAuth?.(); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
+                placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
+                style={{
+                  flex: 1, border: "1px solid #e0e0e0", background: "#fafafa",
+                  padding: "9px 12px", fontFamily: "Inter, sans-serif", fontSize: 13,
+                  color: "#333", outline: "none",
+                }}
+              />
+              <button
+                onClick={handlePostComment}
+                disabled={!commentDraft.trim()}
+                style={{
+                  border: "none", background: commentDraft.trim() ? accent : "#eee",
+                  color: commentDraft.trim() ? "#fff" : "#bbb",
+                  padding: "9px 14px", flexShrink: 0,
+                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                  textTransform: "uppercase", letterSpacing: "0.04em",
+                  cursor: commentDraft.trim() ? "pointer" : "default",
+                }}
+              >
+                Publier
+              </button>
+            </div>
+          </div>
+
+          {/* Thread */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {comments.map((c, i) => {
+              const liked = likedCommentIds.has(c.id);
+              return (
+                <div key={c.id} style={{
+                  display: "flex", alignItems: "flex-start", gap: 10,
+                  padding: "10px 0",
+                  borderBottom: i < comments.length - 1 ? "1px solid #f0f0f0" : "none",
+                }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                    border: "1px solid #e0e0e0",
+                    background: c.isMine ? "#111" : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {c.isMine ? (
+                      <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700 }}>
+                        {c.name.charAt(0).toUpperCase()}
+                      </span>
+                    ) : (
+                      <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#333" }}>
+                        {c.name}
+                      </span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb" }}>
+                        {c.minutesAgo === 0 ? "À l'instant" : `il y a ${fmtCommentTime(c.minutesAgo)}`}
+                      </span>
+                    </div>
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#444", lineHeight: 1.4, margin: "0 0 6px" }}>
+                      {c.text}
+                    </p>
+                    <button
+                      onClick={() => handleToggleLike(c.id)}
+                      style={{
+                        border: "none", background: "none", cursor: "pointer", padding: 0,
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600,
+                        color: liked ? "#e74c3c" : "#aaa",
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill={liked ? "#e74c3c" : "none"} stroke={liked ? "#e74c3c" : "#aaa"} strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                      {c.likes + (liked ? 1 : 0)}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
 
       {/* ── GIFT TRAY (slides up, only for voting phase) ── */}
@@ -1279,55 +1891,114 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           position: "fixed", bottom: 64, left: 0, right: 0,
           background: "#fff",
           borderTop: `2px solid ${accent}`,
-          zIndex: 1001, padding: "14px 16px 8px",
+          zIndex: 1001, padding: "14px 16px 10px",
           boxShadow: "0 -4px 24px rgba(0,0,0,0.1)",
         }}>
           <div style={{ maxWidth: 800, margin: "0 auto" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                Envoyer un cadeau
-              </span>
+            {/* Header row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {giftStep === "gift" && (
+                  <button
+                    onClick={() => { setGiftStep("participant"); setSelectedParticipant(null); }}
+                    style={{ border: "none", background: "none", cursor: "pointer", color: "#888", padding: 0, lineHeight: 0, display: "flex", alignItems: "center" }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/></svg>
+                  </button>
+                )}
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  {giftStep === "participant" ? "Choisir un participant" : `Cadeau pour ${selectedParticipant?.name}`}
+                </span>
+              </div>
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>
                 💳 {balance.toLocaleString("fr-FR")} crédits
               </span>
             </div>
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
-              {GIFT_CATALOG.map((gift) => {
-                const affordable = balance >= gift.cost;
-                const isSelected = activeGift === gift.id;
-                return (
+
+            {/* Step 1 — pick participant */}
+            {giftStep === "participant" && (
+              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
+                {buildParticipants(comp).slice(0, Math.min(comp.contestants, 15)).map((p) => (
                   <button
-                    key={gift.id}
-                    onClick={() => {
-                      if (!affordable) { onOpenBuy(); return; }
-                      setActiveGift(gift.id);
-                      setTimeout(() => {
-                        onSendGift(gift, comp);
-                        setVoteCount((v) => v + 1);
-                        setVoted(true);
-                        setShowGiftBar(false);
-                        setActiveGift(null);
-                      }, 300);
-                    }}
+                    key={p.index}
+                    onClick={() => { setSelectedParticipant(p); setGiftStep("gift"); }}
                     style={{
                       flexShrink: 0, width: 72,
                       display: "flex", flexDirection: "column",
-                      alignItems: "center", gap: 4,
-                      border: `1px solid ${isSelected ? accent : "#ddd"}`,
-                      background: isSelected ? `${accent}15` : affordable ? "#fff" : "#f7f7f5",
-                      padding: "10px 4px",
-                      cursor: affordable ? "pointer" : "default",
-                      opacity: affordable ? 1 : 0.4,
+                      alignItems: "center", gap: 5,
+                      border: "1px solid #ddd",
+                      background: "#fff",
+                      padding: "8px 4px",
+                      cursor: "pointer",
                       transition: "border-color 0.15s, background 0.15s",
                     }}
                   >
-                    <span style={{ fontSize: 22, lineHeight: 1 }}>{gift.icon}</span>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#555", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.06em" }}>{gift.name}</span>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: affordable ? accent : "#bbb" }}>{gift.cost}</span>
+                    <img
+                      src={avatarImg(p.index)}
+                      alt={p.name}
+                      style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: `2px solid ${accent}22` }}
+                    />
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#333", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 64 }}>
+                      {p.name.split(" ")[0]}
+                    </span>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, color: "#aaa" }}>
+                      {fmtVotes(p.votes)} pts
+                    </span>
                   </button>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
+
+            {/* Step 2 — pick gift */}
+            {giftStep === "gift" && (
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
+                {GIFT_CATALOG.map((gift) => {
+                  const affordable = balance >= gift.cost;
+                  const isSelected = activeGift === gift.id;
+                  return (
+                    <button
+                      key={gift.id}
+                      onClick={() => {
+                        if (!affordable) { onOpenBuy(); return; }
+                        setActiveGift(gift.id);
+                        setTimeout(() => {
+                          onSendGift(gift, { ...comp, recipientName: selectedParticipant?.name });
+                          setVoteCount((v) => v + 1);
+                          setVoted(true);
+                          setShowGiftBar(false);
+                          setActiveGift(null);
+                          setGiftStep("participant");
+                          // Inject gift into live log
+                          setLiveLog((prev) => {
+                            const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, ago: "À l'instant", gift };
+                            return [entry, ...prev.slice(0, 4)].map((e, i) => ({
+                              ...e,
+                              ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
+                            }));
+                          });
+                          setSelectedParticipant(null);
+                        }, 300);
+                      }}
+                      style={{
+                        flexShrink: 0, width: 72,
+                        display: "flex", flexDirection: "column",
+                        alignItems: "center", gap: 4,
+                        border: `1px solid ${isSelected ? accent : "#ddd"}`,
+                        background: isSelected ? `${accent}15` : affordable ? "#fff" : "#f7f7f5",
+                        padding: "10px 4px",
+                        cursor: affordable ? "pointer" : "default",
+                        opacity: affordable ? 1 : 0.4,
+                        transition: "border-color 0.15s, background 0.15s",
+                      }}
+                    >
+                      <span style={{ fontSize: 22, lineHeight: 1 }}>{gift.icon}</span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#555", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.06em" }}>{gift.name}</span>
+                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: affordable ? accent : "#bbb" }}>{gift.cost}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1345,6 +2016,26 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           display: "flex", gap: 8,
         }}>
           {isRegistration ? (
+            isRegistered ? (
+              <div
+                style={{
+                  flex: 1,
+                  border: "none",
+                  background: "#e8f8f3",
+                  color: "#00875A",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  padding: "13px 16px",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                }}
+              >
+                <Check size={15} strokeWidth={2.5} />
+                Vous êtes inscrit
+              </div>
+            ) : (
             // Registration footer
             <button
               onClick={() => {
@@ -1370,6 +2061,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               <Plus size={15} strokeWidth={2.5} />
               S'inscrire maintenant
             </button>
+            )
           ) : (
             // Voting footer
             <>
@@ -1390,7 +2082,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
               {/* Main CTA */}
               <button
-                onClick={() => setShowGiftBar((v) => !v)}
+                onClick={() => {
+                  setShowGiftBar((v) => {
+                    if (v) { setGiftStep("participant"); setSelectedParticipant(null); }
+                    return !v;
+                  });
+                }}
                 style={{
                   flex: 1,
                   border: "none",
@@ -1431,13 +2128,26 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       {showAll && (
         <ParticipantListOverlay comp={comp} onClose={() => setShowAll(false)} />
       )}
+
+      {showAllRegistrants && (
+        <RegistrantListOverlay comp={comp} registrants={registrants} accent={accent} onClose={() => setShowAllRegistrants(false)} />
+      )}
+
+      {albumSheet && (
+        <AlbumSheet
+          participantIndex={albumSheet.participantIndex}
+          name={albumSheet.name}
+          accent={accent}
+          onClose={() => setAlbumSheet(null)}
+        />
+      )}
     </div>
   );
 }
 
 /* ─── NICHE ROW ─────────────────────────────────────────────────────────── */
 
-function NicheRow({ niche, onOpen, onRegister }) {
+function NicheRow({ niche, onOpen, onRegister, registeredCompIds }) {
   const railRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -1533,7 +2243,7 @@ function NicheRow({ niche, onOpen, onRegister }) {
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {niche.competitions.map((comp) => (
-          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} />
+          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} />
         ))}
 
       </div>
@@ -1778,22 +2488,214 @@ function GiftModal({ balance, onClose, onSend }) {
   );
 }
 
-function RegistrationModal({ comp, onClose, onRegister, showToast }) {
+function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
+  const [mode, setMode] = useState("login"); // "login" | "signup"
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [isRegistered, setIsRegistered] = useState(false);
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleSubmit() {
-    if (!email || !fullName) {
-      showToast("Veuillez remplir tous les champs");
+    if (!email || !password || (mode === "signup" && !fullName)) {
+      setError("Veuillez remplir tous les champs");
+      return;
+    }
+    setError("");
+    setIsSubmitting(true);
+    setTimeout(() => {
+      setIsSubmitting(false);
+      onAuthenticated({ email, fullName: mode === "signup" ? fullName : "" });
+    }, 700);
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1300,
+        background: "rgba(17,17,17,0.6)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 440,
+          background: "#fff",
+          borderTop: "2px solid #111",
+          padding: 20,
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, color: "#111", letterSpacing: "-0.01em" }}>
+            {mode === "login" ? "Connexion requise" : "Créer un compte"}
+          </span>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
+            <X size={20} />
+          </button>
+        </div>
+        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", display: "block", marginBottom: 18, lineHeight: 1.5 }}>
+          {compTitle ? `Connectez-vous pour vous inscrire à ${compTitle}.` : followIntent ? `Connectez-vous pour suivre ${followIntent}.` : "Connectez-vous pour accéder à votre compte."}
+        </span>
+
+        <div style={{ display: "flex", gap: 0, marginBottom: 18, border: "1px solid #ddd" }}>
+          <button
+            onClick={() => { setMode("login"); setError(""); }}
+            style={{
+              flex: 1,
+              border: "none",
+              background: mode === "login" ? "#111" : "#fff",
+              color: mode === "login" ? "#fff" : "#888",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+              textTransform: "uppercase", letterSpacing: "0.06em",
+              padding: "10px 0", cursor: "pointer",
+            }}
+          >
+            Se connecter
+          </button>
+          <button
+            onClick={() => { setMode("signup"); setError(""); }}
+            style={{
+              flex: 1,
+              border: "none",
+              borderLeft: "1px solid #ddd",
+              background: mode === "signup" ? "#111" : "#fff",
+              color: mode === "signup" ? "#fff" : "#888",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+              textTransform: "uppercase", letterSpacing: "0.06em",
+              padding: "10px 0", cursor: "pointer",
+            }}
+          >
+            Créer un compte
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 16 }}>
+          {mode === "signup" && (
+            <div>
+              <label style={{
+                fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                color: "#666", display: "block", marginBottom: 6,
+              }}>
+                Nom complet
+              </label>
+              <input
+                type="text"
+                placeholder="ex. Jean Dupont"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                style={{
+                  width: "100%",
+                  border: "1px solid #ddd", padding: "10px 12px",
+                  fontFamily: "Inter, sans-serif", fontSize: 13,
+                  background: "#fff", color: "#333",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+          )}
+          <div>
+            <label style={{
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+              color: "#666", display: "block", marginBottom: 6,
+            }}>
+              E-mail
+            </label>
+            <input
+              type="email"
+              placeholder="vous@exemple.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: "100%",
+                border: "1px solid #ddd", padding: "10px 12px",
+                fontFamily: "Inter, sans-serif", fontSize: 13,
+                background: "#fff", color: "#333",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          <div>
+            <label style={{
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+              color: "#666", display: "block", marginBottom: 6,
+            }}>
+              Mot de passe
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                width: "100%",
+                border: "1px solid #ddd", padding: "10px 12px",
+                fontFamily: "Inter, sans-serif", fontSize: 13,
+                background: "#fff", color: "#333",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          {error && (
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C" }}>
+              {error}
+            </span>
+          )}
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          style={{
+            width: "100%",
+            border: "none",
+            background: "#111",
+            color: "#fff",
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: 13,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            padding: "14px 16px",
+            cursor: isSubmitting ? "default" : "pointer",
+            opacity: isSubmitting ? 0.6 : 1,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+          }}
+        >
+          {isSubmitting ? "Veuillez patienter…" : mode === "login" ? "Se connecter" : "Créer mon compte"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, balance, onOpenBuy }) {
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Deterministic registration fee per competition, in credits
+  const fee = 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
+  const canAfford = balance >= fee;
+
+  function handleSubmit() {
+    if (!canAfford) {
+      showToast("Crédits insuffisants pour l'inscription");
+      onOpenBuy?.();
       return;
     }
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
       setIsRegistered(true);
-      onRegister(comp);
+      onRegister(comp, fee);
       setTimeout(() => {
         onClose();
       }, 1500);
@@ -1886,48 +2788,23 @@ function RegistrationModal({ comp, onClose, onRegister, showToast }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
-          <div>
-            <label style={{
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-              color: "#666", display: "block", marginBottom: 6,
-            }}>
-              Nom complet
-            </label>
-            <input
-              type="text"
-              placeholder="ex. Jean Dupont"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              style={{
-                width: "100%",
-                border: "1px solid #ddd", padding: "10px 12px",
-                fontFamily: "Inter, sans-serif", fontSize: 13,
-                background: "#fff", color: "#333",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-          <div>
-            <label style={{
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-              color: "#666", display: "block", marginBottom: 6,
-            }}>
-              Adresse e-mail
-            </label>
-            <input
-              type="email"
-              placeholder="exemple@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{
-                width: "100%",
-                border: "1px solid #ddd", padding: "10px 12px",
-                fontFamily: "Inter, sans-serif", fontSize: 13,
-                background: "#fff", color: "#333",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+          {currentUser && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid #eee", background: "#fafafa" }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: "50%",
+                background: "#6C63FF", color: "#fff",
+                fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                {currentUser.fullName.charAt(0).toUpperCase()}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3, minWidth: 0 }}>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#333" }}>{currentUser.fullName}</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentUser.email}</span>
+              </div>
+            </div>
+          )}
+
           <div style={{
             background: "#f0ebff", border: "1px solid #e0d5ff",
             padding: "12px 14px", fontSize: 12, fontFamily: "Inter, sans-serif",
@@ -1935,15 +2812,44 @@ function RegistrationModal({ comp, onClose, onRegister, showToast }) {
           }}>
             <strong>Phase:</strong> {comp.edition} — {comp.registeredCount}/{comp.contestants} inscrits
           </div>
+
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "14px 16px", border: `1px solid ${canAfford ? "#ddd" : "#f5c6c6"}`,
+            background: canAfford ? "#fff" : "#fdf2f2",
+          }}>
+            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Frais d'inscription
+              </span>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 800, color: "#111" }}>
+                {fee} crédits
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3, alignItems: "flex-end" }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Solde
+              </span>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: canAfford ? "#333" : "#E74C3C" }}>
+                {balance.toLocaleString("fr-FR")} crédits
+              </span>
+            </div>
+          </div>
+
+          {!canAfford && (
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C" }}>
+              Crédits insuffisants — achetez-en pour continuer.
+            </span>
+          )}
         </div>
 
         <button
           onClick={handleSubmit}
-          disabled={isSubmitting || !email || !fullName}
+          disabled={isSubmitting}
           style={{
             width: "100%",
             border: "none",
-            background: isSubmitting ? "#ddd" : "#6C63FF",
+            background: isSubmitting ? "#ddd" : canAfford ? "#6C63FF" : "#111",
             color: "#fff",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
@@ -1951,7 +2857,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast }) {
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             padding: "14px 20px",
-            cursor: isSubmitting || !email || !fullName ? "not-allowed" : "pointer",
+            cursor: isSubmitting ? "not-allowed" : "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1963,10 +2869,15 @@ function RegistrationModal({ comp, onClose, onRegister, showToast }) {
               <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
               Inscription en cours...
             </>
-          ) : (
+          ) : canAfford ? (
             <>
               <Plus size={16} strokeWidth={2.5} />
-              S'inscrire maintenant
+              Payer {fee} crédits et s'inscrire
+            </>
+          ) : (
+            <>
+              <Wallet size={16} strokeWidth={2.5} />
+              Acheter des crédits
             </>
           )}
         </button>
@@ -2025,7 +2936,263 @@ function TransactionRow({ tx }) {
   );
 }
 
-function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast }) {
+function MyCompetitionsPage({ registeredCompIds, followedCompIds, onOpen }) {
+  const [activeSection, setActiveSection] = useState("inscrit");
+
+  const registeredEntries = Array.from(registeredCompIds)
+    .map((id) => findCompWithNiche(id))
+    .filter(Boolean);
+
+  const followedEntries = Array.from(followedCompIds)
+    .map((id) => findCompWithNiche(id))
+    .filter(Boolean);
+
+  const entries = activeSection === "inscrit" ? registeredEntries : followedEntries;
+
+  function CompRow({ comp, niche, badge }) {
+    return (
+      <div
+        onClick={() => onOpen({ ...comp, accent: niche.accent, niche: niche.label })}
+        style={{
+          display: "flex", alignItems: "center", gap: 12,
+          border: "1px solid #e0e0e0", background: "#fff",
+          padding: "12px 14px", cursor: "pointer",
+        }}
+      >
+        <div style={{
+          width: 44, height: 44, flexShrink: 0, overflow: "hidden",
+          border: `2px solid ${niche.accent}`,
+        }}>
+          <img src={heroBannerImg(comp.id)} alt={comp.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {comp.title}
+          </span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
+            {niche.label} · {comp.edition}
+            {comp.phase === "registration" && (
+              <span style={{ color: "#6C63FF", fontWeight: 600 }}> · {comp.registeredCount}/{comp.contestants} inscrits</span>
+            )}
+          </span>
+        </div>
+        {badge}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
+      <header
+        style={{
+          borderBottom: "1px solid #e0e0e0",
+          background: "#fff",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+        }}
+      >
+        <div style={{ padding: "16px 16px 0" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+            Mes compétitions
+          </span>
+        </div>
+        {/* Section tabs */}
+        <div style={{ display: "flex", borderTop: "1px solid #f0f0f0", marginTop: 12 }}>
+          {[
+            { id: "inscrit", label: "Inscrit", count: registeredEntries.length },
+            { id: "suivi", label: "Suivi", count: followedEntries.length },
+          ].map((tab) => {
+            const isActive = activeSection === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSection(tab.id)}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  background: "none",
+                  borderBottom: isActive ? "2px solid #111" : "2px solid transparent",
+                  padding: "10px 0",
+                  cursor: "pointer",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 12,
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? "#111" : "#aaa",
+                  letterSpacing: "0.04em",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  transition: "color 0.15s, border-color 0.15s",
+                }}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span style={{
+                    fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+                    background: isActive ? "#111" : "#e0e0e0",
+                    color: isActive ? "#fff" : "#888",
+                    padding: "1px 6px",
+                    minWidth: 18, textAlign: "center",
+                    transition: "background 0.15s, color 0.15s",
+                  }}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </header>
+
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
+        {entries.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 8px" }}>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#333", marginBottom: 8 }}>
+              {activeSection === "inscrit" ? "Aucune inscription" : "Aucun suivi"}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", lineHeight: 1.5 }}>
+              {activeSection === "inscrit"
+                ? "Inscrivez-vous à une compétition pour la voir apparaître ici."
+                : "Suivez une compétition depuis sa fiche pour surveiller les inscriptions sans vous engager."}
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {entries.map(({ comp, niche }) => (
+              <CompRow
+                key={comp.id}
+                comp={comp}
+                niche={niche}
+                badge={
+                  activeSection === "inscrit" ? (
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
+                      fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+                      letterSpacing: "0.06em", textTransform: "uppercase",
+                      color: "#00875A", background: "#e8f8f3", border: "1px solid #c8ede1",
+                      padding: "4px 8px",
+                    }}>
+                      <Check size={11} strokeWidth={2.5} />
+                      Inscrit
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
+                      fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+                      letterSpacing: "0.06em", textTransform: "uppercase",
+                      color: "#6C63FF", background: "#f0ebff", border: "1px solid #d5c8ff",
+                      padding: "4px 8px",
+                    }}>
+                      Suivi
+                    </div>
+                  )
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
+      <header
+        style={{
+          borderBottom: "1px solid #e0e0e0",
+          background: "#fff",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          padding: "16px 16px",
+        }}
+      >
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+          Compte
+        </span>
+      </header>
+
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
+        {/* Identity block */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 4px", marginBottom: 16 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: "50%",
+            background: "#111", color: "#fff",
+            fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 700,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            {currentUser ? currentUser.fullName.charAt(0).toUpperCase() : <User size={24} />}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3, minWidth: 0 }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#333" }}>
+              {currentUser ? currentUser.fullName : "Non connecté"}
+            </span>
+            {currentUser ? (
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {currentUser.email}
+              </span>
+            ) : (
+              <button
+                onClick={onLoginRequest}
+                style={{ border: "none", background: "none", padding: 0, marginTop: 2, cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6C63FF", fontWeight: 700 }}
+              >
+                Se connecter
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Credits chip — drills into wallet */}
+        <button
+          onClick={onOpenWallet}
+          style={{
+            width: "100%",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            border: "1px solid #111", background: "#111", color: "#fff",
+            padding: "14px 16px", marginBottom: 24, cursor: "pointer",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Wallet size={18} strokeWidth={2.5} />
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700 }}>
+              {balance.toLocaleString("fr-FR")} crédits
+            </span>
+          </div>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>
+            Gérer →
+          </span>
+        </button>
+
+        {/* Other account links — placeholders for future screens */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 1, border: "1px solid #e0e0e0", background: "#fff" }}>
+          {[
+            { label: "Compétitions suivies", icon: BadgeCheck },
+            { label: "Paramètres", icon: User },
+            { label: "Aide & support", icon: Bell },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "13px 14px", borderBottom: "1px solid #f0f0f0",
+                fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333",
+              }}
+            >
+              <item.icon size={16} strokeWidth={2} color="#888" />
+              {item.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast, onBack }) {
   return (
     <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
       {/* Header */}
@@ -2037,8 +3204,14 @@ function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast })
           top: 0,
           zIndex: 50,
           padding: "16px 16px",
+          display: "flex", alignItems: "center", gap: 10,
         }}
       >
+        {onBack && (
+          <button onClick={onBack} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, lineHeight: 0, color: "#333" }}>
+            <X size={20} />
+          </button>
+        )}
         <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
           Portefeuille
         </span>
@@ -2183,6 +3356,7 @@ const NICHE_BANNER_IMAGES = {
   sports: "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1600&q=80",
   art: "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1600&q=80",
   comedy: "https://images.unsplash.com/photo-1585699324551-f6c309eedeca?auto=format&fit=crop&w=1600&q=80",
+  beaute: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1600&q=80",
   gaming: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1600&q=80",
 };
 
@@ -2191,6 +3365,159 @@ const BANNER_SLIDES = NICHES.flatMap((niche) =>
     .filter((c) => c.hot)
     .map((c) => ({ ...c, niche, color: niche.accent, image: NICHE_BANNER_IMAGES[niche.id] }))
 ).slice(0, 6);
+
+/* ─── NOTIFICATIONS DATA ────────────────────────────────────────────────── */
+
+const INITIAL_NOTIFS = [
+  { id: "n1", type: "result",       read: false, ts: Date.now() - 1000 * 60 * 8,    icon: "🏆", title: "Résultats disponibles",     body: "Voix d'Or — la finale est terminée. Découvrez le classement final.", compId: "m2" },
+  { id: "n2", type: "activity",     read: false, ts: Date.now() - 1000 * 60 * 23,   icon: "🔥", title: "Battle Hip-Hop s'emballe",   body: "4 820 votes en moins de 2 jours — la compétition est très active.", compId: "m1" },
+  { id: "n3", type: "registration", read: true,  ts: Date.now() - 1000 * 60 * 61,   icon: "⚡", title: "Plus que 3 places",          body: "DJ Set Open — il ne reste que 3 inscriptions disponibles.", compId: "m4" },
+  { id: "n4", type: "system",       read: true,  ts: Date.now() - 1000 * 60 * 60 * 5, icon: "💎", title: "550 crédits ajoutés",       body: "Votre achat a été confirmé. Solde actuel : 425 crédits." },
+  { id: "n5", type: "activity",     read: true,  ts: Date.now() - 1000 * 60 * 60 * 9, icon: "👑", title: "Couronne envoyée",          body: "Votre cadeau a été remis à un participant de Voix d'Or." },
+  { id: "n6", type: "result",       read: true,  ts: Date.now() - 1000 * 60 * 60 * 22, icon: "🥇", title: "FIFA Masters — Top 3",     body: "Le classement de mi-parcours est disponible. 14 500 votes comptabilisés.", compId: "g1" },
+  { id: "n7", type: "registration", read: true,  ts: Date.now() - 1000 * 60 * 60 * 26, icon: "📋", title: "Illustration Duel ouvert", body: "Les inscriptions pour Illustration Duel viennent d'ouvrir. 40 places.", compId: "a3" },
+];
+
+function fmtNotifTime(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return "À l'instant";
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}j`;
+}
+
+const NOTIF_TYPE_COLOR = {
+  result:       { bg: "#fff8e6", border: "#ffe08a", dot: "#f39c12" },
+  activity:     { bg: "#fff0ed", border: "#ffcfc7", dot: "#e74c3c" },
+  registration: { bg: "#f0ebff", border: "#d5c8ff", dot: "#6C63FF" },
+  system:       { bg: "#f0fbf7", border: "#b8edd9", dot: "#00B894" },
+  action:       { bg: "#f7f7f5", border: "#e0e0e0", dot: "#888"    },
+};
+
+function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen }) {
+  const unread = notifications.filter((n) => !n.read).length;
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
+      <header style={{
+        borderBottom: "1px solid #e0e0e0", background: "#fff",
+        position: "sticky", top: 0, zIndex: 50,
+        padding: "16px 16px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+          Notifications
+          {unread > 0 && (
+            <span style={{
+              marginLeft: 8,
+              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+              background: "#e74c3c", color: "#fff",
+              padding: "2px 7px",
+              verticalAlign: "middle",
+            }}>{unread}</span>
+          )}
+        </span>
+        {unread > 0 && (
+          <button
+            onClick={onMarkAllRead}
+            style={{
+              border: "none", background: "none",
+              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+              color: "#888", letterSpacing: "0.04em", textTransform: "uppercase",
+              cursor: "pointer", padding: 0,
+            }}
+          >Tout lire</button>
+        )}
+      </header>
+
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+        {notifications.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 8px" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🔔</div>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", marginBottom: 6 }}>
+              Aucune notification
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", lineHeight: 1.5 }}>
+              Les activités de vos compétitions apparaîtront ici.
+            </div>
+          </div>
+        ) : notifications.map((notif) => {
+          const colors = NOTIF_TYPE_COLOR[notif.type] ?? NOTIF_TYPE_COLOR.action;
+          return (
+            <div
+              key={notif.id}
+              onClick={() => {
+                onMarkRead(notif.id);
+                if (notif.compId) onOpen?.(notif.compId);
+              }}
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 12,
+                background: notif.read ? "#fff" : colors.bg,
+                border: `1px solid ${notif.read ? "#e0e0e0" : colors.border}`,
+                padding: "12px 14px",
+                cursor: notif.compId ? "pointer" : "default",
+                transition: "background 0.2s, border-color 0.2s",
+              }}
+            >
+              {/* Icon + unread dot */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <div style={{
+                  width: 38, height: 38,
+                  background: notif.read ? "#f7f7f5" : colors.bg,
+                  border: `1px solid ${notif.read ? "#e8e8e8" : colors.border}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 18, lineHeight: 1,
+                }}>
+                  {notif.icon}
+                </div>
+                {!notif.read && (
+                  <div style={{
+                    position: "absolute", top: -3, right: -3,
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: colors.dot,
+                    border: "2px solid #fff",
+                  }} />
+                )}
+              </div>
+
+              {/* Content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  display: "flex", alignItems: "baseline", justifyContent: "space-between",
+                  gap: 8, marginBottom: 2,
+                }}>
+                  <span style={{
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700,
+                    color: "#222", lineHeight: 1.2,
+                  }}>{notif.title}</span>
+                  <span style={{
+                    fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb",
+                    fontWeight: 500, flexShrink: 0,
+                  }}>{fmtNotifTime(notif.ts)}</span>
+                </div>
+                <span style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 12, color: "#666",
+                  lineHeight: 1.45, display: "block",
+                }}>{notif.body}</span>
+                {notif.compId && (
+                  <span style={{
+                    display: "inline-block", marginTop: 6,
+                    fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+                    letterSpacing: "0.06em", textTransform: "uppercase",
+                    color: colors.dot,
+                  }}>Voir la compétition →</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 
 export default function App() {
   const [activeFilter, setActiveFilter] = useState("Tous");
@@ -2205,12 +3532,57 @@ export default function App() {
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [registrationComp, setRegistrationComp] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [registeredCompIds, setRegisteredCompIds] = useState(() => new Set());
+  const [followedCompIds, setFollowedCompIds] = useState(() => new Set());
+  const [showWalletPage, setShowWalletPage] = useState(false);
+  const [showAuthOverlay, setShowAuthOverlay] = useState(false);
+  const [pendingRegistrationComp, setPendingRegistrationComp] = useState(null);
+  const [notifications, setNotifications] = useState(INITIAL_NOTIFS);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  function pushNotif(notif) {
+    setNotifications((prev) => [
+      { id: `n-${Date.now()}`, read: false, ts: Date.now(), ...notif },
+      ...prev,
+    ]);
+  }
+
+  function markAllRead() {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }
+
+  function markRead(id) {
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+  }
 
   useEffect(() => {
     const t = setInterval(() => {
       setBannerIndex((i) => (i + 1) % BANNER_SLIDES.length);
     }, 5000);
     return () => clearInterval(t);
+  }, []);
+
+  // Background activity: push a notif for a random hot comp every ~45s
+  useEffect(() => {
+    const ACTIVITY_NOTIFS = [
+      (c, n) => ({ type: "activity", icon: "🔥", title: `${c.title} s'emballe`, body: `${fmtVotes(c.votes + Math.floor(Math.random() * 500))} votes comptabilisés — la compétition est très active.`, compId: c.id }),
+      (c, n) => ({ type: "result",   icon: "🏆", title: `Nouveau leader — ${c.title}`, body: `${fakeName(Math.floor(Math.random() * 10))} prend la tête du classement.`, compId: c.id }),
+      (c, n) => ({ type: "activity", icon: "⚡", title: `Dernières heures — ${c.title}`, body: `La compétition se termine dans ${c.ends}. Votez maintenant !`, compId: c.id }),
+    ];
+    function scheduleNext() {
+      const delay = 40000 + Math.random() * 20000;
+      return setTimeout(() => {
+        const hotComps = NICHES.flatMap((n) => n.competitions.filter((c) => c.hot));
+        const comp = hotComps[Math.floor(Math.random() * hotComps.length)];
+        const template = ACTIVITY_NOTIFS[Math.floor(Math.random() * ACTIVITY_NOTIFS.length)];
+        pushNotif(template(comp));
+        timerRef.current = scheduleNext();
+      }, delay);
+    }
+    const timerRef = { current: scheduleNext() };
+    return () => clearTimeout(timerRef.current);
   }, []);
 
   const nichesByFilter =
@@ -2251,16 +3623,83 @@ export default function App() {
       return;
     }
     setBalance((b) => b - gift.cost);
+    const recipient = comp?.recipientName;
     setTransactions((tx) => [
-      { id: `t-${Date.now()}`, type: "gift_sent", label: comp ? `${gift.name} envoyé — ${comp.title}` : `${gift.name} envoyé`, amount: -gift.cost, date: "À l'instant" },
+      { id: `t-${Date.now()}`, type: "gift_sent", label: comp ? `${gift.name} envoyé à ${recipient || "un participant"} — ${comp.title}` : `${gift.name} envoyé`, amount: -gift.cost, date: "À l'instant" },
       ...tx,
     ]);
     setShowGiftModal(false);
-    showToast(comp ? `Vote enregistré — ${gift.icon} ${gift.name}` : `${gift.icon} ${gift.name} envoyé`);
+    if (comp) pushNotif({ type: "action", icon: gift.icon, title: `${gift.name} envoyé`, body: `Votre cadeau a été remis à ${recipient || "un participant"} de ${comp.title}.`, compId: comp.id });
+    showToast(comp ? `${gift.icon} ${gift.name} → ${recipient || "participant"}` : `${gift.icon} ${gift.name} envoyé`);
   }
 
-  function handleRegister(comp) {
+  function handleRegister(comp, fee) {
+    if (fee) {
+      setBalance((b) => b - fee);
+      setTransactions((tx) => [
+        { id: `t-${Date.now()}`, type: "gift_sent", label: `Inscription — ${comp.title}`, amount: -fee, date: "À l'instant" },
+        ...tx,
+      ]);
+    }
+    setRegisteredCompIds((prev) => new Set(prev).add(comp.id));
+    pushNotif({ type: "action", icon: "✅", title: `Inscription confirmée`, body: `Vous êtes inscrit à ${comp.title}. Bonne chance !`, compId: comp.id });
     showToast(`Inscrit à ${comp.title}!`);
+  }
+
+  function toggleFollowComp(comp) {
+    if (!isAuthenticated) {
+      setPendingRegistrationComp({ ...comp, _pendingAction: "follow" });
+      setShowAuthOverlay(true);
+      return;
+    }
+    setFollowedCompIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(comp.id)) {
+        next.delete(comp.id);
+        showToast(`Suivi retiré — ${comp.title}`);
+      } else {
+        next.add(comp.id);
+        pushNotif({ type: "registration", icon: "🔔", title: `Vous suivez ${comp.title}`, body: `Vous recevrez des notifications sur l'évolution des inscriptions et des votes.`, compId: comp.id });
+        showToast(`${comp.title} ajouté aux suivis`);
+      }
+      return next;
+    });
+  }
+
+  function requestRegistration(comp) {
+    if (registeredCompIds.has(comp.id)) {
+      showToast(`Vous êtes déjà inscrit à ${comp.title}`);
+      return;
+    }
+    if (!isAuthenticated) {
+      setPendingRegistrationComp(comp);
+      setShowAuthOverlay(true);
+    } else {
+      setRegistrationComp(comp);
+      setShowRegistrationModal(true);
+    }
+  }
+
+  function handleAuthenticated(user) {
+    const fullName = user.fullName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    setIsAuthenticated(true);
+    setCurrentUser({ email: user.email, fullName });
+    setShowAuthOverlay(false);
+    if (pendingRegistrationComp) {
+      const pending = pendingRegistrationComp;
+      setPendingRegistrationComp(null);
+      if (pending._pendingAction === "follow") {
+        setFollowedCompIds((prev) => {
+          const next = new Set(prev);
+          next.add(pending.id);
+          return next;
+        });
+        showToast(`${pending.title} ajouté aux suivis`);
+      } else {
+        setRegistrationComp(pending);
+        setShowRegistrationModal(true);
+      }
+    }
   }
 
   return (
@@ -2274,6 +3713,14 @@ export default function App() {
           12%  { opacity: 1; transform: translateX(-50%) translateY(0); }
           80%  { opacity: 1; }
           100% { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+        }
+        @keyframes bar-shimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        .bar-shimmer {
+          background-size: 200% 100%;
+          animation: bar-shimmer 1.6s linear infinite;
         }
       `}</style>
 
@@ -2301,13 +3748,37 @@ export default function App() {
         </div>
       )}
 
-      {activeTab === "wallet" ? (
+      {showWalletPage ? (
         <WalletPage
           balance={balance}
           transactions={transactions}
           onOpenBuy={() => setShowBuyModal(true)}
           onOpenGift={() => setShowGiftModal(true)}
           showToast={showToast}
+          onBack={() => setShowWalletPage(false)}
+        />
+      ) : activeTab === "notifications" ? (
+        <NotificationsPage
+          notifications={notifications}
+          onMarkAllRead={markAllRead}
+          onMarkRead={markRead}
+          onOpen={(compId) => {
+            const result = findCompWithNiche(compId);
+            if (result) setSelectedComp({ ...result.comp, accent: result.niche.accent, niche: result.niche.label });
+          }}
+        />
+      ) : activeTab === "mycomps" ? (
+        <MyCompetitionsPage
+          registeredCompIds={registeredCompIds}
+          followedCompIds={followedCompIds}
+          onOpen={(comp) => setSelectedComp(comp)}
+        />
+      ) : activeTab === "account" ? (
+        <AccountPage
+          currentUser={currentUser}
+          balance={balance}
+          onOpenWallet={() => setShowWalletPage(true)}
+          onLoginRequest={() => setShowAuthOverlay(true)}
         />
       ) : (
       <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 64 }}>
@@ -2497,10 +3968,8 @@ export default function App() {
               key={niche.id}
               niche={niche}
               onOpen={(comp) => setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label })}
-              onRegister={(comp) => {
-                setRegistrationComp({ ...comp, accent: niche.accent, niche: niche.label });
-                setShowRegistrationModal(true);
-              }}
+              onRegister={(comp) => requestRegistration({ ...comp, accent: niche.accent, niche: niche.label })}
+              registeredCompIds={registeredCompIds}
             />
           ))}
         </main>
@@ -2518,6 +3987,9 @@ export default function App() {
       {showRegistrationModal && registrationComp && (
         <RegistrationModal 
           comp={registrationComp} 
+          currentUser={currentUser}
+          balance={balance}
+          onOpenBuy={() => setShowBuyModal(true)}
           onClose={() => {
             setShowRegistrationModal(false);
             setRegistrationComp(null);
@@ -2527,7 +3999,19 @@ export default function App() {
         />
       )}
 
-      <BottomTabBar active={activeTab} onChange={setActiveTab} />
+      {showAuthOverlay && (
+        <AuthOverlay
+          compTitle={pendingRegistrationComp?._pendingAction !== "follow" ? pendingRegistrationComp?.title : undefined}
+          followIntent={pendingRegistrationComp?._pendingAction === "follow" ? pendingRegistrationComp?.title : undefined}
+          onClose={() => {
+            setShowAuthOverlay(false);
+            setPendingRegistrationComp(null);
+          }}
+          onAuthenticated={handleAuthenticated}
+        />
+      )}
+
+      <BottomTabBar active={activeTab} onChange={setActiveTab} unreadCount={unreadCount} />
 
       {selectedComp && (
         <CompetitionBoard
@@ -2536,8 +4020,13 @@ export default function App() {
           balance={balance}
           onSendGift={handleSendGift}
           onOpenBuy={() => setShowBuyModal(true)}
-          onRegister={handleRegister}
+          onRegister={requestRegistration}
           showToast={showToast}
+          isRegistered={registeredCompIds.has(selectedComp.id)}
+          isFollowed={followedCompIds.has(selectedComp.id)}
+          onToggleFollow={toggleFollowComp}
+          currentUser={currentUser}
+          onRequestAuth={() => setShowAuthOverlay(true)}
         />
       )}
     </>
