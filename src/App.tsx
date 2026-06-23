@@ -1308,6 +1308,18 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [activeBanner, setActiveBanner] = useState(0);
+  const bannerVideoRefs = useRef({});
+  useEffect(() => {
+    Object.entries(bannerVideoRefs.current).forEach(([idx, videoEl]) => {
+      if (!videoEl) return;
+      if (Number(idx) === activeBanner) {
+        videoEl.currentTime = 0;
+        videoEl.play().catch(() => {});
+      } else {
+        videoEl.pause();
+      }
+    });
+  }, [activeBanner]);
   const [bannerFullscreen, setBannerFullscreen] = useState(false);
   const [tickFlash, setTickFlash] = useState(false);
 
@@ -1561,12 +1573,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   }}>
                     {slide.type === "video" ? (
                       <video
+                        ref={(el) => { if (el) bannerVideoRefs.current[i] = el; }}
                         src={slide.src}
                         poster={slide.poster}
                         muted
                         loop
                         playsInline
-                        autoPlay={i === activeBanner}
                         style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                       />
                     ) : (
