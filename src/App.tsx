@@ -1313,8 +1313,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     Object.entries(bannerVideoRefs.current).forEach(([idx, videoEl]) => {
       if (!videoEl) return;
       if (Number(idx) === activeBanner) {
-        videoEl.currentTime = 0;
-        videoEl.play().catch(() => {});
+        try { videoEl.currentTime = 0; } catch (e) { /* not ready yet, ignore */ }
+        const playPromise = videoEl.play();
+        if (playPromise) playPromise.catch(() => {});
       } else {
         videoEl.pause();
       }
