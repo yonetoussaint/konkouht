@@ -1309,6 +1309,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [showAll, setShowAll] = useState(false);
   const [activeBanner, setActiveBanner] = useState(0);
   const bannerVideoRefs = useRef({});
+  const [videoErrors, setVideoErrors] = useState({});
   useEffect(() => {
     Object.entries(bannerVideoRefs.current).forEach(([idx, videoEl]) => {
       if (!videoEl) return;
@@ -1540,9 +1541,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {/* Banner slides */}
         {(() => {
           const PLACEHOLDER_VIDEOS = [
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+            "https://lorem.video/bunny_480p_h264_10s.mp4",
+            "https://lorem.video/cat_480p_h264_10s.mp4",
+            "https://lorem.video/corgi_480p_h264_10s.mp4",
           ];
           const bannerImgs = [
             heroBannerImg(comp.id),
@@ -1573,15 +1574,32 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     transition: "opacity 0.4s ease",
                   }}>
                     {slide.type === "video" ? (
-                      <video
-                        ref={(el) => { if (el) bannerVideoRefs.current[i] = el; }}
-                        src={slide.src}
-                        poster={slide.poster}
-                        muted
-                        loop
-                        playsInline
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                      />
+                      <>
+                        <video
+                          ref={(el) => { if (el) bannerVideoRefs.current[i] = el; }}
+                          src={slide.src}
+                          poster={slide.poster}
+                          muted
+                          loop
+                          playsInline
+                          onError={() => setVideoErrors((e) => ({ ...e, [i]: true }))}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        />
+                        {videoErrors[i] && (
+                          <div style={{
+                            position: "absolute", inset: 0,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            <div style={{
+                              width: 52, height: 52, borderRadius: "50%",
+                              background: "rgba(0,0,0,0.45)",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                            }}>
+                              <Play size={24} fill="#fff" color="#fff" strokeWidth={0} style={{ marginLeft: 2 }} />
+                            </div>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <img src={slide.src} alt={`${comp.title} ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     )}
