@@ -1526,7 +1526,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
         {/* Banner slides */}
         {(() => {
-          const bannerSeeds = [comp.id, `${comp.id}_b`, `${comp.id}_c`, `${comp.id}_d`];
+          const PLACEHOLDER_VIDEOS = [
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+          ];
           const bannerImgs = [
             heroBannerImg(comp.id),
             `https://picsum.photos/seed/hero_${comp.id}_1/800/800`,
@@ -1537,17 +1541,37 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             `https://picsum.photos/seed/hero_${comp.id}_6/800/800`,
             `https://picsum.photos/seed/hero_${comp.id}_7/800/800`,
           ];
+          // Every 3rd slide (starting at index 2) is a free sample video, poster = its image
+          const bannerSlides = bannerImgs.map((src, i) => {
+            if (i > 0 && i % 3 === 2) {
+              const seed = Math.abs(hashStr(`${comp.id}_vid_${i}`));
+              return { type: "video", src: PLACEHOLDER_VIDEOS[seed % PLACEHOLDER_VIDEOS.length], poster: src };
+            }
+            return { type: "image", src };
+          });
           return (
             <>
               {/* Main slider */}
               <div style={{ width: "100%", aspectRatio: "1 / 1", position: "relative", overflow: "hidden" }}>
-                {bannerImgs.map((src, i) => (
+                {bannerSlides.map((slide, i) => (
                   <div key={i} style={{
                     position: "absolute", inset: 0,
                     opacity: i === activeBanner ? 1 : 0,
                     transition: "opacity 0.4s ease",
                   }}>
-                    <img src={src} alt={`${comp.title} ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    {slide.type === "video" ? (
+                      <video
+                        src={slide.src}
+                        poster={slide.poster}
+                        muted
+                        loop
+                        playsInline
+                        autoPlay={i === activeBanner}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
+                    ) : (
+                      <img src={slide.src} alt={`${comp.title} ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    )}
                     <div style={{ position: "absolute", inset: 0, background: `${accent}44`, mixBlendMode: "multiply" }} />
                   </div>
                 ))}
@@ -1589,12 +1613,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
               {/* Thumbnail selector — below banner, white bg */}
               <div style={{ background: "#fff", borderBottom: "1px solid #e8e8e8", padding: "8px", display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
-                {bannerImgs.map((src, i) => (
+                {bannerSlides.map((slide, i) => (
                   <div
                     key={i}
                     onClick={() => setActiveBanner(i)}
                     style={{
                       width: 60, height: 60, flexShrink: 0,
+                      position: "relative",
                       overflow: "hidden", cursor: "pointer",
                       outline: i === activeBanner ? `2px solid ${accent}` : "2px solid transparent",
                       outlineOffset: "-2px",
@@ -1602,7 +1627,22 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       opacity: i === activeBanner ? 1 : 0.45,
                     }}
                   >
-                    <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <img src={slide.type === "video" ? slide.poster : slide.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    {slide.type === "video" && (
+                      <div style={{
+                        position: "absolute", inset: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "rgba(0,0,0,0.25)",
+                      }}>
+                        <div style={{
+                          width: 22, height: 22, borderRadius: "50%",
+                          background: "rgba(255,255,255,0.9)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          <Play size={11} fill="#111" color="#111" strokeWidth={0} style={{ marginLeft: 1 }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
