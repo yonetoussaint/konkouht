@@ -1034,7 +1034,7 @@ function ParticipantListOverlay({ comp, onClose }) {
           style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
         >
           <ArrowLeft size={18} />
-        </span>
+        </button>
       </div>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
