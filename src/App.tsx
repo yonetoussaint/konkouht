@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -752,7 +752,7 @@ function ParticipantCard({ index, mediaType, accent, votes }) {
           <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {name}
           </div>
-          <ChevronsUp size={14} color="rgba(255,255,255,0.85)" strokeWidth={2.5} style={{ flexShrink: 0 }} />
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.5" strokeLinecap="square"><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></svg>
         </div>
       </div>
     );
@@ -850,8 +850,12 @@ function buildParticipants(comp) {
   return list.sort((a, b) => b.votes - a.votes);
 }
 
+function registrationFee(comp) {
+  return 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
+}
+
 function buildRegistrants(comp) {
-  const fee = 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
+  const fee = registrationFee(comp);
   return Array.from({ length: comp.registeredCount }, (_, i) => {
     const seed = (i * 37 + 11) % 29;
     const daysAgo = 1 + (seed % 9); // 1-9 days ago
@@ -879,11 +883,25 @@ const COMMENT_SNIPPETS = [
   "Respect à l'organisateur pour la qualité de l'événement.",
 ];
 
+const REPLY_SNIPPETS = [
+  "Totalement d'accord avec toi!",
+  "Moi aussi j'ai hâte 🙌",
+  "Les résultats sortent vendredi je crois",
+  "Tu as voté pour qui?",
+  "Même avis, c'est du bon niveau.",
+  "Ouais la finale va être 🔥",
+  "Normalement 3 tours encore",
+  "Pareil, fidèle depuis le début!",
+  "Exactement, ça va chauffer.",
+  "L'orga fait vraiment du bon boulot.",
+];
+
 function buildComments(comp) {
-  const count = 3 + (Math.abs(hashStr(comp.id)) % 6); // 3-8 seed comments
+  const count = 3 + (Math.abs(hashStr(comp.id)) % 6);
   return Array.from({ length: count }, (_, i) => {
     const seed = (i * 41 + 19) % 53;
     const minutesAgo = 4 + (seed % 240);
+    const replyCount = (i * 7 + seed) % 3; // 0–2 replies per comment
     return {
       id: `seed-${comp.id}-${i}`,
       index: 12 + i,
@@ -891,6 +909,14 @@ function buildComments(comp) {
       text: COMMENT_SNIPPETS[(i * 3 + seed) % COMMENT_SNIPPETS.length],
       minutesAgo,
       likes: seed % 14,
+      replies: Array.from({ length: replyCount }, (_, j) => ({
+        id: `reply-${comp.id}-${i}-${j}`,
+        index: 20 + i + j,
+        name: fakeName(20 + i + j),
+        text: REPLY_SNIPPETS[(i + j * 3 + seed) % REPLY_SNIPPETS.length],
+        minutesAgo: Math.max(1, minutesAgo - 10 - j * 5),
+        likes: (j + seed) % 6,
+      })),
     };
   }).sort((a, b) => a.minutesAgo - b.minutesAgo);
 }
@@ -900,6 +926,88 @@ function fmtCommentTime(minutesAgo) {
   const hours = Math.floor(minutesAgo / 60);
   if (hours < 24) return `${hours}h`;
   return `${Math.floor(hours / 24)}j`;
+}
+
+/* ─── RULES / PRIZE / DESCRIPTION ───────────────────────────────────────── */
+
+const NICHE_FORMAT_COPY = {
+  music: {
+    verb: "interprète",
+    unit: "performance",
+    submission: "un enregistrement audio ou vidéo de la prestation",
+  },
+  dance: {
+    verb: "exécute",
+    unit: "chorégraphie",
+    submission: "une vidéo de la chorégraphie filmée en un seul plan",
+  },
+  sports: {
+    verb: "réalise",
+    unit: "épreuve",
+    submission: "une vidéo de l'épreuve dans des conditions vérifiables",
+  },
+  art: {
+    verb: "présente",
+    unit: "œuvre",
+    submission: "une photo ou un dossier de l'œuvre terminée",
+  },
+  comedy: {
+    verb: "joue",
+    unit: "numéro",
+    submission: "une vidéo du numéro filmé devant public ou caméra",
+  },
+  beaute: {
+    verb: "présente",
+    unit: "portfolio",
+    submission: "un portfolio photo selon le thème de l'édition",
+  },
+  gaming: {
+    verb: "dispute",
+    unit: "match",
+    submission: "une vidéo ou un replay du match joué",
+  },
+};
+
+const JUDGING_BY_PHASE_MIX = [
+  { vote: 70, jury: 30 },
+  { vote: 60, jury: 40 },
+  { vote: 100, jury: 0 },
+  { vote: 50, jury: 50 },
+];
+
+function buildRulesInfo(comp, nicheId) {
+  const seed = Math.abs(hashStr(comp.id));
+  const format = NICHE_FORMAT_COPY[nicheId] || NICHE_FORMAT_COPY.music;
+  const mix = JUDGING_BY_PHASE_MIX[seed % JUDGING_BY_PHASE_MIX.length];
+
+  const description =
+    `${comp.edition} de ${comp.title}, organisé par ${comp.organisateur}. ` +
+    `Chaque candidat ${format.verb} sa ${format.unit} devant la communauté ; ` +
+    `le public vote et envoie des cadeaux pour soutenir ses favoris jusqu'à la fin de la compétition.`;
+
+  const rewardExtra = seed % 3 === 0
+    ? "Trophée officiel et mise en avant sur la page de l'organisateur"
+    : seed % 3 === 1
+    ? "Certificat officiel et visibilité sur les réseaux du partenaire"
+    : "Pack de visibilité offert par l'organisateur";
+
+  const rules = [
+    `Inscription ouverte à tous, sous réserve de validation par ${comp.organisateur}.`,
+    `Chaque participant doit soumettre ${format.submission} avant la date limite.`,
+    mix.jury > 0
+      ? `Classement basé sur ${mix.vote}% votes du public et ${mix.jury}% notation du jury.`
+      : `Classement basé à 100% sur les votes du public — un vote = un cadeau envoyé.`,
+    "La cagnotte démarre avec les frais d'inscription et grossit avec 50% de la valeur de chaque cadeau envoyé.",
+    "Les 3 premiers du classement final se partagent la cagnotte : 50% / 30% / 20%.",
+    "Les votes achetés via cadeaux sont définitifs et non remboursables.",
+    "Toute tentative de fraude (faux comptes, achats groupés suspects) entraîne une disqualification.",
+  ];
+
+  const criteria = mix.jury > 0
+    ? ["Technique", "Originalité", "Engagement du public"]
+    : ["Popularité auprès du public", "Régularité des votes reçus"];
+
+  return { description, rewardExtra, rules, criteria, judgingMix: mix };
 }
 
 function ParticipantListOverlay({ comp, onClose }) {
@@ -925,10 +1033,7 @@ function ParticipantListOverlay({ comp, onClose }) {
           onClick={onClose}
           style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
         >
-          ←
-        </button>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#333" }}>
-          Classement — {comp.title}
+          <ArrowLeft size={18} />
         </span>
       </div>
 
@@ -1007,7 +1112,7 @@ function RegistrantListOverlay({ comp, registrants, accent, onClose }) {
           onClick={onClose}
           style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
         >
-          ←
+          <ArrowLeft size={18} />
         </button>
         <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#333" }}>
           Membres inscrits — {comp.title}
@@ -1076,7 +1181,7 @@ function OrgBar({ comp, accent }) {
     <div style={{
       background: "#fff",
       borderBottom: "1px solid #e0e0e0",
-      padding: "12px 16px",
+      padding: "12px 8px",
       display: "flex", alignItems: "center", justifyContent: "space-between",
       maxWidth: 800, margin: "0 auto",
       boxSizing: "border-box", width: "100%",
@@ -1115,9 +1220,13 @@ function OrgBar({ comp, accent }) {
           fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
           letterSpacing: "0.08em", textTransform: "uppercase",
           padding: "6px 14px", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 5,
           transition: "background 0.15s, color 0.15s, border-color 0.15s",
         }}
-      >{orgFollowed ? "✓ Abonné" : "S'abonner"}</button>
+      >{orgFollowed
+        ? <><Check size={11} strokeWidth={3} /> Abonné</>
+        : <><Bell size={11} strokeWidth={2.5} /> S'abonner</>
+      }</button>
     </div>
   );
 }
@@ -1199,13 +1308,65 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [activeBanner, setActiveBanner] = useState(0);
+  const [bannerFullscreen, setBannerFullscreen] = useState(false);
+  const [tickFlash, setTickFlash] = useState(false);
+
+  // Parse comp.ends into total seconds and tick down
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    const str = comp.ends || "";
+    let total = 0;
+    const d = str.match(/(\d+)j/); if (d) total += parseInt(d[1]) * 86400;
+    const h = str.match(/(\d+)h/); if (h) total += parseInt(h[1]) * 3600;
+    const m = str.match(/(\d+)m/); if (m) total += parseInt(m[1]) * 60;
+    return total || 3600;
+  });
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setSecondsLeft((s) => Math.max(0, s - 1));
+      setTickFlash((f) => !f);
+    }, 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const fmtCountdown = (s) => {
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sc = s % 60;
+    if (d > 0) return `${d}j ${String(h).padStart(2,"0")}h ${String(m).padStart(2,"0")}m`;
+    if (h > 0) return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
+    return `${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
+  };
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [showGiftBar, setShowGiftBar] = useState(false);
   const [activeGift, setActiveGift] = useState(null);
   const [giftStep, setGiftStep] = useState("participant"); // "participant" | "gift"
   const [selectedParticipant, setSelectedParticipant] = useState(null);
   const [liveLog, setLiveLog] = useState([]);
+  const [giftLeaderboard, setGiftLeaderboard] = useState(() =>
+    // Seed a few fake top donors
+    Array.from({ length: 5 }, (_, i) => ({
+      id: `donor-${i}`,
+      index: 30 + i,
+      name: fakeName(30 + i),
+      totalSpent: Math.round(3000 - i * 500 + (i * 137) % 300),
+      giftCount: 8 - i,
+      topGift: ["💎", "🔥", "🌟", "🎁", "❤️"][i],
+      isMe: false,
+    }))
+  );
   const accent = isRegistration ? "#6C63FF" : comp.accent;
+  const nicheId = findCompWithNiche(comp.id)?.niche?.id;
+  const rulesInfo = buildRulesInfo(comp, nicheId);
+  const [rulesExpanded, setRulesExpanded] = useState(false);
+  // Prize pool — starts from registration fees, grows with 50% of every gift's value
+  // Prize pool — base from registration fees (fixed), live part grows with 50% of every gift's value
+  const PRIZE_POOL_GIFT_SHARE = 0.5;
+  const basePrizePool = registrationFee(comp) * comp.registeredCount;
+  const [giftPrizePool, setGiftPrizePool] = useState(0);
+  const prizePool = basePrizePool + giftPrizePool;
+  function addToPrizePool(creditValue) {
+    setGiftPrizePool((p) => p + Math.round(creditValue * PRIZE_POOL_GIFT_SHARE));
+  }
   // Seed ranked once; liveVotes tracks per-participant live deltas
   const seedRanked = buildParticipants(comp).slice(0, 5);
   const [liveVotes, setLiveVotes] = useState(() => {
@@ -1222,6 +1383,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [comments, setComments] = useState(() => buildComments(comp));
   const [commentDraft, setCommentDraft] = useState("");
   const [likedCommentIds, setLikedCommentIds] = useState(() => new Set());
+  const [expandedReplies, setExpandedReplies] = useState(() => new Set());
+  const [replyingTo, setReplyingTo] = useState(null); // commentId
+  const [replyDraft, setReplyDraft] = useState("");
   const scrollRef = useRef(null);
   const [scrollY, setScrollY] = useState(0);
 
@@ -1244,6 +1408,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const borderColor = t > 0.5 ? `rgba(0,0,0,0.1)` : `rgba(255,255,255,0.3)`;
 
   // Live vote tick — random participant gets +1–4 votes every 1.8s (voting phase only)
+  const AVG_GIFT_VALUE = Math.round(GIFT_CATALOG.reduce((s, g) => s + g.cost, 0) / GIFT_CATALOG.length);
   useEffect(() => {
     if (isRegistration) return;
     const iv = setInterval(() => {
@@ -1253,7 +1418,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         const delta = 1 + Math.floor(Math.random() * 4);
         return { ...prev, [key]: prev[key] + delta };
       });
-      setVoteCount((c) => c + 1 + Math.floor(Math.random() * 4));
+      const delta = 1 + Math.floor(Math.random() * 4);
+      setVoteCount((c) => c + delta);
+      addToPrizePool(delta * AVG_GIFT_VALUE);
     }, 1800);
     return () => clearInterval(iv);
   }, [isRegistration]);
@@ -1311,14 +1478,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         WebkitBackdropFilter: t < 0.8 ? "blur(6px)" : "none",
         borderBottom: t > 0.5 ? `1px solid rgba(0,0,0,${0.08 * t})` : "none",
         pointerEvents: "none",
+        opacity: bannerFullscreen ? 0 : 1,
+        transition: "opacity 0.3s",
       }}>
         <button onClick={onClose} style={{
           width: 30, height: 30, border: closeBorder, background: closeBg,
           color: closeColor, fontSize: 15, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
           pointerEvents: "all", transition: "background 0.2s, color 0.2s, border 0.2s",
-        }}>✕</button>
-        <div style={{ display: "flex", gap: 5, alignItems: "center", pointerEvents: "all" }}>
+        }}><X size={14} /></button>        <div style={{ display: "flex", gap: 5, alignItems: "center", pointerEvents: "all" }}>
           {comp.hot && (
             <span style={{
               fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
@@ -1383,39 +1551,62 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     <div style={{ position: "absolute", inset: 0, background: `${accent}44`, mixBlendMode: "multiply" }} />
                   </div>
                 ))}
+                {/* Gradient */}
                 <div style={{
                   position: "absolute", inset: 0,
-                  background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.55) 100%)",
+                  background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.55) 100%)",
                   zIndex: 1,
                 }} />
                 {/* Hero content */}
-                <div style={{
-                  position: "absolute", bottom: 0, left: 0, right: 0,
-                  zIndex: 5, padding: "0 16px 16px",
-                }}>
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 5, padding: "0 16px 16px", opacity: bannerFullscreen ? 0 : 1, transition: "opacity 0.3s", pointerEvents: bannerFullscreen ? "none" : "all" }}>
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>{comp.niche}</div>
                   <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(22px, 5vw, 34px)", fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.05, textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>{comp.title}</div>
                 </div>
+                {/* Focus icon — bottom right */}
+                <div
+                  style={{ position: "absolute", bottom: 12, right: 12, zIndex: 6, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", padding: 7, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                  onClick={(e) => { e.stopPropagation(); setBannerFullscreen((v) => !v); }}
+                >
+                  {bannerFullscreen ? (
+                    /* Minimize — inward arrows */
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+                      <path d="M9 14H3M9 14V20M9 14L3 20"/>
+                      <path d="M15 14h6M15 14v6M15 14l6 6"/>
+                      <path d="M9 10H3M9 10V4M9 10L3 4"/>
+                      <path d="M15 10h6M15 10V4M15 10L21 4"/>
+                    </svg>
+                  ) : (
+                    /* Maximize — outward corner arrows */
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+                      <path d="M3 9V3h6M3 3l6 6"/>
+                      <path d="M21 9V3h-6M21 3l-6 6"/>
+                      <path d="M3 15v6h6M3 21l6-6"/>
+                      <path d="M21 15v6h-6M21 21l-6-6"/>
+                    </svg>
+                  )}
+                </div>
               </div>
 
-              {/* Thumbnail selector */}
-              <div style={{ display: "flex", gap: 4, padding: "6px 12px", background: "#000", overflowX: "auto", scrollbarWidth: "none" }}>
+              {/* Thumbnail selector — below banner, white bg */}
+              <div style={{ background: "#fff", borderBottom: "1px solid #e8e8e8", padding: "8px", display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
                 {bannerImgs.map((src, i) => (
                   <div
                     key={i}
                     onClick={() => setActiveBanner(i)}
                     style={{
-                      width: 64, height: 64, flexShrink: 0,
+                      width: 60, height: 60, flexShrink: 0,
                       overflow: "hidden", cursor: "pointer",
                       outline: i === activeBanner ? `2px solid ${accent}` : "2px solid transparent",
                       outlineOffset: "-2px",
-                      transition: "outline-color 0.2s",
+                      transition: "outline-color 0.2s, opacity 0.2s",
+                      opacity: i === activeBanner ? 1 : 0.45,
                     }}
                   >
-                    <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: i === activeBanner ? 1 : 0.4, transition: "opacity 0.2s" }} />
+                    <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   </div>
                 ))}
               </div>
+
             </>
           );
         })()}
@@ -1424,7 +1615,157 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       {/* ── ORGANISER BAR ── */}
       <OrgBar comp={comp} accent={accent} />
 
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 120px" }}>
+      <div style={{ padding: "0 0 120px" }}>
+
+        {/* ── À PROPOS / RÈGLEMENT ── */}
+        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 8px" }}>
+          <div style={{
+            fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+            color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+            marginBottom: 10,
+          }}>
+            À propos
+          </div>
+
+          <p style={{
+            fontFamily: "Inter, sans-serif", fontSize: 13, color: "#444",
+            lineHeight: 1.55, margin: "0 0 12px",
+          }}>
+            {rulesInfo.description}
+          </p>
+
+          {/* Prize pool — live, fed by registration fees + 50% of gift value */}
+          <div style={{
+            background: `${accent}0f`, border: `1px solid ${accent}33`,
+            padding: "12px 14px", marginBottom: 12,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <Trophy size={20} color={accent} strokeWidth={2} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 800, color: "#111",
+                  fontVariantNumeric: "tabular-nums",
+                  transition: "opacity 0.15s",
+                  opacity: tickFlash ? 1 : 0.85,
+                }}>
+                  {prizePool.toLocaleString("fr-FR")} crédits en cagnotte
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", marginTop: 2 }}>
+                  {rulesInfo.rewardExtra}
+                </div>
+              </div>
+            </div>
+
+            {/* Base vs live breakdown */}
+            <div style={{
+              display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+              marginBottom: 12,
+            }}>
+              <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.06)", padding: "8px 10px" }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3 }}>
+                  Mise de départ
+                </div>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: "#555" }}>
+                  {basePrizePool.toLocaleString("fr-FR")}
+                </div>
+              </div>
+              <div style={{ background: "#fff", border: `1px solid ${accent}33`, padding: "8px 10px" }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: accent, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: isRegistration ? "#bbb" : "#e74c3c", display: "inline-block", animation: isRegistration ? "none" : "pulse-dot 1s infinite" }} />
+                  Cadeaux reçus
+                </div>
+                <div style={{
+                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: accent,
+                  fontVariantNumeric: "tabular-nums",
+                  transition: "opacity 0.15s",
+                  opacity: tickFlash ? 1 : 0.85,
+                }}>
+                  +{giftPrizePool.toLocaleString("fr-FR")}
+                </div>
+              </div>
+            </div>
+
+            {/* Top 3 split — 50/30/20 (only meaningful once voting has started) */}
+            {isRegistration ? (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", paddingTop: 4 }}>
+                Répartition 50% / 30% / 20% entre les 3 premiers une fois le vote lancé.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {[
+                  { rank: 0, pct: 0.5, medal: "🥇" },
+                  { rank: 1, pct: 0.3, medal: "🥈" },
+                  { rank: 2, pct: 0.2, medal: "🥉" },
+                ].map(({ rank, pct, medal }) => {
+                  const winner = ranked[rank];
+                  return (
+                    <div key={rank} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "6px 0",
+                      borderTop: rank > 0 ? "1px solid rgba(0,0,0,0.06)" : "none",
+                    }}>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 14 }}>{medal}</span>
+                        {winner ? winner.name : `${rank + 1}e place`}
+                        <span style={{ color: "#aaa", fontWeight: 500 }}>· {Math.round(pct * 100)}%</span>
+                      </span>
+                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 800, color: accent }}>
+                        {Math.round(prizePool * pct).toLocaleString("fr-FR")}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Judging criteria chips */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+            {rulesInfo.criteria.map((crit, i) => (
+              <span key={i} style={{
+                fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+                color: "#666", background: "#f2f2f2",
+                padding: "5px 10px", textTransform: "uppercase", letterSpacing: "0.04em",
+              }}>
+                {crit}
+              </span>
+            ))}
+          </div>
+
+          {/* Rules toggle */}
+          <button
+            onClick={() => setRulesExpanded((v) => !v)}
+            style={{
+              width: "100%", border: "1px solid #e0e0e0", background: "#fafafa",
+              padding: "10px 12px", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+              color: "#333", textTransform: "uppercase", letterSpacing: "0.06em",
+            }}
+          >
+            Règlement complet
+            <ChevronRight
+              size={14}
+              style={{ transform: rulesExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+            />
+          </button>
+
+          {rulesExpanded && (
+            <ol style={{
+              margin: "10px 0 0", padding: "0 0 0 18px",
+              display: "flex", flexDirection: "column", gap: 8,
+            }}>
+              {rulesInfo.rules.map((rule, i) => (
+                <li key={i} style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 12.5, color: "#555",
+                  lineHeight: 1.5,
+                }}>
+                  {rule}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
 
         {/* ── STAT TILES ── */}
         <div style={{
@@ -1436,22 +1777,26 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           {(isRegistration ? [
             { value: comp.registeredCount, label: "Inscrits" },
             { value: comp.contestants, label: "Places", accent: true },
-            { value: comp.ends, label: "Fin inscr.", hot: comp.hot },
+            { value: fmtCountdown(secondsLeft), label: "Fin inscr.", hot: comp.hot, timer: true },
           ] : [
             { value: comp.contestants, label: "Candidats" },
             { value: fmtVotes(voteCount), label: "Votes", accent: true },
-            { value: comp.ends, label: "Fin dans", hot: comp.hot },
+            { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true },
           ]).map((s, i) => (
             <div key={i} style={{
               background: "#fff",
-              padding: "16px 12px",
+              padding: "12px 8px",
               display: "flex", flexDirection: "column", alignItems: "center",
             }}>
               <div style={{
                 fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: 26, fontWeight: 800,
+                fontSize: s.timer ? 18 : 26, fontWeight: 800,
                 color: s.hot ? "#c0392b" : s.accent ? accent : "#111",
                 lineHeight: 1,
+                transition: s.timer ? "opacity 0.12s" : "none",
+                opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
+                fontVariantNumeric: "tabular-nums",
+                letterSpacing: s.timer ? "-0.02em" : "normal",
               }}>{s.value}</div>
               <div style={{
                 fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa",
@@ -1466,7 +1811,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         <div style={{
           background: isRegistration ? "#f0ebff" : comp.hot ? "#fff0ed" : "#f7f7f5",
           borderBottom: `2px solid ${isRegistration ? "#6C63FF" : comp.hot ? "#e74c3c" : "#ddd"}`,
-          padding: "10px 16px",
+          padding: "10px 8px",
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{
@@ -1482,13 +1827,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           }}>
             {isRegistration 
               ? `Inscriptions ouvertes — ${comp.contestants - liveRegistered} place${comp.contestants - liveRegistered !== 1 ? 's' : ''} disponible${comp.contestants - liveRegistered !== 1 ? 's' : ''}` 
-              : comp.hot ? `Compétition très active — se termine dans ${comp.ends}` : `Se termine dans ${comp.ends}`}
+              : comp.hot ? `Compétition très active — se termine dans ${fmtCountdown(secondsLeft)}` : `Se termine dans ${fmtCountdown(secondsLeft)}`}
           </span>
         </div>
 
         {/* ── TOP 5 LEADERBOARD or REGISTRATION INFO ── */}
         {isRegistration ? (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "16px 16px 4px" }}>
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "12px 8px 4px" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               marginBottom: 14,
@@ -1609,7 +1954,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <div style={{ height: 12 }} />
           </div>
         ) : (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "16px 16px 4px" }}>
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "12px 8px 4px" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               marginBottom: 14,
@@ -1705,11 +2050,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <div style={{
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
               color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              marginBottom: 12, paddingLeft: 16, paddingRight: 16,
+              marginBottom: 12, paddingLeft: 8, paddingRight: 8,
             }}>
               Albums
             </div>
-            <div style={{ display: "flex", gap: 2, overflowX: "auto", paddingBottom: 0, paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+            <div style={{ display: "flex", gap: 2, overflowX: "auto", paddingBottom: 0, paddingLeft: 8, paddingRight: 8, scrollbarWidth: "none" }}>
               <style>{`div::-webkit-scrollbar{display:none}`}</style>
               {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => {
                 const p = buildParticipants(comp)[i];
@@ -1795,8 +2140,88 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </div>
         )}
 
+        {/* ── TOP DONATEURS ── */}
+        {!isRegistration && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 8px" }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Gift size={14} color={accent} strokeWidth={2.5} />
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  Top Donateurs
+                </span>
+              </div>
+              {giftLeaderboard.length === 0 && (
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb" }}>Aucun encore</span>
+              )}
+            </div>
+
+            {giftLeaderboard.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>🎁</div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+                  Soyez le premier à envoyer un cadeau !
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {giftLeaderboard.map((donor, i) => {
+                  const isFirst = i === 0;
+                  const medals = ["🥇", "🥈", "🥉"];
+                  return (
+                    <div key={donor.id} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 10px",
+                      background: isFirst ? `${accent}0f` : donor.isMe ? "#f8f8f8" : "#fff",
+                      border: isFirst ? `1px solid ${accent}33` : donor.isMe ? "1px solid #e0e0e0" : "1px solid transparent",
+                      transition: "background 0.2s",
+                    }}>
+                      {/* Rank */}
+                      <div style={{ width: 24, textAlign: "center", flexShrink: 0 }}>
+                        {i < 3 ? (
+                          <span style={{ fontSize: 16 }}>{medals[i]}</span>
+                        ) : (
+                          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#bbb" }}>#{i + 1}</span>
+                        )}
+                      </div>
+                      {/* Avatar */}
+                      <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: isFirst ? `2px solid ${accent}` : "2px solid #eee", background: donor.isMe ? "#111" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {donor.isMe ? (
+                          <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700 }}>{donor.name.charAt(0)}</span>
+                        ) : (
+                          <img src={avatarImg(donor.index)} alt={donor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        )}
+                      </div>
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: isFirst ? accent : "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {donor.name}
+                          </span>
+                          {donor.isMe && <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: accent, background: `${accent}18`, padding: "1px 5px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Vous</span>}
+                          {isFirst && <span style={{ fontSize: 13 }}>👑</span>}
+                        </div>
+                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 1 }}>
+                          {donor.giftCount} cadeau{donor.giftCount > 1 ? "x" : ""} · meilleur: {donor.topGift}
+                        </div>
+                      </div>
+                      {/* Total */}
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: isFirst ? accent : "#333" }}>
+                          {donor.totalSpent.toLocaleString("fr-FR")}
+                        </div>
+                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.06em" }}>crédits</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── COMMENTS ── */}
-        <div style={{ background: "#fff", padding: "14px 16px 20px" }}>
+        <div style={{ background: "#fff", padding: "12px 8px 20px" }}>
           <div style={{
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
@@ -1850,53 +2275,130 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           <div style={{ display: "flex", flexDirection: "column" }}>
             {comments.map((c, i) => {
               const liked = likedCommentIds.has(c.id);
+              const repliesOpen = expandedReplies.has(c.id);
+              const isReplying = replyingTo === c.id;
               return (
                 <div key={c.id} style={{
-                  display: "flex", alignItems: "flex-start", gap: 10,
-                  padding: "10px 0",
                   borderBottom: i < comments.length - 1 ? "1px solid #f0f0f0" : "none",
+                  padding: "10px 0",
                 }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
-                    border: "1px solid #e0e0e0",
-                    background: c.isMine ? "#111" : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {c.isMine ? (
-                      <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700 }}>
-                        {c.name.charAt(0).toUpperCase()}
-                      </span>
-                    ) : (
-                      <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#333" }}>
-                        {c.name}
-                      </span>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb" }}>
-                        {c.minutesAgo === 0 ? "À l'instant" : `il y a ${fmtCommentTime(c.minutesAgo)}`}
-                      </span>
+                  {/* Main comment */}
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                      border: "1px solid #e0e0e0",
+                      background: c.isMine ? "#111" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {c.isMine ? (
+                        <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700 }}>
+                          {c.name.charAt(0).toUpperCase()}
+                        </span>
+                      ) : (
+                        <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      )}
                     </div>
-                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#444", lineHeight: 1.4, margin: "0 0 6px" }}>
-                      {c.text}
-                    </p>
-                    <button
-                      onClick={() => handleToggleLike(c.id)}
-                      style={{
-                        border: "none", background: "none", cursor: "pointer", padding: 0,
-                        display: "flex", alignItems: "center", gap: 4,
-                        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600,
-                        color: liked ? "#e74c3c" : "#aaa",
-                      }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill={liked ? "#e74c3c" : "none"} stroke={liked ? "#e74c3c" : "#aaa"} strokeWidth="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                      </svg>
-                      {c.likes + (liked ? 1 : 0)}
-                    </button>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#333" }}>{c.name}</span>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb" }}>
+                          {c.minutesAgo === 0 ? "À l'instant" : `il y a ${fmtCommentTime(c.minutesAgo)}`}
+                        </span>
+                      </div>
+                      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#444", lineHeight: 1.4, margin: "0 0 6px" }}>{c.text}</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                        <button onClick={() => handleToggleLike(c.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: liked ? "#e74c3c" : "#aaa" }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill={liked ? "#e74c3c" : "none"} stroke={liked ? "#e74c3c" : "#aaa"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                          {c.likes + (liked ? 1 : 0)}
+                        </button>
+                        <button
+                          onClick={() => { setReplyingTo(isReplying ? null : c.id); setReplyDraft(""); }}
+                          style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: isReplying ? accent : "#aaa" }}
+                        >
+                          Répondre
+                        </button>
+                        {c.replies?.length > 0 && (
+                          <button
+                            onClick={() => setExpandedReplies((prev) => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; })}
+                            style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: accent }}
+                          >
+                            {repliesOpen ? "Masquer" : `${c.replies.length} réponse${c.replies.length > 1 ? "s" : ""}`}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Reply input */}
+                  {isReplying && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, marginLeft: 38 }}>
+                      <input
+                        autoFocus
+                        type="text"
+                        value={replyDraft}
+                        onChange={(e) => setReplyDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && replyDraft.trim() && currentUser) {
+                            setComments((prev) => prev.map((cm) => cm.id === c.id ? {
+                              ...cm,
+                              replies: [...(cm.replies || []), { id: `r-${Date.now()}`, index: 0, name: currentUser.fullName, text: replyDraft.trim(), minutesAgo: 0, likes: 0, isMine: true }],
+                            } : cm));
+                            setExpandedReplies((prev) => new Set([...prev, c.id]));
+                            setReplyDraft("");
+                            setReplyingTo(null);
+                          }
+                        }}
+                        placeholder={`Répondre à ${c.name}…`}
+                        style={{ flex: 1, border: "1px solid #e0e0e0", background: "#fafafa", padding: "7px 10px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", outline: "none" }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (!replyDraft.trim() || !currentUser) return;
+                          setComments((prev) => prev.map((cm) => cm.id === c.id ? {
+                            ...cm,
+                            replies: [...(cm.replies || []), { id: `r-${Date.now()}`, index: 0, name: currentUser.fullName, text: replyDraft.trim(), minutesAgo: 0, likes: 0, isMine: true }],
+                          } : cm));
+                          setExpandedReplies((prev) => new Set([...prev, c.id]));
+                          setReplyDraft("");
+                          setReplyingTo(null);
+                        }}
+                        style={{ border: "none", background: accent, color: "#fff", padding: "7px 12px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", display: "flex", alignItems: "center" }}
+                      ><Send size={13} /></button>
+                    </div>
+                  )}
+
+                  {/* Sub-comments */}
+                  {repliesOpen && c.replies?.length > 0 && (
+                    <div style={{ marginLeft: 38, marginTop: 8, borderLeft: `2px solid #f0f0f0`, paddingLeft: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                      {c.replies.map((r) => {
+                        const rLiked = likedCommentIds.has(r.id);
+                        return (
+                          <div key={r.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                            <div style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #e0e0e0", background: r.isMine ? "#111" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              {r.isMine ? (
+                                <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{r.name.charAt(0)}</span>
+                              ) : (
+                                <img src={avatarImg(r.index)} alt={r.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              )}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
+                                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333" }}>{r.name}</span>
+                                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb" }}>
+                                  {r.minutesAgo === 0 ? "À l'instant" : `il y a ${fmtCommentTime(r.minutesAgo)}`}
+                                </span>
+                              </div>
+                              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#555", lineHeight: 1.4, margin: "0 0 4px" }}>{r.text}</p>
+                              <button onClick={() => handleToggleLike(r.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: rLiked ? "#e74c3c" : "#bbb" }}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill={rLiked ? "#e74c3c" : "none"} stroke={rLiked ? "#e74c3c" : "#bbb"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                                {r.likes + (rLiked ? 1 : 0)}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1984,6 +2486,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         setTimeout(() => {
                           onSendGift(gift, { ...comp, recipientName: selectedParticipant?.name });
                           setVoteCount((v) => v + 1);
+                          addToPrizePool(gift.cost);
                           setVoted(true);
                           setShowGiftBar(false);
                           setActiveGift(null);
@@ -1996,6 +2499,19 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                               ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
                             }));
                           });
+                          // Update gift leaderboard — bump current user or add them
+                          if (currentUser) {
+                            setGiftLeaderboard((prev) => {
+                              const exists = prev.find((d) => d.isMe);
+                              let updated;
+                              if (exists) {
+                                updated = prev.map((d) => d.isMe ? { ...d, totalSpent: d.totalSpent + gift.cost, giftCount: d.giftCount + 1, topGift: gift.icon } : d);
+                              } else {
+                                updated = [...prev, { id: "me", index: 0, name: currentUser.fullName, totalSpent: gift.cost, giftCount: 1, topGift: gift.icon, isMe: true }];
+                              }
+                              return updated.sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 10);
+                            });
+                          }
                           setSelectedParticipant(null);
                         }, 300);
                       }}
@@ -2754,7 +3270,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
             display: "flex", alignItems: "center", justifyContent: "center",
             margin: "0 auto 16px", fontSize: 32,
           }}>
-            ✓
+            <Check size={32} strokeWidth={2.5} />
           </div>
           <span style={{
             fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700,
@@ -3183,7 +3699,7 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest }) {
             </span>
           </div>
           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>
-            Gérer →
+            Gérer <ChevronRight size={11} style={{ display: "inline" }} />
           </span>
         </button>
 
@@ -3527,7 +4043,7 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
                     fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
                     letterSpacing: "0.06em", textTransform: "uppercase",
                     color: colors.dot,
-                  }}>Voir la compétition →</span>
+                  }}>Voir la compétition <ChevronRight size={11} style={{ display: "inline" }} /></span>
                 )}
               </div>
             </div>
@@ -3839,7 +4355,7 @@ export default function App() {
                   onClick={() => setQuery("")}
                   style={{ border: "none", background: "none", cursor: "pointer", padding: "0 10px", fontSize: 14, color: "#aaa", lineHeight: 1, flexShrink: 0 }}
                 >
-                  ✕
+                  <X size={13} />
                 </button>
               )}
             </div>
