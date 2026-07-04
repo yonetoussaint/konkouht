@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight } from "lucide-react";
+import { supabase } from "./lib/supabaseClient";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -98,11 +99,22 @@ const ALL_NICHES = ["Tous", ...NICHES.map((n) => n.label)];
 
 /* ─── WALLET DATA ───────────────────────────────────────────────────────── */
 
-const CREDIT_PACKS = [
-  { id: "p1", credits: 100, priceLabel: "2,99 €" },
-  { id: "p2", credits: 550, priceLabel: "9,99 €", bonus: "+10%" },
-  { id: "p3", credits: 1200, priceLabel: "19,99 €", bonus: "+20%" },
-  { id: "p4", credits: 3000, priceLabel: "44,99 €", bonus: "+30%", popular: true },
+const DEPOSIT_PACKS = [
+  { id: "p1", amount: 500 },
+  { id: "p2", amount: 2500 },
+  { id: "p3", amount: 5000, popular: true },
+  { id: "p4", amount: 10000 },
+];
+
+const MOBILE_MONEY_NUMBERS = {
+  moncash: { number: "+509 34 XX XX XX", name: "Jean Baptiste" },
+  natcash: { number: "+509 37 XX XX XX", name: "Jean Baptiste" },
+};
+
+const PAYMENT_METHODS = [
+  { id: "moncash", label: "MonCash", accent: "#F26522" },
+  { id: "natcash", label: "NatCash", accent: "#0072CE" },
+  { id: "card", label: "Carte bancaire", accent: "#111111" },
 ];
 
 const GIFT_CATALOG = [
@@ -115,12 +127,14 @@ const GIFT_CATALOG = [
 ];
 
 const INITIAL_TRANSACTIONS = [
-  { id: "t1", type: "purchase", label: "Achat — Pack 550 crédits", amount: 550, date: "Aujourd'hui, 09:14" },
+  { id: "t1", type: "deposit", label: "Dépôt — MonCash", amount: 550, date: "Aujourd'hui, 09:14" },
   { id: "t2", type: "gift_sent", label: "Couronne envoyée — Voix d'Or", amount: -150, date: "Hier, 21:02" },
   { id: "t3", type: "gift_sent", label: "Flamme envoyée — Krump Masters", amount: -50, date: "Hier, 18:47" },
-  { id: "t4", type: "purchase", label: "Achat — Pack 100 crédits", amount: 100, date: "12 juin, 14:30" },
-  { id: "t5", type: "gift_sent", label: "Étoile envoyée — FIFA Masters", amount: -25, date: "10 juin, 20:15" },
+  { id: "t4", type: "withdrawal", label: "Retrait — NatCash", amount: -200, date: "13 juin, 17:05" },
+  { id: "t5", type: "deposit", label: "Dépôt — Carte bancaire", amount: 100, date: "12 juin, 14:30" },
+  { id: "t6", type: "gift_sent", label: "Étoile envoyée — FIFA Masters", amount: -25, date: "10 juin, 20:15" },
 ];
+
 
 const NICHE_ICONS = {
   "Tous": LayoutGrid,
@@ -215,6 +229,7 @@ function NewsBand() {
 const TABS = [
   { id: "home", label: "Accueil", icon: Home },
   { id: "mycomps", label: "Mes compets", icon: BadgeCheck },
+  { id: "wallet", label: "Portefeuille", icon: Wallet },
   { id: "notifications", label: "Notifs", icon: Bell },
   { id: "account", label: "Compte", icon: User },
 ];
@@ -997,8 +1012,8 @@ function buildRulesInfo(comp, nicheId) {
     mix.jury > 0
       ? `Classement basé sur ${mix.vote}% votes du public et ${mix.jury}% notation du jury.`
       : `Classement basé à 100% sur les votes du public — un vote = un cadeau envoyé.`,
-    "La cagnotte démarre avec les frais d'inscription et grossit avec 50% de la valeur de chaque cadeau envoyé.",
-    "Les 3 premiers du classement final se partagent la cagnotte : 50% / 30% / 20%.",
+    "Le gagnant (1er au classement final) remporte les frais d'inscription cumulés.",
+    "Il reçoit en plus un bonus calculé sur la valeur des cadeaux qui lui ont été envoyés personnellement.",
     "Les votes achetés via cadeaux sont définitifs et non remboursables.",
     "Toute tentative de fraude (faux comptes, achats groupés suspects) entraîne une disqualification.",
   ];
@@ -1372,24 +1387,32 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const nicheId = findCompWithNiche(comp.id)?.niche?.id;
   const rulesInfo = buildRulesInfo(comp, nicheId);
   const [rulesExpanded, setRulesExpanded] = useState(false);
-  // Prize pool — starts from registration fees, grows with 50% of every gift's value
-  // Prize pool — base from registration fees (fixed), live part grows with 50% of every gift's value
-  const PRIZE_POOL_GIFT_SHARE = 0.5;
+  // Prize — single winner takes registration fees (base) + 30% of the gifts sent to them personally
+  const WINNER_GIFT_SHARE = 0.3;
   const basePrizePool = registrationFee(comp) * comp.registeredCount;
-  const [giftPrizePool, setGiftPrizePool] = useState(0);
-  const prizePool = basePrizePool + giftPrizePool;
-  function addToPrizePool(creditValue) {
-    setGiftPrizePool((p) => p + Math.round(creditValue * PRIZE_POOL_GIFT_SHARE));
-  }
-  // Seed ranked once; liveVotes tracks per-participant live deltas
+  // Seed ranked once; liveVotes tracks per-participant live vote deltas, liveGiftCredits tracks per-participant gift credits
   const seedRanked = buildParticipants(comp).slice(0, 5);
   const [liveVotes, setLiveVotes] = useState(() => {
     const m = {};
     seedRanked.forEach((p) => { m[p.index] = p.votes; });
     return m;
   });
+  const [liveGiftCredits, setLiveGiftCredits] = useState(() => {
+    const m = {};
+    seedRanked.forEach((p) => { m[p.index] = 0; });
+    return m;
+  });
+  function addGiftToParticipant(participantIndex, creditValue) {
+    setLiveGiftCredits((prev) => ({
+      ...prev,
+      [participantIndex]: (prev[participantIndex] ?? 0) + creditValue,
+    }));
+  }
   const ranked = seedRanked.map((p) => ({ ...p, votes: liveVotes[p.index] ?? p.votes }));
   const topVotes = Math.max(...ranked.map((p) => p.votes), 1);
+  const leader = ranked[0];
+  const leaderGiftCredits = leader ? (liveGiftCredits[leader.index] ?? 0) : 0;
+  const winnerPrize = basePrizePool + Math.round(leaderGiftCredits * WINNER_GIFT_SHARE);
   // Registration fill counter
   const [liveRegistered, setLiveRegistered] = useState(comp.registeredCount);
   const [showAllRegistrants, setShowAllRegistrants] = useState(false);
@@ -1421,7 +1444,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const pillBg = t > 0.5 ? `rgba(0,0,0,0.07)` : accent;
   const borderColor = t > 0.5 ? `rgba(0,0,0,0.1)` : `rgba(255,255,255,0.3)`;
 
-  // Live vote tick — random participant gets +1–4 votes every 1.8s (voting phase only)
+  // Live vote tick — random participant gets +1–4 votes (and matching gift credit) every 1.8s (voting phase only)
   const AVG_GIFT_VALUE = Math.round(GIFT_CATALOG.reduce((s, g) => s + g.cost, 0) / GIFT_CATALOG.length);
   useEffect(() => {
     if (isRegistration) return;
@@ -1430,11 +1453,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         const keys = Object.keys(prev);
         const key = keys[Math.floor(Math.random() * keys.length)];
         const delta = 1 + Math.floor(Math.random() * 4);
+        addGiftToParticipant(Number(key), delta * AVG_GIFT_VALUE);
+        setVoteCount((c) => c + delta);
         return { ...prev, [key]: prev[key] + delta };
       });
-      const delta = 1 + Math.floor(Math.random() * 4);
-      setVoteCount((c) => c + delta);
-      addToPrizePool(delta * AVG_GIFT_VALUE);
     }, 1800);
     return () => clearInterval(iv);
   }, [isRegistration]);
@@ -1705,7 +1727,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             {rulesInfo.description}
           </p>
 
-          {/* Prize pool — live, fed by registration fees + 50% of gift value */}
+          {/* Prize — single winner: registration fees (base) + 30% of their personal gifts */}
           <div style={{
             background: `${accent}0f`, border: `1px solid ${accent}33`,
             padding: "12px 14px", marginBottom: 12,
@@ -1719,7 +1741,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   transition: "opacity 0.15s",
                   opacity: tickFlash ? 1 : 0.85,
                 }}>
-                  {prizePool.toLocaleString("fr-FR")} crédits en cagnotte
+                  {isRegistration ? basePrizePool.toLocaleString("fr-FR") : winnerPrize.toLocaleString("fr-FR")} crédits pour le gagnant
                 </div>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", marginTop: 2 }}>
                   {rulesInfo.rewardExtra}
@@ -1727,14 +1749,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               </div>
             </div>
 
-            {/* Base vs live breakdown */}
+            {/* Base vs leader's gift share breakdown */}
             <div style={{
               display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
-              marginBottom: 12,
+              marginBottom: isRegistration ? 0 : 12,
             }}>
               <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.06)", padding: "8px 10px" }}>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3 }}>
-                  Mise de départ
+                  Prix à gagner
                 </div>
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: "#555" }}>
                   {basePrizePool.toLocaleString("fr-FR")}
@@ -1743,7 +1765,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               <div style={{ background: "#fff", border: `1px solid ${accent}33`, padding: "8px 10px" }}>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: accent, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: isRegistration ? "#bbb" : "#e74c3c", display: "inline-block", animation: isRegistration ? "none" : "pulse-dot 1s infinite" }} />
-                  Cadeaux reçus
+                  Bonus
                 </div>
                 <div style={{
                   fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: accent,
@@ -1751,42 +1773,33 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   transition: "opacity 0.15s",
                   opacity: tickFlash ? 1 : 0.85,
                 }}>
-                  +{giftPrizePool.toLocaleString("fr-FR")}
+                  +{isRegistration ? 0 : Math.round(leaderGiftCredits * WINNER_GIFT_SHARE).toLocaleString("fr-FR")}
                 </div>
               </div>
             </div>
 
-            {/* Top 3 split — 50/30/20 (only meaningful once voting has started) */}
+            {/* Current leader callout — only meaningful once voting has started */}
             {isRegistration ? (
               <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", paddingTop: 4 }}>
-                Répartition 50% / 30% / 20% entre les 3 premiers une fois le vote lancé.
+                Le 1er du classement final remporte le prix à gagner + un bonus basé sur les cadeaux qu'il a reçus.
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {[
-                  { rank: 0, pct: 0.5, medal: "🥇" },
-                  { rank: 1, pct: 0.3, medal: "🥈" },
-                  { rank: 2, pct: 0.2, medal: "🥉" },
-                ].map(({ rank, pct, medal }) => {
-                  const winner = ranked[rank];
-                  return (
-                    <div key={rank} style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "6px 0",
-                      borderTop: rank > 0 ? "1px solid rgba(0,0,0,0.06)" : "none",
-                    }}>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 14 }}>{medal}</span>
-                        {winner ? winner.name : `${rank + 1}e place`}
-                        <span style={{ color: "#aaa", fontWeight: 500 }}>· {Math.round(pct * 100)}%</span>
-                      </span>
-                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 800, color: accent }}>
-                        {Math.round(prizePool * pct).toLocaleString("fr-FR")}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              leader && (
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "8px 0 0",
+                  borderTop: "1px solid rgba(0,0,0,0.06)",
+                }}>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 14 }}>🥇</span>
+                    {leader.name}
+                    <span style={{ color: "#aaa", fontWeight: 500 }}>· actuellement en tête</span>
+                  </span>
+                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 800, color: accent }}>
+                    {winnerPrize.toLocaleString("fr-FR")}
+                  </span>
+                </div>
+              )
             )}
           </div>
 
@@ -2557,7 +2570,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         setTimeout(() => {
                           onSendGift(gift, { ...comp, recipientName: selectedParticipant?.name });
                           setVoteCount((v) => v + 1);
-                          addToPrizePool(gift.cost);
+                          if (selectedParticipant) {
+                            addGiftToParticipant(selectedParticipant.index, gift.cost);
+                            setLiveVotes((prev) => ({
+                              ...prev,
+                              [selectedParticipant.index]: (prev[selectedParticipant.index] ?? selectedParticipant.votes) + 1,
+                            }));
+                          }
                           setVoted(true);
                           setShowGiftBar(false);
                           setActiveGift(null);
@@ -2860,8 +2879,197 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds }) {
 
 /* ─── WALLET PAGE ───────────────────────────────────────────────────────── */
 
-function BuyCreditsModal({ onClose, onBuy }) {
-  const [selected, setSelected] = useState("p2");
+const DEPOSIT_METHODS = PAYMENT_METHODS.filter((m) => m.id === "moncash" || m.id === "natcash");
+
+function DepositModal({ onClose, onDeposit, lastMethod }) {
+  const [method, setMethod] = useState(lastMethod || "moncash");
+  const [copied, setCopied] = useState(false);
+
+  const phoneNumber = MOBILE_MONEY_NUMBERS[method].number;
+  const accountName = MOBILE_MONEY_NUMBERS[method].name;
+  const currentMethod = PAYMENT_METHODS.find((m) => m.id === method);
+  const methodLabel = currentMethod?.label;
+  const accentColor = currentMethod?.accent ?? "#111";
+
+  function handleCopy() {
+    navigator.clipboard?.writeText(phoneNumber).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleClose() {
+    onDeposit(method);
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1200,
+        background: "rgba(17,17,17,0.5)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+      }}
+      onClick={handleClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 480,
+          background: "#fff",
+          borderTop: "2px solid #111",
+          padding: 16,
+          maxHeight: "85vh",
+          overflowY: "auto",
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+            Déposer des fonds
+          </span>
+          <button onClick={handleClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <>
+          {/* Method tabs */}
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+              Méthode de paiement
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+              {DEPOSIT_METHODS.map((m) => {
+                const active = method === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => setMethod(m.id)}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      border: `1px solid ${active ? "#111" : "#ddd"}`,
+                      background: active ? "#111" : "#fff",
+                      color: active ? "#fff" : "#333",
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: "10px 6px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: "50%",
+                        flexShrink: 0,
+                        background: m.accent,
+                        color: "#fff",
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {m.label.charAt(0)}
+                    </span>
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Account details */}
+            <div
+              style={{
+                border: "2px solid #111",
+                borderLeft: `5px solid ${accentColor}`,
+                background: "#f7f7f5",
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ padding: "14px 16px", borderBottom: "1px solid #ddd" }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: accentColor, marginBottom: 6 }}>
+                  Nom
+                </div>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#111" }}>
+                  {accountName}
+                </div>
+              </div>
+              <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: accentColor, marginBottom: 6 }}>
+                    Numéro {methodLabel}
+                  </div>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 700, letterSpacing: "0.06em", color: "#111" }}>
+                    {phoneNumber}
+                  </div>
+                </div>
+                <button
+                  onClick={handleCopy}
+                  aria-label="Copier le numéro"
+                  style={{
+                    flexShrink: 0,
+                    width: 38,
+                    height: 38,
+                    border: `1px solid ${accentColor}`,
+                    background: copied ? accentColor : "#fff",
+                    color: copied ? "#fff" : accentColor,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {copied ? <Check size={16} strokeWidth={2.5} /> : <Copy size={16} strokeWidth={2.5} />}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#C0392B", lineHeight: 1.5, marginBottom: 4 }}>
+              ⚠ Envoyez uniquement à partir du numéro {methodLabel} enregistré sur votre compte.
+            </div>
+          </>
+      </div>
+    </div>
+  );
+}
+
+const WALLET_PIN = "1234"; // demo PIN
+
+function WithdrawModal({ balance, onClose, onWithdraw }) {
+  const [amountStr, setAmountStr] = useState("");
+  const [method, setMethod] = useState("moncash");
+  const [step, setStep] = useState("form"); // "form" | "pin"
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const amount = parseInt(amountStr, 10) || 0;
+  const canSubmit = amount > 0 && amount <= balance;
+  const methodLabel = PAYMENT_METHODS.find((m) => m.id === method)?.label;
+
+  function handlePinChange(v) {
+    const digits = v.replace(/\D/g, "").slice(0, 4);
+    setPin(digits);
+    setPinError(false);
+  }
+
+  function handleConfirm() {
+    if (pin.length !== 4) return;
+    if (pin !== WALLET_PIN) {
+      setPinError(true);
+      return;
+    }
+    onWithdraw(amount, methodLabel);
+  }
 
   return (
     <div
@@ -2888,105 +3096,175 @@ function BuyCreditsModal({ onClose, onBuy }) {
           overflowY: "auto",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
-            Acheter des crédits
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
+          {step === "pin" && (
+            <button onClick={() => { setStep("form"); setPin(""); setPinError(false); }} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 0, lineHeight: 0 }}>
+              <ArrowLeft size={18} strokeWidth={2.5} />
+            </button>
+          )}
+          <span style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+            {step === "form" ? "Retirer des fonds" : "Confirmer le retrait"}
           </span>
           <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
             <X size={20} />
           </button>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-          {CREDIT_PACKS.map((pack) => {
-            const active = selected === pack.id;
-            return (
-              <button
-                key={pack.id}
-                onClick={() => setSelected(pack.id)}
+        {step === "form" && (
+          <>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+              Solde disponible : {balance.toLocaleString("fr-FR")} HTG
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", border: "1px solid #ddd", padding: "12px 14px", marginBottom: 12 }}>
+              <input
+                type="number"
+                min="1"
+                max={balance}
+                placeholder="0"
+                value={amountStr}
+                onChange={(e) => setAmountStr(e.target.value)}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  border: `1px solid ${active ? "#111" : "#ddd"}`,
-                  background: active ? "#f7f7f5" : "#fff",
-                  padding: "14px",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "border-color 0.12s, background 0.12s",
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: "#333",
+                  minWidth: 0,
                 }}
+              />
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", fontWeight: 600 }}>HTG</span>
+              <button
+                onClick={() => setAmountStr(String(balance))}
+                style={{ marginLeft: 10, border: "1px solid #ddd", background: "#fff", color: "#333", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, padding: "6px 10px", cursor: "pointer" }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div
+                Max
+              </button>
+            </div>
+            {amount > balance && (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#e74c3c", fontWeight: 600, marginBottom: 12 }}>
+                Le montant dépasse votre solde disponible.
+              </div>
+            )}
+
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+              Destination
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              {PAYMENT_METHODS.map((m) => {
+                const active = method === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => setMethod(m.id)}
                     style={{
-                      width: 18,
-                      height: 18,
-                      border: `2px solid ${active ? "#111" : "#ccc"}`,
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
+                      flex: 1,
+                      border: `1px solid ${active ? "#111" : "#ddd"}`,
+                      background: active ? "#111" : "#fff",
+                      color: active ? "#fff" : "#333",
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: "10px 6px",
+                      cursor: "pointer",
                     }}
                   >
-                    {active && <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#111" }} />}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#333" }}>
-                      {pack.credits.toLocaleString("fr-FR")} crédits
-                    </span>
-                    {pack.bonus && (
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#00B894", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                        Bonus {pack.bonus}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {pack.popular && (
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#fff", background: "#6C63FF", padding: "3px 7px" }}>
-                      Populaire
-                    </span>
-                  )}
-                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#333" }}>
-                    {pack.priceLabel}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
 
-        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", lineHeight: 1.5, marginBottom: 16 }}>
-          Les crédits n'ont aucune valeur monétaire et ne sont ni remboursables ni transférables. Paiement sécurisé via Stripe.
-        </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", lineHeight: 1.5, marginBottom: 16 }}>
+              Les retraits sont traités vers votre compte {methodLabel} sous 24h maximum.
+            </div>
 
-        <button
-          onClick={() => {
-            const pack = CREDIT_PACKS.find((p) => p.id === selected);
-            onBuy(pack);
-          }}
-          style={{
-            width: "100%",
-            border: "none",
-            background: "#111",
-            color: "#fff",
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontWeight: 700,
-            fontSize: 14,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            padding: "14px 20px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-          }}
-        >
-          <ShoppingCart size={16} strokeWidth={2.5} />
-          Acheter — {CREDIT_PACKS.find((p) => p.id === selected)?.priceLabel}
-        </button>
+            <button
+              onClick={() => canSubmit && setStep("pin")}
+              disabled={!canSubmit}
+              style={{
+                width: "100%",
+                border: "none",
+                background: canSubmit ? "#111" : "#ccc",
+                color: "#fff",
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: 14,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                padding: "14px 20px",
+                cursor: canSubmit ? "pointer" : "not-allowed",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+              }}
+            >
+              <ArrowUpRight size={16} strokeWidth={2.5} />
+              Retirer — {amount.toLocaleString("fr-FR")} HTG
+            </button>
+          </>
+        )}
+
+        {step === "pin" && (
+          <>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", lineHeight: 1.5, marginBottom: 20 }}>
+              Entrez votre code PIN à 4 chiffres pour confirmer le retrait de <strong>{amount.toLocaleString("fr-FR")} HTG</strong> vers {methodLabel}.
+            </div>
+
+            <input
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              maxLength={4}
+              value={pin}
+              onChange={(e) => handlePinChange(e.target.value)}
+              placeholder="••••"
+              style={{
+                width: "100%",
+                border: `1px solid ${pinError ? "#E74C3C" : "#ddd"}`,
+                padding: "14px 14px",
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontSize: 24,
+                fontWeight: 700,
+                letterSpacing: "0.4em",
+                textAlign: "center",
+                color: "#333",
+                outline: "none",
+                boxSizing: "border-box",
+                marginBottom: 8,
+              }}
+            />
+            {pinError && (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#E74C3C", fontWeight: 600, marginBottom: 12 }}>
+                Code PIN incorrect. Réessayez.
+              </div>
+            )}
+
+            <button
+              onClick={handleConfirm}
+              disabled={pin.length !== 4}
+              style={{
+                width: "100%",
+                border: "none",
+                background: pin.length === 4 ? "#111" : "#ccc",
+                color: "#fff",
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: 14,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                padding: "14px 20px",
+                cursor: pin.length === 4 ? "pointer" : "not-allowed",
+                marginTop: 12,
+              }}
+            >
+              Confirmer le retrait
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -3101,19 +3379,46 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!email || !password || (mode === "signup" && !fullName)) {
       setError("Veuillez remplir tous les champs");
       return;
     }
     setError("");
+    setInfo("");
     setIsSubmitting(true);
-    setTimeout(() => {
+
+    if (mode === "signup") {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName } },
+      });
       setIsSubmitting(false);
-      onAuthenticated({ email, fullName: mode === "signup" ? fullName : "" });
-    }, 700);
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+      if (data.session) {
+        // Email confirmation disabled in the Supabase project — signed in immediately.
+        onAuthenticated(data.user);
+      } else {
+        // Email confirmation required — no session yet.
+        setInfo("Compte créé ! Vérifiez votre e-mail pour confirmer votre inscription, puis connectez-vous.");
+        setMode("login");
+      }
+    } else {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      setIsSubmitting(false);
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
+      onAuthenticated(data.user);
+    }
   }
 
   return (
@@ -3155,7 +3460,7 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
 
         <div style={{ display: "flex", gap: 0, marginBottom: 18, border: "1px solid #ddd" }}>
           <button
-            onClick={() => { setMode("login"); setError(""); }}
+            onClick={() => { setMode("login"); setError(""); setInfo(""); }}
             style={{
               flex: 1,
               border: "none",
@@ -3169,7 +3474,7 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
             Se connecter
           </button>
           <button
-            onClick={() => { setMode("signup"); setError(""); }}
+            onClick={() => { setMode("signup"); setError(""); setInfo(""); }}
             style={{
               flex: 1,
               border: "none",
@@ -3251,6 +3556,11 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
               }}
             />
           </div>
+          {info && (
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#00B894" }}>
+              {info}
+            </span>
+          )}
           {error && (
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C" }}>
               {error}
@@ -3494,46 +3804,92 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
   );
 }
 
-function TransactionRow({ tx }) {
-  const isCredit = tx.amount > 0;
+const TX_VISUALS = {
+  deposit:    { icon: ArrowDownLeft, color: "#00B894", bg: "#f0fbf7" },
+  withdrawal: { icon: ArrowUpRight, color: "#E17055", bg: "#fff4f0" },
+  gift_sent:  { icon: Gift, color: "#6C63FF", bg: "#f0ebff" },
+};
+
+function txReference(id) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  const code = hash.toString(16).toUpperCase().padStart(8, "0").slice(0, 8);
+  return `TXN-${code}`;
+}
+
+function TransactionRow({ tx, isLast, showToast }) {
+  const isCredit = tx.amount != null ? tx.amount > 0 : tx.type === "deposit";
+  const visual = TX_VISUALS[tx.type] || { icon: ArrowUpRight, color: "#888", bg: "#f7f7f5" };
+  const Icon = visual.icon;
+  const time = tx.date.includes(",") ? tx.date.split(",").slice(1).join(",").trim() : tx.date;
+  const reference = txReference(tx.id);
+
+  function copyReference(e) {
+    e.stopPropagation();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(reference).catch(() => {});
+    }
+    showToast && showToast("Référence copiée");
+  }
+
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "12px 0",
-        borderBottom: "1px solid #eee",
+        padding: "12px 14px",
+        borderBottom: isLast ? "none" : "1px solid #f0f0f0",
       }}
     >
       <div
         style={{
-          width: 32,
-          height: 32,
+          width: 34,
+          height: 34,
           flexShrink: 0,
-          border: "1px solid #e0e0e0",
+          border: `1px solid ${visual.color}33`,
+          borderRadius: 10,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: isCredit ? "#f0fbf7" : "#f7f7f5",
+          background: visual.bg,
         }}
       >
-        {isCredit ? (
-          <ArrowDownLeft size={15} color="#00B894" strokeWidth={2.5} />
-        ) : (
-          <ArrowUpRight size={15} color="#888" strokeWidth={2.5} />
-        )}
+        <Icon size={15} color={visual.color} strokeWidth={2.5} />
       </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333" }}>{tx.label}</span>
-        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 500 }}>{tx.date}</span>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", lineHeight: 1.3, minWidth: 0 }}>
+        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {tx.label}
+        </span>
+        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
+          <span>{time}</span>
+          <span style={{ color: "#ddd" }}>·</span>
+          <span
+            onClick={copyReference}
+            title="Copier la référence"
+            style={{
+              fontFamily: "'Space Mono', monospace",
+              fontSize: 10,
+              color: "#bbb",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3,
+            }}
+          >
+            {reference}
+            <Copy size={10} strokeWidth={2} />
+          </span>
+        </span>
       </div>
       <span
         style={{
           fontFamily: "'Space Grotesk', sans-serif",
           fontSize: 14,
           fontWeight: 700,
-          color: isCredit ? "#00B894" : "#333",
+          color: isCredit ? "#00B894" : tx.type === "withdrawal" ? "#FF5252" : "#333",
           flexShrink: 0,
         }}
       >
@@ -3705,7 +4061,7 @@ function MyCompetitionsPage({ registeredCompIds, followedCompIds, onOpen }) {
   );
 }
 
-function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest }) {
+function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLogout }) {
   return (
     <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
       <header
@@ -3793,120 +4149,246 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest }) {
               {item.label}
             </div>
           ))}
+          {currentUser && (
+            <button
+              onClick={onLogout}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "13px 14px", border: "none", background: "none", width: "100%", textAlign: "left",
+                fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#FF5252", cursor: "pointer",
+              }}
+            >
+              <ArrowLeft size={16} strokeWidth={2} color="#FF5252" />
+              Se déconnecter
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast, onBack }) {
+const TX_FILTERS = [
+  { id: "all", label: "Tous" },
+  { id: "deposit", label: "Dépôts" },
+  { id: "withdrawal", label: "Retraits" },
+  { id: "gift_sent", label: "Cadeaux" },
+];
+
+function groupTransactionsByDay(list) {
+  const groups = [];
+  const map = new Map();
+  for (const tx of list) {
+    const day = tx.date.includes(",") ? tx.date.split(",")[0].trim() : tx.date;
+    if (!map.has(day)) {
+      const group = { day, items: [] };
+      map.set(day, group);
+      groups.push(group);
+    }
+    map.get(day).items.push(tx);
+  }
+  return groups;
+}
+
+function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenWithdraw, onOpenGift, onOpenNotifications, showToast, onBack }) {
+  const [txFilter, setTxFilter] = useState("all");
+  const [txQuery, setTxQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  const filteredTx = transactions
+    .filter((t) => txFilter === "all" || t.type === txFilter)
+    .filter((t) => !txQuery.trim() || t.label.toLowerCase().includes(txQuery.trim().toLowerCase()));
+  const groups = groupTransactionsByDay(filteredTx);
+
+  const totalDeposited = transactions
+    .filter((t) => t.type === "deposit")
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalGifted = transactions
+    .filter((t) => t.type === "gift_sent")
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  const dayChange = transactions
+    .filter((t) => t.date && t.date.startsWith("Aujourd'hui"))
+    .reduce((sum, t) => sum + t.amount, 0);
+  const priorBalance = balance - dayChange;
+  const dayChangePct = priorBalance !== 0 ? (dayChange / Math.abs(priorBalance)) * 100 : 0;
+
+
   return (
-    <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
+    <div style={{ minHeight: "100vh", background: "#fff", paddingBottom: 80 }}>
       {/* Header */}
       <header
         style={{
-          borderBottom: "1px solid #e0e0e0",
           background: "#fff",
           position: "sticky",
           top: 0,
           zIndex: 50,
-          padding: "16px 16px",
-          display: "flex", alignItems: "center", gap: 10,
+          padding: "8px 10px",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
         }}
       >
-        {onBack && (
-          <button onClick={onBack} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, lineHeight: 0, color: "#333" }}>
-            <X size={20} />
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            onClick={() => showToast && showToast("Menu bientôt disponible")}
+            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#333", flexShrink: 0, display: "flex" }}
+          >
+            <Menu size={20} strokeWidth={2.25} />
           </button>
-        )}
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
-          Portefeuille
-        </span>
+          <button
+            onClick={() => showToast && showToast("Messagerie bientôt disponible")}
+            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#333", flexShrink: 0, display: "flex" }}
+          >
+            <MessageCircle size={20} strokeWidth={2.25} />
+          </button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            onClick={onOpenNotifications}
+            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#333", flexShrink: 0, display: "flex" }}
+          >
+            <Bell size={20} strokeWidth={2.25} />
+          </button>
+          <button
+            onClick={() => showToast && showToast("Aide bientôt disponible")}
+            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#333", flexShrink: 0, display: "flex" }}
+          >
+            <HelpCircle size={20} strokeWidth={2.25} />
+          </button>
+        </div>
       </header>
 
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-        {/* Balance card */}
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 8px" }}>
         <div
           style={{
-            border: "2px solid #111",
-            background: "#111",
-            color: "#fff",
-            padding: 20,
-            marginBottom: 16,
-            position: "relative",
-            overflow: "hidden",
+            border: "1px solid #e0e0e0",
+            background: "#fff",
+            padding: "14px 16px",
+            marginBottom: 10,
+            borderRadius: 14,
           }}
         >
-          <div
-            style={{
-              fontFamily: "Inter, sans-serif",
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.5)",
-              marginBottom: 10,
-            }}
-          >
-            Solde disponible
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+            <span
+              style={{
+                fontFamily: "Inter, sans-serif",
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "#aaa",
+              }}
+            >
+              Solde disponible
+            </span>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                padding: "3px 7px",
+                borderRadius: 6,
+                background: dayChange >= 0 ? "#00B89418" : "#FF525218",
+                flexShrink: 0,
+              }}
+            >
+              {dayChange >= 0 ? (
+                <ArrowUpRight size={12} strokeWidth={2.75} color="#00B894" style={{ flexShrink: 0 }} />
+              ) : (
+                <ArrowDownLeft size={12} strokeWidth={2.75} color="#FF5252" style={{ flexShrink: 0 }} />
+              )}
+              <span
+                style={{
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: dayChange >= 0 ? "#00B894" : "#FF5252",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {dayChangePct >= 0 ? "+" : ""}{dayChangePct.toFixed(2)}%
+              </span>
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 20 }}>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 44, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.02em" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(26px, 7vw, 32px)", fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.02em", color: "#111", wordBreak: "break-all" }}>
               {balance.toLocaleString("fr-FR")}
             </span>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.6)" }}>
-              crédits
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#999" }}>
+              HTG
+            </span>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: dayChange >= 0 ? "#00B894" : "#FF5252", marginLeft: "auto" }}>
+              {dayChange >= 0 ? "+" : ""}{dayChange.toLocaleString("fr-FR")} aujourd'hui
             </span>
           </div>
+        </div>
 
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={onOpenBuy}
-              style={{
-                flex: 1,
-                border: "1px solid #fff",
-                background: "#fff",
-                color: "#111",
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontWeight: 700,
-                fontSize: 12,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                padding: "12px 14px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
-              <Plus size={14} strokeWidth={2.5} />
-              Acheter
-            </button>
-            <button
-              onClick={onOpenGift}
-              style={{
-                flex: 1,
-                border: "1px solid rgba(255,255,255,0.4)",
-                background: "transparent",
-                color: "#fff",
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontWeight: 700,
-                fontSize: 12,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                padding: "12px 14px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
-              <Gift size={14} strokeWidth={2.5} />
-              Envoyer un cadeau
-            </button>
+        {/* Quick stats */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 130px", minWidth: 0, border: "1px solid #e0e0e0", background: "#fff", padding: "10px 12px", borderRadius: 12 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#aaa", marginBottom: 4 }}>
+              Total déposé
+            </div>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#00B894", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              +{totalDeposited.toLocaleString("fr-FR")} <span style={{ fontSize: 10, fontWeight: 600, color: "#aaa" }}>HTG</span>
+            </div>
           </div>
+          <div style={{ flex: "1 1 130px", minWidth: 0, border: "1px solid #e0e0e0", background: "#fff", padding: "10px 12px", borderRadius: 12 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#aaa", marginBottom: 4 }}>
+              Cadeaux envoyés
+            </div>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              -{totalGifted.toLocaleString("fr-FR")} <span style={{ fontSize: 10, fontWeight: 600, color: "#aaa" }}>HTG</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick actions */}
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            marginBottom: 24,
+            flexWrap: "wrap",
+          }}
+        >
+          {[
+            { label: "Déposer", icon: Plus, onClick: onOpenDeposit, filled: true },
+            { label: "Retirer", icon: ArrowUpRight, onClick: onOpenWithdraw, filled: false },
+          ].map((action) => (
+            <button
+              key={action.label}
+              onClick={action.onClick}
+              style={{
+                flex: "1 1 130px",
+                minWidth: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                height: 48,
+                borderRadius: 24,
+                border: action.filled ? "1px solid #111" : "1px solid #e0e0e0",
+                background: action.filled ? "#111" : "#fff",
+                color: action.filled ? "#fff" : "#333",
+                cursor: "pointer",
+                padding: "0 20px",
+              }}
+            >
+              <action.icon size={18} strokeWidth={2.5} />
+              <span
+                style={{
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {action.label}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* Info note */}
@@ -3920,9 +4402,10 @@ function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast, o
             fontSize: 11,
             color: "#aaa",
             lineHeight: 1.5,
+            borderRadius: 12,
           }}
         >
-          Les crédits sont utilisés pour envoyer des cadeaux aux participants. Ils n'ont aucune valeur monétaire et ne peuvent pas être convertis en argent réel.
+          Votre solde est en gourdes haïtiennes (HTG) et représente de l'argent réel. Déposez via MonCash, NatCash ou carte bancaire, et retirez à tout moment vers votre compte mobile money.
         </div>
 
         {/* Transaction history */}
@@ -3934,19 +4417,111 @@ function WalletPage({ balance, transactions, onOpenBuy, onOpenGift, showToast, o
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
-            marginBottom: 4,
+            marginBottom: 10,
           }}
         >
           Historique
         </div>
-        {transactions.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 8px", color: "#aaa", fontFamily: "Inter, sans-serif", fontSize: 13 }}>
+
+        {/* Search bar */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            border: `1px solid ${searchFocused ? "#111" : "#e0e0e0"}`,
+            background: "#f9f9f9",
+            height: 38,
+            borderRadius: 10,
+            padding: "0 10px",
+            marginBottom: 12,
+            transition: "border-color 0.15s",
+          }}
+        >
+          <Search size={15} color={searchFocused ? "#333" : "#aaa"} strokeWidth={2.25} style={{ flexShrink: 0 }} />
+          <input
+            type="text"
+            placeholder="Rechercher une transaction..."
+            value={txQuery}
+            onChange={(e) => setTxQuery(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: "none",
+              outline: "none",
+              fontFamily: "Inter, sans-serif",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#333",
+              background: "transparent",
+              height: "100%",
+            }}
+          />
+        </div>
+
+        {/* Filter chips */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
+          {TX_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setTxFilter(f.id)}
+              style={{
+                flexShrink: 0,
+                border: `1px solid ${txFilter === f.id ? "#111" : "#e0e0e0"}`,
+                background: txFilter === f.id ? "#111" : "#fff",
+                color: txFilter === f.id ? "#fff" : "#666",
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 700,
+                fontSize: 11,
+                padding: "6px 14px",
+                borderRadius: 20,
+                cursor: "pointer",
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {groups.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 8px", border: "1px solid #e0e0e0", background: "#fff", color: "#aaa", fontFamily: "Inter, sans-serif", fontSize: 13, borderRadius: 12 }}>
             Aucune transaction pour le moment.
           </div>
         ) : (
-          <div>
-            {transactions.map((tx) => (
-              <TransactionRow key={tx.id} tx={tx} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+            {groups.map((g) => (
+              <div
+                key={g.day}
+                style={{
+                  border: "1px solid #e0e0e0",
+                  background: "#fff",
+                  overflow: "hidden",
+                  borderRadius: 14,
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    color: "#999",
+                    padding: "10px 14px",
+                    background: "#fafafa",
+                    borderBottom: "1px solid #eee",
+                  }}
+                >
+                  {g.day}
+                </div>
+                <div>
+                  {g.items.map((tx, i) => (
+                    <TransactionRow key={tx.id} tx={tx} isLast={i === g.items.length - 1} showToast={showToast} />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -4136,6 +4711,8 @@ export default function App() {
   const [balance, setBalance] = useState(425);
   const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
   const [showBuyModal, setShowBuyModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [lastDepositMethod, setLastDepositMethod] = useState(null);
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [registrationComp, setRegistrationComp] = useState(null);
@@ -4143,7 +4720,6 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [registeredCompIds, setRegisteredCompIds] = useState(() => new Set());
   const [followedCompIds, setFollowedCompIds] = useState(() => new Set());
-  const [showWalletPage, setShowWalletPage] = useState(false);
   const [showAuthOverlay, setShowAuthOverlay] = useState(false);
   const [pendingRegistrationComp, setPendingRegistrationComp] = useState(null);
   const [notifications, setNotifications] = useState(INITIAL_NOTIFS);
@@ -4214,15 +4790,25 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   }
 
-  function handleBuyCredits(pack) {
-    setBalance((b) => b + pack.credits);
+  function handleDeposit(methodId) {
+    setLastDepositMethod(methodId);
+    setShowBuyModal(false);
+  }
+
+  function handleWithdraw(amount, methodLabel) {
+    if (amount > balance) {
+      showToast("Solde insuffisant");
+      return;
+    }
+    setBalance((b) => b - amount);
     setTransactions((tx) => [
-      { id: `t-${Date.now()}`, type: "purchase", label: `Achat — Pack ${pack.credits.toLocaleString("fr-FR")} crédits`, amount: pack.credits, date: "À l'instant" },
+      { id: `t-${Date.now()}`, type: "withdrawal", label: `Retrait — ${methodLabel}`, amount: -amount, date: "À l'instant" },
       ...tx,
     ]);
-    setShowBuyModal(false);
-    showToast(`${pack.credits.toLocaleString("fr-FR")} crédits ajoutés`);
+    setShowWithdrawModal(false);
+    showToast(`Retrait de ${amount.toLocaleString("fr-FR")} HTG en cours`);
   }
+
 
   function handleSendGift(gift, comp) {
     if (balance < gift.cost) {
@@ -4288,9 +4874,10 @@ export default function App() {
   }
 
   function handleAuthenticated(user) {
-    const fullName = user.fullName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const rawName = user.user_metadata?.full_name;
+    const fullName = rawName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     setIsAuthenticated(true);
-    setCurrentUser({ email: user.email, fullName });
+    setCurrentUser({ id: user.id, email: user.email, fullName, isOrganizer: false, organizerStatus: null });
     setShowAuthOverlay(false);
     if (pendingRegistrationComp) {
       const pending = pendingRegistrationComp;
@@ -4307,6 +4894,32 @@ export default function App() {
         setShowRegistrationModal(true);
       }
     }
+  }
+
+  // Restore an existing Supabase session on load, and keep state in sync
+  // with sign-in / sign-out / token refresh events from anywhere in the app.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) handleAuthenticated(session.user);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      } else if (session?.user) {
+        handleAuthenticated(session.user);
+      }
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    showToast && showToast("Déconnecté");
   }
 
   return (
@@ -4355,14 +4968,17 @@ export default function App() {
         </div>
       )}
 
-      {showWalletPage ? (
+      {activeTab === "wallet" ? (
         <WalletPage
           balance={balance}
           transactions={transactions}
-          onOpenBuy={() => setShowBuyModal(true)}
+          currentUser={currentUser}
+          onOpenDeposit={() => setShowBuyModal(true)}
+          onOpenWithdraw={() => setShowWithdrawModal(true)}
           onOpenGift={() => setShowGiftModal(true)}
+          onOpenNotifications={() => setActiveTab("notifications")}
           showToast={showToast}
-          onBack={() => setShowWalletPage(false)}
+          onBack={() => setActiveTab("home")}
         />
       ) : activeTab === "notifications" ? (
         <NotificationsPage
@@ -4384,11 +5000,12 @@ export default function App() {
         <AccountPage
           currentUser={currentUser}
           balance={balance}
-          onOpenWallet={() => setShowWalletPage(true)}
+          onOpenWallet={() => setActiveTab("wallet")}
           onLoginRequest={() => setShowAuthOverlay(true)}
+          onLogout={handleLogout}
         />
       ) : (
-      <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 64 }}>
+      <div style={{ minHeight: "100vh", background: "#fff", paddingBottom: 64 }}>
 
         {/* ── HEADER ── */}
         <header
@@ -4586,7 +5203,10 @@ export default function App() {
       )}
 
       {showBuyModal && (
-        <BuyCreditsModal onClose={() => setShowBuyModal(false)} onBuy={handleBuyCredits} />
+        <DepositModal onClose={() => setShowBuyModal(false)} onDeposit={handleDeposit} lastMethod={lastDepositMethod} />
+      )}
+      {showWithdrawModal && (
+        <WithdrawModal balance={balance} onClose={() => setShowWithdrawModal(false)} onWithdraw={handleWithdraw} />
       )}
       {showGiftModal && (
         <GiftModal balance={balance} onClose={() => setShowGiftModal(false)} onSend={handleSendGift} />
