@@ -3733,24 +3733,27 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "14px 16px", border: `1px solid ${canAfford ? "#ddd" : "#f5c6c6"}`,
+            background: canAfford ? "#fff" : "#fdf2f2", marginBottom: 10,
+          }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Frais d'inscription
+            </span>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 800, color: "#111" }}>
+              {fee} gourdes
+            </span>
+          </div>
+
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "14px 16px", border: `1px solid ${canAfford ? "#ddd" : "#f5c6c6"}`,
             background: canAfford ? "#fff" : "#fdf2f2",
           }}>
-            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Frais d'inscription
-              </span>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 800, color: "#111" }}>
-                {fee} gourdes
-              </span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3, alignItems: "flex-end" }}>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Solde
-              </span>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: canAfford ? "#333" : "#E74C3C" }}>
-                {balance.toLocaleString("fr-FR")} gourdes
-              </span>
-            </div>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Solde
+            </span>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: canAfford ? "#333" : "#E74C3C" }}>
+              {balance.toLocaleString("fr-FR")} gourdes
+            </span>
           </div>
 
           {!canAfford && (
