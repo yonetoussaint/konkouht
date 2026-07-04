@@ -4,6 +4,12 @@ import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Ho
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
+// FNKH ("Fédération Nationale des Konkou d'Haïti") is the platform's own
+// organizing body — every competition on the app is run under this sigle,
+// and this account is auto-recognized as its verified organizer.
+const PLATFORM_ORGANIZER_EMAIL = "yonetoussaint25@gmail.com";
+const PLATFORM_ORGANIZER_SIGLE = "FNKH";
+
 const NICHES = [
   {
     id: "music",
@@ -11,11 +17,11 @@ const NICHES = [
     accent: "#6C63FF",
     icon: "♪",
     competitions: [
-      { id: "m1", title: "Battle Hip-Hop", edition: "Saison 4", phase: "live", contestants: 12, votes: 4820, ends: "2j 14h", organisateur: "Urban Sound Collective", hot: true , followers: 8096 , mediaType: "photo", registeredCount: 12 },
-      { id: "m2", title: "Voix d'Or", edition: "Finale", phase: "live", contestants: 8, votes: 9310, ends: "6h 22m", organisateur: "Studio Voix", hot: true , followers: 2439 , mediaType: "video", registeredCount: 8 },
-      { id: "m3", title: "Guitar Shred", edition: "Quart de finale", phase: "live", contestants: 16, votes: 2140, ends: "4j 02h", organisateur: "Guitar League", hot: false , followers: 18824 , mediaType: "text", registeredCount: 16 },
-      { id: "m4", title: "DJ Set Open", edition: "Éliminatoires", phase: "registration", contestants: 24, votes: 0, ends: "3j 18h", organisateur: "DJ Network Haiti", hot: false , followers: 16849 , mediaType: "pdf", registeredCount: 7 },
-      { id: "m5", title: "Slam Poétique", edition: "Demi-finale", phase: "live", contestants: 6, votes: 3450, ends: "1j 08h", organisateur: "Poésie Vive", hot: true , followers: 15428 , mediaType: "photo", registeredCount: 6 },
+      { id: "m1", title: "Battle Hip-Hop", edition: "Saison 4", phase: "live", contestants: 12, votes: 4820, ends: "2j 14h", organisateur: "FNKH", hot: true , followers: 8096 , mediaType: "photo", registeredCount: 12 },
+      { id: "m2", title: "Voix d'Or", edition: "Finale", phase: "live", contestants: 8, votes: 9310, ends: "6h 22m", organisateur: "FNKH", hot: true , followers: 2439 , mediaType: "video", registeredCount: 8 },
+      { id: "m3", title: "Guitar Shred", edition: "Quart de finale", phase: "live", contestants: 16, votes: 2140, ends: "4j 02h", organisateur: "FNKH", hot: false , followers: 18824 , mediaType: "text", registeredCount: 16 },
+      { id: "m4", title: "DJ Set Open", edition: "Éliminatoires", phase: "registration", contestants: 24, votes: 0, ends: "3j 18h", organisateur: "FNKH", hot: false , followers: 16849 , mediaType: "pdf", registeredCount: 7 },
+      { id: "m5", title: "Slam Poétique", edition: "Demi-finale", phase: "live", contestants: 6, votes: 3450, ends: "1j 08h", organisateur: "FNKH", hot: true , followers: 15428 , mediaType: "photo", registeredCount: 6 },
     ],
   },
   {
@@ -24,11 +30,11 @@ const NICHES = [
     accent: "#FF4D6D",
     icon: "◈",
     competitions: [
-      { id: "d1", title: "Krump Masters", edition: "Finale", phase: "live", contestants: 10, votes: 7640, ends: "3j 05h", organisateur: "Krump Federation", hot: true , followers: 9944 , mediaType: "video", registeredCount: 10 },
-      { id: "d2", title: "Afrobeats Cup", edition: "Saison 2", phase: "registration", contestants: 20, votes: 0, ends: "4j 11h", organisateur: "Afrobeats Crew", hot: false , followers: 7517 , mediaType: "text", registeredCount: 5 },
-      { id: "d3", title: "Ballet Urbain", edition: "Demi-finale", phase: "live", contestants: 8, votes: 3810, ends: "2j 19h", organisateur: "Ballet Urbain Co.", hot: false , followers: 36541 , mediaType: "pdf", registeredCount: 8 },
-      { id: "d4", title: "Breakdance WC", edition: "Quart de finale", phase: "live", contestants: 32, votes: 11200, ends: "1j 02h", organisateur: "World Cypher", hot: true , followers: 6497 , mediaType: "photo", registeredCount: 32 },
-      { id: "d5", title: "Zumba Battle", edition: "Éliminatoires", phase: "registration", contestants: 18, votes: 0, ends: "6j 00h", organisateur: "Zumba Connect", hot: false , followers: 39498 , mediaType: "video", registeredCount: 3 },
+      { id: "d1", title: "Krump Masters", edition: "Finale", phase: "live", contestants: 10, votes: 7640, ends: "3j 05h", organisateur: "FNKH", hot: true , followers: 9944 , mediaType: "video", registeredCount: 10 },
+      { id: "d2", title: "Afrobeats Cup", edition: "Saison 2", phase: "registration", contestants: 20, votes: 0, ends: "4j 11h", organisateur: "FNKH", hot: false , followers: 7517 , mediaType: "text", registeredCount: 5 },
+      { id: "d3", title: "Ballet Urbain", edition: "Demi-finale", phase: "live", contestants: 8, votes: 3810, ends: "2j 19h", organisateur: "FNKH", hot: false , followers: 36541 , mediaType: "pdf", registeredCount: 8 },
+      { id: "d4", title: "Breakdance WC", edition: "Quart de finale", phase: "live", contestants: 32, votes: 11200, ends: "1j 02h", organisateur: "FNKH", hot: true , followers: 6497 , mediaType: "photo", registeredCount: 32 },
+      { id: "d5", title: "Zumba Battle", edition: "Éliminatoires", phase: "registration", contestants: 18, votes: 0, ends: "6j 00h", organisateur: "FNKH", hot: false , followers: 39498 , mediaType: "video", registeredCount: 3 },
     ],
   },
   {
@@ -37,11 +43,11 @@ const NICHES = [
     accent: "#00B894",
     icon: "▲",
     competitions: [
-      { id: "s1", title: "Freestyle Football", edition: "Finale Nationale", phase: "live", contestants: 14, votes: 6540, ends: "12h 00m", organisateur: "Street Football Assoc.", hot: true , followers: 28451 , mediaType: "text", registeredCount: 14 },
-      { id: "s2", title: "Arm Wrestling Pro", edition: "Open", phase: "registration", contestants: 28, votes: 0, ends: "3j 07h", organisateur: "Arm Wrestling League", hot: false , followers: 2882 , mediaType: "pdf", registeredCount: 9 },
-      { id: "s3", title: "Parkour Challenge", edition: "Saison 3", phase: "live", contestants: 10, votes: 8900, ends: "2j 16h", organisateur: "Parkour Nation", hot: true , followers: 2752 , mediaType: "photo", registeredCount: 10 },
-      { id: "s4", title: "Chess Blitz", edition: "Quart de finale", phase: "live", contestants: 64, votes: 4410, ends: "3j 22h", organisateur: "Chess Club PAP", hot: false , followers: 6940 , mediaType: "video", registeredCount: 64 },
-      { id: "s5", title: "Natation Style", edition: "Demi-finale", phase: "registration", contestants: 16, votes: 0, ends: "5j 03h", organisateur: "Fédé Natation", hot: false , followers: 15128 , mediaType: "text", registeredCount: 4 },
+      { id: "s1", title: "Freestyle Football", edition: "Finale Nationale", phase: "live", contestants: 14, votes: 6540, ends: "12h 00m", organisateur: "FNKH", hot: true , followers: 28451 , mediaType: "text", registeredCount: 14 },
+      { id: "s2", title: "Arm Wrestling Pro", edition: "Open", phase: "registration", contestants: 28, votes: 0, ends: "3j 07h", organisateur: "FNKH", hot: false , followers: 2882 , mediaType: "pdf", registeredCount: 9 },
+      { id: "s3", title: "Parkour Challenge", edition: "Saison 3", phase: "live", contestants: 10, votes: 8900, ends: "2j 16h", organisateur: "FNKH", hot: true , followers: 2752 , mediaType: "photo", registeredCount: 10 },
+      { id: "s4", title: "Chess Blitz", edition: "Quart de finale", phase: "live", contestants: 64, votes: 4410, ends: "3j 22h", organisateur: "FNKH", hot: false , followers: 6940 , mediaType: "video", registeredCount: 64 },
+      { id: "s5", title: "Natation Style", edition: "Demi-finale", phase: "registration", contestants: 16, votes: 0, ends: "5j 03h", organisateur: "FNKH", hot: false , followers: 15128 , mediaType: "text", registeredCount: 4 },
     ],
   },
   {
@@ -50,11 +56,11 @@ const NICHES = [
     accent: "#FDCB6E",
     icon: "□",
     competitions: [
-      { id: "a1", title: "Live Graffiti", edition: "Finale", phase: "live", contestants: 8, votes: 5580, ends: "18h 30m", organisateur: "Graffiti Collective", hot: true , followers: 16047 , mediaType: "pdf", registeredCount: 8 },
-      { id: "a2", title: "Tatouage Expo", edition: "Saison 1", phase: "live", contestants: 20, votes: 7230, ends: "4j 00h", organisateur: "Ink Studio Expo", hot: true , followers: 33918 , mediaType: "photo", registeredCount: 20 },
-      { id: "a3", title: "Illustration Duel", edition: "Open Digital", phase: "registration", contestants: 40, votes: 0, ends: "4j 14h", organisateur: "Digital Art Hub", hot: false , followers: 40253 , mediaType: "video", registeredCount: 12 },
-      { id: "a4", title: "Photo Street", edition: "Éliminatoires", phase: "registration", contestants: 50, votes: 0, ends: "7j 02h", organisateur: "Street Photo Guild", hot: false , followers: 2539 , mediaType: "text", registeredCount: 15 },
-      { id: "a5", title: "Poterie Battle", edition: "Demi-finale", phase: "live", contestants: 6, votes: 3100, ends: "3j 09h", organisateur: "Poterie Atelier", hot: false , followers: 37581 , mediaType: "pdf", registeredCount: 6 },
+      { id: "a1", title: "Live Graffiti", edition: "Finale", phase: "live", contestants: 8, votes: 5580, ends: "18h 30m", organisateur: "FNKH", hot: true , followers: 16047 , mediaType: "pdf", registeredCount: 8 },
+      { id: "a2", title: "Tatouage Expo", edition: "Saison 1", phase: "live", contestants: 20, votes: 7230, ends: "4j 00h", organisateur: "FNKH", hot: true , followers: 33918 , mediaType: "photo", registeredCount: 20 },
+      { id: "a3", title: "Illustration Duel", edition: "Open Digital", phase: "registration", contestants: 40, votes: 0, ends: "4j 14h", organisateur: "FNKH", hot: false , followers: 40253 , mediaType: "video", registeredCount: 12 },
+      { id: "a4", title: "Photo Street", edition: "Éliminatoires", phase: "registration", contestants: 50, votes: 0, ends: "7j 02h", organisateur: "FNKH", hot: false , followers: 2539 , mediaType: "text", registeredCount: 15 },
+      { id: "a5", title: "Poterie Battle", edition: "Demi-finale", phase: "live", contestants: 6, votes: 3100, ends: "3j 09h", organisateur: "FNKH", hot: false , followers: 37581 , mediaType: "pdf", registeredCount: 6 },
     ],
   },
   {
@@ -63,10 +69,10 @@ const NICHES = [
     accent: "#E17055",
     icon: "◉",
     competitions: [
-      { id: "c1", title: "Stand-up Open Mic", edition: "Saison 5", phase: "live", contestants: 18, votes: 9870, ends: "1j 20h", organisateur: "Comedy Night Productions", hot: true , followers: 13831 , mediaType: "photo", registeredCount: 18 },
-      { id: "c2", title: "Impro Théâtre", edition: "Finale", phase: "registration", contestants: 6, votes: 0, ends: "12h 06h", organisateur: "Théâtre Impro", hot: false , followers: 36513 , mediaType: "video", registeredCount: 2 },
-      { id: "c3", title: "Sketch Battle", edition: "Quart de finale", phase: "live", contestants: 12, votes: 3450, ends: "5j 11h", organisateur: "Sketch Crew", hot: false , followers: 28293 , mediaType: "text", registeredCount: 12 },
-      { id: "c4", title: "Mime & Clown", edition: "Éliminatoires", phase: "registration", contestants: 22, votes: 0, ends: "5j 18h", organisateur: "Mime Collective", hot: false , followers: 15246 , mediaType: "pdf", registeredCount: 6 },
+      { id: "c1", title: "Stand-up Open Mic", edition: "Saison 5", phase: "live", contestants: 18, votes: 9870, ends: "1j 20h", organisateur: "FNKH", hot: true , followers: 13831 , mediaType: "photo", registeredCount: 18 },
+      { id: "c2", title: "Impro Théâtre", edition: "Finale", phase: "registration", contestants: 6, votes: 0, ends: "12h 06h", organisateur: "FNKH", hot: false , followers: 36513 , mediaType: "video", registeredCount: 2 },
+      { id: "c3", title: "Sketch Battle", edition: "Quart de finale", phase: "live", contestants: 12, votes: 3450, ends: "5j 11h", organisateur: "FNKH", hot: false , followers: 28293 , mediaType: "text", registeredCount: 12 },
+      { id: "c4", title: "Mime & Clown", edition: "Éliminatoires", phase: "registration", contestants: 22, votes: 0, ends: "5j 18h", organisateur: "FNKH", hot: false , followers: 15246 , mediaType: "pdf", registeredCount: 6 },
     ],
   },
   {
@@ -75,9 +81,9 @@ const NICHES = [
     accent: "#E91E8C",
     icon: "✦",
     competitions: [
-      { id: "b1", title: "Concours de Beauté", edition: "Saison 1", phase: "live", contestants: 12, votes: 6240, ends: "2j 08h", organisateur: "Beauty Crown Haiti", hot: true, followers: 22450, mediaType: "photo", registeredCount: 12 },
-      { id: "b2", title: "Miss Élégance", edition: "Demi-finale", phase: "live", contestants: 8, votes: 4810, ends: "1j 12h", organisateur: "Élégance Studio", hot: true, followers: 18300, mediaType: "photo", registeredCount: 8 },
-      { id: "b3", title: "Top Model Open", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "5j 00h", organisateur: "Model Agency PAP", hot: false, followers: 9120, mediaType: "photo", registeredCount: 7 },
+      { id: "b1", title: "Concours de Beauté", edition: "Saison 1", phase: "live", contestants: 12, votes: 6240, ends: "2j 08h", organisateur: "FNKH", hot: true, followers: 22450, mediaType: "photo", registeredCount: 12 },
+      { id: "b2", title: "Miss Élégance", edition: "Demi-finale", phase: "live", contestants: 8, votes: 4810, ends: "1j 12h", organisateur: "FNKH", hot: true, followers: 18300, mediaType: "photo", registeredCount: 8 },
+      { id: "b3", title: "Top Model Open", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "5j 00h", organisateur: "FNKH", hot: false, followers: 9120, mediaType: "photo", registeredCount: 7 },
     ],
   },
   {
@@ -86,11 +92,11 @@ const NICHES = [
     accent: "#00CEC9",
     icon: "▶",
     competitions: [
-      { id: "g1", title: "FIFA Masters", edition: "Saison 6", phase: "live", contestants: 32, votes: 14500, ends: "6h 00m", organisateur: "FIFA League Haiti", hot: true , followers: 30239 , mediaType: "photo", registeredCount: 32 },
-      { id: "g2", title: "Speedrun Open", edition: "Finale", phase: "live", contestants: 16, votes: 8730, ends: "1j 14h", organisateur: "Speedrun Community", hot: true , followers: 39418 , mediaType: "video", registeredCount: 16 },
-      { id: "g3", title: "Card Game Pro", edition: "Quart de finale", phase: "registration", contestants: 64, votes: 0, ends: "2j 02h", organisateur: "Card Masters Guild", hot: false , followers: 19031 , mediaType: "text", registeredCount: 20 },
-      { id: "g4", title: "Retro Gaming Cup", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "4j 08h", organisateur: "Retro Gamers Club", hot: false , followers: 1225 , mediaType: "pdf", registeredCount: 8 },
-      { id: "g5", title: "VR Arena", edition: "Demi-finale", phase: "live", contestants: 10, votes: 5670, ends: "2j 22h", organisateur: "VR Arena Pro", hot: false , followers: 11263 , mediaType: "photo", registeredCount: 10 },
+      { id: "g1", title: "FIFA Masters", edition: "Saison 6", phase: "live", contestants: 32, votes: 14500, ends: "6h 00m", organisateur: "FNKH", hot: true , followers: 30239 , mediaType: "photo", registeredCount: 32 },
+      { id: "g2", title: "Speedrun Open", edition: "Finale", phase: "live", contestants: 16, votes: 8730, ends: "1j 14h", organisateur: "FNKH", hot: true , followers: 39418 , mediaType: "video", registeredCount: 16 },
+      { id: "g3", title: "Card Game Pro", edition: "Quart de finale", phase: "registration", contestants: 64, votes: 0, ends: "2j 02h", organisateur: "FNKH", hot: false , followers: 19031 , mediaType: "text", registeredCount: 20 },
+      { id: "g4", title: "Retro Gaming Cup", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "4j 08h", organisateur: "FNKH", hot: false , followers: 1225 , mediaType: "pdf", registeredCount: 8 },
+      { id: "g5", title: "VR Arena", edition: "Demi-finale", phase: "live", contestants: 10, votes: 5670, ends: "2j 22h", organisateur: "FNKH", hot: false , followers: 11263 , mediaType: "photo", registeredCount: 10 },
     ],
   },
 ];
@@ -4878,9 +4884,18 @@ export default function App() {
 
   function handleAuthenticated(user) {
     const rawName = user.user_metadata?.full_name;
-    const fullName = rawName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const isPlatformOrganizer = user.email?.toLowerCase() === PLATFORM_ORGANIZER_EMAIL.toLowerCase();
+    const fullName = isPlatformOrganizer
+      ? PLATFORM_ORGANIZER_SIGLE
+      : rawName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     setIsAuthenticated(true);
-    setCurrentUser({ id: user.id, email: user.email, fullName, isOrganizer: false, organizerStatus: null });
+    setCurrentUser({
+      id: user.id,
+      email: user.email,
+      fullName,
+      isOrganizer: isPlatformOrganizer,
+      organizerStatus: isPlatformOrganizer ? "approved" : null,
+    });
     setShowAuthOverlay(false);
     if (pendingRegistrationComp) {
       const pending = pendingRegistrationComp;
