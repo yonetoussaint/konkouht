@@ -3604,7 +3604,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
 
   function handleSubmit() {
     if (!canAfford) {
-      showToast("Crédits insuffisants pour l'inscription");
+      showToast("Gourdes insuffisantes pour l'inscription");
       onOpenBuy?.();
       return;
     }
@@ -3740,7 +3740,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
                 Frais d'inscription
               </span>
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 800, color: "#111" }}>
-                {fee} crédits
+                {fee} gourdes
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3, alignItems: "flex-end" }}>
@@ -3748,14 +3748,14 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
                 Solde
               </span>
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: canAfford ? "#333" : "#E74C3C" }}>
-                {balance.toLocaleString("fr-FR")} crédits
+                {balance.toLocaleString("fr-FR")} gourdes
               </span>
             </div>
           </div>
 
           {!canAfford && (
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C" }}>
-              Crédits insuffisants — achetez-en pour continuer.
+              Gourdes insuffisantes — achetez-en pour continuer.
             </span>
           )}
         </div>
@@ -3789,12 +3789,12 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           ) : canAfford ? (
             <>
               <Plus size={16} strokeWidth={2.5} />
-              Payer {fee} crédits et s'inscrire
+              Payer {fee} gourdes et s'inscrire
             </>
           ) : (
             <>
               <Wallet size={16} strokeWidth={2.5} />
-              Acheter des crédits
+              Acheter des gourdes
             </>
           )}
         </button>
