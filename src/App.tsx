@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { fetchRegistrations, insertRegistration, fetchUserRegistrations } from "./lib/registrations";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle } from "lucide-react";
+import { fetchComments, insertComment } from "./lib/comments";
+import { fetchCompetitionEdits, saveCompetitionEdit } from "./lib/competitionEdits";
+import { fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionImages";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -356,7 +359,7 @@ function PhaseRow({ edition, accent }) {
 
 /* ─── COMPETITION CARD ──────────────────────────────────────────────────── */
 
-function CompCard({ comp, accent, onOpen, onRegister, isRegistered }) {
+function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompetition }) {
   const [voteCount] = useState(comp.votes);
   const [followed, setFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(comp.followers);
@@ -379,12 +382,18 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered }) {
       }}
     >
       {/* Banner */}
-      <div style={{ height: 110, position: "relative", flexShrink: 0, overflow: "hidden" }}>
-        <img
-          src={heroBannerImg(comp.id)}
-          alt={comp.title}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        />
+      <div style={{ height: 110, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
+        {comp.images?.[0]?.url ? (
+          <img
+            src={comp.images[0].url}
+            alt={comp.title}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+        ) : (
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ImageIcon size={26} color="#ccc" />
+          </div>
+        )}
         <div style={{
           position: "absolute", inset: 0,
           background: `${accent}66`,
@@ -549,7 +558,29 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered }) {
 
       {/* Footer — voting or registration */}
       {isRegistration ? (
-        isRegistered ? (
+        isOwnCompetition ? (
+          <div
+            style={{
+              border: "none",
+              background: "#f2f2f2",
+              color: "#999",
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              padding: "11px 14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              flexShrink: 0,
+            }}
+          >
+            <BadgeCheck size={14} strokeWidth={2.5} />
+            Votre compétition
+          </div>
+        ) : isRegistered ? (
           <div
             style={{
               border: "none",
@@ -1318,8 +1349,50 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
 
 /* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
 
-function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth }) {
+function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onAddImage, onRemoveImage }) {
   const isRegistration = comp.phase === "registration";
+  const isOwnCompetition = currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState(comp.title);
+  const [editEdition, setEditEdition] = useState(comp.edition);
+  const [editEnds, setEditEnds] = useState(comp.ends);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [removingImageId, setRemovingImageId] = useState(null);
+  const images = comp.images || [];
+
+  useEffect(() => {
+    setEditTitle(comp.title);
+    setEditEdition(comp.edition);
+    setEditEnds(comp.ends);
+  }, [comp.id, comp.title, comp.edition, comp.ends]);
+
+  async function handleAddImageFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingImage(true);
+    await onAddImage?.(comp.id, file);
+    setUploadingImage(false);
+  }
+
+  async function handleRemoveImage(imageId) {
+    setRemovingImageId(imageId);
+    await onRemoveImage?.(comp.id, imageId);
+    setRemovingImageId(null);
+  }
+
+  async function handleSaveEdit() {
+    setSavingEdit(true);
+    const result = await onEditComp?.({
+      competitionId: comp.id,
+      title: editTitle.trim() || comp.title,
+      edition: editEdition.trim() || comp.edition,
+      ends: editEnds.trim() || comp.ends,
+    });
+    setSavingEdit(false);
+    if (result?.success) setShowEditModal(false);
+  }
   const [voteCount, setVoteCount] = useState(comp.votes);
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -1414,11 +1487,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const leader = ranked[0];
   const leaderGiftCredits = leader ? (liveGiftCredits[leader.index] ?? 0) : 0;
   const winnerPrize = basePrizePool + Math.round(leaderGiftCredits * WINNER_GIFT_SHARE);
-  // Registration fill counter
-  const [liveRegistered, setLiveRegistered] = useState(comp.registeredCount);
+  // Registration fill counter — real count from the database, not simulated.
+  // Falls back to the seeded registeredCount only until the real fetch resolves,
+  // so the UI doesn't flash "0" on first paint.
   const [showAllRegistrants, setShowAllRegistrants] = useState(false);
   const [registrants, setRegistrants] = useState([]);
   const [registrantsLoading, setRegistrantsLoading] = useState(isRegistration);
+  const liveRegistered = registrantsLoading ? comp.registeredCount : registrants.length;
 
   useEffect(() => {
     if (!isRegistration) return;
@@ -1439,7 +1514,52 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     });
     return () => { cancelled = true; };
   }, [comp.id, isRegistration]);
-  const [comments, setComments] = useState(() => buildComments(comp));
+
+  // Real-time sync: reflect registrations made by ANY user, live, while this
+  // board is open — not just the ones fetched at mount time.
+  useEffect(() => {
+    if (!isRegistration) return;
+    const channel = supabase
+      .channel(`registrations-${comp.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "registrations", filter: `competition_id=eq.${comp.id}` },
+        (payload) => {
+          const r = payload.new;
+          setRegistrants((prev) => {
+            if (prev.some((existing) => existing.id === r.id)) return prev;
+            return [
+              {
+                id: r.id,
+                name: r.full_name,
+                fee: r.fee_paid,
+                date: new Date(r.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+                time: new Date(r.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+              },
+              ...prev,
+            ];
+          });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [comp.id, isRegistration]);
+  function mapCommentRow(row) {
+    const minutesAgo = Math.max(0, Math.round((Date.now() - new Date(row.created_at).getTime()) / 60000));
+    return {
+      id: row.id,
+      index: Math.abs(hashStr(row.user_id || row.id)) % 40,
+      name: row.full_name,
+      text: row.text,
+      minutesAgo,
+      likes: 0,
+      isMine: currentUser && row.user_id === currentUser.id,
+    };
+  }
+
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [posting, setPosting] = useState(false);
   const [commentDraft, setCommentDraft] = useState("");
   const [likedCommentIds, setLikedCommentIds] = useState(() => new Set());
   const [expandedReplies, setExpandedReplies] = useState(() => new Set());
@@ -1447,6 +1567,51 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [replyDraft, setReplyDraft] = useState("");
   const scrollRef = useRef(null);
   const [scrollY, setScrollY] = useState(0);
+
+  // Load comments (and their replies) for this competition from the database.
+  useEffect(() => {
+    let cancelled = false;
+    setCommentsLoading(true);
+    fetchComments(comp.id).then((rows) => {
+      if (cancelled) return;
+      setComments(
+        rows.map((c) => ({
+          ...mapCommentRow(c),
+          replies: (c.replies || []).map(mapCommentRow),
+        }))
+      );
+      setCommentsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [comp.id]);
+
+  // Real-time sync: reflect comments/replies posted by ANY user, live, while
+  // this board is open.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`comments-${comp.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments", filter: `competition_id=eq.${comp.id}` },
+        (payload) => {
+          const row = payload.new;
+          if (row.parent_id) {
+            setComments((prev) => prev.map((cm) => {
+              if (cm.id !== row.parent_id) return cm;
+              if ((cm.replies || []).some((r) => r.id === row.id)) return cm;
+              return { ...cm, replies: [...(cm.replies || []), mapCommentRow(row)] };
+            }));
+          } else {
+            setComments((prev) => {
+              if (prev.some((c) => c.id === row.id)) return prev;
+              return [{ ...mapCommentRow(row), replies: [] }, ...prev];
+            });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [comp.id]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -1483,35 +1648,57 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     return () => clearInterval(iv);
   }, [isRegistration]);
 
-  // Live registration tick — +1 every 6–12s while spots remain (registration phase only)
-  useEffect(() => {
-    if (!isRegistration) return;
-    function scheduleNext() {
-      const delay = 6000 + Math.random() * 6000;
-      return setTimeout(() => {
-        setLiveRegistered((c) => {
-          if (c >= comp.contestants) return c;
-          return c + 1;
-        });
-        timerRef.current = scheduleNext();
-      }, delay);
-    }
-    const timerRef = { current: scheduleNext() };
-    return () => clearTimeout(timerRef.current);
-  }, [isRegistration, comp.contestants]);
+  // (Removed: fake simulated registration-count timer. liveRegistered is now
+  // sourced for real from the database — see the fetch + realtime effects above.)
 
-  function handlePostComment() {
+  async function handlePostComment() {
     const text = commentDraft.trim();
     if (!text) return;
     if (!currentUser) {
       onRequestAuth?.();
       return;
     }
-    setComments((prev) => [
-      { id: `c-${Date.now()}`, index: -1, name: currentUser.fullName, text, minutesAgo: 0, likes: 0, isMine: true },
-      ...prev,
-    ]);
+    setPosting(true);
+    const { data, error } = await insertComment({
+      competitionId: comp.id,
+      userId: currentUser.id,
+      fullName: currentUser.fullName,
+      text,
+    });
+    setPosting(false);
+    if (error) {
+      console.error("insertComment error:", error);
+      return;
+    }
+    setComments((prev) => {
+      if (prev.some((c) => c.id === data.id)) return prev;
+      return [{ ...mapCommentRow(data), replies: [] }, ...prev];
+    });
     setCommentDraft("");
+  }
+
+  async function handlePostReply(parentId) {
+    const text = replyDraft.trim();
+    if (!text || !currentUser) return;
+    const { data, error } = await insertComment({
+      competitionId: comp.id,
+      userId: currentUser.id,
+      fullName: currentUser.fullName,
+      text,
+      parentId,
+    });
+    if (error) {
+      console.error("insertComment (reply) error:", error);
+      return;
+    }
+    setComments((prev) => prev.map((cm) => {
+      if (cm.id !== parentId) return cm;
+      if ((cm.replies || []).some((r) => r.id === data.id)) return cm;
+      return { ...cm, replies: [...(cm.replies || []), mapCommentRow(data)] };
+    }));
+    setExpandedReplies((prev) => new Set([...prev, parentId]));
+    setReplyDraft("");
+    setReplyingTo(null);
   }
 
   function handleToggleLike(commentId) {
@@ -1524,30 +1711,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   }
 
   const heroBannerSlides = useMemo(() => {
-    const PLACEHOLDER_VIDEOS = [
-      "https://lorem.video/bunny_480p_h264_10s.mp4",
-      "https://lorem.video/cat_480p_h264_10s.mp4",
-      "https://lorem.video/corgi_480p_h264_10s.mp4",
-    ];
-    const bannerImgs = [
-      heroBannerImg(comp.id),
-      `https://picsum.photos/seed/hero_${comp.id}_1/800/800`,
-      `https://picsum.photos/seed/hero_${comp.id}_2/800/800`,
-      `https://picsum.photos/seed/hero_${comp.id}_3/800/800`,
-      `https://picsum.photos/seed/hero_${comp.id}_4/800/800`,
-      `https://picsum.photos/seed/hero_${comp.id}_5/800/800`,
-      `https://picsum.photos/seed/hero_${comp.id}_6/800/800`,
-      `https://picsum.photos/seed/hero_${comp.id}_7/800/800`,
-    ];
-    // Every 3rd slide (starting at index 2) is a free sample video, poster = its image
-    return bannerImgs.map((src, i) => {
-      if (i > 0 && i % 3 === 2) {
-        const seed = Math.abs(hashStr(`${comp.id}_vid_${i}`));
-        return { type: "video", src: PLACEHOLDER_VIDEOS[seed % PLACEHOLDER_VIDEOS.length], poster: src };
-      }
-      return { type: "image", src };
-    });
-  }, [comp.id]);
+    const images = comp.images || [];
+    if (images.length === 0) return [{ type: "placeholder" }];
+    return images.map((img) => ({ type: "image", src: img.url }));
+  }, [comp.images]);
 
   return (
     <div ref={scrollRef} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#F2F2F0", overflowY: "auto" }}>
@@ -1648,6 +1815,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                           </div>
                         )}
                       </>
+                    ) : slide.type === "placeholder" ? (
+                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#e5e5e5" }}>
+                        <ImageIcon size={40} color="#bbb" />
+                      </div>
                     ) : (
                       <img src={slide.src} alt={`${comp.title} ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     )}
@@ -1720,7 +1891,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               opacity: i === activeBanner ? 1 : 0.45,
             }}
           >
-            <img src={slide.type === "video" ? slide.poster : slide.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            {slide.type === "placeholder" ? (
+              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#eee" }}>
+                <ImageIcon size={20} color="#ccc" />
+              </div>
+            ) : (
+              <img src={slide.type === "video" ? slide.poster : slide.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            )}
             {slide.type === "video" && (
               <div style={{
                 position: "absolute", inset: 0,
@@ -2368,7 +2545,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             }}>
               {currentUser ? currentUser.fullName.charAt(0).toUpperCase() : <User size={14} color="#999" />}
             </div>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
               <input
                 type="text"
                 value={commentDraft}
@@ -2377,18 +2554,18 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
                 placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
                 style={{
-                  flex: 1, border: "none", borderRadius: 999, background: "#f5f5f5",
+                  flex: 1, minWidth: 0, border: "none", borderRadius: 999, background: "#f5f5f5",
                   padding: "10px 16px", fontFamily: "Inter, sans-serif", fontSize: 13,
                   color: "#333", outline: "none",
                 }}
               />
               <button
                 onClick={handlePostComment}
-                disabled={!commentDraft.trim()}
+                disabled={!commentDraft.trim() || posting}
                 style={{
                   border: "none", borderRadius: 999, background: commentDraft.trim() ? accent : "#eee",
                   color: commentDraft.trim() ? "#fff" : "#bbb",
-                  padding: "10px 16px", flexShrink: 0,
+                  padding: "10px 14px", flexShrink: 0, whiteSpace: "nowrap",
                   fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
                   textTransform: "uppercase", letterSpacing: "0.04em",
                   cursor: commentDraft.trim() ? "pointer" : "default",
@@ -2401,7 +2578,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
           {/* Thread */}
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {comments.map((c, i) => {
+            {commentsLoading ? (
+              <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
+                Chargement des commentaires…
+              </div>
+            ) : comments.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
+                Aucun commentaire pour le moment. Soyez le premier à commenter !
+              </div>
+            ) : comments.map((c, i) => {
               const liked = likedCommentIds.has(c.id);
               const repliesOpen = expandedReplies.has(c.id);
               const isReplying = replyingTo === c.id;
@@ -2466,34 +2651,18 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         value={replyDraft}
                         onChange={(e) => setReplyDraft(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && replyDraft.trim() && currentUser) {
-                            setComments((prev) => prev.map((cm) => cm.id === c.id ? {
-                              ...cm,
-                              replies: [...(cm.replies || []), { id: `r-${Date.now()}`, index: 0, name: currentUser.fullName, text: replyDraft.trim(), minutesAgo: 0, likes: 0, isMine: true }],
-                            } : cm));
-                            setExpandedReplies((prev) => new Set([...prev, c.id]));
-                            setReplyDraft("");
-                            setReplyingTo(null);
-                          }
+                          if (e.key === "Enter") handlePostReply(c.id);
                         }}
                         placeholder={`Répondre à ${c.name}…`}
-                        style={{ flex: 1, border: "1px solid #e0e0e0", background: "#fafafa", padding: "7px 10px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", outline: "none" }}
+                        style={{ flex: 1, minWidth: 0, border: "1px solid #e0e0e0", background: "#fafafa", padding: "7px 10px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", outline: "none" }}
                       />
                       <button
-                        onClick={() => {
-                          if (!replyDraft.trim() || !currentUser) return;
-                          setComments((prev) => prev.map((cm) => cm.id === c.id ? {
-                            ...cm,
-                            replies: [...(cm.replies || []), { id: `r-${Date.now()}`, index: 0, name: currentUser.fullName, text: replyDraft.trim(), minutesAgo: 0, likes: 0, isMine: true }],
-                          } : cm));
-                          setExpandedReplies((prev) => new Set([...prev, c.id]));
-                          setReplyDraft("");
-                          setReplyingTo(null);
-                        }}
-                        style={{ border: "none", background: accent, color: "#fff", padding: "7px 12px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", display: "flex", alignItems: "center" }}
+                        onClick={() => handlePostReply(c.id)}
+                        style={{ border: "none", background: accent, color: "#fff", padding: "7px 12px", flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", display: "flex", alignItems: "center" }}
                       ><Send size={13} /></button>
                     </div>
                   )}
+
 
                   {/* Sub-comments */}
                   {repliesOpen && c.replies?.length > 0 && (
@@ -2689,7 +2858,29 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           display: "flex", gap: 8,
         }}>
           {isRegistration ? (
-            isRegistered ? (
+            isOwnCompetition ? (
+              <button
+                onClick={() => setShowEditModal(true)}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  borderRadius: 999,
+                  background: "#f2f2f2",
+                  color: "#333",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  padding: "13px 16px",
+                  cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                }}
+              >
+                <BadgeCheck size={15} strokeWidth={2.5} />
+                Modifier ma compétition
+              </button>
+            ) : isRegistered ? (
               <div
                 style={{
                   flex: 1,
@@ -2818,13 +3009,123 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           onClose={() => setAlbumSheet(null)}
         />
       )}
+
+      {showEditModal && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 2000, padding: 16,
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 18, padding: 20,
+            width: "100%", maxWidth: 380, boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
+                Modifier la compétition
+              </span>
+              <button onClick={() => setShowEditModal(false)} style={{ border: "none", background: "none", cursor: "pointer", padding: 4 }}>
+                <X size={18} color="#999" />
+              </button>
+            </div>
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Titre</label>
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+            />
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Édition</label>
+            <input
+              type="text"
+              value={editEdition}
+              onChange={(e) => setEditEdition(e.target.value)}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+            />
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Fin des inscriptions</label>
+            <input
+              type="text"
+              value={editEnds}
+              onChange={(e) => setEditEnds(e.target.value)}
+              placeholder="ex: 3j 18h"
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 18 }}
+            />
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Bannières / miniatures</label>
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8,
+              marginBottom: 18,
+            }}>
+              {images.map((img) => (
+                <div key={img.id} style={{
+                  position: "relative", width: "100%", aspectRatio: "1 / 1",
+                  borderRadius: 10, overflow: "hidden", background: "#f5f5f5",
+                }}>
+                  <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  <button
+                    onClick={() => handleRemoveImage(img.id)}
+                    disabled={removingImageId === img.id}
+                    style={{
+                      position: "absolute", top: 4, right: 4,
+                      width: 20, height: 20, borderRadius: "50%",
+                      border: "none", background: "rgba(0,0,0,0.55)", color: "#fff",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", padding: 0,
+                    }}
+                  >
+                    {removingImageId === img.id ? (
+                      <span style={{ fontSize: 9 }}>…</span>
+                    ) : (
+                      <X size={12} />
+                    )}
+                  </button>
+                </div>
+              ))}
+
+              {/* Add wrapper — always the last tile in the grid */}
+              <label style={{
+                width: "100%", aspectRatio: "1 / 1", borderRadius: 10,
+                border: "1.5px dashed #ccc", background: "#fafafa",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: uploadingImage ? "default" : "pointer",
+              }}>
+                <input type="file" accept="image/*" onChange={handleAddImageFile} disabled={uploadingImage} style={{ display: "none" }} />
+                {uploadingImage ? (
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#999" }}>Envoi…</span>
+                ) : (
+                  <Plus size={22} color="#aaa" />
+                )}
+              </label>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setShowEditModal(false)}
+                style={{ flex: 1, border: "1px solid #e0e0e0", background: "#fff", color: "#555", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer" }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={savingEdit || !editTitle.trim()}
+                style={{ flex: 1, border: "none", background: accent, color: "#fff", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: savingEdit ? "default" : "pointer", opacity: savingEdit ? 0.7 : 1 }}
+              >
+                {savingEdit ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ─── NICHE ROW ─────────────────────────────────────────────────────────── */
 
-function NicheRow({ niche, onOpen, onRegister, registeredCompIds }) {
+function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser }) {
   const railRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -2920,7 +3221,7 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds }) {
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {niche.competitions.map((comp) => (
-          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} />
+          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE} />
         ))}
 
       </div>
@@ -4100,8 +4401,13 @@ function MyCompetitionsPage({ registeredCompIds, followedCompIds, onOpen }) {
         <div style={{
           width: 44, height: 44, flexShrink: 0, overflow: "hidden",
           border: `2px solid ${niche.accent}`,
+          background: "#eee", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <img src={heroBannerImg(comp.id)} alt={comp.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          {comp.images?.[0]?.url ? (
+            <img src={comp.images[0].url} alt={comp.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          ) : (
+            <ImageIcon size={16} color="#ccc" />
+          )}
         </div>
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -4707,21 +5013,10 @@ function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenW
 
 
 
-const NICHE_BANNER_IMAGES = {
-  music: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1600&q=80",
-  dance: "https://images.unsplash.com/photo-1547153760-18fc86324498?auto=format&fit=crop&w=1600&q=80",
-  sports: "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1600&q=80",
-  art: "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1600&q=80",
-  comedy: "https://images.unsplash.com/photo-1585699324551-f6c309eedeca?auto=format&fit=crop&w=1600&q=80",
-  beaute: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1600&q=80",
-  gaming: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1600&q=80",
-};
-
-const BANNER_SLIDES = NICHES.flatMap((niche) =>
-  niche.competitions
-    .filter((c) => c.hot)
-    .map((c) => ({ ...c, niche, color: niche.accent, image: NICHE_BANNER_IMAGES[niche.id] }))
-).slice(0, 6);
+// The home banner slider used to fall back to static stock photos per niche.
+// It now only features competitions that have a real uploaded image in the
+// competition-images storage bucket — computed inside App() from `compImages`
+// (see `homeBannerSlides`) so nothing fake ever shows up here.
 
 /* ─── NOTIFICATIONS DATA ────────────────────────────────────────────────── */
 
@@ -4900,6 +5195,76 @@ export default function App() {
   const [pendingRegistrationComp, setPendingRegistrationComp] = useState(null);
   const [notifications, setNotifications] = useState(INITIAL_NOTIFS);
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const [compEdits, setCompEdits] = useState({});
+  const [compImages, setCompImages] = useState({});
+
+  useEffect(() => {
+    fetchCompetitionEdits().then(setCompEdits);
+    fetchAllCompetitionImages().then(setCompImages);
+  }, []);
+
+  function withEdits(comp) {
+    const e = compEdits[comp.id];
+    return { ...comp, ...(e || {}), images: compImages[comp.id] || [] };
+  }
+
+  // Home banner slides: only real, uploaded images from the storage bucket —
+  // a hot competition with nothing uploaded simply doesn't get a slide.
+  const homeBannerSlides = useMemo(() => {
+    return NICHES.flatMap((niche) =>
+      niche.competitions
+        .filter((c) => c.hot && (compImages[c.id]?.length > 0))
+        .map((c) => ({
+          ...c,
+          niche,
+          color: niche.accent,
+          image: compImages[c.id][0].url,
+        }))
+    ).slice(0, 6);
+  }, [compImages]);
+
+  async function handleEditComp({ competitionId, title, edition, ends }) {
+    const { data, error } = await saveCompetitionEdit({
+      competitionId,
+      title,
+      edition,
+      ends,
+      updatedBy: currentUser?.id,
+    });
+    if (error) {
+      console.error("saveCompetitionEdit error:", error);
+      showToast("Impossible d'enregistrer les modifications.");
+      return { success: false };
+    }
+    setCompEdits((prev) => ({ ...prev, [competitionId]: { title, edition, ends } }));
+    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, title, edition, ends } : prev));
+    showToast("Compétition mise à jour.");
+    return { success: true, data };
+  }
+
+  async function handleAddCompImage(competitionId, file) {
+    const position = (compImages[competitionId] || []).length;
+    const { data, error } = await addCompetitionImage({ competitionId, file, position });
+    if (error) {
+      console.error("addCompetitionImage error:", error);
+      showToast("Échec de l'envoi de l'image.");
+      return null;
+    }
+    setCompImages((prev) => ({ ...prev, [competitionId]: [...(prev[competitionId] || []), data] }));
+    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, images: [...(prev.images || []), data] } : prev));
+    return data;
+  }
+
+  async function handleRemoveCompImage(competitionId, imageId) {
+    const { error } = await deleteCompetitionImage(imageId);
+    if (error) {
+      console.error("deleteCompetitionImage error:", error);
+      showToast("Échec de la suppression de l'image.");
+      return;
+    }
+    setCompImages((prev) => ({ ...prev, [competitionId]: (prev[competitionId] || []).filter((i) => i.id !== imageId) }));
+    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, images: (prev.images || []).filter((i) => i.id !== imageId) } : prev));
+  }
 
   function pushNotif(notif) {
     setNotifications((prev) => [
@@ -4917,11 +5282,12 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (homeBannerSlides.length === 0) return;
     const t = setInterval(() => {
-      setBannerIndex((i) => (i + 1) % BANNER_SLIDES.length);
+      setBannerIndex((i) => (i + 1) % homeBannerSlides.length);
     }, 5000);
     return () => clearInterval(t);
-  }, []);
+  }, [homeBannerSlides.length]);
 
   // Background activity: push a notif for a random hot comp every ~45s
   useEffect(() => {
@@ -4963,10 +5329,14 @@ export default function App() {
     return () => { cancelled = true; };
   }, [currentUser?.id]);
 
-  const nichesByFilter =
+  const nichesByFilter = (
     activeFilter === "Tous"
       ? NICHES
-      : NICHES.filter((n) => n.label === activeFilter);
+      : NICHES.filter((n) => n.label === activeFilter)
+  ).map((niche) => ({
+    ...niche,
+    competitions: niche.competitions.map(withEdits),
+  }));
 
   const visibleNiches = query.trim() === ""
     ? nichesByFilter
@@ -5025,6 +5395,9 @@ export default function App() {
     if (!currentUser?.id) {
       return { success: false, error: "Vous devez être connecté pour vous inscrire." };
     }
+    if (currentUser.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE) {
+      return { success: false, error: "Un organisateur ne peut pas s'inscrire à sa propre compétition." };
+    }
 
     const { error } = await insertRegistration({
       competitionId: comp.id,
@@ -5079,6 +5452,10 @@ export default function App() {
   function requestRegistration(comp) {
     if (registeredCompIds.has(comp.id)) {
       showToast(`Vous êtes déjà inscrit à ${comp.title}`);
+      return;
+    }
+    if (currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE) {
+      showToast("Un organisateur ne peut pas s'inscrire à sa propre compétition");
       return;
     }
     if (!isAuthenticated) {
@@ -5213,14 +5590,14 @@ export default function App() {
           onMarkRead={markRead}
           onOpen={(compId) => {
             const result = findCompWithNiche(compId);
-            if (result) setSelectedComp({ ...result.comp, accent: result.niche.accent, niche: result.niche.label });
+            if (result) setSelectedComp(withEdits({ ...result.comp, accent: result.niche.accent, niche: result.niche.label }));
           }}
         />
       ) : activeTab === "mycomps" ? (
         <MyCompetitionsPage
           registeredCompIds={registeredCompIds}
           followedCompIds={followedCompIds}
-          onOpen={(comp) => setSelectedComp(comp)}
+          onOpen={(comp) => setSelectedComp(withEdits(comp))}
         />
       ) : activeTab === "account" ? (
         <AccountPage
@@ -5320,7 +5697,8 @@ export default function App() {
           </div>
         </header>
 
-        {/* ── BANNER SLIDER (2:1, images only) ── */}
+        {/* ── BANNER SLIDER (2:1, real uploaded images only) ── */}
+        {homeBannerSlides.length > 0 && (
         <div
           style={{
             position: "relative",
@@ -5330,7 +5708,7 @@ export default function App() {
             borderBottom: "2px solid #111",
           }}
         >
-          {BANNER_SLIDES.map((slide, i) => (
+          {homeBannerSlides.map((slide, i) => (
             <div
               key={slide.id}
               style={{
@@ -5384,7 +5762,7 @@ export default function App() {
               zIndex: 2,
             }}
           >
-            {BANNER_SLIDES.map((_, i) => (
+            {homeBannerSlides.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setBannerIndex(i)}
@@ -5401,6 +5779,7 @@ export default function App() {
             ))}
           </div>
         </div>
+        )}
 
         <NewsBand />
 
@@ -5429,6 +5808,7 @@ export default function App() {
               onOpen={(comp) => setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label })}
               onRegister={(comp) => requestRegistration({ ...comp, accent: niche.accent, niche: niche.label })}
               registeredCompIds={registeredCompIds}
+              currentUser={currentUser}
             />
           ))}
         </main>
@@ -5489,6 +5869,9 @@ export default function App() {
           onToggleFollow={toggleFollowComp}
           currentUser={currentUser}
           onRequestAuth={() => setShowAuthOverlay(true)}
+          onEditComp={handleEditComp}
+          onAddImage={handleAddCompImage}
+          onRemoveImage={handleRemoveCompImage}
         />
       )}
     </>
