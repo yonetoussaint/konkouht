@@ -3650,10 +3650,11 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           position: "fixed",
           inset: 0,
           zIndex: 1200,
-          background: "rgba(17,17,17,0.5)",
+          background: "rgba(17,17,17,0.55)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          padding: 16,
         }}
         onClick={onClose}
       >
@@ -3661,33 +3662,34 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           onClick={(e) => e.stopPropagation()}
           style={{
             width: "100%",
-            maxWidth: 400,
+            maxWidth: 380,
             background: "#fff",
-            borderTop: "2px solid #6C63FF",
-            padding: 32,
+            padding: "36px 28px",
             textAlign: "center",
-            borderRadius: "2px",
+            borderRadius: 20,
+            boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
           }}
         >
           <div style={{
-            width: 60, height: 60, borderRadius: "50%",
-            background: "#f0ebff", border: "2px solid #6C63FF",
+            width: 64, height: 64, borderRadius: "50%",
+            background: "#6C63FF", color: "#fff",
             display: "flex", alignItems: "center", justifyContent: "center",
-            margin: "0 auto 16px", fontSize: 32,
+            margin: "0 auto 18px",
+            boxShadow: "0 8px 20px rgba(108,99,255,0.35)",
           }}>
-            <Check size={32} strokeWidth={2.5} />
+            <Check size={30} strokeWidth={3} />
           </div>
           <span style={{
-            fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700,
-            color: "#333", display: "block", marginBottom: 8,
+            fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700,
+            color: "#111", display: "block", marginBottom: 8, letterSpacing: "-0.01em",
           }}>
-            Inscription confirmée!
+            Inscription confirmée !
           </span>
           <span style={{
             fontFamily: "Inter, sans-serif", fontSize: 13, color: "#888",
-            display: "block", lineHeight: 1.5, marginBottom: 16,
+            display: "block", lineHeight: 1.6,
           }}>
-            Vous êtes maintenant enregistré pour {comp.title}. Attendez le début de la compétition pour participer.
+            Vous êtes inscrit à <strong style={{ color: "#333" }}>{comp.title}</strong>. Attendez le début de la compétition pour participer.
           </span>
         </div>
       </div>
@@ -3700,7 +3702,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
         position: "fixed",
         inset: 0,
         zIndex: 1200,
-        background: "rgba(17,17,17,0.5)",
+        background: "rgba(17,17,17,0.55)",
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "center",
@@ -3713,33 +3715,44 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           width: "100%",
           maxWidth: 480,
           background: "#fff",
-          borderTop: "2px solid #6C63FF",
-          padding: 16,
-          maxHeight: "85vh",
+          padding: "10px 18px 20px",
+          maxHeight: "88vh",
           overflowY: "auto",
+          borderRadius: "22px 22px 0 0",
+          boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "#e3e3e3" }} />
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
           {step === "pin" && (
-            <button onClick={() => { setStep("form"); setPin(""); setPinError(false); }} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 0, lineHeight: 0 }}>
-              <ArrowLeft size={18} strokeWidth={2.5} />
+            <button onClick={() => { setStep("form"); setPin(""); setPinError(false); }} style={{ border: "none", background: "#f5f5f5", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#333", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <ArrowLeft size={16} strokeWidth={2.5} />
             </button>
           )}
-          <span style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
-            S'inscrire à {comp.title}
-          </span>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
-            <X size={20} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#111", letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              S'inscrire à {comp.title}
+            </span>
+            <span style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 500 }}>
+              {comp.edition} · {comp.registeredCount}/{comp.contestants} inscrits
+            </span>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "#f5f5f5", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#333", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <X size={16} strokeWidth={2.5} />
           </button>
         </div>
 
         {step === "form" && (
         <>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
           {currentUser && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid #eee", background: "#fafafa" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, background: "#fafafa" }}>
               <div style={{
-                width: 32, height: 32, borderRadius: "50%",
+                width: 34, height: 34, borderRadius: "50%",
                 background: "#6C63FF", color: "#fff",
                 fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700,
                 display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
@@ -3753,42 +3766,33 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
             </div>
           )}
 
+          {/* Receipt-style fee summary */}
           <div style={{
-            background: "#f0ebff", border: "1px solid #e0d5ff",
-            padding: "12px 14px", fontSize: 12, fontFamily: "Inter, sans-serif",
-            color: "#6C63FF", lineHeight: 1.4,
+            borderRadius: 14,
+            border: `1px solid ${canAfford ? "#eee" : "#f5c6c6"}`,
+            background: canAfford ? "#fafafa" : "#fdf2f2",
+            overflow: "hidden",
           }}>
-            <strong>Phase:</strong> {comp.edition} — {comp.registeredCount}/{comp.contestants} inscrits
-          </div>
-
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "14px 16px", border: `1px solid ${canAfford ? "#ddd" : "#f5c6c6"}`,
-            background: canAfford ? "#fff" : "#fdf2f2", marginBottom: 10,
-          }}>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Frais d'inscription
-            </span>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 800, color: "#111" }}>
-              {fee} gourdes
-            </span>
-          </div>
-
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "14px 16px", border: `1px solid ${canAfford ? "#ddd" : "#f5c6c6"}`,
-            background: canAfford ? "#fff" : "#fdf2f2",
-          }}>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Solde
-            </span>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: canAfford ? "#333" : "#E74C3C" }}>
-              {balance.toLocaleString("fr-FR")} gourdes
-            </span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px" }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", fontWeight: 600 }}>
+                Frais d'inscription
+              </span>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 24, fontWeight: 800, color: "#111" }}>
+                {fee} <span style={{ fontSize: 13, fontWeight: 600, color: "#aaa" }}>gourdes</span>
+              </span>
+            </div>
+            <div style={{ borderTop: `1px dashed ${canAfford ? "#e0e0e0" : "#f0c4c4"}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", fontWeight: 600 }}>
+                Votre solde
+              </span>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: canAfford ? "#333" : "#E74C3C" }}>
+                {balance.toLocaleString("fr-FR")} gourdes
+              </span>
+            </div>
           </div>
 
           {!canAfford && (
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C" }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C", padding: "0 2px" }}>
               Gourdes insuffisantes — achetez-en pour continuer.
             </span>
           )}
@@ -3800,19 +3804,20 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           style={{
             width: "100%",
             border: "none",
+            borderRadius: 14,
             background: canAfford ? "#6C63FF" : "#111",
             color: "#fff",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
             fontSize: 14,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            padding: "14px 20px",
+            letterSpacing: "0.02em",
+            padding: "15px 20px",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: 10,
+            boxShadow: canAfford ? "0 8px 20px rgba(108,99,255,0.3)" : "none",
           }}
         >
           {canAfford ? (
@@ -3832,8 +3837,19 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
 
         {step === "pin" && (
           <>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", lineHeight: 1.5, marginBottom: 20 }}>
-              Entrez votre code PIN à 4 chiffres pour confirmer le paiement de <strong>{fee} gourdes</strong> et votre inscription à {comp.title}.
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: "50%",
+                background: "#f0ebff", color: "#6C63FF",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 14px",
+              }}>
+                <BadgeCheck size={22} strokeWidth={2.25} />
+              </div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", lineHeight: 1.6 }}>
+                Entrez votre code PIN pour confirmer le paiement de<br />
+                <strong style={{ color: "#333" }}>{fee} gourdes</strong> pour {comp.title}.
+              </div>
             </div>
 
             <input
@@ -3846,21 +3862,22 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
               placeholder="••••"
               style={{
                 width: "100%",
-                border: `1px solid ${pinError ? "#E74C3C" : "#ddd"}`,
+                border: `1.5px solid ${pinError ? "#E74C3C" : "#e3e3e3"}`,
+                borderRadius: 14,
                 padding: "14px 14px",
                 fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: 24,
+                fontSize: 26,
                 fontWeight: 700,
-                letterSpacing: "0.4em",
+                letterSpacing: "0.5em",
                 textAlign: "center",
-                color: "#333",
+                color: "#111",
                 outline: "none",
                 boxSizing: "border-box",
                 marginBottom: 8,
               }}
             />
             {pinError && (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#E74C3C", fontWeight: 600, marginBottom: 12 }}>
+              <div style={{ textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C", fontWeight: 600, marginBottom: 12 }}>
                 Code PIN incorrect. Réessayez.
               </div>
             )}
@@ -3871,20 +3888,21 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
               style={{
                 width: "100%",
                 border: "none",
-                background: isSubmitting ? "#ddd" : pin.length === 4 ? "#6C63FF" : "#ccc",
-                color: "#fff",
+                borderRadius: 14,
+                background: isSubmitting ? "#ddd" : pin.length === 4 ? "#6C63FF" : "#e8e8e8",
+                color: pin.length === 4 || isSubmitting ? "#fff" : "#aaa",
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 700,
                 fontSize: 14,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                padding: "14px 20px",
+                letterSpacing: "0.02em",
+                padding: "15px 20px",
                 cursor: pin.length === 4 && !isSubmitting ? "pointer" : "not-allowed",
                 marginTop: 12,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 10,
+                boxShadow: pin.length === 4 && !isSubmitting ? "0 8px 20px rgba(108,99,255,0.3)" : "none",
               }}
             >
               {isSubmitting ? (
