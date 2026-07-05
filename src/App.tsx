@@ -4929,9 +4929,11 @@ export default function App() {
       setRegisteredCompIds(new Set());
       return;
     }
+    console.log("Fetching registrations for user:", currentUser.id); // debug
     let cancelled = false;
     fetchUserRegistrations(currentUser.id).then((rows) => {
       if (cancelled) return;
+      console.log("Registrations returned:", rows); // debug
       setRegisteredCompIds(new Set(rows.map((r) => r.competition_id)));
     });
     return () => { cancelled = true; };
