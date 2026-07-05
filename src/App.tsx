@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { fetchRegistrations, insertRegistration, fetchUserRegistrations } from "./lib/registrations";
+import { fetchComments, insertComment } from "./lib/comments";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
@@ -1494,7 +1495,22 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [comp.id, isRegistration]);
-  const [comments, setComments] = useState(() => buildComments(comp));
+  function mapCommentRow(row) {
+    const minutesAgo = Math.max(0, Math.round((Date.now() - new Date(row.created_at).getTime()) / 60000));
+    return {
+      id: row.id,
+      index: Math.abs(hashStr(row.user_id || row.id)) % 40,
+      name: row.full_name,
+      text: row.text,
+      minutesAgo,
+      likes: 0,
+      isMine: currentUser && row.user_id === currentUser.id,
+    };
+  }
+
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [posting, setPosting] = useState(false);
   const [commentDraft, setCommentDraft] = useState("");
   const [likedCommentIds, setLikedCommentIds] = useState(() => new Set());
   const [expandedReplies, setExpandedReplies] = useState(() => new Set());
@@ -1502,6 +1518,51 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [replyDraft, setReplyDraft] = useState("");
   const scrollRef = useRef(null);
   const [scrollY, setScrollY] = useState(0);
+
+  // Load comments (and their replies) for this competition from the database.
+  useEffect(() => {
+    let cancelled = false;
+    setCommentsLoading(true);
+    fetchComments(comp.id).then((rows) => {
+      if (cancelled) return;
+      setComments(
+        rows.map((c) => ({
+          ...mapCommentRow(c),
+          replies: (c.replies || []).map(mapCommentRow),
+        }))
+      );
+      setCommentsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [comp.id]);
+
+  // Real-time sync: reflect comments/replies posted by ANY user, live, while
+  // this board is open.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`comments-${comp.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments", filter: `competition_id=eq.${comp.id}` },
+        (payload) => {
+          const row = payload.new;
+          if (row.parent_id) {
+            setComments((prev) => prev.map((cm) => {
+              if (cm.id !== row.parent_id) return cm;
+              if ((cm.replies || []).some((r) => r.id === row.id)) return cm;
+              return { ...cm, replies: [...(cm.replies || []), mapCommentRow(row)] };
+            }));
+          } else {
+            setComments((prev) => {
+              if (prev.some((c) => c.id === row.id)) return prev;
+              return [{ ...mapCommentRow(row), replies: [] }, ...prev];
+            });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [comp.id]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -1541,18 +1602,54 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   // (Removed: fake simulated registration-count timer. liveRegistered is now
   // sourced for real from the database — see the fetch + realtime effects above.)
 
-  function handlePostComment() {
+  async function handlePostComment() {
     const text = commentDraft.trim();
     if (!text) return;
     if (!currentUser) {
       onRequestAuth?.();
       return;
     }
-    setComments((prev) => [
-      { id: `c-${Date.now()}`, index: -1, name: currentUser.fullName, text, minutesAgo: 0, likes: 0, isMine: true },
-      ...prev,
-    ]);
+    setPosting(true);
+    const { data, error } = await insertComment({
+      competitionId: comp.id,
+      userId: currentUser.id,
+      fullName: currentUser.fullName,
+      text,
+    });
+    setPosting(false);
+    if (error) {
+      console.error("insertComment error:", error);
+      return;
+    }
+    setComments((prev) => {
+      if (prev.some((c) => c.id === data.id)) return prev;
+      return [{ ...mapCommentRow(data), replies: [] }, ...prev];
+    });
     setCommentDraft("");
+  }
+
+  async function handlePostReply(parentId) {
+    const text = replyDraft.trim();
+    if (!text || !currentUser) return;
+    const { data, error } = await insertComment({
+      competitionId: comp.id,
+      userId: currentUser.id,
+      fullName: currentUser.fullName,
+      text,
+      parentId,
+    });
+    if (error) {
+      console.error("insertComment (reply) error:", error);
+      return;
+    }
+    setComments((prev) => prev.map((cm) => {
+      if (cm.id !== parentId) return cm;
+      if ((cm.replies || []).some((r) => r.id === data.id)) return cm;
+      return { ...cm, replies: [...(cm.replies || []), mapCommentRow(data)] };
+    }));
+    setExpandedReplies((prev) => new Set([...prev, parentId]));
+    setReplyDraft("");
+    setReplyingTo(null);
   }
 
   function handleToggleLike(commentId) {
@@ -2409,7 +2506,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             }}>
               {currentUser ? currentUser.fullName.charAt(0).toUpperCase() : <User size={14} color="#999" />}
             </div>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
               <input
                 type="text"
                 value={commentDraft}
@@ -2418,18 +2515,18 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
                 placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
                 style={{
-                  flex: 1, border: "none", borderRadius: 999, background: "#f5f5f5",
+                  flex: 1, minWidth: 0, border: "none", borderRadius: 999, background: "#f5f5f5",
                   padding: "10px 16px", fontFamily: "Inter, sans-serif", fontSize: 13,
                   color: "#333", outline: "none",
                 }}
               />
               <button
                 onClick={handlePostComment}
-                disabled={!commentDraft.trim()}
+                disabled={!commentDraft.trim() || posting}
                 style={{
                   border: "none", borderRadius: 999, background: commentDraft.trim() ? accent : "#eee",
                   color: commentDraft.trim() ? "#fff" : "#bbb",
-                  padding: "10px 16px", flexShrink: 0,
+                  padding: "10px 14px", flexShrink: 0, whiteSpace: "nowrap",
                   fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
                   textTransform: "uppercase", letterSpacing: "0.04em",
                   cursor: commentDraft.trim() ? "pointer" : "default",
@@ -2442,7 +2539,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
           {/* Thread */}
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {comments.map((c, i) => {
+            {commentsLoading ? (
+              <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
+                Chargement des commentaires…
+              </div>
+            ) : comments.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
+                Aucun commentaire pour le moment. Soyez le premier à commenter !
+              </div>
+            ) : comments.map((c, i) => {
               const liked = likedCommentIds.has(c.id);
               const repliesOpen = expandedReplies.has(c.id);
               const isReplying = replyingTo === c.id;
@@ -2507,34 +2612,18 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         value={replyDraft}
                         onChange={(e) => setReplyDraft(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && replyDraft.trim() && currentUser) {
-                            setComments((prev) => prev.map((cm) => cm.id === c.id ? {
-                              ...cm,
-                              replies: [...(cm.replies || []), { id: `r-${Date.now()}`, index: 0, name: currentUser.fullName, text: replyDraft.trim(), minutesAgo: 0, likes: 0, isMine: true }],
-                            } : cm));
-                            setExpandedReplies((prev) => new Set([...prev, c.id]));
-                            setReplyDraft("");
-                            setReplyingTo(null);
-                          }
+                          if (e.key === "Enter") handlePostReply(c.id);
                         }}
                         placeholder={`Répondre à ${c.name}…`}
-                        style={{ flex: 1, border: "1px solid #e0e0e0", background: "#fafafa", padding: "7px 10px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", outline: "none" }}
+                        style={{ flex: 1, minWidth: 0, border: "1px solid #e0e0e0", background: "#fafafa", padding: "7px 10px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", outline: "none" }}
                       />
                       <button
-                        onClick={() => {
-                          if (!replyDraft.trim() || !currentUser) return;
-                          setComments((prev) => prev.map((cm) => cm.id === c.id ? {
-                            ...cm,
-                            replies: [...(cm.replies || []), { id: `r-${Date.now()}`, index: 0, name: currentUser.fullName, text: replyDraft.trim(), minutesAgo: 0, likes: 0, isMine: true }],
-                          } : cm));
-                          setExpandedReplies((prev) => new Set([...prev, c.id]));
-                          setReplyDraft("");
-                          setReplyingTo(null);
-                        }}
-                        style={{ border: "none", background: accent, color: "#fff", padding: "7px 12px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", display: "flex", alignItems: "center" }}
+                        onClick={() => handlePostReply(c.id)}
+                        style={{ border: "none", background: accent, color: "#fff", padding: "7px 12px", flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", display: "flex", alignItems: "center" }}
                       ><Send size={13} /></button>
                     </div>
                   )}
+
 
                   {/* Sub-comments */}
                   {repliesOpen && c.replies?.length > 0 && (
