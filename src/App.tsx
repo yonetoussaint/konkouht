@@ -367,7 +367,9 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered }) {
       style={{
         flexShrink: 0,
         width: 220,
-        border: `1px solid #ddd`,
+        border: `1px solid #eee`,
+        borderRadius: 16,
+        overflow: "hidden",
         background: "#fff",
         display: "flex",
         flexDirection: "column",
@@ -396,8 +398,9 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered }) {
             position: "absolute", top: 10, left: 10,
             fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
             textTransform: "uppercase", color: "#fff",
-            background: "rgba(0,0,0,0.45)", padding: "2px 7px",
+            background: "rgba(0,0,0,0.45)", padding: "2px 8px",
             fontFamily: "Inter, sans-serif",
+            borderRadius: 8,
           }}>
             EN VUE
           </div>
@@ -409,7 +412,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered }) {
             textTransform: "uppercase", color: "#fff",
             background: "#6C63FF", padding: "3px 8px",
             fontFamily: "Inter, sans-serif",
-            borderRadius: "2px",
+            borderRadius: 8,
           }}>
             Inscriptions
           </div>
@@ -4823,6 +4826,7 @@ export default function App() {
   const [activeFilter, setActiveFilter] = useState("Tous");
   const [toast, setToast] = useState(null);
   const [query, setQuery] = useState("");
+  const [homeSearchFocused, setHomeSearchFocused] = useState(false);
   const [bannerIndex, setBannerIndex] = useState(0);
   const [activeTab, setActiveTab] = useState("home");
   const [selectedComp, setSelectedComp] = useState(null);
@@ -5146,14 +5150,31 @@ export default function App() {
         >
           {/* Search bar */}
           <div style={{ padding: "8px" }}>
-            <div style={{ width: "100%", display: "flex", alignItems: "center", border: "1px solid #ccc", background: "#f9f9f9", height: 32 }}>
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                border: `1px solid ${homeSearchFocused ? "#111" : "#e0e0e0"}`,
+                background: "#f9f9f9",
+                height: 38,
+                borderRadius: 10,
+                padding: "0 10px",
+                transition: "border-color 0.15s",
+              }}
+            >
+              <Search size={15} color={homeSearchFocused ? "#333" : "#aaa"} strokeWidth={2.25} style={{ flexShrink: 0 }} />
               <input
                 type="text"
                 placeholder="Rechercher une compétition..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setHomeSearchFocused(true)}
+                onBlur={() => setHomeSearchFocused(false)}
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   border: "none",
                   outline: "none",
                   fontFamily: "Inter, sans-serif",
@@ -5161,18 +5182,9 @@ export default function App() {
                   fontWeight: 500,
                   color: "#333",
                   background: "transparent",
-                  padding: "0 8px 0 10px",
                   height: "100%",
                 }}
               />
-              {query && (
-                <button
-                  onClick={() => setQuery("")}
-                  style={{ border: "none", background: "none", cursor: "pointer", padding: "0 10px", fontSize: 14, color: "#aaa", lineHeight: 1, flexShrink: 0 }}
-                >
-                  <X size={13} />
-                </button>
-              )}
             </div>
           </div>
 
@@ -5192,9 +5204,10 @@ export default function App() {
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
                     color: active ? "#fff" : "#666",
-                    background: active ? "#444" : "#f0f0f0",
-                    border: "1px solid #ccc",
-                    padding: "4px 14px",
+                    background: active ? "#111" : "#f5f5f5",
+                    border: `1px solid ${active ? "#111" : "#e5e5e5"}`,
+                    borderRadius: 20,
+                    padding: "6px 14px",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
                     transition: "background 0.12s, color 0.12s",
