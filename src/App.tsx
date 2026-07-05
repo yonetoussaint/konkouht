@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
+import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage, uploadCompetitionImage } from "./lib/competitionData";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
@@ -1295,9 +1295,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [editPrizeAmount, setEditPrizeAmount] = useState(comp.prizeAmount != null ? String(comp.prizeAmount) : "");
   const [editRewardExtra, setEditRewardExtra] = useState(comp.rewardExtra || "");
   const [editRules, setEditRules] = useState((comp.rules || []).join("\n"));
+  const [editBannerUrl, setEditBannerUrl] = useState(comp.bannerUrl || null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removingImageId, setRemovingImageId] = useState(null);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const images = comp.images || [];
 
   useEffect(() => {
@@ -1310,7 +1312,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setEditPrizeAmount(comp.prizeAmount != null ? String(comp.prizeAmount) : "");
     setEditRewardExtra(comp.rewardExtra || "");
     setEditRules((comp.rules || []).join("\n"));
-  }, [comp.id, comp.title, comp.edition, comp.ends, comp.contestants, comp.endsAt, comp.description, comp.prizeAmount, comp.rewardExtra, comp.rules]);
+    setEditBannerUrl(comp.bannerUrl || null);
+  }, [comp.id, comp.title, comp.edition, comp.ends, comp.contestants, comp.endsAt, comp.description, comp.prizeAmount, comp.rewardExtra, comp.rules, comp.bannerUrl]);
 
   async function handleAddImageFile(e) {
     const file = e.target.files?.[0];
@@ -1319,6 +1322,30 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setUploadingImage(true);
     await onAddImage?.(comp.id, file);
     setUploadingImage(false);
+  }
+
+  // Banner: a single dedicated image representing this competition in the
+  // homepage carousel — distinct from the gallery grid below. The upload
+  // itself only pushes the file to storage and returns its URL; it's
+  // persisted to competition_edits only once "Enregistrer" is pressed,
+  // same as every other field in this panel.
+  async function handleBannerFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingBanner(true);
+    const { url, error } = await uploadCompetitionImage({ competitionId: comp.id, file });
+    if (error) {
+      console.error("uploadCompetitionImage error:", error);
+      showToast?.("Échec de l'envoi de la bannière.");
+    } else {
+      setEditBannerUrl(url);
+    }
+    setUploadingBanner(false);
+  }
+
+  function handleRemoveBanner() {
+    setEditBannerUrl(null);
   }
 
   async function handleRemoveImage(imageId) {
@@ -1342,6 +1369,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       prizeAmount: trimmedPrize === "" ? null : Number(trimmedPrize),
       rewardExtra: editRewardExtra.trim(),
       rules: editRules.split("\n").map((r) => r.trim()).filter(Boolean),
+      bannerUrl: editBannerUrl,
     });
     setSavingEdit(false);
     if (result?.success) setShowEditModal(false);
@@ -3081,7 +3109,64 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 18, resize: "vertical" }}
             />
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Bannières / miniatures</label>
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Bannière (page d'accueil)</label>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
+              L'image mise en avant dans le carrousel de la page d'accueil lorsque cette compétition est en vedette.
+            </div>
+            <div style={{
+              position: "relative", width: "100%", aspectRatio: "16 / 9",
+              borderRadius: 12, overflow: "hidden", background: "#f5f5f5",
+              marginBottom: 18,
+              border: editBannerUrl ? "none" : "1.5px dashed #ccc",
+            }}>
+              {editBannerUrl ? (
+                <>
+                  <img src={editBannerUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  <label style={{
+                    position: "absolute", bottom: 8, right: 8,
+                    display: "flex", alignItems: "center", gap: 6,
+                    background: "rgba(0,0,0,0.6)", color: "#fff",
+                    borderRadius: 999, padding: "6px 12px",
+                    fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600,
+                    cursor: uploadingBanner ? "default" : "pointer",
+                  }}>
+                    <input type="file" accept="image/*" onChange={handleBannerFile} disabled={uploadingBanner} style={{ display: "none" }} />
+                    {uploadingBanner ? "Envoi…" : "Remplacer"}
+                  </label>
+                  <button
+                    onClick={handleRemoveBanner}
+                    disabled={uploadingBanner}
+                    style={{
+                      position: "absolute", top: 8, right: 8,
+                      width: 24, height: 24, borderRadius: "50%",
+                      border: "none", background: "rgba(0,0,0,0.55)", color: "#fff",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: uploadingBanner ? "default" : "pointer", padding: 0,
+                    }}
+                  >
+                    <X size={13} />
+                  </button>
+                </>
+              ) : (
+                <label style={{
+                  width: "100%", height: "100%",
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
+                  cursor: uploadingBanner ? "default" : "pointer",
+                }}>
+                  <input type="file" accept="image/*" onChange={handleBannerFile} disabled={uploadingBanner} style={{ display: "none" }} />
+                  {uploadingBanner ? (
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#999" }}>Envoi…</span>
+                  ) : (
+                    <>
+                      <ImageIcon size={22} color="#aaa" />
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>Ajouter une bannière</span>
+                    </>
+                  )}
+                </label>
+              )}
+            </div>
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Galerie / miniatures</label>
             <div style={{
               display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8,
               marginBottom: 18,
@@ -5252,23 +5337,25 @@ export default function App() {
     };
   }
 
-  // Home banner slides: only real, uploaded images from the storage bucket —
-  // a hot competition with nothing uploaded simply doesn't get a slide.
+  // Home banner slides: prefer each competition's dedicated banner image
+  // (set from the edit screen's "Bannière" section); fall back to its first
+  // gallery image if no banner was uploaded. A hot competition with neither
+  // simply doesn't get a slide — nothing fake ever shows up here.
   const homeBannerSlides = useMemo(() => {
     return NICHES.flatMap((niche) =>
       niche.competitions
-        .filter((c) => c.hot && (compImages[c.id]?.length > 0))
+        .filter((c) => c.hot && (compEdits[c.id]?.bannerUrl || compImages[c.id]?.length > 0))
         .map((c) => ({
           ...c,
           niche,
           color: niche.accent,
-          image: compImages[c.id][0].url,
+          image: compEdits[c.id]?.bannerUrl || compImages[c.id][0].url,
         }))
     ).slice(0, 6);
-  }, [compImages]);
+  }, [compImages, compEdits]);
 
-  async function handleEditComp({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, rewardExtra, rules }) {
-    const edits = { title, edition, ends, endsAt, contestants, description, prizeAmount, rewardExtra, rules };
+  async function handleEditComp({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, rewardExtra, rules, bannerUrl }) {
+    const edits = { title, edition, ends, endsAt, contestants, description, prizeAmount, rewardExtra, rules, bannerUrl };
     const { data, error } = await saveCompetitionEdit({
       competitionId,
       ...edits,
