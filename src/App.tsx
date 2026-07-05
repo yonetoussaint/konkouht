@@ -902,10 +902,6 @@ function buildParticipants(comp) {
   return list.sort((a, b) => b.votes - a.votes);
 }
 
-function registrationFee(comp) {
-  return 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
-}
-
 const COMMENT_SNIPPETS = [
   "Bonne chance à tous les participants! 🔥",
   "C'est qui le favori cette saison?",
@@ -966,92 +962,13 @@ function fmtCommentTime(minutesAgo) {
 
 /* ─── RULES / PRIZE / DESCRIPTION ───────────────────────────────────────── */
 
-const NICHE_FORMAT_COPY = {
-  music: {
-    verb: "interprète",
-    unit: "performance",
-    submission: "un enregistrement audio ou vidéo de la prestation",
-  },
-  dance: {
-    verb: "exécute",
-    unit: "chorégraphie",
-    submission: "une vidéo de la chorégraphie filmée en un seul plan",
-  },
-  sports: {
-    verb: "réalise",
-    unit: "épreuve",
-    submission: "une vidéo de l'épreuve dans des conditions vérifiables",
-  },
-  art: {
-    verb: "présente",
-    unit: "œuvre",
-    submission: "une photo ou un dossier de l'œuvre terminée",
-  },
-  comedy: {
-    verb: "joue",
-    unit: "numéro",
-    submission: "une vidéo du numéro filmé devant public ou caméra",
-  },
-  beaute: {
-    verb: "présente",
-    unit: "portfolio",
-    submission: "un portfolio photo selon le thème de l'édition",
-  },
-  gaming: {
-    verb: "dispute",
-    unit: "match",
-    submission: "une vidéo ou un replay du match joué",
-  },
-};
-
-const JUDGING_BY_PHASE_MIX = [
-  { vote: 70, jury: 30 },
-  { vote: 60, jury: 40 },
-  { vote: 100, jury: 0 },
-  { vote: 50, jury: 50 },
-];
-
-function buildRulesInfo(comp, nicheId) {
-  const seed = Math.abs(hashStr(comp.id));
-  const format = NICHE_FORMAT_COPY[nicheId] || NICHE_FORMAT_COPY.music;
-  const mix = JUDGING_BY_PHASE_MIX[seed % JUDGING_BY_PHASE_MIX.length];
-
-  const description =
-    `${comp.edition} de ${comp.title}, organisé par ${comp.organisateur}. ` +
-    `Chaque candidat ${format.verb} sa ${format.unit} devant la communauté ; ` +
-    `le public vote et envoie des cadeaux pour soutenir ses favoris jusqu'à la fin de la compétition.`;
-
-  const rewardExtra = seed % 3 === 0
-    ? "Trophée officiel et mise en avant sur la page de l'organisateur"
-    : seed % 3 === 1
-    ? "Certificat officiel et visibilité sur les réseaux du partenaire"
-    : "Pack de visibilité offert par l'organisateur";
-
-  const rules = [
-    `Inscription ouverte à tous, sous réserve de validation par ${comp.organisateur}.`,
-    `Chaque participant doit soumettre ${format.submission} avant la date limite.`,
-    mix.jury > 0
-      ? `Classement basé sur ${mix.vote}% votes du public et ${mix.jury}% notation du jury.`
-      : `Classement basé à 100% sur les votes du public — un vote = un cadeau envoyé.`,
-    "Le gagnant (1er au classement final) remporte les frais d'inscription cumulés.",
-    "Il reçoit en plus un bonus calculé sur la valeur des cadeaux qui lui ont été envoyés personnellement.",
-    "Les votes achetés via cadeaux sont définitifs et non remboursables.",
-    "Toute tentative de fraude (faux comptes, achats groupés suspects) entraîne une disqualification.",
-  ];
-
-  const criteria = mix.jury > 0
-    ? ["Technique", "Originalité", "Engagement du public"]
-    : ["Popularité auprès du public", "Régularité des votes reçus"];
-
-  // Owner edits take priority over the generated copy; the generated
-  // versions remain as sensible defaults for competitions nobody has
-  // customized yet.
+function buildRulesInfo(comp) {
+  // No generated placeholder copy — only what the organizer has actually
+  // entered in the edit panel. Anything left blank stays blank in the UI.
   return {
-    description: comp.description?.trim() ? comp.description : description,
-    rewardExtra: comp.rewardExtra?.trim() ? comp.rewardExtra : rewardExtra,
-    rules: Array.isArray(comp.rules) && comp.rules.length > 0 ? comp.rules : rules,
-    criteria,
-    judgingMix: mix,
+    description: comp.description?.trim() ? comp.description : "",
+    rewardExtra: comp.rewardExtra?.trim() ? comp.rewardExtra : "",
+    rules: Array.isArray(comp.rules) && comp.rules.length > 0 ? comp.rules : [],
   };
 }
 
@@ -1476,16 +1393,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     }))
   );
   const accent = isRegistration ? "#6C63FF" : comp.accent;
-  const nicheId = findCompWithNiche(comp.id)?.niche?.id;
-  const rulesInfo = buildRulesInfo(comp, nicheId);
+  const rulesInfo = buildRulesInfo(comp);
   const [rulesExpanded, setRulesExpanded] = useState(false);
-  // Prize — single winner takes registration fees (base) + 30% of the gifts sent to them personally.
-  // An owner-edited prizeAmount overrides the computed base, since it's meant
-  // to reflect what the organizer actually wants to guarantee the winner.
+  // Prize — the organizer sets this explicitly in the edit panel; there is
+  // no auto-generated fallback amount anymore.
   const WINNER_GIFT_SHARE = 0.3;
   const basePrizePool = comp.prizeAmount != null && comp.prizeAmount !== ""
     ? Number(comp.prizeAmount)
-    : registrationFee(comp) * comp.registeredCount;
+    : 0;
   // Seed ranked once; liveVotes tracks per-participant live vote deltas, liveGiftCredits tracks per-participant gift credits
   const seedRanked = buildParticipants(comp).slice(0, 5);
   const [liveVotes, setLiveVotes] = useState(() => {
@@ -1955,10 +1870,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </div>
 
           <p style={{
-            fontFamily: "Inter, sans-serif", fontSize: 13, color: "#444",
+            fontFamily: "Inter, sans-serif", fontSize: 13, color: rulesInfo.description ? "#444" : "#aaa",
             lineHeight: 1.55, margin: "0 0 12px",
+            fontStyle: rulesInfo.description ? "normal" : "italic",
           }}>
-            {rulesInfo.description}
+            {rulesInfo.description || "Aucune description pour le moment."}
           </p>
 
           {/* Prize — single winner: registration fees (base) + 30% of their personal gifts */}
@@ -1977,9 +1893,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 }}>
                   {isRegistration ? basePrizePool.toLocaleString("fr-FR") : winnerPrize.toLocaleString("fr-FR")} crédits pour le gagnant
                 </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", marginTop: 2 }}>
-                  {rulesInfo.rewardExtra}
-                </div>
+                {rulesInfo.rewardExtra && (
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", marginTop: 2 }}>
+                    {rulesInfo.rewardExtra}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2037,51 +1955,42 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             )}
           </div>
 
-          {/* Judging criteria chips */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-            {rulesInfo.criteria.map((crit, i) => (
-              <span key={i} style={{
-                fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-                color: "#666", background: "#f2f2f2",
-                padding: "5px 12px", borderRadius: 999, textTransform: "uppercase", letterSpacing: "0.04em",
-              }}>
-                {crit}
-              </span>
-            ))}
-          </div>
+          {rulesInfo.rules.length > 0 && (
+            <>
+              {/* Rules toggle */}
+              <button
+                onClick={() => setRulesExpanded((v) => !v)}
+                style={{
+                  width: "100%", border: "none", borderRadius: 14, background: "#f5f5f5",
+                  padding: "12px 14px", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+                  color: "#333", textTransform: "uppercase", letterSpacing: "0.06em",
+                }}
+              >
+                Règlement complet
+                <ChevronRight
+                  size={14}
+                  style={{ transform: rulesExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                />
+              </button>
 
-          {/* Rules toggle */}
-          <button
-            onClick={() => setRulesExpanded((v) => !v)}
-            style={{
-              width: "100%", border: "none", borderRadius: 14, background: "#f5f5f5",
-              padding: "12px 14px", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
-              color: "#333", textTransform: "uppercase", letterSpacing: "0.06em",
-            }}
-          >
-            Règlement complet
-            <ChevronRight
-              size={14}
-              style={{ transform: rulesExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
-            />
-          </button>
-
-          {rulesExpanded && (
-            <ol style={{
-              margin: "10px 0 0", padding: "0 0 0 18px",
-              display: "flex", flexDirection: "column", gap: 8,
-            }}>
-              {rulesInfo.rules.map((rule, i) => (
-                <li key={i} style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 12.5, color: "#555",
-                  lineHeight: 1.5,
+              {rulesExpanded && (
+                <ol style={{
+                  margin: "10px 0 0", padding: "0 0 0 18px",
+                  display: "flex", flexDirection: "column", gap: 8,
                 }}>
-                  {rule}
-                </li>
-              ))}
-            </ol>
+                  {rulesInfo.rules.map((rule, i) => (
+                    <li key={i} style={{
+                      fontFamily: "Inter, sans-serif", fontSize: 12.5, color: "#555",
+                      lineHeight: 1.5,
+                    }}>
+                      {rule}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
           )}
         </div>
 
@@ -3097,7 +3006,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
             />
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14 }}>
-              Laissez vide pour utiliser le calcul par défaut (frais d'inscription cumulés).
+              Laissez vide pour ne définir aucun prix garanti.
             </div>
 
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Récompense additionnelle</label>
