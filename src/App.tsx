@@ -1695,13 +1695,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         })()}
       </div>
 
-      {/* ── CONTENT SHEET — curves up over the hero image ── */}
+      {/* ── CONTENT SHEET — rounded top corners, sits flush below the hero ── */}
       <div style={{
         position: "relative",
-        marginTop: -20,
         borderRadius: "22px 22px 0 0",
         background: "#F2F2F0",
-        boxShadow: "0 -8px 24px rgba(0,0,0,0.10)",
         overflow: "hidden",
       }}>
 
