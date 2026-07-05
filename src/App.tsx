@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "./lib/supabaseClient";
+import { fetchRegistrations, insertRegistration } from "./lib/registrations";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
@@ -878,22 +879,6 @@ function registrationFee(comp) {
   return 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
 }
 
-function buildRegistrants(comp) {
-  const fee = registrationFee(comp);
-  return Array.from({ length: comp.registeredCount }, (_, i) => {
-    const seed = (i * 37 + 11) % 29;
-    const daysAgo = 1 + (seed % 9); // 1-9 days ago
-    const date = new Date();
-    date.setDate(date.getDate() - daysAgo);
-    return {
-      index: i,
-      name: fakeName(i),
-      date: date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
-      fee,
-    };
-  }).sort((a, b) => a.index - b.index);
-}
-
 const COMMENT_SNIPPETS = [
   "Bonne chance à tous les participants! 🔥",
   "C'est qui le favori cette saison?",
@@ -1152,9 +1137,13 @@ function RegistrantListOverlay({ comp, registrants, accent, onClose }) {
           <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Frais</span>
         </div>
 
-        {registrants.map((r, i) => (
+        {registrants.length === 0 ? (
+          <div style={{ padding: "40px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#bbb" }}>
+            Aucune inscription pour le moment.
+          </div>
+        ) : registrants.map((r, i) => (
           <div
-            key={r.index}
+            key={r.id}
             style={{
               display: "flex",
               alignItems: "center",
@@ -1176,10 +1165,12 @@ function RegistrantListOverlay({ comp, registrants, accent, onClose }) {
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
               <div style={{
                   width: 28, height: 28, borderRadius: "50%",
-                  flexShrink: 0, overflow: "hidden",
-                  border: "1px solid #e0e0e0",
+                  flexShrink: 0,
+                  background: "#f0ebff", color: "#6C63FF",
+                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                <img src={avatarImg(r.index)} alt={r.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                {r.name.charAt(0).toUpperCase()}
               </div>
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
             </div>
@@ -1187,7 +1178,7 @@ function RegistrantListOverlay({ comp, registrants, accent, onClose }) {
               {r.date}
             </span>
             <span style={{ width: 80, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: accent }}>
-              {r.fee} cr.
+              {r.fee} gdes
             </span>
           </div>
         ))}
@@ -1425,7 +1416,27 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   // Registration fill counter
   const [liveRegistered, setLiveRegistered] = useState(comp.registeredCount);
   const [showAllRegistrants, setShowAllRegistrants] = useState(false);
-  const registrants = isRegistration ? buildRegistrants(comp) : [];
+  const [registrants, setRegistrants] = useState([]);
+  const [registrantsLoading, setRegistrantsLoading] = useState(isRegistration);
+
+  useEffect(() => {
+    if (!isRegistration) return;
+    let cancelled = false;
+    setRegistrantsLoading(true);
+    fetchRegistrations(comp.id).then((rows) => {
+      if (cancelled) return;
+      setRegistrants(
+        rows.map((r) => ({
+          id: r.id,
+          name: r.full_name,
+          fee: r.fee_paid,
+          date: new Date(r.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+        }))
+      );
+      setRegistrantsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [comp.id, isRegistration]);
   const [comments, setComments] = useState(() => buildComments(comp));
   const [commentDraft, setCommentDraft] = useState("");
   const [likedCommentIds, setLikedCommentIds] = useState(() => new Set());
@@ -2005,7 +2016,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               )}
             </div>
 
-            {registrants.length === 0 ? (
+            {registrantsLoading ? (
+              <div style={{
+                padding: "20px 0 24px", textAlign: "center",
+                fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb",
+              }}>
+                Chargement des inscrits...
+              </div>
+            ) : registrants.length === 0 ? (
               <div style={{
                 padding: "20px 0 24px", textAlign: "center",
                 fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb",
@@ -2014,7 +2032,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               </div>
             ) : (
               registrants.slice(0, 5).map((r) => (
-                <div key={r.index} style={{
+                <div key={r.id} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "9px 0",
                   borderBottom: "1px solid #f0f0f0",
@@ -2025,7 +2043,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
-                    {r.name.charAt(0)}
+                    {r.name.charAt(0).toUpperCase()}
                   </div>
                   <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -2039,7 +2057,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
                     color: "#6C63FF", flexShrink: 0,
                   }}>
-                    {r.fee} crédits
+                    {r.fee} gourdes
                   </span>
                 </div>
               ))
@@ -4959,6 +4977,17 @@ export default function App() {
     setRegisteredCompIds((prev) => new Set(prev).add(comp.id));
     pushNotif({ type: "action", icon: "✅", title: `Inscription confirmée`, body: `Vous êtes inscrit à ${comp.title}. Bonne chance !`, compId: comp.id });
     showToast(`Inscrit à ${comp.title}!`);
+
+    if (currentUser?.id) {
+      insertRegistration({
+        competitionId: comp.id,
+        userId: currentUser.id,
+        fullName: currentUser.fullName,
+        fee: fee || 0,
+      }).then(({ error }) => {
+        if (error) console.error("insertRegistration failed:", error.message);
+      });
+    }
   }
 
   function toggleFollowComp(comp) {
