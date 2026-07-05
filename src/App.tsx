@@ -1414,11 +1414,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const leader = ranked[0];
   const leaderGiftCredits = leader ? (liveGiftCredits[leader.index] ?? 0) : 0;
   const winnerPrize = basePrizePool + Math.round(leaderGiftCredits * WINNER_GIFT_SHARE);
-  // Registration fill counter
-  const [liveRegistered, setLiveRegistered] = useState(comp.registeredCount);
+  // Registration fill counter — real count from the database, not simulated.
+  // Falls back to the seeded registeredCount only until the real fetch resolves,
+  // so the UI doesn't flash "0" on first paint.
   const [showAllRegistrants, setShowAllRegistrants] = useState(false);
   const [registrants, setRegistrants] = useState([]);
   const [registrantsLoading, setRegistrantsLoading] = useState(isRegistration);
+  const liveRegistered = registrantsLoading ? comp.registeredCount : registrants.length;
 
   useEffect(() => {
     if (!isRegistration) return;
@@ -1438,6 +1440,36 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       setRegistrantsLoading(false);
     });
     return () => { cancelled = true; };
+  }, [comp.id, isRegistration]);
+
+  // Real-time sync: reflect registrations made by ANY user, live, while this
+  // board is open — not just the ones fetched at mount time.
+  useEffect(() => {
+    if (!isRegistration) return;
+    const channel = supabase
+      .channel(`registrations-${comp.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "registrations", filter: `competition_id=eq.${comp.id}` },
+        (payload) => {
+          const r = payload.new;
+          setRegistrants((prev) => {
+            if (prev.some((existing) => existing.id === r.id)) return prev;
+            return [
+              {
+                id: r.id,
+                name: r.full_name,
+                fee: r.fee_paid,
+                date: new Date(r.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+                time: new Date(r.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+              },
+              ...prev,
+            ];
+          });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [comp.id, isRegistration]);
   const [comments, setComments] = useState(() => buildComments(comp));
   const [commentDraft, setCommentDraft] = useState("");
@@ -1483,22 +1515,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     return () => clearInterval(iv);
   }, [isRegistration]);
 
-  // Live registration tick — +1 every 6–12s while spots remain (registration phase only)
-  useEffect(() => {
-    if (!isRegistration) return;
-    function scheduleNext() {
-      const delay = 6000 + Math.random() * 6000;
-      return setTimeout(() => {
-        setLiveRegistered((c) => {
-          if (c >= comp.contestants) return c;
-          return c + 1;
-        });
-        timerRef.current = scheduleNext();
-      }, delay);
-    }
-    const timerRef = { current: scheduleNext() };
-    return () => clearTimeout(timerRef.current);
-  }, [isRegistration, comp.contestants]);
+  // (Removed: fake simulated registration-count timer. liveRegistered is now
+  // sourced for real from the database — see the fetch + realtime effects above.)
 
   function handlePostComment() {
     const text = commentDraft.trim();
