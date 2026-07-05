@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "./lib/supabaseClient";
-import { fetchRegistrations, insertRegistration } from "./lib/registrations";
+import { fetchRegistrations, insertRegistration, fetchUserRegistrations } from "./lib/registrations";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
@@ -4919,6 +4919,23 @@ export default function App() {
     const timerRef = { current: scheduleNext() };
     return () => clearTimeout(timerRef.current);
   }, []);
+
+  // Rebuild the registered-competitions set from the database whenever we
+  // know who the current user is — this runs both after a fresh login and
+  // after the session is restored on page refresh, so registration state
+  // survives a reload instead of resetting to an empty Set.
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setRegisteredCompIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    fetchUserRegistrations(currentUser.id).then((rows) => {
+      if (cancelled) return;
+      setRegisteredCompIds(new Set(rows.map((r) => r.competition_id)));
+    });
+    return () => { cancelled = true; };
+  }, [currentUser?.id]);
 
   const nichesByFilter =
     activeFilter === "Tous"
