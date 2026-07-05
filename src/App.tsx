@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { fetchRegistrations, insertRegistration, fetchUserRegistrations } from "./lib/registrations";
 import { fetchComments, insertComment } from "./lib/comments";
+import { fetchCompetitionEdits, saveCompetitionEdit } from "./lib/competitionEdits";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
@@ -1341,9 +1342,32 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
 
 /* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
 
-function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth }) {
+function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp }) {
   const isRegistration = comp.phase === "registration";
   const isOwnCompetition = currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState(comp.title);
+  const [editEdition, setEditEdition] = useState(comp.edition);
+  const [editEnds, setEditEnds] = useState(comp.ends);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  useEffect(() => {
+    setEditTitle(comp.title);
+    setEditEdition(comp.edition);
+    setEditEnds(comp.ends);
+  }, [comp.id, comp.title, comp.edition, comp.ends]);
+
+  async function handleSaveEdit() {
+    setSavingEdit(true);
+    const result = await onEditComp?.({
+      competitionId: comp.id,
+      title: editTitle.trim() || comp.title,
+      edition: editEdition.trim() || comp.edition,
+      ends: editEnds.trim() || comp.ends,
+    });
+    setSavingEdit(false);
+    if (result?.success) setShowEditModal(false);
+  }
   const [voteCount, setVoteCount] = useState(comp.votes);
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -2820,25 +2844,27 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         }}>
           {isRegistration ? (
             isOwnCompetition ? (
-              <div
+              <button
+                onClick={() => setShowEditModal(true)}
                 style={{
                   flex: 1,
                   border: "none",
                   borderRadius: 999,
                   background: "#f2f2f2",
-                  color: "#999",
+                  color: "#333",
                   fontFamily: "'Space Grotesk', sans-serif",
                   fontWeight: 700,
                   fontSize: 13,
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   padding: "13px 16px",
+                  cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 }}
               >
                 <BadgeCheck size={15} strokeWidth={2.5} />
-                Votre compétition — organisateur
-              </div>
+                Modifier ma compétition
+              </button>
             ) : isRegistered ? (
               <div
                 style={{
@@ -2967,6 +2993,69 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           accent={accent}
           onClose={() => setAlbumSheet(null)}
         />
+      )}
+
+      {showEditModal && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 2000, padding: 16,
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 18, padding: 20,
+            width: "100%", maxWidth: 380, boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
+                Modifier la compétition
+              </span>
+              <button onClick={() => setShowEditModal(false)} style={{ border: "none", background: "none", cursor: "pointer", padding: 4 }}>
+                <X size={18} color="#999" />
+              </button>
+            </div>
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Titre</label>
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+            />
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Édition</label>
+            <input
+              type="text"
+              value={editEdition}
+              onChange={(e) => setEditEdition(e.target.value)}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+            />
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Fin des inscriptions</label>
+            <input
+              type="text"
+              value={editEnds}
+              onChange={(e) => setEditEnds(e.target.value)}
+              placeholder="ex: 3j 18h"
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 18 }}
+            />
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setShowEditModal(false)}
+                style={{ flex: 1, border: "1px solid #e0e0e0", background: "#fff", color: "#555", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer" }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={savingEdit || !editTitle.trim()}
+                style={{ flex: 1, border: "none", background: accent, color: "#fff", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: savingEdit ? "default" : "pointer", opacity: savingEdit ? 0.7 : 1 }}
+              >
+                {savingEdit ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -5050,6 +5139,35 @@ export default function App() {
   const [pendingRegistrationComp, setPendingRegistrationComp] = useState(null);
   const [notifications, setNotifications] = useState(INITIAL_NOTIFS);
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const [compEdits, setCompEdits] = useState({});
+
+  useEffect(() => {
+    fetchCompetitionEdits().then(setCompEdits);
+  }, []);
+
+  function withEdits(comp) {
+    const e = compEdits[comp.id];
+    return e ? { ...comp, ...e } : comp;
+  }
+
+  async function handleEditComp({ competitionId, title, edition, ends }) {
+    const { data, error } = await saveCompetitionEdit({
+      competitionId,
+      title,
+      edition,
+      ends,
+      updatedBy: currentUser?.id,
+    });
+    if (error) {
+      console.error("saveCompetitionEdit error:", error);
+      showToast("Impossible d'enregistrer les modifications.");
+      return { success: false };
+    }
+    setCompEdits((prev) => ({ ...prev, [competitionId]: { title, edition, ends } }));
+    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, title, edition, ends } : prev));
+    showToast("Compétition mise à jour.");
+    return { success: true, data };
+  }
 
   function pushNotif(notif) {
     setNotifications((prev) => [
@@ -5113,10 +5231,14 @@ export default function App() {
     return () => { cancelled = true; };
   }, [currentUser?.id]);
 
-  const nichesByFilter =
+  const nichesByFilter = (
     activeFilter === "Tous"
       ? NICHES
-      : NICHES.filter((n) => n.label === activeFilter);
+      : NICHES.filter((n) => n.label === activeFilter)
+  ).map((niche) => ({
+    ...niche,
+    competitions: niche.competitions.map(withEdits),
+  }));
 
   const visibleNiches = query.trim() === ""
     ? nichesByFilter
@@ -5370,14 +5492,14 @@ export default function App() {
           onMarkRead={markRead}
           onOpen={(compId) => {
             const result = findCompWithNiche(compId);
-            if (result) setSelectedComp({ ...result.comp, accent: result.niche.accent, niche: result.niche.label });
+            if (result) setSelectedComp(withEdits({ ...result.comp, accent: result.niche.accent, niche: result.niche.label }));
           }}
         />
       ) : activeTab === "mycomps" ? (
         <MyCompetitionsPage
           registeredCompIds={registeredCompIds}
           followedCompIds={followedCompIds}
-          onOpen={(comp) => setSelectedComp(comp)}
+          onOpen={(comp) => setSelectedComp(withEdits(comp))}
         />
       ) : activeTab === "account" ? (
         <AccountPage
@@ -5647,6 +5769,7 @@ export default function App() {
           onToggleFollow={toggleFollowComp}
           currentUser={currentUser}
           onRequestAuth={() => setShowAuthOverlay(true)}
+          onEditComp={handleEditComp}
         />
       )}
     </>
