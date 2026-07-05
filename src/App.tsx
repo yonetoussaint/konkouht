@@ -4,11 +4,11 @@ import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Ho
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
-// FNKH ("Fédération Nationale des Konkou d'Haïti") is the platform's own
+// FNCH ("Fédération Nationale des Concours d'Haïti") is the platform's own
 // organizing body — every competition on the app is run under this sigle,
 // and this account is auto-recognized as its verified organizer.
 const PLATFORM_ORGANIZER_EMAIL = "yonetoussaint25@gmail.com";
-const PLATFORM_ORGANIZER_SIGLE = "FNKH";
+const PLATFORM_ORGANIZER_SIGLE = "FNCH";
 
 const NICHES = [
   {
@@ -17,11 +17,11 @@ const NICHES = [
     accent: "#6C63FF",
     icon: "♪",
     competitions: [
-      { id: "m1", title: "Battle Hip-Hop", edition: "Saison 4", phase: "live", contestants: 12, votes: 4820, ends: "2j 14h", organisateur: "FNKH", hot: true , followers: 8096 , mediaType: "photo", registeredCount: 12 },
-      { id: "m2", title: "Voix d'Or", edition: "Finale", phase: "live", contestants: 8, votes: 9310, ends: "6h 22m", organisateur: "FNKH", hot: true , followers: 2439 , mediaType: "video", registeredCount: 8 },
-      { id: "m3", title: "Guitar Shred", edition: "Quart de finale", phase: "live", contestants: 16, votes: 2140, ends: "4j 02h", organisateur: "FNKH", hot: false , followers: 18824 , mediaType: "text", registeredCount: 16 },
-      { id: "m4", title: "DJ Set Open", edition: "Éliminatoires", phase: "registration", contestants: 24, votes: 0, ends: "3j 18h", organisateur: "FNKH", hot: false , followers: 16849 , mediaType: "pdf", registeredCount: 7 },
-      { id: "m5", title: "Slam Poétique", edition: "Demi-finale", phase: "live", contestants: 6, votes: 3450, ends: "1j 08h", organisateur: "FNKH", hot: true , followers: 15428 , mediaType: "photo", registeredCount: 6 },
+      { id: "m1", title: "Battle Hip-Hop", edition: "Saison 4", phase: "live", contestants: 12, votes: 4820, ends: "2j 14h", organisateur: "FNCH", hot: true , followers: 8096 , mediaType: "photo", registeredCount: 12 },
+      { id: "m2", title: "Voix d'Or", edition: "Finale", phase: "live", contestants: 8, votes: 9310, ends: "6h 22m", organisateur: "FNCH", hot: true , followers: 2439 , mediaType: "video", registeredCount: 8 },
+      { id: "m3", title: "Guitar Shred", edition: "Quart de finale", phase: "live", contestants: 16, votes: 2140, ends: "4j 02h", organisateur: "FNCH", hot: false , followers: 18824 , mediaType: "text", registeredCount: 16 },
+      { id: "m4", title: "DJ Set Open", edition: "Éliminatoires", phase: "registration", contestants: 24, votes: 0, ends: "3j 18h", organisateur: "FNCH", hot: false , followers: 16849 , mediaType: "pdf", registeredCount: 7 },
+      { id: "m5", title: "Slam Poétique", edition: "Demi-finale", phase: "live", contestants: 6, votes: 3450, ends: "1j 08h", organisateur: "FNCH", hot: true , followers: 15428 , mediaType: "photo", registeredCount: 6 },
     ],
   },
   {
@@ -30,11 +30,11 @@ const NICHES = [
     accent: "#FF4D6D",
     icon: "◈",
     competitions: [
-      { id: "d1", title: "Krump Masters", edition: "Finale", phase: "live", contestants: 10, votes: 7640, ends: "3j 05h", organisateur: "FNKH", hot: true , followers: 9944 , mediaType: "video", registeredCount: 10 },
-      { id: "d2", title: "Afrobeats Cup", edition: "Saison 2", phase: "registration", contestants: 20, votes: 0, ends: "4j 11h", organisateur: "FNKH", hot: false , followers: 7517 , mediaType: "text", registeredCount: 5 },
-      { id: "d3", title: "Ballet Urbain", edition: "Demi-finale", phase: "live", contestants: 8, votes: 3810, ends: "2j 19h", organisateur: "FNKH", hot: false , followers: 36541 , mediaType: "pdf", registeredCount: 8 },
-      { id: "d4", title: "Breakdance WC", edition: "Quart de finale", phase: "live", contestants: 32, votes: 11200, ends: "1j 02h", organisateur: "FNKH", hot: true , followers: 6497 , mediaType: "photo", registeredCount: 32 },
-      { id: "d5", title: "Zumba Battle", edition: "Éliminatoires", phase: "registration", contestants: 18, votes: 0, ends: "6j 00h", organisateur: "FNKH", hot: false , followers: 39498 , mediaType: "video", registeredCount: 3 },
+      { id: "d1", title: "Krump Masters", edition: "Finale", phase: "live", contestants: 10, votes: 7640, ends: "3j 05h", organisateur: "FNCH", hot: true , followers: 9944 , mediaType: "video", registeredCount: 10 },
+      { id: "d2", title: "Afrobeats Cup", edition: "Saison 2", phase: "registration", contestants: 20, votes: 0, ends: "4j 11h", organisateur: "FNCH", hot: false , followers: 7517 , mediaType: "text", registeredCount: 5 },
+      { id: "d3", title: "Ballet Urbain", edition: "Demi-finale", phase: "live", contestants: 8, votes: 3810, ends: "2j 19h", organisateur: "FNCH", hot: false , followers: 36541 , mediaType: "pdf", registeredCount: 8 },
+      { id: "d4", title: "Breakdance WC", edition: "Quart de finale", phase: "live", contestants: 32, votes: 11200, ends: "1j 02h", organisateur: "FNCH", hot: true , followers: 6497 , mediaType: "photo", registeredCount: 32 },
+      { id: "d5", title: "Zumba Battle", edition: "Éliminatoires", phase: "registration", contestants: 18, votes: 0, ends: "6j 00h", organisateur: "FNCH", hot: false , followers: 39498 , mediaType: "video", registeredCount: 3 },
     ],
   },
   {
@@ -43,11 +43,11 @@ const NICHES = [
     accent: "#00B894",
     icon: "▲",
     competitions: [
-      { id: "s1", title: "Freestyle Football", edition: "Finale Nationale", phase: "live", contestants: 14, votes: 6540, ends: "12h 00m", organisateur: "FNKH", hot: true , followers: 28451 , mediaType: "text", registeredCount: 14 },
-      { id: "s2", title: "Arm Wrestling Pro", edition: "Open", phase: "registration", contestants: 28, votes: 0, ends: "3j 07h", organisateur: "FNKH", hot: false , followers: 2882 , mediaType: "pdf", registeredCount: 9 },
-      { id: "s3", title: "Parkour Challenge", edition: "Saison 3", phase: "live", contestants: 10, votes: 8900, ends: "2j 16h", organisateur: "FNKH", hot: true , followers: 2752 , mediaType: "photo", registeredCount: 10 },
-      { id: "s4", title: "Chess Blitz", edition: "Quart de finale", phase: "live", contestants: 64, votes: 4410, ends: "3j 22h", organisateur: "FNKH", hot: false , followers: 6940 , mediaType: "video", registeredCount: 64 },
-      { id: "s5", title: "Natation Style", edition: "Demi-finale", phase: "registration", contestants: 16, votes: 0, ends: "5j 03h", organisateur: "FNKH", hot: false , followers: 15128 , mediaType: "text", registeredCount: 4 },
+      { id: "s1", title: "Freestyle Football", edition: "Finale Nationale", phase: "live", contestants: 14, votes: 6540, ends: "12h 00m", organisateur: "FNCH", hot: true , followers: 28451 , mediaType: "text", registeredCount: 14 },
+      { id: "s2", title: "Arm Wrestling Pro", edition: "Open", phase: "registration", contestants: 28, votes: 0, ends: "3j 07h", organisateur: "FNCH", hot: false , followers: 2882 , mediaType: "pdf", registeredCount: 9 },
+      { id: "s3", title: "Parkour Challenge", edition: "Saison 3", phase: "live", contestants: 10, votes: 8900, ends: "2j 16h", organisateur: "FNCH", hot: true , followers: 2752 , mediaType: "photo", registeredCount: 10 },
+      { id: "s4", title: "Chess Blitz", edition: "Quart de finale", phase: "live", contestants: 64, votes: 4410, ends: "3j 22h", organisateur: "FNCH", hot: false , followers: 6940 , mediaType: "video", registeredCount: 64 },
+      { id: "s5", title: "Natation Style", edition: "Demi-finale", phase: "registration", contestants: 16, votes: 0, ends: "5j 03h", organisateur: "FNCH", hot: false , followers: 15128 , mediaType: "text", registeredCount: 4 },
     ],
   },
   {
@@ -56,11 +56,11 @@ const NICHES = [
     accent: "#FDCB6E",
     icon: "□",
     competitions: [
-      { id: "a1", title: "Live Graffiti", edition: "Finale", phase: "live", contestants: 8, votes: 5580, ends: "18h 30m", organisateur: "FNKH", hot: true , followers: 16047 , mediaType: "pdf", registeredCount: 8 },
-      { id: "a2", title: "Tatouage Expo", edition: "Saison 1", phase: "live", contestants: 20, votes: 7230, ends: "4j 00h", organisateur: "FNKH", hot: true , followers: 33918 , mediaType: "photo", registeredCount: 20 },
-      { id: "a3", title: "Illustration Duel", edition: "Open Digital", phase: "registration", contestants: 40, votes: 0, ends: "4j 14h", organisateur: "FNKH", hot: false , followers: 40253 , mediaType: "video", registeredCount: 12 },
-      { id: "a4", title: "Photo Street", edition: "Éliminatoires", phase: "registration", contestants: 50, votes: 0, ends: "7j 02h", organisateur: "FNKH", hot: false , followers: 2539 , mediaType: "text", registeredCount: 15 },
-      { id: "a5", title: "Poterie Battle", edition: "Demi-finale", phase: "live", contestants: 6, votes: 3100, ends: "3j 09h", organisateur: "FNKH", hot: false , followers: 37581 , mediaType: "pdf", registeredCount: 6 },
+      { id: "a1", title: "Live Graffiti", edition: "Finale", phase: "live", contestants: 8, votes: 5580, ends: "18h 30m", organisateur: "FNCH", hot: true , followers: 16047 , mediaType: "pdf", registeredCount: 8 },
+      { id: "a2", title: "Tatouage Expo", edition: "Saison 1", phase: "live", contestants: 20, votes: 7230, ends: "4j 00h", organisateur: "FNCH", hot: true , followers: 33918 , mediaType: "photo", registeredCount: 20 },
+      { id: "a3", title: "Illustration Duel", edition: "Open Digital", phase: "registration", contestants: 40, votes: 0, ends: "4j 14h", organisateur: "FNCH", hot: false , followers: 40253 , mediaType: "video", registeredCount: 12 },
+      { id: "a4", title: "Photo Street", edition: "Éliminatoires", phase: "registration", contestants: 50, votes: 0, ends: "7j 02h", organisateur: "FNCH", hot: false , followers: 2539 , mediaType: "text", registeredCount: 15 },
+      { id: "a5", title: "Poterie Battle", edition: "Demi-finale", phase: "live", contestants: 6, votes: 3100, ends: "3j 09h", organisateur: "FNCH", hot: false , followers: 37581 , mediaType: "pdf", registeredCount: 6 },
     ],
   },
   {
@@ -69,10 +69,10 @@ const NICHES = [
     accent: "#E17055",
     icon: "◉",
     competitions: [
-      { id: "c1", title: "Stand-up Open Mic", edition: "Saison 5", phase: "live", contestants: 18, votes: 9870, ends: "1j 20h", organisateur: "FNKH", hot: true , followers: 13831 , mediaType: "photo", registeredCount: 18 },
-      { id: "c2", title: "Impro Théâtre", edition: "Finale", phase: "registration", contestants: 6, votes: 0, ends: "12h 06h", organisateur: "FNKH", hot: false , followers: 36513 , mediaType: "video", registeredCount: 2 },
-      { id: "c3", title: "Sketch Battle", edition: "Quart de finale", phase: "live", contestants: 12, votes: 3450, ends: "5j 11h", organisateur: "FNKH", hot: false , followers: 28293 , mediaType: "text", registeredCount: 12 },
-      { id: "c4", title: "Mime & Clown", edition: "Éliminatoires", phase: "registration", contestants: 22, votes: 0, ends: "5j 18h", organisateur: "FNKH", hot: false , followers: 15246 , mediaType: "pdf", registeredCount: 6 },
+      { id: "c1", title: "Stand-up Open Mic", edition: "Saison 5", phase: "live", contestants: 18, votes: 9870, ends: "1j 20h", organisateur: "FNCH", hot: true , followers: 13831 , mediaType: "photo", registeredCount: 18 },
+      { id: "c2", title: "Impro Théâtre", edition: "Finale", phase: "registration", contestants: 6, votes: 0, ends: "12h 06h", organisateur: "FNCH", hot: false , followers: 36513 , mediaType: "video", registeredCount: 2 },
+      { id: "c3", title: "Sketch Battle", edition: "Quart de finale", phase: "live", contestants: 12, votes: 3450, ends: "5j 11h", organisateur: "FNCH", hot: false , followers: 28293 , mediaType: "text", registeredCount: 12 },
+      { id: "c4", title: "Mime & Clown", edition: "Éliminatoires", phase: "registration", contestants: 22, votes: 0, ends: "5j 18h", organisateur: "FNCH", hot: false , followers: 15246 , mediaType: "pdf", registeredCount: 6 },
     ],
   },
   {
@@ -81,9 +81,9 @@ const NICHES = [
     accent: "#E91E8C",
     icon: "✦",
     competitions: [
-      { id: "b1", title: "Concours de Beauté", edition: "Saison 1", phase: "live", contestants: 12, votes: 6240, ends: "2j 08h", organisateur: "FNKH", hot: true, followers: 22450, mediaType: "photo", registeredCount: 12 },
-      { id: "b2", title: "Miss Élégance", edition: "Demi-finale", phase: "live", contestants: 8, votes: 4810, ends: "1j 12h", organisateur: "FNKH", hot: true, followers: 18300, mediaType: "photo", registeredCount: 8 },
-      { id: "b3", title: "Top Model Open", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "5j 00h", organisateur: "FNKH", hot: false, followers: 9120, mediaType: "photo", registeredCount: 7 },
+      { id: "b1", title: "Concours de Beauté", edition: "Saison 1", phase: "live", contestants: 12, votes: 6240, ends: "2j 08h", organisateur: "FNCH", hot: true, followers: 22450, mediaType: "photo", registeredCount: 12 },
+      { id: "b2", title: "Miss Élégance", edition: "Demi-finale", phase: "live", contestants: 8, votes: 4810, ends: "1j 12h", organisateur: "FNCH", hot: true, followers: 18300, mediaType: "photo", registeredCount: 8 },
+      { id: "b3", title: "Top Model Open", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "5j 00h", organisateur: "FNCH", hot: false, followers: 9120, mediaType: "photo", registeredCount: 7 },
     ],
   },
   {
@@ -92,11 +92,11 @@ const NICHES = [
     accent: "#00CEC9",
     icon: "▶",
     competitions: [
-      { id: "g1", title: "FIFA Masters", edition: "Saison 6", phase: "live", contestants: 32, votes: 14500, ends: "6h 00m", organisateur: "FNKH", hot: true , followers: 30239 , mediaType: "photo", registeredCount: 32 },
-      { id: "g2", title: "Speedrun Open", edition: "Finale", phase: "live", contestants: 16, votes: 8730, ends: "1j 14h", organisateur: "FNKH", hot: true , followers: 39418 , mediaType: "video", registeredCount: 16 },
-      { id: "g3", title: "Card Game Pro", edition: "Quart de finale", phase: "registration", contestants: 64, votes: 0, ends: "2j 02h", organisateur: "FNKH", hot: false , followers: 19031 , mediaType: "text", registeredCount: 20 },
-      { id: "g4", title: "Retro Gaming Cup", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "4j 08h", organisateur: "FNKH", hot: false , followers: 1225 , mediaType: "pdf", registeredCount: 8 },
-      { id: "g5", title: "VR Arena", edition: "Demi-finale", phase: "live", contestants: 10, votes: 5670, ends: "2j 22h", organisateur: "FNKH", hot: false , followers: 11263 , mediaType: "photo", registeredCount: 10 },
+      { id: "g1", title: "FIFA Masters", edition: "Saison 6", phase: "live", contestants: 32, votes: 14500, ends: "6h 00m", organisateur: "FNCH", hot: true , followers: 30239 , mediaType: "photo", registeredCount: 32 },
+      { id: "g2", title: "Speedrun Open", edition: "Finale", phase: "live", contestants: 16, votes: 8730, ends: "1j 14h", organisateur: "FNCH", hot: true , followers: 39418 , mediaType: "video", registeredCount: 16 },
+      { id: "g3", title: "Card Game Pro", edition: "Quart de finale", phase: "registration", contestants: 64, votes: 0, ends: "2j 02h", organisateur: "FNCH", hot: false , followers: 19031 , mediaType: "text", registeredCount: 20 },
+      { id: "g4", title: "Retro Gaming Cup", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "4j 08h", organisateur: "FNCH", hot: false , followers: 1225 , mediaType: "pdf", registeredCount: 8 },
+      { id: "g5", title: "VR Arena", edition: "Demi-finale", phase: "live", contestants: 10, votes: 5670, ends: "2j 22h", organisateur: "FNCH", hot: false , followers: 11263 , mediaType: "photo", registeredCount: 10 },
     ],
   },
 ];
@@ -3603,15 +3603,33 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
 function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, balance, onOpenBuy }) {
   const [isRegistered, setIsRegistered] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [step, setStep] = useState("form"); // "form" | "pin"
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState(false);
 
   // Deterministic registration fee per competition, in credits
   const fee = 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
   const canAfford = balance >= fee;
 
-  function handleSubmit() {
+  function handleContinue() {
     if (!canAfford) {
       showToast("Gourdes insuffisantes pour l'inscription");
       onOpenBuy?.();
+      return;
+    }
+    setStep("pin");
+  }
+
+  function handlePinChange(v) {
+    const digits = v.replace(/\D/g, "").slice(0, 4);
+    setPin(digits);
+    setPinError(false);
+  }
+
+  function handleConfirmPin() {
+    if (pin.length !== 4) return;
+    if (pin !== WALLET_PIN) {
+      setPinError(true);
       return;
     }
     setIsSubmitting(true);
@@ -3701,8 +3719,13 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           overflowY: "auto",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
+          {step === "pin" && (
+            <button onClick={() => { setStep("form"); setPin(""); setPinError(false); }} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 0, lineHeight: 0 }}>
+              <ArrowLeft size={18} strokeWidth={2.5} />
+            </button>
+          )}
+          <span style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
             S'inscrire à {comp.title}
           </span>
           <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
@@ -3710,6 +3733,8 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           </button>
         </div>
 
+        {step === "form" && (
+        <>
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
           {currentUser && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid #eee", background: "#fafafa" }}>
@@ -3770,12 +3795,12 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
         </div>
 
         <button
-          onClick={handleSubmit}
+          onClick={handleContinue}
           disabled={isSubmitting}
           style={{
             width: "100%",
             border: "none",
-            background: isSubmitting ? "#ddd" : canAfford ? "#6C63FF" : "#111",
+            background: canAfford ? "#6C63FF" : "#111",
             color: "#fff",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
@@ -3783,19 +3808,14 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             padding: "14px 20px",
-            cursor: isSubmitting ? "not-allowed" : "pointer",
+            cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: 10,
           }}
         >
-          {isSubmitting ? (
-            <>
-              <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
-              Inscription en cours...
-            </>
-          ) : canAfford ? (
+          {canAfford ? (
             <>
               <Plus size={16} strokeWidth={2.5} />
               Payer {fee} gourdes et s'inscrire
@@ -3807,6 +3827,77 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
             </>
           )}
         </button>
+        </>
+        )}
+
+        {step === "pin" && (
+          <>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", lineHeight: 1.5, marginBottom: 20 }}>
+              Entrez votre code PIN à 4 chiffres pour confirmer le paiement de <strong>{fee} gourdes</strong> et votre inscription à {comp.title}.
+            </div>
+
+            <input
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              maxLength={4}
+              value={pin}
+              onChange={(e) => handlePinChange(e.target.value)}
+              placeholder="••••"
+              style={{
+                width: "100%",
+                border: `1px solid ${pinError ? "#E74C3C" : "#ddd"}`,
+                padding: "14px 14px",
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontSize: 24,
+                fontWeight: 700,
+                letterSpacing: "0.4em",
+                textAlign: "center",
+                color: "#333",
+                outline: "none",
+                boxSizing: "border-box",
+                marginBottom: 8,
+              }}
+            />
+            {pinError && (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#E74C3C", fontWeight: 600, marginBottom: 12 }}>
+                Code PIN incorrect. Réessayez.
+              </div>
+            )}
+
+            <button
+              onClick={handleConfirmPin}
+              disabled={pin.length !== 4 || isSubmitting}
+              style={{
+                width: "100%",
+                border: "none",
+                background: isSubmitting ? "#ddd" : pin.length === 4 ? "#6C63FF" : "#ccc",
+                color: "#fff",
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: 14,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                padding: "14px 20px",
+                cursor: pin.length === 4 && !isSubmitting ? "pointer" : "not-allowed",
+                marginTop: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+              }}
+            >
+              {isSubmitting ? (
+                <>
+                  <div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                  Inscription en cours...
+                </>
+              ) : (
+                "Confirmer et payer"
+              )}
+            </button>
+          </>
+        )}
       </div>
       <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
     </div>
