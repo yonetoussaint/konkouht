@@ -356,7 +356,7 @@ function PhaseRow({ edition, accent }) {
 
 /* ─── COMPETITION CARD ──────────────────────────────────────────────────── */
 
-function CompCard({ comp, accent, onOpen, onRegister, isRegistered }) {
+function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompetition }) {
   const [voteCount] = useState(comp.votes);
   const [followed, setFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(comp.followers);
@@ -549,7 +549,29 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered }) {
 
       {/* Footer — voting or registration */}
       {isRegistration ? (
-        isRegistered ? (
+        isOwnCompetition ? (
+          <div
+            style={{
+              border: "none",
+              background: "#f2f2f2",
+              color: "#999",
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              padding: "11px 14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              flexShrink: 0,
+            }}
+          >
+            <BadgeCheck size={14} strokeWidth={2.5} />
+            Votre compétition
+          </div>
+        ) : isRegistered ? (
           <div
             style={{
               border: "none",
@@ -1320,6 +1342,7 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
 
 function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth }) {
   const isRegistration = comp.phase === "registration";
+  const isOwnCompetition = currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
   const [voteCount, setVoteCount] = useState(comp.votes);
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -2707,7 +2730,27 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           display: "flex", gap: 8,
         }}>
           {isRegistration ? (
-            isRegistered ? (
+            isOwnCompetition ? (
+              <div
+                style={{
+                  flex: 1,
+                  border: "none",
+                  borderRadius: 999,
+                  background: "#f2f2f2",
+                  color: "#999",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  padding: "13px 16px",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                }}
+              >
+                <BadgeCheck size={15} strokeWidth={2.5} />
+                Votre compétition — organisateur
+              </div>
+            ) : isRegistered ? (
               <div
                 style={{
                   flex: 1,
@@ -2842,7 +2885,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
 /* ─── NICHE ROW ─────────────────────────────────────────────────────────── */
 
-function NicheRow({ niche, onOpen, onRegister, registeredCompIds }) {
+function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser }) {
   const railRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -2938,7 +2981,7 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds }) {
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {niche.competitions.map((comp) => (
-          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} />
+          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE} />
         ))}
 
       </div>
@@ -5043,6 +5086,9 @@ export default function App() {
     if (!currentUser?.id) {
       return { success: false, error: "Vous devez être connecté pour vous inscrire." };
     }
+    if (currentUser.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE) {
+      return { success: false, error: "Un organisateur ne peut pas s'inscrire à sa propre compétition." };
+    }
 
     const { error } = await insertRegistration({
       competitionId: comp.id,
@@ -5097,6 +5143,10 @@ export default function App() {
   function requestRegistration(comp) {
     if (registeredCompIds.has(comp.id)) {
       showToast(`Vous êtes déjà inscrit à ${comp.title}`);
+      return;
+    }
+    if (currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE) {
+      showToast("Un organisateur ne peut pas s'inscrire à sa propre compétition");
       return;
     }
     if (!isAuthenticated) {
@@ -5447,6 +5497,7 @@ export default function App() {
               onOpen={(comp) => setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label })}
               onRegister={(comp) => requestRegistration({ ...comp, accent: niche.accent, niche: niche.label })}
               registeredCompIds={registeredCompIds}
+              currentUser={currentUser}
             />
           ))}
         </main>
