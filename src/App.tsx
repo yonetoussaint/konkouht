@@ -3038,23 +3038,25 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
       {showEditModal && (
         <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          zIndex: 2000, padding: 16,
+          position: "fixed", inset: 0, background: "#fff",
+          zIndex: 2000, display: "flex", flexDirection: "column",
         }}>
           <div style={{
-            background: "#fff", borderRadius: 18, padding: 20,
-            width: "100%", maxWidth: 380, boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "16px 16px", borderBottom: "1px solid #eee", flexShrink: 0,
           }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
-                Modifier la compétition
-              </span>
-              <button onClick={() => setShowEditModal(false)} style={{ border: "none", background: "none", cursor: "pointer", padding: 4 }}>
-                <X size={18} color="#999" />
-              </button>
-            </div>
+            <button onClick={() => setShowEditModal(false)} style={{ border: "none", background: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}>
+              <ArrowLeft size={20} color="#333" />
+            </button>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
+              Modifier la compétition
+            </span>
+            <button onClick={() => setShowEditModal(false)} style={{ border: "none", background: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}>
+              <X size={18} color="#999" />
+            </button>
+          </div>
 
+          <div style={{ flex: 1, overflowY: "auto", padding: 20, paddingBottom: 100 }}>
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Titre</label>
             <input
               type="text"
@@ -3166,22 +3168,26 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 )}
               </label>
             </div>
+          </div>
 
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => setShowEditModal(false)}
-                style={{ flex: 1, border: "1px solid #e0e0e0", background: "#fff", color: "#555", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer" }}
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                disabled={savingEdit || !editTitle.trim()}
-                style={{ flex: 1, border: "none", background: accent, color: "#fff", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: savingEdit ? "default" : "pointer", opacity: savingEdit ? 0.7 : 1 }}
-              >
-                {savingEdit ? "Enregistrement…" : "Enregistrer"}
-              </button>
-            </div>
+          <div style={{
+            display: "flex", gap: 10, padding: 16,
+            borderTop: "1px solid #eee", flexShrink: 0,
+            background: "#fff",
+          }}>
+            <button
+              onClick={() => setShowEditModal(false)}
+              style={{ flex: 1, border: "1px solid #e0e0e0", background: "#fff", color: "#555", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer" }}
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              disabled={savingEdit || !editTitle.trim()}
+              style={{ flex: 1, border: "none", background: accent, color: "#fff", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: savingEdit ? "default" : "pointer", opacity: savingEdit ? 0.7 : 1 }}
+            >
+              {savingEdit ? "Enregistrement…" : "Enregistrer"}
+            </button>
           </div>
         </div>
       )}
