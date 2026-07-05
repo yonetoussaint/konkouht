@@ -1133,7 +1133,7 @@ function RegistrantListOverlay({ comp, registrants, accent, onClose }) {
         <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #e0e0e0", marginBottom: 4 }}>
           <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
           <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Membre</span>
-          <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Date</span>
+          <span style={{ width: 100, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Date</span>
           <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Frais</span>
         </div>
 
@@ -1174,8 +1174,9 @@ function RegistrantListOverlay({ comp, registrants, accent, onClose }) {
               </div>
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
             </div>
-            <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#999" }}>
-              {r.date}
+            <span style={{ width: 100, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#999", lineHeight: 1.3 }}>
+              {r.date}<br />
+              <span style={{ fontSize: 11, color: "#bbb" }}>{r.time}</span>
             </span>
             <span style={{ width: 80, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: accent }}>
               {r.fee} gdes
@@ -1431,6 +1432,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           name: r.full_name,
           fee: r.fee_paid,
           date: new Date(r.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+          time: new Date(r.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
         }))
       );
       setRegistrantsLoading(false);
@@ -1538,7 +1540,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         transition: "opacity 0.3s",
       }}>
         <button onClick={onClose} style={{
-          width: 30, height: 30, border: closeBorder, background: closeBg,
+          width: 32, height: 32, borderRadius: "50%", border: closeBorder, background: closeBg,
           color: closeColor, fontSize: 15, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
           pointerEvents: "all", transition: "background 0.2s, color 0.2s, border 0.2s",
@@ -1548,14 +1550,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
               letterSpacing: "0.12em", textTransform: "uppercase",
               color: pillTextColor, background: t > 0.5 ? "rgba(0,0,0,0.07)" : "rgba(0,0,0,0.45)",
-              padding: "3px 7px", transition: "color 0.2s, background 0.2s",
+              padding: "3px 8px", borderRadius: 999, transition: "color 0.2s, background 0.2s",
             }}>EN VUE</span>
           )}
           <span style={{
             fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
             letterSpacing: "0.1em", textTransform: "uppercase",
             color: pillTextColor, background: pillBg,
-            padding: "3px 7px", border: `1px solid ${borderColor}`,
+            padding: "3px 8px", borderRadius: 999,
             transition: "color 0.2s, background 0.2s, border-color 0.2s",
           }}>{comp.edition}</span>
           {/* Competition follow — separate from organiser follow */}
@@ -1563,7 +1565,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             onClick={() => onToggleFollow?.(comp)}
             title={isFollowed ? "Ne plus suivre cette compétition" : "Suivre cette compétition"}
             style={{
-              width: 30, height: 30,
+              width: 32, height: 32, borderRadius: "50%",
               border: isFollowed ? "1px solid rgba(255,255,255,0.9)" : closeBorder,
               background: isFollowed ? "rgba(255,255,255,0.9)" : closeBg,
               color: isFollowed ? accent : closeColor,
@@ -1725,13 +1727,23 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         })()}
       </div>
 
+      {/* ── CONTENT SHEET — curves up over the hero image ── */}
+      <div style={{
+        position: "relative",
+        marginTop: -20,
+        borderRadius: "22px 22px 0 0",
+        background: "#F2F2F0",
+        boxShadow: "0 -8px 24px rgba(0,0,0,0.10)",
+        overflow: "hidden",
+      }}>
+
       {/* ── ORGANISER BAR ── */}
       <OrgBar comp={comp} accent={accent} />
 
-      <div style={{ padding: "0 0 120px" }}>
+      <div style={{ padding: "0 0 132px" }}>
 
         {/* ── À PROPOS / RÈGLEMENT ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 8px" }}>
+        <div style={{ background: "#fff", borderRadius: 18, margin: "12px 8px", padding: "16px 14px", boxShadow: "0 2px 14px rgba(0,0,0,0.05)" }}>
           <div style={{
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
@@ -1749,7 +1761,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
           {/* Prize — single winner: registration fees (base) + 30% of their personal gifts */}
           <div style={{
-            background: `${accent}0f`, border: `1px solid ${accent}33`,
+            background: `${accent}0f`, borderRadius: 16,
             padding: "12px 14px", marginBottom: 12,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -1774,7 +1786,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
               marginBottom: isRegistration ? 0 : 12,
             }}>
-              <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.06)", padding: "8px 10px" }}>
+              <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 6px rgba(0,0,0,0.05)", padding: "8px 10px" }}>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3 }}>
                   Prix à gagner
                 </div>
@@ -1782,7 +1794,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   {basePrizePool.toLocaleString("fr-FR")}
                 </div>
               </div>
-              <div style={{ background: "#fff", border: `1px solid ${accent}33`, padding: "8px 10px" }}>
+              <div style={{ background: "#fff", borderRadius: 12, boxShadow: `0 1px 6px ${accent}22`, padding: "8px 10px" }}>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: accent, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: isRegistration ? "#bbb" : "#e74c3c", display: "inline-block", animation: isRegistration ? "none" : "pulse-dot 1s infinite" }} />
                   Bonus
@@ -1829,7 +1841,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               <span key={i} style={{
                 fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
                 color: "#666", background: "#f2f2f2",
-                padding: "5px 10px", textTransform: "uppercase", letterSpacing: "0.04em",
+                padding: "5px 12px", borderRadius: 999, textTransform: "uppercase", letterSpacing: "0.04em",
               }}>
                 {crit}
               </span>
@@ -1840,8 +1852,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           <button
             onClick={() => setRulesExpanded((v) => !v)}
             style={{
-              width: "100%", border: "1px solid #e0e0e0", background: "#fafafa",
-              padding: "10px 12px", cursor: "pointer",
+              width: "100%", border: "none", borderRadius: 14, background: "#f5f5f5",
+              padding: "12px 14px", cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "space-between",
               fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
               color: "#333", textTransform: "uppercase", letterSpacing: "0.06em",
@@ -1874,9 +1886,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {/* ── STAT TILES ── */}
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 1, background: "#e0e0e0",
-          borderBottom: "1px solid #e0e0e0",
-          marginBottom: 0,
+          gap: 8, margin: "12px 8px 0",
         }}>
           {(isRegistration ? [
             { value: comp.registeredCount, label: "Inscrits" },
@@ -1889,6 +1899,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           ]).map((s, i) => (
             <div key={i} style={{
               background: "#fff",
+              borderRadius: 16,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
               padding: "12px 8px",
               display: "flex", flexDirection: "column", alignItems: "center",
             }}>
@@ -1914,8 +1926,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {/* ── COUNTDOWN BAR ── */}
         <div style={{
           background: isRegistration ? "#f0ebff" : comp.hot ? "#fff0ed" : "#f7f7f5",
-          borderBottom: `2px solid ${isRegistration ? "#6C63FF" : comp.hot ? "#e74c3c" : "#ddd"}`,
-          padding: "10px 8px",
+          borderRadius: 14,
+          margin: "10px 8px 0",
+          padding: "10px 14px",
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{
@@ -1937,7 +1950,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
         {/* ── TOP 5 LEADERBOARD or REGISTRATION INFO ── */}
         {isRegistration ? (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "12px 8px 4px" }}>
+          <div style={{ background: "#fff", borderRadius: 18, margin: "10px 8px", padding: "14px", boxShadow: "0 2px 14px rgba(0,0,0,0.05)" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               marginBottom: 14,
@@ -1948,7 +1961,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               }}>Inscription en cours</span>
             </div>
             <div style={{
-              padding: "20px", background: "#f8f7fc", border: "1px solid #e0d5ff",
+              padding: "20px", background: "#f8f7fc", borderRadius: 16,
               textAlign: "center", marginBottom: 12,
             }}>
               <div style={{
@@ -1965,11 +1978,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 personnes inscrites
               </div>
               {/* Animated fill bar */}
-              <div style={{ height: 6, background: "#e0d5ff", width: "100%", marginBottom: 12 }}>
+              <div style={{ height: 8, borderRadius: 999, background: "#e0d5ff", width: "100%", marginBottom: 12, overflow: "hidden" }}>
                 <div
                   className="bar-shimmer"
                   style={{
                     height: "100%",
+                    borderRadius: 999,
                     width: `${Math.round((liveRegistered / comp.contestants) * 100)}%`,
                     background: liveRegistered >= comp.contestants
                       ? "linear-gradient(90deg, #00B894 0%, #00d4a8 50%, #00B894 100%)"
@@ -2035,7 +2049,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 <div key={r.id} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "9px 0",
-                  borderBottom: "1px solid #f0f0f0",
+                  borderBottom: "1px solid #f3f3f3",
                 }}>
                   <div style={{
                     width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
@@ -2050,7 +2064,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       {r.name}
                     </span>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
-                      Inscrit le {r.date}
+                      Inscrit le {r.date} à {r.time}
                     </span>
                   </div>
                   <span style={{
@@ -2065,7 +2079,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <div style={{ height: 12 }} />
           </div>
         ) : (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "12px 8px 4px" }}>
+          <div style={{ background: "#fff", borderRadius: 18, margin: "10px 8px", padding: "14px", boxShadow: "0 2px 14px rgba(0,0,0,0.05)" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               marginBottom: 14,
@@ -2332,7 +2346,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         )}
 
         {/* ── COMMENTS ── */}
-        <div style={{ background: "#fff", padding: "12px 8px 20px" }}>
+        <div style={{ background: "#fff", borderRadius: 18, margin: "10px 8px 20px", padding: "14px 14px 20px", boxShadow: "0 2px 14px rgba(0,0,0,0.05)" }}>
           <div style={{
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
@@ -2360,8 +2374,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
                 placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
                 style={{
-                  flex: 1, border: "1px solid #e0e0e0", background: "#fafafa",
-                  padding: "9px 12px", fontFamily: "Inter, sans-serif", fontSize: 13,
+                  flex: 1, border: "none", borderRadius: 999, background: "#f5f5f5",
+                  padding: "10px 16px", fontFamily: "Inter, sans-serif", fontSize: 13,
                   color: "#333", outline: "none",
                 }}
               />
@@ -2369,9 +2383,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 onClick={handlePostComment}
                 disabled={!commentDraft.trim()}
                 style={{
-                  border: "none", background: commentDraft.trim() ? accent : "#eee",
+                  border: "none", borderRadius: 999, background: commentDraft.trim() ? accent : "#eee",
                   color: commentDraft.trim() ? "#fff" : "#bbb",
-                  padding: "9px 14px", flexShrink: 0,
+                  padding: "10px 16px", flexShrink: 0,
                   fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
                   textTransform: "uppercase", letterSpacing: "0.04em",
                   cursor: commentDraft.trim() ? "pointer" : "default",
@@ -2518,6 +2532,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
       </div>
 
+      </div>
+
       {/* ── GIFT TRAY (slides up, only for voting phase) ── */}
       {!isRegistration && showGiftBar && (
         <div style={{
@@ -2658,9 +2674,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
       {/* ── STICKY FOOTER CTA ── */}
       <div style={{
-        position: "fixed", bottom: 0, left: 0, right: 0,
+        position: "fixed", bottom: 8, left: 8, right: 8,
         background: "#fff",
-        borderTop: !isRegistration && showGiftBar ? `1px solid ${accent}` : "1px solid #e0e0e0",
+        borderRadius: 20,
+        boxShadow: "0 -2px 24px rgba(0,0,0,0.15)",
         padding: "10px 12px",
         zIndex: 1001,
       }}>
@@ -2674,6 +2691,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 style={{
                   flex: 1,
                   border: "none",
+                  borderRadius: 999,
                   background: "#e8f8f3",
                   color: "#00875A",
                   fontFamily: "'Space Grotesk', sans-serif",
@@ -2698,6 +2716,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               style={{
                 flex: 1,
                 border: "none",
+                borderRadius: 999,
                 background: "#6C63FF",
                 color: "#fff",
                 fontFamily: "'Space Grotesk', sans-serif",
@@ -2707,6 +2726,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 textTransform: "uppercase",
                 padding: "13px 16px",
                 cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(108,99,255,0.35)",
                 transition: "background 0.2s",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               }}
@@ -2722,7 +2742,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               <div style={{
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 padding: "0 14px",
-                borderRight: "1px solid #e8e8e8",
                 flexShrink: 0,
               }}>
                 <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 800, color: "#111", lineHeight: 1 }}>
@@ -2744,6 +2763,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 style={{
                   flex: 1,
                   border: "none",
+                  borderRadius: 999,
                   background: showGiftBar ? accent : "#111",
                   color: "#fff",
                   fontFamily: "'Space Grotesk', sans-serif",
@@ -2753,6 +2773,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   textTransform: "uppercase",
                   padding: "13px 16px",
                   cursor: "pointer",
+                  boxShadow: `0 4px 14px ${showGiftBar ? accent : "#111"}40`,
                   transition: "background 0.2s",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 }}
@@ -2763,11 +2784,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
               {/* Share button */}
               <button style={{
-                width: 46, flexShrink: 0,
-                border: "1px solid #e0e0e0", background: "#fff",
+                width: 46, flexShrink: 0, borderRadius: "50%",
+                border: "1px solid #eee", background: "#fff",
                 cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="square">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round">
                   <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
                   <polyline points="16 6 12 2 8 6"/>
                   <line x1="12" y1="2" x2="12" y2="15"/>
