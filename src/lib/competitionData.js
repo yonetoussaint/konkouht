@@ -30,6 +30,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   title text,
 //   edition text,
 //   ends text,
+//   ends_at timestamptz,
+//   contestants integer,
 //   banner_url text,
 //   description text,
 //   prize_amount numeric,
@@ -56,6 +58,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // If competition_edits already exists without the newer columns, run instead:
 //
 // alter table competition_edits
+//   add column if not exists ends_at timestamptz,
+//   add column if not exists contestants integer,
 //   add column if not exists description text,
 //   add column if not exists prize_amount numeric,
 //   add column if not exists reward_extra text,
@@ -143,6 +147,8 @@ export async function fetchCompetitionEdits() {
       title: row.title,
       edition: row.edition,
       ends: row.ends,
+      endsAt: row.ends_at,
+      contestants: row.contestants,
       bannerUrl: row.banner_url,
       description: row.description,
       prizeAmount: row.prize_amount,
@@ -159,6 +165,8 @@ export async function saveCompetitionEdit({
   title,
   edition,
   ends,
+  endsAt,
+  contestants,
   bannerUrl,
   description,
   prizeAmount,
@@ -174,6 +182,8 @@ export async function saveCompetitionEdit({
         title,
         edition,
         ends,
+        ends_at: endsAt,
+        contestants,
         banner_url: bannerUrl,
         description,
         prize_amount: prizeAmount,
@@ -355,6 +365,22 @@ export async function insertComment({ competitionId, userId, fullName, text, par
 }
 
 /* ─── registrations ──────────────────────────────────────────────────────── */
+
+// Returns { [competitionId]: count } across every competition, in one query —
+// the real "inscrits" numbers used app-wide (cards, stat tiles, etc.) instead
+// of any seeded/placeholder count.
+export async function fetchAllRegistrationCounts() {
+  const { data, error } = await supabase.from("registrations").select("competition_id");
+  if (error) {
+    console.error("fetchAllRegistrationCounts failed:", error.message);
+    return {};
+  }
+  const counts = {};
+  (data || []).forEach((row) => {
+    counts[row.competition_id] = (counts[row.competition_id] || 0) + 1;
+  });
+  return counts;
+}
 
 // Fetch every real signed-up user registered for a given competition,
 // most recent first. Returns [] (not null/throw) if there are none yet.
