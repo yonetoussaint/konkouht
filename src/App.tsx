@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { fetchRegistrations, insertRegistration, fetchUserRegistrations } from "./lib/registrations";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle } from "lucide-react";
@@ -1523,6 +1523,32 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     });
   }
 
+  const heroBannerSlides = useMemo(() => {
+    const PLACEHOLDER_VIDEOS = [
+      "https://lorem.video/bunny_480p_h264_10s.mp4",
+      "https://lorem.video/cat_480p_h264_10s.mp4",
+      "https://lorem.video/corgi_480p_h264_10s.mp4",
+    ];
+    const bannerImgs = [
+      heroBannerImg(comp.id),
+      `https://picsum.photos/seed/hero_${comp.id}_1/800/800`,
+      `https://picsum.photos/seed/hero_${comp.id}_2/800/800`,
+      `https://picsum.photos/seed/hero_${comp.id}_3/800/800`,
+      `https://picsum.photos/seed/hero_${comp.id}_4/800/800`,
+      `https://picsum.photos/seed/hero_${comp.id}_5/800/800`,
+      `https://picsum.photos/seed/hero_${comp.id}_6/800/800`,
+      `https://picsum.photos/seed/hero_${comp.id}_7/800/800`,
+    ];
+    // Every 3rd slide (starting at index 2) is a free sample video, poster = its image
+    return bannerImgs.map((src, i) => {
+      if (i > 0 && i % 3 === 2) {
+        const seed = Math.abs(hashStr(`${comp.id}_vid_${i}`));
+        return { type: "video", src: PLACEHOLDER_VIDEOS[seed % PLACEHOLDER_VIDEOS.length], poster: src };
+      }
+      return { type: "image", src };
+    });
+  }, [comp.id]);
+
   return (
     <div ref={scrollRef} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#F2F2F0", overflowY: "auto" }}>
 
@@ -1584,29 +1610,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
         {/* Banner slides */}
         {(() => {
-          const PLACEHOLDER_VIDEOS = [
-            "https://lorem.video/bunny_480p_h264_10s.mp4",
-            "https://lorem.video/cat_480p_h264_10s.mp4",
-            "https://lorem.video/corgi_480p_h264_10s.mp4",
-          ];
-          const bannerImgs = [
-            heroBannerImg(comp.id),
-            `https://picsum.photos/seed/hero_${comp.id}_1/800/800`,
-            `https://picsum.photos/seed/hero_${comp.id}_2/800/800`,
-            `https://picsum.photos/seed/hero_${comp.id}_3/800/800`,
-            `https://picsum.photos/seed/hero_${comp.id}_4/800/800`,
-            `https://picsum.photos/seed/hero_${comp.id}_5/800/800`,
-            `https://picsum.photos/seed/hero_${comp.id}_6/800/800`,
-            `https://picsum.photos/seed/hero_${comp.id}_7/800/800`,
-          ];
-          // Every 3rd slide (starting at index 2) is a free sample video, poster = its image
-          const bannerSlides = bannerImgs.map((src, i) => {
-            if (i > 0 && i % 3 === 2) {
-              const seed = Math.abs(hashStr(`${comp.id}_vid_${i}`));
-              return { type: "video", src: PLACEHOLDER_VIDEOS[seed % PLACEHOLDER_VIDEOS.length], poster: src };
-            }
-            return { type: "image", src };
-          });
+          const bannerSlides = heroBannerSlides;
           return (
             <>
               {/* Main slider */}
@@ -1686,42 +1690,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 </div>
               </div>
 
-              {/* Thumbnail selector — below banner, white bg */}
-              <div style={{ background: "#fff", borderBottom: "1px solid #e8e8e8", padding: "8px", display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
-                {bannerSlides.map((slide, i) => (
-                  <div
-                    key={i}
-                    onClick={() => setActiveBanner(i)}
-                    style={{
-                      width: 60, height: 60, flexShrink: 0,
-                      position: "relative",
-                      overflow: "hidden", cursor: "pointer",
-                      outline: i === activeBanner ? `2px solid ${accent}` : "2px solid transparent",
-                      outlineOffset: "-2px",
-                      transition: "outline-color 0.2s, opacity 0.2s",
-                      opacity: i === activeBanner ? 1 : 0.45,
-                    }}
-                  >
-                    <img src={slide.type === "video" ? slide.poster : slide.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                    {slide.type === "video" && (
-                      <div style={{
-                        position: "absolute", inset: 0,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        background: "rgba(0,0,0,0.25)",
-                      }}>
-                        <div style={{
-                          width: 22, height: 22, borderRadius: "50%",
-                          background: "rgba(255,255,255,0.9)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          <Play size={11} fill="#111" color="#111" strokeWidth={0} style={{ marginLeft: 1 }} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
             </>
           );
         })()}
@@ -1736,6 +1704,43 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         boxShadow: "0 -8px 24px rgba(0,0,0,0.10)",
         overflow: "hidden",
       }}>
+
+      {/* ── Thumbnail selector — lives inside the sheet so the curve never covers it ── */}
+      <div style={{ background: "#fff", padding: "12px 8px 8px", display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
+        {heroBannerSlides.map((slide, i) => (
+          <div
+            key={i}
+            onClick={() => setActiveBanner(i)}
+            style={{
+              width: 60, height: 60, flexShrink: 0,
+              borderRadius: 12,
+              position: "relative",
+              overflow: "hidden", cursor: "pointer",
+              outline: i === activeBanner ? `2px solid ${accent}` : "2px solid transparent",
+              outlineOffset: "-2px",
+              transition: "outline-color 0.2s, opacity 0.2s",
+              opacity: i === activeBanner ? 1 : 0.45,
+            }}
+          >
+            <img src={slide.type === "video" ? slide.poster : slide.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            {slide.type === "video" && (
+              <div style={{
+                position: "absolute", inset: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "rgba(0,0,0,0.25)",
+              }}>
+                <div style={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.9)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Play size={11} fill="#111" color="#111" strokeWidth={0} style={{ marginLeft: 1 }} />
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
 
       {/* ── ORGANISER BAR ── */}
       <OrgBar comp={comp} accent={accent} />
