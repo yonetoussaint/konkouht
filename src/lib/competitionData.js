@@ -127,35 +127,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 const BUCKET = "competition-images";
 const IMAGES_TABLE = "competition_images";
 
-export type CompetitionEdit = {
-  title?: string;
-  edition?: string;
-  ends?: string;
-  bannerUrl?: string;
-  description?: string;
-  prizeAmount?: number | null;
-  rewardExtra?: string;
-  rules?: string[];
-};
-
-export type CompetitionImage = {
-  id: string;
-  url: string;
-  position: number;
-};
-
 /* ─── competition_edits ──────────────────────────────────────────────── */
 
 // Returns a map of { [competitionId]: { title, edition, ends, bannerUrl,
 // description, prizeAmount, rewardExtra, rules } }
-export async function fetchCompetitionEdits(): Promise<Record<string, CompetitionEdit>> {
+export async function fetchCompetitionEdits() {
   const { data, error } = await supabase.from("competition_edits").select("*");
   if (error) {
     console.error("fetchCompetitionEdits error:", error);
     return {};
   }
-  const map: Record<string, CompetitionEdit> = {};
-  (data || []).forEach((row: any) => {
+  const map = {};
+  (data || []).forEach((row) => {
     map[row.competition_id] = {
       title: row.title,
       edition: row.edition,
@@ -182,17 +165,6 @@ export async function saveCompetitionEdit({
   rewardExtra,
   rules,
   updatedBy,
-}: {
-  competitionId: string;
-  title?: string;
-  edition?: string;
-  ends?: string;
-  bannerUrl?: string;
-  description?: string;
-  prizeAmount?: number | null;
-  rewardExtra?: string;
-  rules?: string[];
-  updatedBy?: string;
 }) {
   return supabase
     .from("competition_edits")
@@ -218,13 +190,7 @@ export async function saveCompetitionEdit({
 
 // Upload a new banner/thumbnail image for a competition and return its
 // public URL. Overwrites any previous file for the same competition.
-export async function uploadCompetitionImage({
-  competitionId,
-  file,
-}: {
-  competitionId: string;
-  file: File;
-}) {
+export async function uploadCompetitionImage({ competitionId, file }) {
   const ext = file.name.split(".").pop() || "jpg";
   const path = `${competitionId}/banner.${ext}`;
 
@@ -247,7 +213,7 @@ export async function uploadCompetitionImage({
 
 // Returns { [competitionId]: [{ id, url, position }, ...] } for every
 // competition that has at least one uploaded image.
-export async function fetchAllCompetitionImages(): Promise<Record<string, CompetitionImage[]>> {
+export async function fetchAllCompetitionImages() {
   const { data, error } = await supabase
     .from(IMAGES_TABLE)
     .select("*")
@@ -258,7 +224,7 @@ export async function fetchAllCompetitionImages(): Promise<Record<string, Compet
     return {};
   }
 
-  const grouped: Record<string, CompetitionImage[]> = {};
+  const grouped = {};
   for (const row of data || []) {
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(row.file_path);
     if (!grouped[row.competition_id]) grouped[row.competition_id] = [];
@@ -274,15 +240,7 @@ export async function fetchAllCompetitionImages(): Promise<Record<string, Compet
 // Uploads `file` to the storage bucket and records it against the
 // competition (owner-only via RLS). Returns { data, error } where data is
 // { id, url, position }.
-export async function addCompetitionImage({
-  competitionId,
-  file,
-  position,
-}: {
-  competitionId: string;
-  file: File;
-  position: number;
-}) {
+export async function addCompetitionImage({ competitionId, file, position }) {
   const ext = file.name.split(".").pop() || "jpg";
   const filePath = `${competitionId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
@@ -310,7 +268,7 @@ export async function addCompetitionImage({
 }
 
 // Deletes an image row and its underlying storage file (owner-only via RLS).
-export async function deleteCompetitionImage(imageId: string) {
+export async function deleteCompetitionImage(imageId) {
   const { data: row, error: fetchError } = await supabase
     .from(IMAGES_TABLE)
     .select("file_path")
@@ -353,20 +311,9 @@ export async function deleteCompetitionImage(imageId: string) {
 //   for insert with check (auth.uid() = user_id);
 */
 
-export type Comment = {
-  id: string;
-  competition_id: string;
-  parent_id: string | null;
-  user_id: string;
-  full_name: string;
-  text: string;
-  created_at: string;
-  replies: Comment[];
-};
-
 // Fetch every comment (top-level + replies) for a competition and nest
 // replies under their parent, newest top-level comment first.
-export async function fetchComments(competitionId: string): Promise<Comment[]> {
+export async function fetchComments(competitionId) {
   const { data, error } = await supabase
     .from("comments")
     .select("*")
@@ -379,33 +326,21 @@ export async function fetchComments(competitionId: string): Promise<Comment[]> {
   }
 
   const rows = data || [];
-  const repliesByParent: Record<string, any[]> = {};
-  rows.forEach((r: any) => {
+  const repliesByParent = {};
+  rows.forEach((r) => {
     if (r.parent_id) {
       (repliesByParent[r.parent_id] ||= []).push(r);
     }
   });
 
   return rows
-    .filter((r: any) => !r.parent_id)
-    .map((c: any) => ({ ...c, replies: repliesByParent[c.id] || [] }))
-    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    .filter((r) => !r.parent_id)
+    .map((c) => ({ ...c, replies: repliesByParent[c.id] || [] }))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
 // Insert a new top-level comment or reply (pass parentId to reply).
-export async function insertComment({
-  competitionId,
-  userId,
-  fullName,
-  text,
-  parentId = null,
-}: {
-  competitionId: string;
-  userId: string;
-  fullName: string;
-  text: string;
-  parentId?: string | null;
-}) {
+export async function insertComment({ competitionId, userId, fullName, text, parentId = null }) {
   return supabase
     .from("comments")
     .insert({
@@ -421,17 +356,9 @@ export async function insertComment({
 
 /* ─── registrations ──────────────────────────────────────────────────────── */
 
-export type Registration = {
-  id: string;
-  user_id: string;
-  full_name: string;
-  fee_paid: number;
-  created_at: string;
-};
-
 // Fetch every real signed-up user registered for a given competition,
 // most recent first. Returns [] (not null/throw) if there are none yet.
-export async function fetchRegistrations(competitionId: string): Promise<Registration[]> {
+export async function fetchRegistrations(competitionId) {
   const { data, error } = await supabase
     .from("registrations")
     .select("id, user_id, full_name, fee_paid, created_at")
@@ -449,7 +376,7 @@ export async function fetchRegistrations(competitionId: string): Promise<Registr
 // Returns [] (not null/throw) if there are none yet — used on load/login
 // to rebuild the client-side "registeredCompIds" set from the source of
 // truth in the database (so a refresh doesn't lose registration state).
-export async function fetchUserRegistrations(userId: string): Promise<{ competition_id: string }[]> {
+export async function fetchUserRegistrations(userId) {
   const { data, error } = await supabase
     .from("registrations")
     .select("competition_id")
@@ -465,17 +392,7 @@ export async function fetchUserRegistrations(userId: string): Promise<{ competit
 // Insert a real registration row. Returns { data, error } so the caller can
 // decide how to surface a failure (e.g. "already registered" from the
 // unique constraint).
-export async function insertRegistration({
-  competitionId,
-  userId,
-  fullName,
-  fee,
-}: {
-  competitionId: string;
-  userId: string;
-  fullName: string;
-  fee: number;
-}) {
+export async function insertRegistration({ competitionId, userId, fullName, fee }) {
   const { data, error } = await supabase
     .from("registrations")
     .insert({
@@ -489,4 +406,3 @@ export async function insertRegistration({
 
   return { data, error };
 }
-
