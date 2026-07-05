@@ -1047,7 +1047,16 @@ function buildRulesInfo(comp, nicheId) {
     ? ["Technique", "Originalité", "Engagement du public"]
     : ["Popularité auprès du public", "Régularité des votes reçus"];
 
-  return { description, rewardExtra, rules, criteria, judgingMix: mix };
+  // Owner edits take priority over the generated copy; the generated
+  // versions remain as sensible defaults for competitions nobody has
+  // customized yet.
+  return {
+    description: comp.description?.trim() ? comp.description : description,
+    rewardExtra: comp.rewardExtra?.trim() ? comp.rewardExtra : rewardExtra,
+    rules: Array.isArray(comp.rules) && comp.rules.length > 0 ? comp.rules : rules,
+    criteria,
+    judgingMix: mix,
+  };
 }
 
 function ParticipantListOverlay({ comp, onClose }) {
@@ -1356,6 +1365,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [editTitle, setEditTitle] = useState(comp.title);
   const [editEdition, setEditEdition] = useState(comp.edition);
   const [editEnds, setEditEnds] = useState(comp.ends);
+  const [editDescription, setEditDescription] = useState(comp.description || "");
+  const [editPrizeAmount, setEditPrizeAmount] = useState(comp.prizeAmount != null ? String(comp.prizeAmount) : "");
+  const [editRewardExtra, setEditRewardExtra] = useState(comp.rewardExtra || "");
+  const [editRules, setEditRules] = useState((comp.rules || []).join("\n"));
   const [savingEdit, setSavingEdit] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removingImageId, setRemovingImageId] = useState(null);
@@ -1365,7 +1378,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setEditTitle(comp.title);
     setEditEdition(comp.edition);
     setEditEnds(comp.ends);
-  }, [comp.id, comp.title, comp.edition, comp.ends]);
+    setEditDescription(comp.description || "");
+    setEditPrizeAmount(comp.prizeAmount != null ? String(comp.prizeAmount) : "");
+    setEditRewardExtra(comp.rewardExtra || "");
+    setEditRules((comp.rules || []).join("\n"));
+  }, [comp.id, comp.title, comp.edition, comp.ends, comp.description, comp.prizeAmount, comp.rewardExtra, comp.rules]);
 
   async function handleAddImageFile(e) {
     const file = e.target.files?.[0];
@@ -1384,11 +1401,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
   async function handleSaveEdit() {
     setSavingEdit(true);
+    const trimmedPrize = editPrizeAmount.trim();
     const result = await onEditComp?.({
       competitionId: comp.id,
       title: editTitle.trim() || comp.title,
       edition: editEdition.trim() || comp.edition,
       ends: editEnds.trim() || comp.ends,
+      description: editDescription.trim(),
+      prizeAmount: trimmedPrize === "" ? null : Number(trimmedPrize),
+      rewardExtra: editRewardExtra.trim(),
+      rules: editRules.split("\n").map((r) => r.trim()).filter(Boolean),
     });
     setSavingEdit(false);
     if (result?.success) setShowEditModal(false);
@@ -1461,9 +1483,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const nicheId = findCompWithNiche(comp.id)?.niche?.id;
   const rulesInfo = buildRulesInfo(comp, nicheId);
   const [rulesExpanded, setRulesExpanded] = useState(false);
-  // Prize — single winner takes registration fees (base) + 30% of the gifts sent to them personally
+  // Prize — single winner takes registration fees (base) + 30% of the gifts sent to them personally.
+  // An owner-edited prizeAmount overrides the computed base, since it's meant
+  // to reflect what the organizer actually wants to guarantee the winner.
   const WINNER_GIFT_SHARE = 0.3;
-  const basePrizePool = registrationFee(comp) * comp.registeredCount;
+  const basePrizePool = comp.prizeAmount != null && comp.prizeAmount !== ""
+    ? Number(comp.prizeAmount)
+    : registrationFee(comp) * comp.registeredCount;
   // Seed ranked once; liveVotes tracks per-participant live vote deltas, liveGiftCredits tracks per-participant gift credits
   const seedRanked = buildParticipants(comp).slice(0, 5);
   const [liveVotes, setLiveVotes] = useState(() => {
@@ -3051,7 +3077,47 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               value={editEnds}
               onChange={(e) => setEditEnds(e.target.value)}
               placeholder="ex: 3j 18h"
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 18 }}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+            />
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Description</label>
+            <textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              placeholder="Décrivez la compétition, son format et son déroulement…"
+              rows={4}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14, resize: "vertical" }}
+            />
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Prix garanti (crédits)</label>
+            <input
+              type="number"
+              min="0"
+              value={editPrizeAmount}
+              onChange={(e) => setEditPrizeAmount(e.target.value)}
+              placeholder="ex: 500"
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
+            />
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14 }}>
+              Laissez vide pour utiliser le calcul par défaut (frais d'inscription cumulés).
+            </div>
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Récompense additionnelle</label>
+            <input
+              type="text"
+              value={editRewardExtra}
+              onChange={(e) => setEditRewardExtra(e.target.value)}
+              placeholder="ex: Trophée officiel et mise en avant"
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+            />
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Règlement (une règle par ligne)</label>
+            <textarea
+              value={editRules}
+              onChange={(e) => setEditRules(e.target.value)}
+              placeholder={"ex:\nInscription ouverte à tous.\nChaque participant doit soumettre…"}
+              rows={6}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 18, resize: "vertical" }}
             />
 
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Bannières / miniatures</label>
@@ -5223,12 +5289,11 @@ export default function App() {
     ).slice(0, 6);
   }, [compImages]);
 
-  async function handleEditComp({ competitionId, title, edition, ends }) {
+  async function handleEditComp({ competitionId, title, edition, ends, description, prizeAmount, rewardExtra, rules }) {
+    const edits = { title, edition, ends, description, prizeAmount, rewardExtra, rules };
     const { data, error } = await saveCompetitionEdit({
       competitionId,
-      title,
-      edition,
-      ends,
+      ...edits,
       updatedBy: currentUser?.id,
     });
     if (error) {
@@ -5236,8 +5301,8 @@ export default function App() {
       showToast("Impossible d'enregistrer les modifications.");
       return { success: false };
     }
-    setCompEdits((prev) => ({ ...prev, [competitionId]: { title, edition, ends } }));
-    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, title, edition, ends } : prev));
+    setCompEdits((prev) => ({ ...prev, [competitionId]: edits }));
+    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, ...edits } : prev));
     showToast("Compétition mise à jour.");
     return { success: true, data };
   }
