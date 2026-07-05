@@ -3627,6 +3627,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
   const [step, setStep] = useState("form"); // "form" | "pin"
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
+  const [registerError, setRegisterError] = useState("");
 
   // Deterministic registration fee per competition, in credits
   const fee = 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
@@ -3645,23 +3646,29 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
     const digits = v.replace(/\D/g, "").slice(0, 4);
     setPin(digits);
     setPinError(false);
+    setRegisterError("");
   }
 
-  function handleConfirmPin() {
+  async function handleConfirmPin() {
     if (pin.length !== 4) return;
     if (pin !== WALLET_PIN) {
       setPinError(true);
       return;
     }
+    setRegisterError("");
     setIsSubmitting(true);
+    const result = await onRegister(comp, fee);
+    setIsSubmitting(false);
+
+    if (!result?.success) {
+      setRegisterError(result?.error || "Une erreur est survenue. Réessayez.");
+      return;
+    }
+
+    setIsRegistered(true);
     setTimeout(() => {
-      setIsSubmitting(false);
-      setIsRegistered(true);
-      onRegister(comp, fee);
-      setTimeout(() => {
-        onClose();
-      }, 1500);
-    }, 800);
+      onClose();
+    }, 1500);
   }
 
   if (isRegistered) {
@@ -3900,6 +3907,11 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
             {pinError && (
               <div style={{ textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C", fontWeight: 600, marginBottom: 12 }}>
                 Code PIN incorrect. Réessayez.
+              </div>
+            )}
+            {registerError && (
+              <div style={{ textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C", fontWeight: 600, marginBottom: 12 }}>
+                {registerError}
               </div>
             )}
 
@@ -4966,7 +4978,28 @@ export default function App() {
     showToast(comp ? `${gift.icon} ${gift.name} → ${recipient || "participant"}` : `${gift.icon} ${gift.name} envoyé`);
   }
 
-  function handleRegister(comp, fee) {
+  async function handleRegister(comp, fee) {
+    if (!currentUser?.id) {
+      return { success: false, error: "Vous devez être connecté pour vous inscrire." };
+    }
+
+    const { error } = await insertRegistration({
+      competitionId: comp.id,
+      userId: currentUser.id,
+      fullName: currentUser.fullName,
+      fee: fee || 0,
+    });
+
+    if (error) {
+      const alreadyRegistered = error.code === "23505"; // unique(competition_id, user_id) violation
+      return {
+        success: false,
+        error: alreadyRegistered
+          ? "Vous êtes déjà inscrit à cette compétition."
+          : "Une erreur est survenue. Réessayez.",
+      };
+    }
+
     if (fee) {
       setBalance((b) => b - fee);
       setTransactions((tx) => [
@@ -4977,17 +5010,7 @@ export default function App() {
     setRegisteredCompIds((prev) => new Set(prev).add(comp.id));
     pushNotif({ type: "action", icon: "✅", title: `Inscription confirmée`, body: `Vous êtes inscrit à ${comp.title}. Bonne chance !`, compId: comp.id });
     showToast(`Inscrit à ${comp.title}!`);
-
-    if (currentUser?.id) {
-      insertRegistration({
-        competitionId: comp.id,
-        userId: currentUser.id,
-        fullName: currentUser.fullName,
-        fee: fee || 0,
-      }).then(({ error }) => {
-        if (error) console.error("insertRegistration failed:", error.message);
-      });
-    }
+    return { success: true };
   }
 
   function toggleFollowComp(comp) {
