@@ -7,6 +7,7 @@ import { supabase } from "./supabaseClient";
 //   title text,
 //   edition text,
 //   ends text,
+//   banner_url text,
 //   updated_by uuid,
 //   updated_at timestamptz not null default now()
 // );
@@ -25,13 +26,36 @@ import { supabase } from "./supabaseClient";
 //   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' )
 //   with check ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
 //
+// -- Storage bucket for banner/thumbnail uploads --
+// insert into storage.buckets (id, name, public)
+//   values ('competition-images', 'competition-images', true)
+//   on conflict (id) do nothing;
+// create policy "competition images are publicly readable"
+//   on storage.objects for select
+//   to public
+//   using (bucket_id = 'competition-images');
+// create policy "only the platform organizer can upload competition images"
+//   on storage.objects for insert
+//   to authenticated
+//   with check (
+//     bucket_id = 'competition-images'
+//     and (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com'
+//   );
+// create policy "only the platform organizer can update competition images"
+//   on storage.objects for update
+//   to authenticated
+//   using (
+//     bucket_id = 'competition-images'
+//     and (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com'
+//   );
+//
 // ─────────────────────────────────────────────────────────────────────────
 // Competitions themselves are still static seed data in App.jsx (there's no
 // "competitions" table yet). This table stores just the fields an organizer
 // has overridden for a given competition id; the app merges these on top of
 // the seed data wherever a competition is displayed or opened.
 
-// Returns a map of { [competitionId]: { title, edition, ends } }
+// Returns a map of { [competitionId]: { title, edition, ends, bannerUrl } }
 export async function fetchCompetitionEdits() {
   const { data, error } = await supabase.from("competition_edits").select("*");
   if (error) {
@@ -44,13 +68,14 @@ export async function fetchCompetitionEdits() {
       title: row.title,
       edition: row.edition,
       ends: row.ends,
+      bannerUrl: row.banner_url,
     };
   });
   return map;
 }
 
 // Create or update the override row for a competition (owner-only via RLS).
-export async function saveCompetitionEdit({ competitionId, title, edition, ends, updatedBy }) {
+export async function saveCompetitionEdit({ competitionId, title, edition, ends, bannerUrl, updatedBy }) {
   return supabase
     .from("competition_edits")
     .upsert(
@@ -59,6 +84,7 @@ export async function saveCompetitionEdit({ competitionId, title, edition, ends,
         title,
         edition,
         ends,
+        banner_url: bannerUrl,
         updated_by: updatedBy,
         updated_at: new Date().toISOString(),
       },
@@ -67,3 +93,25 @@ export async function saveCompetitionEdit({ competitionId, title, edition, ends,
     .select()
     .single();
 }
+
+// Upload a new banner/thumbnail image for a competition and return its
+// public URL. Overwrites any previous file for the same competition.
+export async function uploadCompetitionImage({ competitionId, file }) {
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${competitionId}/banner.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("competition-images")
+    .upload(path, file, { upsert: true, cacheControl: "3600" });
+
+  if (uploadError) {
+    return { url: null, error: uploadError };
+  }
+
+  const { data } = supabase.storage.from("competition-images").getPublicUrl(path);
+  // Cache-bust so the new image shows immediately even if the browser
+  // cached the old file at the same path.
+  const url = `${data.publicUrl}?t=${Date.now()}`;
+  return { url, error: null };
+}
+
