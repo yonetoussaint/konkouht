@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
+import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
@@ -953,6 +953,17 @@ function buildComments(comp) {
   }).sort((a, b) => a.minutesAgo - b.minutesAgo);
 }
 
+// Converts an ISO datetime string into the "YYYY-MM-DDTHH:mm" format a
+// <input type="datetime-local"> expects, in the viewer's local timezone.
+// Returns "" for null/invalid input so the field just shows empty.
+function toDatetimeLocal(isoString) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function fmtCommentTime(minutesAgo) {
   if (minutesAgo < 60) return `${minutesAgo}min`;
   const hours = Math.floor(minutesAgo / 60);
@@ -1278,6 +1289,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [editTitle, setEditTitle] = useState(comp.title);
   const [editEdition, setEditEdition] = useState(comp.edition);
   const [editEnds, setEditEnds] = useState(comp.ends);
+  const [editContestants, setEditContestants] = useState(comp.contestants != null ? String(comp.contestants) : "");
+  const [editEndsAt, setEditEndsAt] = useState(toDatetimeLocal(comp.endsAt));
   const [editDescription, setEditDescription] = useState(comp.description || "");
   const [editPrizeAmount, setEditPrizeAmount] = useState(comp.prizeAmount != null ? String(comp.prizeAmount) : "");
   const [editRewardExtra, setEditRewardExtra] = useState(comp.rewardExtra || "");
@@ -1291,11 +1304,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setEditTitle(comp.title);
     setEditEdition(comp.edition);
     setEditEnds(comp.ends);
+    setEditContestants(comp.contestants != null ? String(comp.contestants) : "");
+    setEditEndsAt(toDatetimeLocal(comp.endsAt));
     setEditDescription(comp.description || "");
     setEditPrizeAmount(comp.prizeAmount != null ? String(comp.prizeAmount) : "");
     setEditRewardExtra(comp.rewardExtra || "");
     setEditRules((comp.rules || []).join("\n"));
-  }, [comp.id, comp.title, comp.edition, comp.ends, comp.description, comp.prizeAmount, comp.rewardExtra, comp.rules]);
+  }, [comp.id, comp.title, comp.edition, comp.ends, comp.contestants, comp.endsAt, comp.description, comp.prizeAmount, comp.rewardExtra, comp.rules]);
 
   async function handleAddImageFile(e) {
     const file = e.target.files?.[0];
@@ -1315,11 +1330,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   async function handleSaveEdit() {
     setSavingEdit(true);
     const trimmedPrize = editPrizeAmount.trim();
+    const trimmedContestants = editContestants.trim();
     const result = await onEditComp?.({
       competitionId: comp.id,
       title: editTitle.trim() || comp.title,
       edition: editEdition.trim() || comp.edition,
       ends: editEnds.trim() || comp.ends,
+      contestants: trimmedContestants === "" ? null : Math.max(0, parseInt(trimmedContestants, 10) || 0),
+      endsAt: editEndsAt ? new Date(editEndsAt).toISOString() : null,
       description: editDescription.trim(),
       prizeAmount: trimmedPrize === "" ? null : Number(trimmedPrize),
       rewardExtra: editRewardExtra.trim(),
@@ -1349,8 +1367,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [bannerFullscreen, setBannerFullscreen] = useState(false);
   const [tickFlash, setTickFlash] = useState(false);
 
-  // Parse comp.ends into total seconds and tick down
+  // If the organizer set a real deadline (comp.endsAt), the countdown is
+  // computed from actual elapsed time each tick — so it survives reloads,
+  // background tabs, etc. Competitions without one fall back to the legacy
+  // static "2j 14h"-style text, decremented client-side as before.
+  function secondsUntilEndsAt() {
+    const diff = Math.floor((new Date(comp.endsAt).getTime() - Date.now()) / 1000);
+    return Math.max(0, diff);
+  }
   const [secondsLeft, setSecondsLeft] = useState(() => {
+    if (comp.endsAt) return secondsUntilEndsAt();
     const str = comp.ends || "";
     let total = 0;
     const d = str.match(/(\d+)j/); if (d) total += parseInt(d[1]) * 86400;
@@ -1360,11 +1386,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   });
   useEffect(() => {
     const iv = setInterval(() => {
-      setSecondsLeft((s) => Math.max(0, s - 1));
+      if (comp.endsAt) {
+        setSecondsLeft(secondsUntilEndsAt());
+      } else {
+        setSecondsLeft((s) => Math.max(0, s - 1));
+      }
       setTickFlash((f) => !f);
     }, 1000);
     return () => clearInterval(iv);
-  }, []);
+  }, [comp.endsAt]);
   const fmtCountdown = (s) => {
     const d = Math.floor(s / 86400);
     const h = Math.floor((s % 86400) / 3600);
@@ -2000,7 +2030,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           gap: 8, margin: "12px 8px 0",
         }}>
           {(isRegistration ? [
-            { value: comp.registeredCount, label: "Inscrits" },
+            { value: liveRegistered, label: "Inscrits" },
             { value: comp.contestants, label: "Places", accent: true },
             { value: fmtCountdown(secondsLeft), label: "Fin inscr.", hot: comp.hot, timer: true },
           ] : [
@@ -2984,6 +3014,30 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               value={editEnds}
               onChange={(e) => setEditEnds(e.target.value)}
               placeholder="ex: 3j 18h"
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
+            />
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14 }}>
+              Texte affiché sur les cartes (ex: "2j 14h"). Réglez la vraie date ci-dessous pour un compte à rebours réel.
+            </div>
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Date et heure de fin réelles</label>
+            <input
+              type="datetime-local"
+              value={editEndsAt}
+              onChange={(e) => setEditEndsAt(e.target.value)}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
+            />
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14 }}>
+              Pilote le vrai compte à rebours affiché sur la page. Laissez vide pour garder le texte ci-dessus.
+            </div>
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Places disponibles</label>
+            <input
+              type="number"
+              min="0"
+              value={editContestants}
+              onChange={(e) => setEditContestants(e.target.value)}
+              placeholder="ex: 20"
               style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
             />
 
@@ -5174,15 +5228,28 @@ export default function App() {
   const unreadCount = notifications.filter((n) => !n.read).length;
   const [compEdits, setCompEdits] = useState({});
   const [compImages, setCompImages] = useState({});
+  const [compRegCounts, setCompRegCounts] = useState({});
 
   useEffect(() => {
     fetchCompetitionEdits().then(setCompEdits);
     fetchAllCompetitionImages().then(setCompImages);
+    fetchAllRegistrationCounts().then(setCompRegCounts);
   }, []);
 
   function withEdits(comp) {
-    const e = compEdits[comp.id];
-    return { ...comp, ...(e || {}), images: compImages[comp.id] || [] };
+    const e = compEdits[comp.id] || {};
+    return {
+      ...comp,
+      ...e,
+      // A cleared field in the edit panel saves as null — fall back to the
+      // seed value rather than let a blank override wipe it out entirely.
+      contestants: e.contestants != null ? e.contestants : comp.contestants,
+      endsAt: e.endsAt != null ? e.endsAt : comp.endsAt,
+      // Real count from the registrations table always wins over any
+      // seeded placeholder — 0 until someone actually registers.
+      registeredCount: compRegCounts[comp.id] ?? 0,
+      images: compImages[comp.id] || [],
+    };
   }
 
   // Home banner slides: only real, uploaded images from the storage bucket —
@@ -5200,8 +5267,8 @@ export default function App() {
     ).slice(0, 6);
   }, [compImages]);
 
-  async function handleEditComp({ competitionId, title, edition, ends, description, prizeAmount, rewardExtra, rules }) {
-    const edits = { title, edition, ends, description, prizeAmount, rewardExtra, rules };
+  async function handleEditComp({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, rewardExtra, rules }) {
+    const edits = { title, edition, ends, endsAt, contestants, description, prizeAmount, rewardExtra, rules };
     const { data, error } = await saveCompetitionEdit({
       competitionId,
       ...edits,
@@ -5213,7 +5280,12 @@ export default function App() {
       return { success: false };
     }
     setCompEdits((prev) => ({ ...prev, [competitionId]: edits }));
-    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, ...edits } : prev));
+    setSelectedComp((prev) => (prev && prev.id === competitionId ? {
+      ...prev,
+      ...edits,
+      contestants: edits.contestants != null ? edits.contestants : prev.contestants,
+      endsAt: edits.endsAt != null ? edits.endsAt : prev.endsAt,
+    } : prev));
     showToast("Compétition mise à jour.");
     return { success: true, data };
   }
