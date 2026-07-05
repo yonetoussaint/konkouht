@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { fetchRegistrations, insertRegistration, fetchUserRegistrations } from "./lib/registrations";
 import { fetchComments, insertComment } from "./lib/comments";
-import { fetchCompetitionEdits, saveCompetitionEdit } from "./lib/competitionEdits";
+import { fetchCompetitionEdits, saveCompetitionEdit, uploadCompetitionImage } from "./lib/competitionEdits";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
@@ -383,7 +383,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
       {/* Banner */}
       <div style={{ height: 110, position: "relative", flexShrink: 0, overflow: "hidden" }}>
         <img
-          src={heroBannerImg(comp.id)}
+          src={comp.bannerUrl || heroBannerImg(comp.id)}
           alt={comp.title}
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
         />
@@ -1349,13 +1349,30 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [editTitle, setEditTitle] = useState(comp.title);
   const [editEdition, setEditEdition] = useState(comp.edition);
   const [editEnds, setEditEnds] = useState(comp.ends);
+  const [editBannerUrl, setEditBannerUrl] = useState(comp.bannerUrl || "");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   useEffect(() => {
     setEditTitle(comp.title);
     setEditEdition(comp.edition);
     setEditEnds(comp.ends);
-  }, [comp.id, comp.title, comp.edition, comp.ends]);
+    setEditBannerUrl(comp.bannerUrl || "");
+  }, [comp.id, comp.title, comp.edition, comp.ends, comp.bannerUrl]);
+
+  async function handleBannerFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingBanner(true);
+    const { url, error } = await uploadCompetitionImage({ competitionId: comp.id, file });
+    setUploadingBanner(false);
+    if (error) {
+      console.error("uploadCompetitionImage error:", error);
+      showToast?.("Échec de l'envoi de l'image.");
+      return;
+    }
+    setEditBannerUrl(url);
+  }
 
   async function handleSaveEdit() {
     setSavingEdit(true);
@@ -1364,6 +1381,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       title: editTitle.trim() || comp.title,
       edition: editEdition.trim() || comp.edition,
       ends: editEnds.trim() || comp.ends,
+      bannerUrl: editBannerUrl || null,
     });
     setSavingEdit(false);
     if (result?.success) setShowEditModal(false);
@@ -1692,7 +1710,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       "https://lorem.video/corgi_480p_h264_10s.mp4",
     ];
     const bannerImgs = [
-      heroBannerImg(comp.id),
+      comp.bannerUrl || heroBannerImg(comp.id),
       `https://picsum.photos/seed/hero_${comp.id}_1/800/800`,
       `https://picsum.photos/seed/hero_${comp.id}_2/800/800`,
       `https://picsum.photos/seed/hero_${comp.id}_3/800/800`,
@@ -3039,6 +3057,33 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 18 }}
             />
 
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Bannière / miniature</label>
+            <div style={{
+              width: "100%", height: 120, borderRadius: 12, overflow: "hidden",
+              background: "#f5f5f5", marginBottom: 10, position: "relative",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {editBannerUrl ? (
+                <img src={editBannerUrl} alt="Bannière" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              ) : (
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>Aucune image</span>
+              )}
+              {uploadingBanner && (
+                <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.7)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#555" }}>
+                  Envoi en cours…
+                </div>
+              )}
+            </div>
+            <label style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              border: "1px solid #e0e0e0", borderRadius: 10, padding: "9px 12px",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555",
+              cursor: "pointer", marginBottom: 18,
+            }}>
+              <input type="file" accept="image/*" onChange={handleBannerFileChange} style={{ display: "none" }} />
+              Choisir une image
+            </label>
+
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={() => setShowEditModal(false)}
@@ -4340,7 +4385,7 @@ function MyCompetitionsPage({ registeredCompIds, followedCompIds, onOpen }) {
           width: 44, height: 44, flexShrink: 0, overflow: "hidden",
           border: `2px solid ${niche.accent}`,
         }}>
-          <img src={heroBannerImg(comp.id)} alt={comp.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <img src={comp.bannerUrl || heroBannerImg(comp.id)} alt={comp.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         </div>
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -5150,12 +5195,13 @@ export default function App() {
     return e ? { ...comp, ...e } : comp;
   }
 
-  async function handleEditComp({ competitionId, title, edition, ends }) {
+  async function handleEditComp({ competitionId, title, edition, ends, bannerUrl }) {
     const { data, error } = await saveCompetitionEdit({
       competitionId,
       title,
       edition,
       ends,
+      bannerUrl,
       updatedBy: currentUser?.id,
     });
     if (error) {
@@ -5163,8 +5209,8 @@ export default function App() {
       showToast("Impossible d'enregistrer les modifications.");
       return { success: false };
     }
-    setCompEdits((prev) => ({ ...prev, [competitionId]: { title, edition, ends } }));
-    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, title, edition, ends } : prev));
+    setCompEdits((prev) => ({ ...prev, [competitionId]: { title, edition, ends, bannerUrl } }));
+    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, title, edition, ends, bannerUrl } : prev));
     showToast("Compétition mise à jour.");
     return { success: true, data };
   }
