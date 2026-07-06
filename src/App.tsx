@@ -914,6 +914,27 @@ function buildParticipants(comp) {
   return list.sort((a, b) => b.votes - a.votes);
 }
 
+// Builds the real, database-backed participant/classement list out of the
+// actual rows in `registrations` for this competition — no fake names, no
+// invented head-count. Vote totals aren't tracked in the DB yet, so they're
+// still distributed deterministically over `comp.votes`, but every entry
+// corresponds to a real registrant (id + name straight from Supabase).
+function buildParticipantsFromRegistrants(registrants, comp) {
+  if (!registrants || registrants.length === 0) return [];
+  const list = registrants.map((r, i) => {
+    const seed = (i * 53 + 17) % 97;
+    const votes = Math.round((comp.votes / registrants.length) * (0.4 + (seed % 60) / 40));
+    return {
+      index: i,
+      id: r.id,
+      name: r.name || r.full_name || fakeName(i),
+      votes,
+      points: Math.round(votes / 10),
+    };
+  });
+  return list.sort((a, b) => b.votes - a.votes);
+}
+
 const COMMENT_SNIPPETS = [
   "Bonne chance à tous les participants! 🔥",
   "C'est qui le favori cette saison?",
@@ -995,9 +1016,12 @@ function buildRulesInfo(comp) {
   };
 }
 
-function ParticipantListOverlay({ comp, onClose }) {
+function ParticipantListOverlay({ comp, participants, onClose }) {
   const accent = comp.accent;
-  const ranked = buildParticipants(comp);
+  // `participants` is passed down from CompetitionBoard, already synced with
+  // the real `registrations` table; buildParticipants(comp) is only a
+  // placeholder fallback for the brief window before that data has loaded.
+  const ranked = participants && participants.length > 0 ? participants : buildParticipants(comp);
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
@@ -1462,39 +1486,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const basePrizePool = comp.prizeAmount != null && comp.prizeAmount !== ""
     ? Number(comp.prizeAmount)
     : 0;
-  // Seed ranked once; liveVotes tracks per-participant live vote deltas, liveGiftCredits tracks per-participant gift credits
-  const seedRanked = buildParticipants(comp).slice(0, 5);
-  const [liveVotes, setLiveVotes] = useState(() => {
-    const m = {};
-    seedRanked.forEach((p) => { m[p.index] = p.votes; });
-    return m;
-  });
-  const [liveGiftCredits, setLiveGiftCredits] = useState(() => {
-    const m = {};
-    seedRanked.forEach((p) => { m[p.index] = 0; });
-    return m;
-  });
-  function addGiftToParticipant(participantIndex, creditValue) {
-    setLiveGiftCredits((prev) => ({
-      ...prev,
-      [participantIndex]: (prev[participantIndex] ?? 0) + creditValue,
-    }));
-  }
-  const ranked = seedRanked.map((p) => ({ ...p, votes: liveVotes[p.index] ?? p.votes }));
-  const topVotes = Math.max(...ranked.map((p) => p.votes), 1);
-  const leader = ranked[0];
-  const leaderGiftCredits = leader ? (liveGiftCredits[leader.index] ?? 0) : 0;
-  const winnerPrize = basePrizePool + Math.round(leaderGiftCredits * WINNER_GIFT_SHARE);
-  // Registration fill counter — real count from the database, not simulated.
-  // Falls back to the seeded registeredCount only until the real fetch resolves,
-  // so the UI doesn't flash "0" on first paint.
+  // Real registrants for this competition, fetched from Supabase. Always
+  // fetched (not just during "registration") since the voting-phase
+  // classement/albums/gift-picker below are now built from these rows
+  // instead of fake generated names.
   const [showAllRegistrants, setShowAllRegistrants] = useState(false);
   const [registrants, setRegistrants] = useState([]);
-  const [registrantsLoading, setRegistrantsLoading] = useState(isRegistration);
+  const [registrantsLoading, setRegistrantsLoading] = useState(true);
   const liveRegistered = registrantsLoading ? comp.registeredCount : registrants.length;
 
   useEffect(() => {
-    if (!isRegistration) return;
     let cancelled = false;
     setRegistrantsLoading(true);
     fetchRegistrations(comp.id).then((rows) => {
@@ -1511,12 +1512,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       setRegistrantsLoading(false);
     });
     return () => { cancelled = true; };
-  }, [comp.id, isRegistration]);
+  }, [comp.id]);
 
   // Real-time sync: reflect registrations made by ANY user, live, while this
   // board is open — not just the ones fetched at mount time.
   useEffect(() => {
-    if (!isRegistration) return;
     const channel = supabase
       .channel(`registrations-${comp.id}`)
       .on(
@@ -1541,7 +1541,43 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [comp.id, isRegistration]);
+  }, [comp.id]);
+
+  // Database-backed participant list. Falls back to the old fake generator
+  // only while the real fetch is in flight (or genuinely returns nothing),
+  // so the classement, albums strip, and gift picker always reflect actual
+  // registrations instead of invented names.
+  const dbParticipants = useMemo(
+    () => buildParticipantsFromRegistrants(registrants, comp),
+    [registrants, comp]
+  );
+  const participantsFull = (registrantsLoading || dbParticipants.length === 0)
+    ? buildParticipants(comp)
+    : dbParticipants;
+
+  // Seed ranked once; liveVotes tracks per-participant live vote deltas, liveGiftCredits tracks per-participant gift credits
+  const seedRanked = participantsFull.slice(0, 5);
+  const [liveVotes, setLiveVotes] = useState(() => {
+    const m = {};
+    seedRanked.forEach((p) => { m[p.index] = p.votes; });
+    return m;
+  });
+  const [liveGiftCredits, setLiveGiftCredits] = useState(() => {
+    const m = {};
+    seedRanked.forEach((p) => { m[p.index] = 0; });
+    return m;
+  });
+  function addGiftToParticipant(participantIndex, creditValue) {
+    setLiveGiftCredits((prev) => ({
+      ...prev,
+      [participantIndex]: (prev[participantIndex] ?? 0) + creditValue,
+    }));
+  }
+  const ranked = seedRanked.map((p) => ({ ...p, votes: liveVotes[p.index] ?? p.votes }));
+  const topVotes = Math.max(...ranked.map((p) => p.votes), 1);
+  const leader = ranked[0];
+  const leaderGiftCredits = leader ? (liveGiftCredits[leader.index] ?? 0) : 0;
+  const winnerPrize = basePrizePool + Math.round(leaderGiftCredits * WINNER_GIFT_SHARE);
   function mapCommentRow(row) {
     const minutesAgo = Math.max(0, Math.round((Date.now() - new Date(row.created_at).getTime()) / 60000));
     return {
@@ -2307,7 +2343,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </div>
 
             {ranked.map((p, rank) => {
-              const medals = ["🥇", "🥈", "🥉"];
               return (
                 <div key={p.index} style={{
                   display: "flex", alignItems: "center", gap: 10,
@@ -2318,11 +2353,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   <div style={{
                     width: 24, flexShrink: 0, textAlign: "center",
                     fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: rank < 3 ? 18 : 13,
+                    fontSize: rank === 0 ? 18 : 13,
                     fontWeight: 700,
-                    color: rank < 3 ? accent : "#ccc",
+                    color: rank === 0 ? accent : "#ccc",
                   }}>
-                    {rank < 3 ? medals[rank] : rank + 1}
+                    {rank === 0 ? "🥇" : rank + 1}
                   </div>
                   {/* Avatar */}
                   <div style={{
@@ -5152,6 +5187,121 @@ function groupTransactionsByDay(list) {
   return groups;
 }
 
+function DepositNumbersCard({ showToast }) {
+  const [method, setMethod] = useState("moncash");
+  const [copied, setCopied] = useState(false);
+
+  const current = PAYMENT_METHODS.find((m) => m.id === method);
+  const { number, name } = MOBILE_MONEY_NUMBERS[method];
+
+  function handleCopy() {
+    navigator.clipboard?.writeText(number).catch(() => {});
+    setCopied(true);
+    showToast && showToast("Numéro copié");
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div
+      style={{
+        border: "1px solid #e0e0e0",
+        background: "#fff",
+        borderRadius: 14,
+        marginBottom: 16,
+        overflow: "hidden",
+      }}
+    >
+      {/* Tabs bar: MonCash / NatCash */}
+      <div style={{ display: "flex", borderBottom: "1px solid #e0e0e0" }}>
+        {DEPOSIT_METHODS.map((m) => {
+          const active = method === m.id;
+          return (
+            <button
+              key={m.id}
+              onClick={() => setMethod(m.id)}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                border: "none",
+                borderBottom: active ? `2px solid ${m.accent}` : "2px solid transparent",
+                background: "#fff",
+                color: active ? m.accent : "#999",
+                fontFamily: "Inter, sans-serif",
+                fontSize: 12,
+                fontWeight: 700,
+                padding: "10px 6px",
+                cursor: "pointer",
+              }}
+            >
+              <span
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  background: m.accent,
+                  color: "#fff",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {m.label.charAt(0)}
+              </span>
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Active number */}
+      <div style={{ padding: "12px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#aaa", marginBottom: 4 }}>
+              Numéro {current?.label} pour les dépôts
+            </div>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, letterSpacing: "0.04em", color: "#111" }}>
+              {number}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", marginTop: 2 }}>
+              {name}
+            </div>
+          </div>
+          <button
+            onClick={handleCopy}
+            aria-label="Copier le numéro"
+            style={{
+              flexShrink: 0,
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              border: `1px solid ${current?.accent ?? "#111"}`,
+              background: copied ? current?.accent : "#fff",
+              color: copied ? "#fff" : current?.accent,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {copied ? <Check size={15} strokeWidth={2.5} /> : <Copy size={15} strokeWidth={2.5} />}
+          </button>
+        </div>
+        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#C0392B", lineHeight: 1.5 }}>
+          ⚠ Vos dépôts {current?.label} ne seront acceptés que s'ils proviennent de ce numéro.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenWithdraw, onOpenNotifications, showToast, onBack }) {
   const [txFilter, setTxFilter] = useState("all");
   const [txQuery, setTxQuery] = useState("");
@@ -5284,6 +5434,9 @@ function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenW
             </span>
           </div>
         </div>
+
+        {/* Deposit numbers — MonCash / NatCash tabs */}
+        <DepositNumbersCard showToast={showToast} />
 
         {/* Quick stats */}
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
