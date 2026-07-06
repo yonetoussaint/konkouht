@@ -4153,6 +4153,12 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
             </button>
           </>
         )}
+
+        <div style={{ textAlign: "center", marginTop: 18 }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#ccc", letterSpacing: "0.02em" }}>
+            Propulsé par <span style={{ fontWeight: 700, color: "#999" }}>Mima</span>
+          </span>
+        </div>
       </div>
     </div>
   );
