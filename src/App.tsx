@@ -1856,48 +1856,50 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         overflow: "hidden",
       }}>
 
-      {/* ── Thumbnail selector — lives inside the sheet so the curve never covers it ── */}
-      <div style={{ background: "#fff", padding: "12px 8px 8px", display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
-        {heroBannerSlides.map((slide, i) => (
-          <div
-            key={i}
-            onClick={() => setActiveBanner(i)}
-            style={{
-              width: 60, height: 60, flexShrink: 0,
-              borderRadius: 12,
-              position: "relative",
-              overflow: "hidden", cursor: "pointer",
-              outline: i === activeBanner ? `2px solid ${accent}` : "2px solid transparent",
-              outlineOffset: "-2px",
-              transition: "outline-color 0.2s, opacity 0.2s",
-              opacity: i === activeBanner ? 1 : 0.45,
-            }}
-          >
-            {slide.type === "placeholder" ? (
-              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#eee" }}>
-                <ImageIcon size={20} color="#ccc" />
-              </div>
-            ) : (
-              <img src={slide.type === "video" ? slide.poster : slide.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-            )}
-            {slide.type === "video" && (
-              <div style={{
-                position: "absolute", inset: 0,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "rgba(0,0,0,0.25)",
-              }}>
-                <div style={{
-                  width: 22, height: 22, borderRadius: "50%",
-                  background: "rgba(255,255,255,0.9)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <Play size={11} fill="#111" color="#111" strokeWidth={0} style={{ marginLeft: 1 }} />
+      {/* ── Thumbnail selector — lives inside the sheet so the curve never covers it. Only worth showing when there's something to switch between. ── */}
+      {heroBannerSlides.length > 1 && (
+        <div style={{ background: "#fff", padding: "12px 8px 8px", display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
+          {heroBannerSlides.map((slide, i) => (
+            <div
+              key={i}
+              onClick={() => setActiveBanner(i)}
+              style={{
+                width: 60, height: 60, flexShrink: 0,
+                borderRadius: 12,
+                position: "relative",
+                overflow: "hidden", cursor: "pointer",
+                outline: i === activeBanner ? `2px solid ${accent}` : "2px solid transparent",
+                outlineOffset: "-2px",
+                transition: "outline-color 0.2s, opacity 0.2s",
+                opacity: i === activeBanner ? 1 : 0.45,
+              }}
+            >
+              {slide.type === "placeholder" ? (
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#eee" }}>
+                  <ImageIcon size={20} color="#ccc" />
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+              ) : (
+                <img src={slide.type === "video" ? slide.poster : slide.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              )}
+              {slide.type === "video" && (
+                <div style={{
+                  position: "absolute", inset: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "rgba(0,0,0,0.25)",
+                }}>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: "50%",
+                    background: "rgba(255,255,255,0.9)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <Play size={11} fill="#111" color="#111" strokeWidth={0} style={{ marginLeft: 1 }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── ORGANISER BAR ── */}
       <OrgBar comp={comp} accent={accent} />
