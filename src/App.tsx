@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage, uploadCompetitionImage } from "./lib/competitionData";
+import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
@@ -379,9 +379,9 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
     >
       {/* Banner */}
       <div style={{ height: 110, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
-        {comp.images?.[0]?.url ? (
+        {(comp.bannerUrl || comp.images?.[0]?.url) ? (
           <img
-            src={comp.images[0].url}
+            src={comp.bannerUrl || comp.images[0].url}
             alt={comp.title}
             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
           />
@@ -1299,7 +1299,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [savingEdit, setSavingEdit] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removingImageId, setRemovingImageId] = useState(null);
-  const [uploadingBanner, setUploadingBanner] = useState(false);
   const images = comp.images || [];
 
   useEffect(() => {
@@ -1324,28 +1323,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setUploadingImage(false);
   }
 
-  // Banner: a single dedicated image representing this competition in the
-  // homepage carousel — distinct from the gallery grid below. The upload
-  // itself only pushes the file to storage and returns its URL; it's
-  // persisted to competition_edits only once "Enregistrer" is pressed,
-  // same as every other field in this panel.
-  async function handleBannerFile(e) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setUploadingBanner(true);
-    const { url, error } = await uploadCompetitionImage({ competitionId: comp.id, file });
-    if (error) {
-      console.error("uploadCompetitionImage error:", error);
-      showToast?.("Échec de l'envoi de la bannière.");
-    } else {
-      setEditBannerUrl(url);
-    }
-    setUploadingBanner(false);
-  }
-
-  function handleRemoveBanner() {
-    setEditBannerUrl(null);
+  // Banner: not a separate upload — just a tag on one of the thumbnails
+  // below, marking which image represents this competition on its card and
+  // in the homepage carousel. Persisted to competition_edits.bannerUrl only
+  // once "Enregistrer" is pressed, same as every other field in this panel.
+  function handleSetBanner(url) {
+    setEditBannerUrl((prev) => (prev === url ? null : url));
   }
 
   async function handleRemoveImage(imageId) {
@@ -3109,93 +3092,58 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 18, resize: "vertical" }}
             />
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Bannière (page d'accueil)</label>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
-              L'image mise en avant dans le carrousel de la page d'accueil lorsque cette compétition est en vedette.
-            </div>
-            <div style={{
-              position: "relative", width: "100%", aspectRatio: "16 / 9",
-              borderRadius: 12, overflow: "hidden", background: "#f5f5f5",
-              marginBottom: 18,
-              border: editBannerUrl ? "none" : "1.5px dashed #ccc",
-            }}>
-              {editBannerUrl ? (
-                <>
-                  <img src={editBannerUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                  <label style={{
-                    position: "absolute", bottom: 8, right: 8,
-                    display: "flex", alignItems: "center", gap: 6,
-                    background: "rgba(0,0,0,0.6)", color: "#fff",
-                    borderRadius: 999, padding: "6px 12px",
-                    fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600,
-                    cursor: uploadingBanner ? "default" : "pointer",
-                  }}>
-                    <input type="file" accept="image/*" onChange={handleBannerFile} disabled={uploadingBanner} style={{ display: "none" }} />
-                    {uploadingBanner ? "Envoi…" : "Remplacer"}
-                  </label>
-                  <button
-                    onClick={handleRemoveBanner}
-                    disabled={uploadingBanner}
-                    style={{
-                      position: "absolute", top: 8, right: 8,
-                      width: 24, height: 24, borderRadius: "50%",
-                      border: "none", background: "rgba(0,0,0,0.55)", color: "#fff",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: uploadingBanner ? "default" : "pointer", padding: 0,
-                    }}
-                  >
-                    <X size={13} />
-                  </button>
-                </>
-              ) : (
-                <label style={{
-                  width: "100%", height: "100%",
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
-                  cursor: uploadingBanner ? "default" : "pointer",
-                }}>
-                  <input type="file" accept="image/*" onChange={handleBannerFile} disabled={uploadingBanner} style={{ display: "none" }} />
-                  {uploadingBanner ? (
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#999" }}>Envoi…</span>
-                  ) : (
-                    <>
-                      <ImageIcon size={22} color="#aaa" />
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>Ajouter une bannière</span>
-                    </>
-                  )}
-                </label>
-              )}
-            </div>
-
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Galerie / miniatures</label>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
+              Touchez <strong>Bannière</strong> sur une image pour en faire celle affichée sur la carte de la compétition et dans le carrousel de la page d'accueil.
+            </div>
             <div style={{
               display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8,
               marginBottom: 18,
             }}>
-              {images.map((img) => (
-                <div key={img.id} style={{
-                  position: "relative", width: "100%", aspectRatio: "1 / 1",
-                  borderRadius: 10, overflow: "hidden", background: "#f5f5f5",
-                }}>
-                  <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                  <button
-                    onClick={() => handleRemoveImage(img.id)}
-                    disabled={removingImageId === img.id}
-                    style={{
-                      position: "absolute", top: 4, right: 4,
-                      width: 20, height: 20, borderRadius: "50%",
-                      border: "none", background: "rgba(0,0,0,0.55)", color: "#fff",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", padding: 0,
-                    }}
-                  >
-                    {removingImageId === img.id ? (
-                      <span style={{ fontSize: 9 }}>…</span>
-                    ) : (
-                      <X size={12} />
-                    )}
-                  </button>
-                </div>
-              ))}
+              {images.map((img) => {
+                const isBanner = editBannerUrl === img.url;
+                return (
+                  <div key={img.id} style={{
+                    position: "relative", width: "100%", aspectRatio: "1 / 1",
+                    borderRadius: 10, overflow: "hidden", background: "#f5f5f5",
+                    boxShadow: isBanner ? `0 0 0 2px ${accent}` : "none",
+                  }}>
+                    <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <button
+                      onClick={() => handleRemoveImage(img.id)}
+                      disabled={removingImageId === img.id}
+                      style={{
+                        position: "absolute", top: 4, right: 4,
+                        width: 20, height: 20, borderRadius: "50%",
+                        border: "none", background: "rgba(0,0,0,0.55)", color: "#fff",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: "pointer", padding: 0,
+                      }}
+                    >
+                      {removingImageId === img.id ? (
+                        <span style={{ fontSize: 9 }}>…</span>
+                      ) : (
+                        <X size={12} />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleSetBanner(img.url)}
+                      style={{
+                        position: "absolute", bottom: 4, left: 4, right: 4,
+                        border: "none", borderRadius: 6,
+                        background: isBanner ? accent : "rgba(0,0,0,0.55)",
+                        color: "#fff",
+                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                        textTransform: "uppercase", letterSpacing: "0.04em",
+                        padding: "4px 0",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {isBanner ? "★ Bannière" : "Bannière"}
+                    </button>
+                  </div>
+                );
+              })}
 
               {/* Add wrapper — always the last tile in the grid */}
               <label style={{
@@ -4519,8 +4467,8 @@ function MyCompetitionsPage({ registeredCompIds, followedCompIds, onOpen }) {
           border: `2px solid ${niche.accent}`,
           background: "#eee", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          {comp.images?.[0]?.url ? (
-            <img src={comp.images[0].url} alt={comp.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          {(comp.bannerUrl || comp.images?.[0]?.url) ? (
+            <img src={comp.bannerUrl || comp.images[0].url} alt={comp.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           ) : (
             <ImageIcon size={16} color="#ccc" />
           )}
