@@ -5661,10 +5661,20 @@ export default function App() {
     return {
       ...comp,
       ...e,
-      // A cleared field in the edit panel saves as null — fall back to the
-      // seed value rather than let a blank override wipe it out entirely.
-      contestants: e.contestants != null ? e.contestants : comp.contestants,
+      // A cleared field — or a field never set at all, e.g. because the
+      // only edit ever saved for this competition was the active toggle —
+      // saves/loads as null. Fall back to the seed value in every case
+      // rather than let a blank silently wipe out real data.
+      title: e.title != null ? e.title : comp.title,
+      edition: e.edition != null ? e.edition : comp.edition,
+      ends: e.ends != null ? e.ends : comp.ends,
       endsAt: e.endsAt != null ? e.endsAt : comp.endsAt,
+      contestants: e.contestants != null ? e.contestants : comp.contestants,
+      bannerUrl: e.bannerUrl != null ? e.bannerUrl : comp.bannerUrl,
+      description: e.description != null ? e.description : comp.description,
+      prizeAmount: e.prizeAmount != null ? e.prizeAmount : comp.prizeAmount,
+      rewardExtra: e.rewardExtra != null ? e.rewardExtra : comp.rewardExtra,
+      rules: (e.rules && e.rules.length > 0) ? e.rules : comp.rules,
       // Real count from the registrations table always wins over any
       // seeded placeholder — 0 until someone actually registers.
       registeredCount: compRegCounts[comp.id] ?? 0,
