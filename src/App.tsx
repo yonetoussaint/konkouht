@@ -4903,12 +4903,13 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
    first — tapping a row jumps straight into that competition's edit panel. */
 function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Total");
 
   const allEntries = niches.flatMap((niche) =>
     niche.competitions.map((comp) => ({ comp, niche }))
   );
 
-  const filteredEntries = query.trim() === ""
+  const searchedEntries = query.trim() === ""
     ? allEntries
     : allEntries.filter(({ comp }) =>
         comp.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -4919,6 +4920,13 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
         comp.edition.toLowerCase().includes(query.toLowerCase()) ||
         niche.label.toLowerCase().includes(query.toLowerCase())
       );
+
+  const filteredEntries =
+    statusFilter === "Total" ? searchedEntries
+    : statusFilter === "En direct" ? searchedEntries.filter((e) => e.comp.phase === "live")
+    : statusFilter === "Inscriptions" ? searchedEntries.filter((e) => e.comp.phase === "registration")
+    : statusFilter === "Désactivées" ? searchedEntries.filter((e) => !e.comp.active)
+    : searchedEntries;
 
   const totalComps = allEntries.length;
   const liveCount = allEntries.filter((e) => e.comp.phase === "live").length;
@@ -4953,7 +4961,7 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
       </header>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-        {/* Stats */}
+        {/* Stats as filter pills */}
         <div
           className="admin-stats-row"
           style={{
@@ -4973,27 +4981,46 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
             { label: "Inscriptions", value: registrationCount },
             { label: "Inscrits", value: totalRegistered },
             { label: "Désactivées", value: offCount },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              style={{
-                background: "#fff",
-                border: "1px solid #e0e0e0",
-                borderRadius: 12,
-                padding: "10px 8px",
-                textAlign: "center",
-                flex: "0 0 auto",
-                minWidth: 92,
-              }}
-            >
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#111" }}>
-                {stat.value.toLocaleString("fr-FR")}
-              </div>
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 2, whiteSpace: "nowrap" }}>
-                {stat.label}
-              </div>
-            </div>
-          ))}
+          ].map((stat) => {
+            const isActive = statusFilter === stat.label;
+            return (
+              <button
+                key={stat.label}
+                onClick={() => setStatusFilter(stat.label)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  flex: "0 0 auto",
+                  border: isActive ? "1px solid #111" : "1px solid #e0e0e0",
+                  background: isActive ? "#111" : "#fff",
+                  borderRadius: 999,
+                  padding: "8px 14px",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: isActive ? "#fff" : "#555", whiteSpace: "nowrap" }}>
+                  {stat.label}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: isActive ? "#111" : "#666",
+                    background: isActive ? "#fff" : "#F2F2F0",
+                    borderRadius: 999,
+                    padding: "1px 7px",
+                    minWidth: 20,
+                    textAlign: "center",
+                  }}
+                >
+                  {stat.value.toLocaleString("fr-FR")}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Search */}
