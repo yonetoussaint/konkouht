@@ -1293,6 +1293,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [editTitle, setEditTitle] = useState(comp.title);
   const [editEdition, setEditEdition] = useState(comp.edition);
   const [editEnds, setEditEnds] = useState(comp.ends);
+  const [editPhase, setEditPhase] = useState(comp.phase);
   const [editContestants, setEditContestants] = useState(comp.contestants != null ? String(comp.contestants) : "");
   const [editEndsAt, setEditEndsAt] = useState(toDatetimeLocal(comp.endsAt));
   const [editDescription, setEditDescription] = useState(comp.description || "");
@@ -1309,6 +1310,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setEditTitle(comp.title);
     setEditEdition(comp.edition);
     setEditEnds(comp.ends);
+    setEditPhase(comp.phase);
     setEditContestants(comp.contestants != null ? String(comp.contestants) : "");
     setEditEndsAt(toDatetimeLocal(comp.endsAt));
     setEditDescription(comp.description || "");
@@ -1316,7 +1318,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setEditRewardExtra(comp.rewardExtra || "");
     setEditRules((comp.rules || []).join("\n"));
     setEditBannerUrl(comp.bannerUrl || null);
-  }, [comp.id, comp.title, comp.edition, comp.ends, comp.contestants, comp.endsAt, comp.description, comp.prizeAmount, comp.rewardExtra, comp.rules, comp.bannerUrl]);
+  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.endsAt, comp.description, comp.prizeAmount, comp.rewardExtra, comp.rules, comp.bannerUrl]);
 
   async function handleAddImageFile(e) {
     const file = e.target.files?.[0];
@@ -1350,6 +1352,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       title: editTitle.trim() || comp.title,
       edition: editEdition.trim() || comp.edition,
       ends: editEnds.trim() || comp.ends,
+      phase: editPhase,
       contestants: trimmedContestants === "" ? null : Math.max(0, parseInt(trimmedContestants, 10) || 0),
       endsAt: editEndsAt ? new Date(editEndsAt).toISOString() : null,
       description: editDescription.trim(),
@@ -3024,6 +3027,38 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               onChange={(e) => setEditEdition(e.target.value)}
               style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
             />
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>État</label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              {[
+                { value: "registration", label: "Inscriptions" },
+                { value: "live", label: "En direct" },
+              ].map((opt) => {
+                const isActive = editPhase === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setEditPhase(opt.value)}
+                    style={{
+                      flex: 1,
+                      border: isActive ? "1px solid #111" : "1px solid #e0e0e0",
+                      background: isActive ? "#111" : "#fff",
+                      color: isActive ? "#fff" : "#555",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {opt.value === "live" && <span style={{ marginRight: 5 }}>●</span>}
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
 
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Fin des inscriptions</label>
             <input
@@ -5718,6 +5753,7 @@ export default function App() {
       title: e.title != null ? e.title : comp.title,
       edition: e.edition != null ? e.edition : comp.edition,
       ends: e.ends != null ? e.ends : comp.ends,
+      phase: e.phase != null ? e.phase : comp.phase,
       endsAt: e.endsAt != null ? e.endsAt : comp.endsAt,
       contestants: e.contestants != null ? e.contestants : comp.contestants,
       bannerUrl: e.bannerUrl != null ? e.bannerUrl : comp.bannerUrl,
@@ -5785,8 +5821,8 @@ export default function App() {
     ).slice(0, 6);
   }, [compImages, compEdits]);
 
-  async function handleEditComp({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, rewardExtra, rules, bannerUrl }) {
-    const edits = { title, edition, ends, endsAt, contestants, description, prizeAmount, rewardExtra, rules, bannerUrl };
+  async function handleEditComp({ competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, rewardExtra, rules, bannerUrl }) {
+    const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, rewardExtra, rules, bannerUrl };
     const { data, error } = await saveCompetitionEdit({
       competitionId,
       ...edits,
