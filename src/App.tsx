@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -175,6 +175,10 @@ function hashStr(str) {
     h |= 0;
   }
   return h;
+}
+
+function isValidEmail(str) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str.trim());
 }
 
 /* ─── NEWS BAND ─────────────────────────────────────────────────────────── */
@@ -3789,29 +3793,77 @@ function GiftModal({ balance, onClose, onSend }) {
   );
 }
 
+// Note: the Google/Facebook buttons below call supabase.auth.signInWithOAuth,
+// which requires those providers to be enabled (with their client ID/secret)
+// under Authentication → Providers in the Supabase dashboard, and the app's
+// URL added to the allowed redirect list. Until that's configured, clicking
+// them will surface an error from Supabase rather than silently failing.
 function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
-  const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [mode, setMode] = useState("login"); // "login" | "signup" | "reset"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState(null);
+  const [mounted, setMounted] = useState(false);
 
-  async function handleSubmit() {
-    if (!email || !password || (mode === "signup" && !fullName)) {
-      setError("Veuillez remplir tous les champs");
-      return;
-    }
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 10);
+    return () => clearTimeout(t);
+  }, []);
+
+  function switchMode(next) {
+    setMode(next);
     setError("");
     setInfo("");
+  }
+
+  async function handleSubmit() {
+    setError("");
+    setInfo("");
+
+    if (mode === "reset") {
+      if (!isValidEmail(email)) {
+        setError("Veuillez entrer une adresse e-mail valide.");
+        return;
+      }
+      setIsSubmitting(true);
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+      });
+      setIsSubmitting(false);
+      if (resetError) {
+        setError(resetError.message);
+        return;
+      }
+      setInfo("Lien envoyé. Vérifiez votre boîte de réception pour réinitialiser votre mot de passe.");
+      setMode("login");
+      return;
+    }
+
+    if (mode === "signup" && !fullName.trim()) {
+      setError("Veuillez entrer votre nom complet.");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError("Veuillez entrer une adresse e-mail valide.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Le mot de passe doit contenir au moins 6 caractères.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     if (mode === "signup") {
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
-        options: { data: { full_name: fullName } },
+        options: { data: { full_name: fullName.trim() } },
       });
       setIsSubmitting(false);
       if (signUpError) {
@@ -3827,7 +3879,7 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
         setMode("login");
       }
     } else {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       setIsSubmitting(false);
       if (signInError) {
         setError(signInError.message);
@@ -3837,16 +3889,53 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
     }
   }
 
+  async function handleOAuth(provider) {
+    setError("");
+    setInfo("");
+    setOauthProvider(provider);
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
+    });
+    if (oauthError) {
+      setError(oauthError.message);
+      setOauthProvider(null);
+    }
+    // On success, Supabase redirects the browser away — nothing else to do here.
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter") handleSubmit();
+  }
+
+  const inputStyle = {
+    width: "100%",
+    border: "1px solid #e0e0e0",
+    borderRadius: 12,
+    padding: "12px 12px 12px 40px",
+    fontFamily: "Inter, sans-serif", fontSize: 14,
+    background: "#fafafa", color: "#333",
+    boxSizing: "border-box",
+    outline: "none",
+  };
+  const labelStyle = {
+    fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+    color: "#888", textTransform: "uppercase", letterSpacing: "0.06em",
+    display: "block", marginBottom: 6,
+  };
+  const fieldIconStyle = { position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#bbb", pointerEvents: "none" };
+
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 1300,
-        background: "rgba(17,17,17,0.6)",
+        background: mounted ? "rgba(17,17,17,0.6)" : "rgba(17,17,17,0)",
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "center",
+        transition: "background 0.25s ease",
       }}
       onClick={onClose}
     >
@@ -3856,129 +3945,158 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
           width: "100%",
           maxWidth: 440,
           background: "#fff",
-          borderTop: "2px solid #111",
-          padding: 20,
-          maxHeight: "90vh",
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          padding: "10px 20px 24px",
+          maxHeight: "92vh",
           overflowY: "auto",
+          boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
+          transform: mounted ? "translateY(0)" : "translateY(40px)",
+          opacity: mounted ? 1 : 0,
+          transition: "transform 0.28s cubic-bezier(0.16,1,0.3,1), opacity 0.28s ease",
         }}
       >
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "6px 0 14px" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: "#e0e0e0" }} />
+        </div>
+
+        {mode === "reset" && (
+          <button
+            onClick={() => switchMode("login")}
+            style={{ border: "none", background: "none", cursor: "pointer", padding: 0, marginBottom: 10, display: "flex", alignItems: "center", gap: 6, color: "#888" }}
+          >
+            <ArrowLeft size={16} />
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600 }}>Retour</span>
+          </button>
+        )}
+
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, color: "#111", letterSpacing: "-0.01em" }}>
-            {mode === "login" ? "Connexion requise" : "Créer un compte"}
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#111", letterSpacing: "-0.01em" }}>
+            {mode === "login" ? "Connexion requise" : mode === "signup" ? "Créer un compte" : "Mot de passe oublié"}
           </span>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
-            <X size={20} />
+          <button onClick={onClose} style={{ border: "none", background: "#f5f5f5", cursor: "pointer", color: "#333", padding: 8, borderRadius: "50%", display: "flex", lineHeight: 0 }}>
+            <X size={16} />
           </button>
         </div>
-        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", display: "block", marginBottom: 18, lineHeight: 1.5 }}>
-          {compTitle ? `Connectez-vous pour vous inscrire à ${compTitle}.` : followIntent ? `Connectez-vous pour suivre ${followIntent}.` : "Connectez-vous pour accéder à votre compte."}
+        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#888", display: "block", marginBottom: 20, lineHeight: 1.5 }}>
+          {mode === "reset"
+            ? "Entrez votre e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe."
+            : compTitle ? `Connectez-vous pour vous inscrire à ${compTitle}.`
+            : followIntent ? `Connectez-vous pour suivre ${followIntent}.`
+            : "Connectez-vous pour accéder à votre compte."}
         </span>
 
-        <div style={{ display: "flex", gap: 0, marginBottom: 18, border: "1px solid #ddd" }}>
-          <button
-            onClick={() => { setMode("login"); setError(""); setInfo(""); }}
-            style={{
-              flex: 1,
-              border: "none",
-              background: mode === "login" ? "#111" : "#fff",
-              color: mode === "login" ? "#fff" : "#888",
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
-              textTransform: "uppercase", letterSpacing: "0.06em",
-              padding: "10px 0", cursor: "pointer",
-            }}
-          >
-            Se connecter
-          </button>
-          <button
-            onClick={() => { setMode("signup"); setError(""); setInfo(""); }}
-            style={{
-              flex: 1,
-              border: "none",
-              borderLeft: "1px solid #ddd",
-              background: mode === "signup" ? "#111" : "#fff",
-              color: mode === "signup" ? "#fff" : "#888",
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
-              textTransform: "uppercase", letterSpacing: "0.06em",
-              padding: "10px 0", cursor: "pointer",
-            }}
-          >
-            Créer un compte
-          </button>
-        </div>
+        {mode !== "reset" && (
+          <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#f2f2f0", borderRadius: 999, padding: 4 }}>
+            <button
+              onClick={() => switchMode("login")}
+              style={{
+                flex: 1, border: "none", borderRadius: 999,
+                background: mode === "login" ? "#111" : "transparent",
+                color: mode === "login" ? "#fff" : "#888",
+                fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: "0.05em",
+                padding: "10px 0", cursor: "pointer", transition: "background 0.2s, color 0.2s",
+              }}
+            >
+              Se connecter
+            </button>
+            <button
+              onClick={() => switchMode("signup")}
+              style={{
+                flex: 1, border: "none", borderRadius: 999,
+                background: mode === "signup" ? "#111" : "transparent",
+                color: mode === "signup" ? "#fff" : "#888",
+                fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: "0.05em",
+                padding: "10px 0", cursor: "pointer", transition: "background 0.2s, color 0.2s",
+              }}
+            >
+              Créer un compte
+            </button>
+          </div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 16 }}>
           {mode === "signup" && (
             <div>
-              <label style={{
-                fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                color: "#666", display: "block", marginBottom: 6,
-              }}>
-                Nom complet
-              </label>
-              <input
-                type="text"
-                placeholder="ex. Jean Dupont"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                style={{
-                  width: "100%",
-                  border: "1px solid #ddd", padding: "10px 12px",
-                  fontFamily: "Inter, sans-serif", fontSize: 13,
-                  background: "#fff", color: "#333",
-                  boxSizing: "border-box",
-                }}
-              />
+              <label style={labelStyle}>Nom complet</label>
+              <div style={{ position: "relative" }}>
+                <User size={16} style={fieldIconStyle} />
+                <input
+                  type="text"
+                  placeholder="ex. Jean Dupont"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  style={inputStyle}
+                />
+              </div>
             </div>
           )}
+
           <div>
-            <label style={{
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-              color: "#666", display: "block", marginBottom: 6,
-            }}>
-              E-mail
-            </label>
-            <input
-              type="email"
-              placeholder="vous@exemple.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{
-                width: "100%",
-                border: "1px solid #ddd", padding: "10px 12px",
-                fontFamily: "Inter, sans-serif", fontSize: 13,
-                background: "#fff", color: "#333",
-                boxSizing: "border-box",
-              }}
-            />
+            <label style={labelStyle}>E-mail</label>
+            <div style={{ position: "relative" }}>
+              <Mail size={16} style={fieldIconStyle} />
+              <input
+                type="email"
+                placeholder="vous@exemple.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={handleKeyDown}
+                style={inputStyle}
+              />
+            </div>
           </div>
-          <div>
-            <label style={{
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-              color: "#666", display: "block", marginBottom: 6,
-            }}>
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{
-                width: "100%",
-                border: "1px solid #ddd", padding: "10px 12px",
-                fontFamily: "Inter, sans-serif", fontSize: 13,
-                background: "#fff", color: "#333",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+
+          {mode !== "reset" && (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Mot de passe</label>
+                {mode === "login" && (
+                  <button
+                    onClick={() => switchMode("reset")}
+                    style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#6C63FF" }}
+                  >
+                    Mot de passe oublié ?
+                  </button>
+                )}
+              </div>
+              <div style={{ position: "relative" }}>
+                <Lock size={16} style={fieldIconStyle} />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  style={{ ...inputStyle, paddingRight: 40 }}
+                />
+                <button
+                  onClick={() => setShowPassword((v) => !v)}
+                  type="button"
+                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", cursor: "pointer", color: "#bbb", padding: 4, display: "flex" }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {mode === "signup" && (
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 5, display: "block" }}>
+                  Au moins 6 caractères.
+                </span>
+              )}
+            </div>
+          )}
+
           {info && (
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#00B894" }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#00B894", background: "#f0fbf7", border: "1px solid #b8edd9", borderRadius: 10, padding: "8px 10px" }}>
               {info}
             </span>
           )}
           {error && (
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C" }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C", background: "#fff0ed", border: "1px solid #ffcfc7", borderRadius: 10, padding: "8px 10px" }}>
               {error}
             </span>
           )}
@@ -3990,21 +4108,69 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
           style={{
             width: "100%",
             border: "none",
+            borderRadius: 999,
             background: "#111",
             color: "#fff",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
             fontSize: 13,
-            letterSpacing: "0.08em",
+            letterSpacing: "0.06em",
             textTransform: "uppercase",
-            padding: "14px 16px",
+            padding: "15px 16px",
             cursor: isSubmitting ? "default" : "pointer",
             opacity: isSubmitting ? 0.6 : 1,
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           }}
         >
-          {isSubmitting ? "Veuillez patienter…" : mode === "login" ? "Se connecter" : "Créer mon compte"}
+          {isSubmitting
+            ? "Veuillez patienter…"
+            : mode === "login" ? "Se connecter"
+            : mode === "signup" ? "Créer mon compte"
+            : "Envoyer le lien"}
         </button>
+
+        {mode !== "reset" && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0" }}>
+              <div style={{ flex: 1, height: 1, background: "#eee" }} />
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.05em" }}>ou continuer avec</span>
+              <div style={{ flex: 1, height: 1, background: "#eee" }} />
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => handleOAuth("google")}
+                disabled={!!oauthProvider}
+                style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  border: "1px solid #e0e0e0", borderRadius: 12, background: "#fff",
+                  padding: "11px 0", cursor: oauthProvider ? "default" : "pointer",
+                  opacity: oauthProvider && oauthProvider !== "google" ? 0.5 : 1,
+                }}
+              >
+                <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#4285F4", color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>G</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333" }}>
+                  {oauthProvider === "google" ? "…" : "Google"}
+                </span>
+              </button>
+              <button
+                onClick={() => handleOAuth("facebook")}
+                disabled={!!oauthProvider}
+                style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  border: "1px solid #e0e0e0", borderRadius: 12, background: "#fff",
+                  padding: "11px 0", cursor: oauthProvider ? "default" : "pointer",
+                  opacity: oauthProvider && oauthProvider !== "facebook" ? 0.5 : 1,
+                }}
+              >
+                <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#1877F2", color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>f</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333" }}>
+                  {oauthProvider === "facebook" ? "…" : "Facebook"}
+                </span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
