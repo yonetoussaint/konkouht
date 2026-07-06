@@ -4954,7 +4954,19 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 18 }}>
+        <div
+          className="admin-stats-row"
+          style={{
+            display: "flex",
+            gap: 8,
+            marginBottom: 18,
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            scrollbarWidth: "none",
+            paddingBottom: 2,
+          }}
+        >
+          <style>{`.admin-stats-row::-webkit-scrollbar { display: none; }`}</style>
           {[
             { label: "Total", value: totalComps },
             { label: "En direct", value: liveCount },
@@ -4962,11 +4974,22 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
             { label: "Inscrits", value: totalRegistered },
             { label: "Désactivées", value: offCount },
           ].map((stat) => (
-            <div key={stat.label} style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
+            <div
+              key={stat.label}
+              style={{
+                background: "#fff",
+                border: "1px solid #e0e0e0",
+                borderRadius: 12,
+                padding: "10px 8px",
+                textAlign: "center",
+                flex: "0 0 auto",
+                minWidth: 92,
+              }}
+            >
               <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#111" }}>
                 {stat.value.toLocaleString("fr-FR")}
               </div>
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 2 }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 2, whiteSpace: "nowrap" }}>
                 {stat.label}
               </div>
             </div>
