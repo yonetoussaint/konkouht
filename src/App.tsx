@@ -4961,6 +4961,24 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
       </header>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
+        {/* Search */}
+        <div style={{ position: "relative", marginBottom: 14 }}>
+          <Search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#bbb" }} />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher une compétition…"
+            style={{
+              width: "100%", boxSizing: "border-box",
+              border: "1px solid #e0e0e0", borderRadius: 999,
+              padding: "10px 14px 10px 36px",
+              fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333",
+              background: "#fff", outline: "none",
+            }}
+          />
+        </div>
+
         {/* Stats as filter pills */}
         <div
           className="admin-stats-row"
@@ -5021,24 +5039,6 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
               </button>
             );
           })}
-        </div>
-
-        {/* Search */}
-        <div style={{ position: "relative", marginBottom: 14 }}>
-          <Search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#bbb" }} />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher une compétition…"
-            style={{
-              width: "100%", boxSizing: "border-box",
-              border: "1px solid #e0e0e0", borderRadius: 999,
-              padding: "10px 14px 10px 36px",
-              fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333",
-              background: "#fff", outline: "none",
-            }}
-          />
         </div>
 
         {/* List */}
