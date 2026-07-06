@@ -5187,11 +5187,39 @@ function groupTransactionsByDay(list) {
   return groups;
 }
 
-function DepositNumbersCard({ currentUser, showToast }) {
+function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
   const [method, setMethod] = useState("moncash");
+  const [editing, setEditing] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const current = PAYMENT_METHODS.find((m) => m.id === method);
   const userNumber = method === "moncash" ? currentUser?.moncashNumber : currentUser?.natcashNumber;
+
+  function startEditing() {
+    setInputValue(userNumber || "");
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setEditing(false);
+    setInputValue("");
+  }
+
+  async function handleSave() {
+    const trimmed = inputValue.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    try {
+      await onUpdateNumber?.(method, trimmed);
+      showToast && showToast(`Numéro ${current?.label} enregistré`);
+      setEditing(false);
+    } catch (err) {
+      showToast && showToast("Erreur lors de l'enregistrement");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div
@@ -5200,31 +5228,29 @@ function DepositNumbersCard({ currentUser, showToast }) {
         background: "#fff",
         borderRadius: 14,
         marginBottom: 16,
-        overflow: "hidden",
+        padding: 14,
       }}
     >
-      {/* Tabs bar: MonCash / NatCash */}
-      <div style={{ display: "flex", borderBottom: "1px solid #e0e0e0" }}>
+      {/* Pill tabs: MonCash / NatCash */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
         {DEPOSIT_METHODS.map((m) => {
           const active = method === m.id;
           return (
             <button
               key={m.id}
-              onClick={() => setMethod(m.id)}
+              onClick={() => { setMethod(m.id); setEditing(false); }}
               style={{
-                flex: 1,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
                 gap: 6,
-                border: "none",
-                borderBottom: active ? `2px solid ${m.accent}` : "2px solid transparent",
-                background: "#fff",
-                color: active ? m.accent : "#999",
+                border: active ? `1px solid ${m.accent}` : "1px solid #e0e0e0",
+                borderRadius: 999,
+                background: active ? m.accent : "#fff",
+                color: active ? "#fff" : "#666",
                 fontFamily: "Inter, sans-serif",
                 fontSize: 12,
                 fontWeight: 700,
-                padding: "10px 6px",
+                padding: "8px 14px",
                 cursor: "pointer",
               }}
             >
@@ -5234,7 +5260,7 @@ function DepositNumbersCard({ currentUser, showToast }) {
                   height: 16,
                   borderRadius: "50%",
                   flexShrink: 0,
-                  background: m.accent,
+                  background: active ? "rgba(255,255,255,0.25)" : m.accent,
                   color: "#fff",
                   fontFamily: "'Space Grotesk', sans-serif",
                   fontSize: 9,
@@ -5253,32 +5279,120 @@ function DepositNumbersCard({ currentUser, showToast }) {
       </div>
 
       {/* User's own number for the active method */}
-      <div style={{ padding: "12px 16px" }}>
-        <div style={{ minWidth: 0, marginBottom: 8 }}>
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#aaa", marginBottom: 4 }}>
-            Votre numéro {current?.label}
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#aaa", marginBottom: 6 }}>
+        Votre numéro {current?.label}
+      </div>
+
+      {editing ? (
+        <div>
+          <input
+            autoFocus
+            type="tel"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder={`Ex : ${MOBILE_MONEY_NUMBERS[method]?.number ?? "+509 XX XX XX XX"}`}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              border: "1px solid #ddd",
+              borderRadius: 10,
+              padding: "10px 12px",
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: 15,
+              fontWeight: 600,
+              color: "#111",
+              marginBottom: 10,
+            }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleSave}
+              disabled={saving || !inputValue.trim()}
+              style={{
+                flex: 1,
+                border: "none",
+                borderRadius: 999,
+                background: "#111",
+                color: "#fff",
+                fontFamily: "Inter, sans-serif",
+                fontSize: 12,
+                fontWeight: 700,
+                padding: "10px 0",
+                cursor: saving ? "default" : "pointer",
+                opacity: saving || !inputValue.trim() ? 0.5 : 1,
+              }}
+            >
+              {saving ? "Enregistrement…" : "Enregistrer"}
+            </button>
+            <button
+              onClick={cancelEditing}
+              disabled={saving}
+              style={{
+                flex: 1,
+                border: "1px solid #e0e0e0",
+                borderRadius: 999,
+                background: "#fff",
+                color: "#666",
+                fontFamily: "Inter, sans-serif",
+                fontSize: 12,
+                fontWeight: 700,
+                padding: "10px 0",
+                cursor: "pointer",
+              }}
+            >
+              Annuler
+            </button>
           </div>
-          {userNumber ? (
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, letterSpacing: "0.04em", color: "#111" }}>
-              {userNumber}
-            </div>
-          ) : (
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#999", fontStyle: "italic" }}>
-              Aucun numéro {current?.label} enregistré
-            </div>
-          )}
         </div>
-        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: userNumber ? "#C0392B" : "#888", lineHeight: 1.5 }}>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            {userNumber ? (
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, letterSpacing: "0.04em", color: "#111" }}>
+                {userNumber}
+              </div>
+            ) : (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#999", fontStyle: "italic" }}>
+                Aucun numéro {current?.label} enregistré
+              </div>
+            )}
+          </div>
+          <button
+            onClick={startEditing}
+            style={{
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              border: `1px solid ${current?.accent ?? "#111"}`,
+              borderRadius: 999,
+              background: "#fff",
+              color: current?.accent ?? "#111",
+              fontFamily: "Inter, sans-serif",
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "8px 14px",
+              cursor: "pointer",
+            }}
+          >
+            {userNumber ? <Copy size={13} strokeWidth={2.5} /> : <Plus size={13} strokeWidth={2.5} />}
+            {userNumber ? "Modifier" : "Ajouter"}
+          </button>
+        </div>
+      )}
+
+      {!editing && (
+        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: userNumber ? "#C0392B" : "#888", lineHeight: 1.5, marginTop: 10 }}>
           {userNumber
             ? `⚠ Vos dépôts ${current?.label} ne seront acceptés que s'ils proviennent de ce numéro.`
-            : `Ajoutez votre numéro ${current?.label} à votre profil pour pouvoir déposer avec cette méthode.`}
+            : `Ajoutez votre numéro ${current?.label} pour pouvoir déposer avec cette méthode.`}
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenWithdraw, onOpenNotifications, showToast, onBack }) {
+function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenWithdraw, onOpenNotifications, onUpdateNumber, showToast, onBack }) {
   const [txFilter, setTxFilter] = useState("all");
   const [txQuery, setTxQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -5412,7 +5526,7 @@ function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenW
         </div>
 
         {/* Deposit numbers — MonCash / NatCash tabs */}
-        <DepositNumbersCard currentUser={currentUser} showToast={showToast} />
+        <DepositNumbersCard currentUser={currentUser} onUpdateNumber={onUpdateNumber} showToast={showToast} />
 
         {/* Quick stats */}
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -6217,6 +6331,21 @@ export default function App() {
     showToast && showToast("Déconnecté");
   }
 
+  async function handleUpdateMobileMoneyNumber(method, number) {
+    const metadataKey = method === "moncash" ? "moncash_number" : "natcash_number";
+    const { error } = await supabase.auth.updateUser({ data: { [metadataKey]: number } });
+    if (error) throw error;
+    setCurrentUser((prev) =>
+      prev
+        ? {
+            ...prev,
+            moncashNumber: method === "moncash" ? number : prev.moncashNumber,
+            natcashNumber: method === "natcash" ? number : prev.natcashNumber,
+          }
+        : prev
+    );
+  }
+
   return (
     <>
       <style>{`
@@ -6271,6 +6400,7 @@ export default function App() {
           onOpenDeposit={() => setShowBuyModal(true)}
           onOpenWithdraw={() => setShowWithdrawModal(true)}
           onOpenNotifications={() => setActiveTab("notifications")}
+          onUpdateNumber={handleUpdateMobileMoneyNumber}
           showToast={showToast}
           onBack={() => setActiveTab("home")}
         />
