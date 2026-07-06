@@ -2801,7 +2801,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     <button
                       key={gift.id}
                       onClick={() => {
-                        if (!affordable) { onOpenBuy(); return; }
+                        if (!affordable) { showToast && showToast("Solde insuffisant — rechargez votre portefeuille"); return; }
                         setActiveGift(gift.id);
                         setTimeout(() => {
                           onSendGift(gift, { ...comp, recipientName: selectedParticipant?.name });
@@ -3772,109 +3772,6 @@ function WithdrawModal({ balance, onClose, onWithdraw }) {
             </button>
           </>
         )}
-      </div>
-    </div>
-  );
-}
-
-function GiftModal({ balance, onClose, onSend }) {
-  const [selected, setSelected] = useState(null);
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1200,
-        background: "rgba(17,17,17,0.5)",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-      }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 480,
-          background: "#fff",
-          borderTop: "2px solid #111",
-          padding: 16,
-          maxHeight: "85vh",
-          overflowY: "auto",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
-            Envoyer un cadeau
-          </span>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
-            <X size={20} />
-          </button>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
-          {GIFT_CATALOG.map((gift) => {
-            const active = selected === gift.id;
-            const affordable = balance >= gift.cost;
-            return (
-              <button
-                key={gift.id}
-                disabled={!affordable}
-                onClick={() => setSelected(gift.id)}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 6,
-                  border: `1px solid ${active ? "#111" : "#ddd"}`,
-                  background: active ? "#f7f7f5" : "#fff",
-                  padding: "14px 8px",
-                  cursor: affordable ? "pointer" : "not-allowed",
-                  opacity: affordable ? 1 : 0.4,
-                  transition: "border-color 0.12s, background 0.12s",
-                }}
-              >
-                <span style={{ fontSize: 28, lineHeight: 1 }}>{gift.icon}</span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#333" }}>{gift.name}</span>
-                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: "#888" }}>{gift.cost}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", lineHeight: 1.5, marginBottom: 16 }}>
-          Choisissez une compétition depuis l'accueil pour envoyer ce cadeau à un participant.
-        </div>
-
-        <button
-          disabled={!selected}
-          onClick={() => {
-            const gift = GIFT_CATALOG.find((g) => g.id === selected);
-            onSend(gift);
-          }}
-          style={{
-            width: "100%",
-            border: "none",
-            background: selected ? "#111" : "#ddd",
-            color: "#fff",
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontWeight: 700,
-            fontSize: 14,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            padding: "14px 20px",
-            cursor: selected ? "pointer" : "not-allowed",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-          }}
-        >
-          <Gift size={16} strokeWidth={2.5} />
-          Envoyer{selected ? ` — ${GIFT_CATALOG.find((g) => g.id === selected)?.cost} crédits` : ""}
-        </button>
       </div>
     </div>
   );
@@ -5255,7 +5152,7 @@ function groupTransactionsByDay(list) {
   return groups;
 }
 
-function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenWithdraw, onOpenGift, onOpenNotifications, showToast, onBack }) {
+function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenWithdraw, onOpenNotifications, showToast, onBack }) {
   const [txFilter, setTxFilter] = useState("all");
   const [txQuery, setTxQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -5768,7 +5665,6 @@ export default function App() {
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [lastDepositMethod, setLastDepositMethod] = useState(null);
-  const [showGiftModal, setShowGiftModal] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [registrationComp, setRegistrationComp] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -6052,7 +5948,6 @@ export default function App() {
       { id: `t-${Date.now()}`, type: "gift_sent", label: comp ? `${gift.name} envoyé à ${recipient || "un participant"} — ${comp.title}` : `${gift.name} envoyé`, amount: -gift.cost, date: "À l'instant" },
       ...tx,
     ]);
-    setShowGiftModal(false);
     if (comp) pushNotif({ type: "action", icon: gift.icon, title: `${gift.name} envoyé`, body: `Votre cadeau a été remis à ${recipient || "un participant"} de ${comp.title}.`, compId: comp.id });
     showToast(comp ? `${gift.icon} ${gift.name} → ${recipient || "participant"}` : `${gift.icon} ${gift.name} envoyé`);
   }
@@ -6244,7 +6139,6 @@ export default function App() {
           currentUser={currentUser}
           onOpenDeposit={() => setShowBuyModal(true)}
           onOpenWithdraw={() => setShowWithdrawModal(true)}
-          onOpenGift={() => setShowGiftModal(true)}
           onOpenNotifications={() => setActiveTab("notifications")}
           showToast={showToast}
           onBack={() => setActiveTab("home")}
@@ -6496,9 +6390,6 @@ export default function App() {
       )}
       {showWithdrawModal && (
         <WithdrawModal balance={balance} onClose={() => setShowWithdrawModal(false)} onWithdraw={handleWithdraw} />
-      )}
-      {showGiftModal && (
-        <GiftModal balance={balance} onClose={() => setShowGiftModal(false)} onSend={handleSendGift} />
       )}
       {showRegistrationModal && registrationComp && (
         <RegistrationModal 
