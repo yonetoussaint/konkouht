@@ -5341,10 +5341,15 @@ export default function App() {
   // (set from the edit screen's "Bannière" section); fall back to its first
   // gallery image if no banner was uploaded. A hot competition with neither
   // simply doesn't get a slide — nothing fake ever shows up here.
+  // Home banner slides: any competition with a dedicated banner (set from the
+  // edit screen's "Bannière" section) is shown on the homepage — that's the
+  // whole point of that control. Competitions without a banner fall back to
+  // their first gallery image, but only if they're flagged "hot"; nothing
+  // fake or unintentional ever shows up here.
   const homeBannerSlides = useMemo(() => {
     return NICHES.flatMap((niche) =>
       niche.competitions
-        .filter((c) => c.hot && (compEdits[c.id]?.bannerUrl || compImages[c.id]?.length > 0))
+        .filter((c) => compEdits[c.id]?.bannerUrl || (c.hot && compImages[c.id]?.length > 0))
         .map((c) => ({
           ...c,
           niche,
