@@ -2065,7 +2065,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           {(isRegistration ? [
             { value: liveRegistered, label: "Inscrits" },
             { value: comp.contestants, label: "Places", accent: true },
-            { value: `${registrationFee} gdes`, label: "Frais insc." },
+            { value: `${registrationFee} G`, label: "Frais insc." },
           ] : [
             { value: comp.contestants, label: "Candidats" },
             { value: fmtVotes(voteCount), label: "Votes", accent: true },
@@ -2102,10 +2102,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             background: "#fff",
             borderRadius: 16,
             boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-            padding: "10px 8px",
+            padding: "12px 14px",
             margin: "8px 8px 0",
-            display: "flex", flexDirection: "column", alignItems: "center",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
+            <div style={{
+              fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa",
+              textTransform: "uppercase", letterSpacing: "0.1em",
+              fontWeight: 600,
+            }}>Fin inscr.</div>
             <div style={{
               fontFamily: "'Space Grotesk', sans-serif",
               fontSize: 18, fontWeight: 800,
@@ -2116,11 +2121,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               fontVariantNumeric: "tabular-nums",
               letterSpacing: "-0.02em",
             }}>{fmtCountdown(secondsLeft)}</div>
-            <div style={{
-              fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa",
-              textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 4,
-              fontWeight: 600,
-            }}>Fin inscr.</div>
           </div>
         )}
 
