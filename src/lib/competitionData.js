@@ -18,9 +18,44 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    detectSessionInUrl: true, // required so the app can pick up the session Supabase appends to the URL after a Google redirect
   },
 });
+
+// ── Google sign-in setup (one-time, in the Supabase & Google dashboards) ───
+//
+// The "Continuer avec Google" button in AuthOverlay calls
+// supabase.auth.signInWithOAuth({ provider: "google" }), which redirects the
+// browser to Google, then back to this app with a session in the URL —
+// detectSessionInUrl above picks it up automatically and the app's
+// onAuthStateChange listener (in App()) signs the user in. Nothing else in
+// the app code needs to change; this is dashboard configuration only:
+//
+// 1. Google Cloud Console (console.cloud.google.com):
+//    - Create (or reuse) a project → "APIs & Services" → "OAuth consent
+//      screen" → fill in app name, support email, etc.
+//    - "Credentials" → "Create Credentials" → "OAuth client ID" →
+//      Application type: "Web application".
+//    - Authorized redirect URIs: add
+//        https://<your-project-ref>.supabase.co/auth/v1/callback
+//      (find your project ref in the Supabase dashboard URL or Settings →
+//      API). This is Google's callback, not your own app's URL.
+//    - Save, then copy the generated Client ID and Client Secret.
+//
+// 2. Supabase dashboard → Authentication → Providers → Google:
+//    - Toggle it on, paste the Client ID and Client Secret from step 1,
+//      save.
+//
+// 3. Supabase dashboard → Authentication → URL Configuration:
+//    - Site URL: your app's deployed URL (or http://localhost:5173 etc.
+//      during local dev).
+//    - Redirect URLs: add every URL the app is served from (production
+//      domain, localhost, any preview/staging URLs) — Supabase only
+//      redirects back to URLs on this allow-list after Google sign-in.
+//
+// Until steps 1–3 are done, clicking the button will surface an error from
+// Supabase (e.g. "Unsupported provider") instead of opening Google's
+// sign-in screen.
 
 // ── Required schema (run once in Supabase SQL editor) ──────────────────────
 //
