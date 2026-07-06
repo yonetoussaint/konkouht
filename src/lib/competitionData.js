@@ -72,6 +72,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   prize_amount numeric,
 //   reward_extra text,
 //   rules jsonb,
+//   active boolean not null default true,
 //   updated_by uuid,
 //   updated_at timestamptz not null default now()
 // );
@@ -98,7 +99,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   add column if not exists description text,
 //   add column if not exists prize_amount numeric,
 //   add column if not exists reward_extra text,
-//   add column if not exists rules jsonb;
+//   add column if not exists rules jsonb,
+//   add column if not exists active boolean not null default true;
 //
 // -- Multi-row gallery images per competition (backs the edit modal's grid) --
 // create table competition_images (
@@ -157,7 +159,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // "competitions" table yet).
 //
 // - competition_edits stores one override row per competition id (title,
-//   edition, ends, description, prizeAmount, rewardExtra, rules, banner).
+//   edition, ends, description, prizeAmount, rewardExtra, rules, banner,
+//   active).
 // - competition_images stores zero or more gallery images per competition,
 //   which back the thumbnail grid + "add" tile in the edit modal.
 // The app merges both on top of the seed data wherever a competition is
@@ -169,7 +172,7 @@ const IMAGES_TABLE = "competition_images";
 /* ─── competition_edits ──────────────────────────────────────────────── */
 
 // Returns a map of { [competitionId]: { title, edition, ends, bannerUrl,
-// description, prizeAmount, rewardExtra, rules } }
+// description, prizeAmount, rewardExtra, rules, active } }
 export async function fetchCompetitionEdits() {
   const { data, error } = await supabase.from("competition_edits").select("*");
   if (error) {
@@ -189,6 +192,9 @@ export async function fetchCompetitionEdits() {
       prizeAmount: row.prize_amount,
       rewardExtra: row.reward_extra,
       rules: row.rules || [],
+      // Defaults to true for any row saved before the "active" column
+      // existed, so pre-existing competitions don't turn off on their own.
+      active: row.active !== false,
     };
   });
   return map;
@@ -207,6 +213,7 @@ export async function saveCompetitionEdit({
   prizeAmount,
   rewardExtra,
   rules,
+  active,
   updatedBy,
 }) {
   return supabase
@@ -224,6 +231,7 @@ export async function saveCompetitionEdit({
         prize_amount: prizeAmount,
         reward_extra: rewardExtra,
         rules,
+        active,
         updated_by: updatedBy,
         updated_at: new Date().toISOString(),
       },
