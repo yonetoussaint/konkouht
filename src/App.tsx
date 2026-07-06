@@ -5187,19 +5187,11 @@ function groupTransactionsByDay(list) {
   return groups;
 }
 
-function DepositNumbersCard({ showToast }) {
+function DepositNumbersCard({ currentUser, showToast }) {
   const [method, setMethod] = useState("moncash");
-  const [copied, setCopied] = useState(false);
 
   const current = PAYMENT_METHODS.find((m) => m.id === method);
-  const { number, name } = MOBILE_MONEY_NUMBERS[method];
-
-  function handleCopy() {
-    navigator.clipboard?.writeText(number).catch(() => {});
-    setCopied(true);
-    showToast && showToast("Numéro copié");
-    setTimeout(() => setCopied(false), 2000);
-  }
+  const userNumber = method === "moncash" ? currentUser?.moncashNumber : currentUser?.natcashNumber;
 
   return (
     <div
@@ -5260,42 +5252,26 @@ function DepositNumbersCard({ showToast }) {
         })}
       </div>
 
-      {/* Active number */}
+      {/* User's own number for the active method */}
       <div style={{ padding: "12px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#aaa", marginBottom: 4 }}>
-              Numéro {current?.label} pour les dépôts
-            </div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, letterSpacing: "0.04em", color: "#111" }}>
-              {number}
-            </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", marginTop: 2 }}>
-              {name}
-            </div>
+        <div style={{ minWidth: 0, marginBottom: 8 }}>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#aaa", marginBottom: 4 }}>
+            Votre numéro {current?.label}
           </div>
-          <button
-            onClick={handleCopy}
-            aria-label="Copier le numéro"
-            style={{
-              flexShrink: 0,
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              border: `1px solid ${current?.accent ?? "#111"}`,
-              background: copied ? current?.accent : "#fff",
-              color: copied ? "#fff" : current?.accent,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {copied ? <Check size={15} strokeWidth={2.5} /> : <Copy size={15} strokeWidth={2.5} />}
-          </button>
+          {userNumber ? (
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, letterSpacing: "0.04em", color: "#111" }}>
+              {userNumber}
+            </div>
+          ) : (
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#999", fontStyle: "italic" }}>
+              Aucun numéro {current?.label} enregistré
+            </div>
+          )}
         </div>
-        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#C0392B", lineHeight: 1.5 }}>
-          ⚠ Vos dépôts {current?.label} ne seront acceptés que s'ils proviennent de ce numéro.
+        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: userNumber ? "#C0392B" : "#888", lineHeight: 1.5 }}>
+          {userNumber
+            ? `⚠ Vos dépôts ${current?.label} ne seront acceptés que s'ils proviennent de ce numéro.`
+            : `Ajoutez votre numéro ${current?.label} à votre profil pour pouvoir déposer avec cette méthode.`}
         </div>
       </div>
     </div>
@@ -5436,7 +5412,7 @@ function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenW
         </div>
 
         {/* Deposit numbers — MonCash / NatCash tabs */}
-        <DepositNumbersCard showToast={showToast} />
+        <DepositNumbersCard currentUser={currentUser} showToast={showToast} />
 
         {/* Quick stats */}
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -6194,6 +6170,8 @@ export default function App() {
       fullName,
       isOrganizer: isPlatformOrganizer,
       organizerStatus: isPlatformOrganizer ? "approved" : null,
+      moncashNumber: user.user_metadata?.moncash_number || null,
+      natcashNumber: user.user_metadata?.natcash_number || null,
     });
     setShowAuthOverlay(false);
     if (pendingRegistrationComp) {
