@@ -1,14 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
 // ── Supabase client ──────────────────────────────────────────────────────
-// Vite convention (import.meta.env.VITE_*). If you're on Next.js, swap these
-// for process.env.NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY.
-// If you're on Create React App, use process.env.REACT_APP_SUPABASE_URL / _ANON_KEY.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  // Fails loudly and early instead of silently breaking auth calls later.
   throw new Error(
     "Missing Supabase env vars. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file."
   );
@@ -18,54 +14,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true, // required so the app can pick up the session Supabase appends to the URL after a Google redirect
+    detectSessionInUrl: true,
   },
 });
 
-// ── Google sign-in setup (one-time, in the Supabase & Google dashboards) ───
-//
-// The "Continuer avec Google" button in AuthOverlay calls
-// supabase.auth.signInWithOAuth({ provider: "google" }), which redirects the
-// browser to Google, then back to this app with a session in the URL —
-// detectSessionInUrl above picks it up automatically and the app's
-// onAuthStateChange listener (in App()) signs the user in. Nothing else in
-// the app code needs to change; this is dashboard configuration only:
-//
-// 1. Google Cloud Console (console.cloud.google.com):
-//    - Create (or reuse) a project → "APIs & Services" → "OAuth consent
-//      screen" → fill in app name, support email, etc.
-//    - "Credentials" → "Create Credentials" → "OAuth client ID" →
-//      Application type: "Web application".
-//    - Authorized redirect URIs: add
-//        https://<your-project-ref>.supabase.co/auth/v1/callback
-//      (find your project ref in the Supabase dashboard URL or Settings →
-//      API). This is Google's callback, not your own app's URL.
-//    - Save, then copy the generated Client ID and Client Secret.
-//
-// 2. Supabase dashboard → Authentication → Providers → Google:
-//    - Toggle it on, paste the Client ID and Client Secret from step 1,
-//      save.
-//
-// 3. Supabase dashboard → Authentication → URL Configuration:
-//    - Site URL: your app's deployed URL (or http://localhost:5173 etc.
-//      during local dev).
-//    - Redirect URLs: add every URL the app is served from (production
-//      domain, localhost, any preview/staging URLs) — Supabase only
-//      redirects back to URLs on this allow-list after Google sign-in.
-//
-// Until steps 1–3 are done, clicking the button will surface an error from
-// Supabase (e.g. "Unsupported provider") instead of opening Google's
-// sign-in screen.
-
 // ── Required schema (run once in Supabase SQL editor) ──────────────────────
 //
-// -- Single-row-per-competition overrides (title, edition, description, etc.) --
 // create table competition_edits (
 //   competition_id text primary key,
 //   title text,
 //   edition text,
 //   ends text,
 //   ends_at timestamptz,
+//   phase text,                        -- 'registration' | 'live'  ← NEW
 //   contestants integer,
 //   banner_url text,
 //   description text,
@@ -95,6 +56,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //
 // alter table competition_edits
 //   add column if not exists ends_at timestamptz,
+//   add column if not exists phase text,          -- ← NEW, run this if upgrading
 //   add column if not exists contestants integer,
 //   add column if not exists description text,
 //   add column if not exists prize_amount numeric,
@@ -102,7 +64,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   add column if not exists rules jsonb,
 //   add column if not exists active boolean not null default true;
 //
-// -- Multi-row gallery images per competition (backs the edit modal's grid) --
+// -- Multi-row gallery images per competition --
 // create table competition_images (
 //   id uuid primary key default gen_random_uuid(),
 //   competition_id text not null,
@@ -124,7 +86,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   to authenticated
 //   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
 //
-// -- Shared storage bucket for both banner_url uploads and gallery images --
 // insert into storage.buckets (id, name, public)
 //   values ('competition-images', 'competition-images', true)
 //   on conflict (id) do nothing;
@@ -153,26 +114,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //     bucket_id = 'competition-images'
 //     and (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com'
 //   );
-//
-// ─────────────────────────────────────────────────────────────────────────
-// Competitions themselves are still static seed data in App.jsx (there's no
-// "competitions" table yet).
-//
-// - competition_edits stores one override row per competition id (title,
-//   edition, ends, description, prizeAmount, rewardExtra, rules, banner,
-//   active).
-// - competition_images stores zero or more gallery images per competition,
-//   which back the thumbnail grid + "add" tile in the edit modal.
-// The app merges both on top of the seed data wherever a competition is
-// displayed or opened.
 
 const BUCKET = "competition-images";
 const IMAGES_TABLE = "competition_images";
 
 /* ─── competition_edits ──────────────────────────────────────────────── */
 
-// Returns a map of { [competitionId]: { title, edition, ends, bannerUrl,
-// description, prizeAmount, rewardExtra, rules, active } }
+// Returns a map of { [competitionId]: { title, edition, ends, phase,
+// bannerUrl, description, prizeAmount, rewardExtra, rules, active } }
 export async function fetchCompetitionEdits() {
   const { data, error } = await supabase.from("competition_edits").select("*");
   if (error) {
@@ -186,14 +135,13 @@ export async function fetchCompetitionEdits() {
       edition: row.edition,
       ends: row.ends,
       endsAt: row.ends_at,
+      phase: row.phase, // ← NEW: read the persisted phase back
       contestants: row.contestants,
       bannerUrl: row.banner_url,
       description: row.description,
       prizeAmount: row.prize_amount,
       rewardExtra: row.reward_extra,
       rules: row.rules || [],
-      // Defaults to true for any row saved before the "active" column
-      // existed, so pre-existing competitions don't turn off on their own.
       active: row.active !== false,
     };
   });
@@ -207,6 +155,7 @@ export async function saveCompetitionEdit({
   edition,
   ends,
   endsAt,
+  phase, // ← NEW
   contestants,
   bannerUrl,
   description,
@@ -225,6 +174,7 @@ export async function saveCompetitionEdit({
         edition,
         ends,
         ends_at: endsAt,
+        phase, // ← NEW: actually persist it
         contestants,
         banner_url: bannerUrl,
         description,
@@ -256,16 +206,12 @@ export async function uploadCompetitionImage({ competitionId, file }) {
   }
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  // Cache-bust so the new image shows immediately even if the browser
-  // cached the old file at the same path.
   const url = `${data.publicUrl}?t=${Date.now()}`;
   return { url, error: null };
 }
 
 /* ─── competition_images (gallery) ──────────────────────────────────────── */
 
-// Returns { [competitionId]: [{ id, url, position }, ...] } for every
-// competition that has at least one uploaded image.
 export async function fetchAllCompetitionImages() {
   const { data, error } = await supabase
     .from(IMAGES_TABLE)
@@ -290,9 +236,6 @@ export async function fetchAllCompetitionImages() {
   return grouped;
 }
 
-// Uploads `file` to the storage bucket and records it against the
-// competition (owner-only via RLS). Returns { data, error } where data is
-// { id, url, position }.
 export async function addCompetitionImage({ competitionId, file, position }) {
   const ext = file.name.split(".").pop() || "jpg";
   const filePath = `${competitionId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
@@ -311,7 +254,6 @@ export async function addCompetitionImage({ competitionId, file, position }) {
 
   if (insertError) {
     console.error("addCompetitionImage insert error:", insertError);
-    // Best-effort cleanup so we don't leave an orphaned file in storage.
     await supabase.storage.from(BUCKET).remove([filePath]);
     return { data: null, error: insertError };
   }
@@ -320,7 +262,6 @@ export async function addCompetitionImage({ competitionId, file, position }) {
   return { data: { id: row.id, url: pub.publicUrl, position: row.position }, error: null };
 }
 
-// Deletes an image row and its underlying storage file (owner-only via RLS).
 export async function deleteCompetitionImage(imageId) {
   const { data: row, error: fetchError } = await supabase
     .from(IMAGES_TABLE)
@@ -364,8 +305,6 @@ export async function deleteCompetitionImage(imageId) {
 //   for insert with check (auth.uid() = user_id);
 */
 
-// Fetch every comment (top-level + replies) for a competition and nest
-// replies under their parent, newest top-level comment first.
 export async function fetchComments(competitionId) {
   const { data, error } = await supabase
     .from("comments")
@@ -392,7 +331,6 @@ export async function fetchComments(competitionId) {
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
-// Insert a new top-level comment or reply (pass parentId to reply).
 export async function insertComment({ competitionId, userId, fullName, text, parentId = null }) {
   return supabase
     .from("comments")
@@ -409,9 +347,6 @@ export async function insertComment({ competitionId, userId, fullName, text, par
 
 /* ─── registrations ──────────────────────────────────────────────────────── */
 
-// Returns { [competitionId]: count } across every competition, in one query —
-// the real "inscrits" numbers used app-wide (cards, stat tiles, etc.) instead
-// of any seeded/placeholder count.
 export async function fetchAllRegistrationCounts() {
   const { data, error } = await supabase.from("registrations").select("competition_id");
   if (error) {
@@ -425,8 +360,6 @@ export async function fetchAllRegistrationCounts() {
   return counts;
 }
 
-// Fetch every real signed-up user registered for a given competition,
-// most recent first. Returns [] (not null/throw) if there are none yet.
 export async function fetchRegistrations(competitionId) {
   const { data, error } = await supabase
     .from("registrations")
@@ -441,10 +374,6 @@ export async function fetchRegistrations(competitionId) {
   return data || [];
 }
 
-// Fetch every competition_id the given user has registered for.
-// Returns [] (not null/throw) if there are none yet — used on load/login
-// to rebuild the client-side "registeredCompIds" set from the source of
-// truth in the database (so a refresh doesn't lose registration state).
 export async function fetchUserRegistrations(userId) {
   const { data, error } = await supabase
     .from("registrations")
@@ -458,9 +387,6 @@ export async function fetchUserRegistrations(userId) {
   return data || [];
 }
 
-// Insert a real registration row. Returns { data, error } so the caller can
-// decide how to surface a failure (e.g. "already registered" from the
-// unique constraint).
 export async function insertRegistration({ competitionId, userId, fullName, fee }) {
   const { data, error } = await supabase
     .from("registrations")
