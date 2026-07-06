@@ -4901,7 +4901,7 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
    where this is mounted in App()). Lists every competition across every
    niche in one place so nothing needs to be found by browsing the homepage
    first — tapping a row jumps straight into that competition's edit panel. */
-function AdminPage({ niches, onOpenComp, onBack }) {
+function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
   const [query, setQuery] = useState("");
 
   const allEntries = niches.flatMap((niche) =>
@@ -4923,6 +4923,7 @@ function AdminPage({ niches, onOpenComp, onBack }) {
   const totalComps = allEntries.length;
   const liveCount = allEntries.filter((e) => e.comp.phase === "live").length;
   const registrationCount = allEntries.filter((e) => e.comp.phase === "registration").length;
+  const offCount = allEntries.filter((e) => !e.comp.active).length;
   const totalRegistered = allEntries.reduce((sum, e) => sum + (e.comp.registeredCount || 0), 0);
 
   return (
@@ -4953,12 +4954,13 @@ function AdminPage({ niches, onOpenComp, onBack }) {
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 18 }}>
           {[
             { label: "Total", value: totalComps },
             { label: "En direct", value: liveCount },
             { label: "Inscriptions", value: registrationCount },
             { label: "Inscrits", value: totalRegistered },
+            { label: "Désactivées", value: offCount },
           ].map((stat) => (
             <div key={stat.label} style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
               <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#111" }}>
@@ -5008,6 +5010,7 @@ function AdminPage({ niches, onOpenComp, onBack }) {
                     display: "flex", alignItems: "center", gap: 12,
                     background: "#fff", border: "1px solid #e0e0e0", borderRadius: 14,
                     padding: 10, cursor: "pointer",
+                    opacity: comp.active ? 1 : 0.55,
                   }}
                 >
                   <div style={{
@@ -5034,6 +5037,15 @@ function AdminPage({ niches, onOpenComp, onBack }) {
                       }}>
                         {niche.label}
                       </span>
+                      {!comp.active && (
+                        <span style={{
+                          fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                          color: "#fff", background: "#c0392b",
+                          borderRadius: 999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: "0.03em",
+                        }}>
+                          Désactivée
+                        </span>
+                      )}
                       <span style={{
                         fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
                         color: comp.phase === "live" ? "#00B894" : "#888",
@@ -5055,6 +5067,26 @@ function AdminPage({ niches, onOpenComp, onBack }) {
                       inscrits
                     </span>
                   </div>
+
+                  {/* On/off switch — stopPropagation so it doesn't also open the edit panel */}
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); onToggleActive(comp); }}
+                    aria-label={comp.active ? "Désactiver la compétition" : "Activer la compétition"}
+                    style={{
+                      flexShrink: 0,
+                      width: 40, height: 24, borderRadius: 999,
+                      border: "none", cursor: "pointer", padding: 3,
+                      background: comp.active ? "#00B894" : "#ddd",
+                      display: "flex", alignItems: "center",
+                      justifyContent: comp.active ? "flex-end" : "flex-start",
+                      transition: "background 0.15s ease",
+                    }}
+                  >
+                    <div style={{
+                      width: 18, height: 18, borderRadius: "50%",
+                      background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                    }} />
+                  </button>
 
                   <ChevronRight size={16} color="#ccc" />
                 </div>
@@ -5637,7 +5669,29 @@ export default function App() {
       // seeded placeholder — 0 until someone actually registers.
       registeredCount: compRegCounts[comp.id] ?? 0,
       images: compImages[comp.id] || [],
+      // Competitions are active unless an admin explicitly switched them off.
+      active: e.active !== false,
     };
+  }
+
+  // Quick on/off toggle from the admin list — merges into whatever edits
+  // already exist for this competition so title/description/etc. already
+  // saved aren't clobbered.
+  async function handleToggleCompActive(comp) {
+    const nextActive = !comp.active;
+    const edits = { ...(compEdits[comp.id] || {}), active: nextActive };
+    const { error } = await saveCompetitionEdit({
+      competitionId: comp.id,
+      ...edits,
+      updatedBy: currentUser?.id,
+    });
+    if (error) {
+      console.error("saveCompetitionEdit error:", error);
+      showToast("Impossible de mettre à jour le statut.");
+      return;
+    }
+    setCompEdits((prev) => ({ ...prev, [comp.id]: edits }));
+    showToast(nextActive ? "Compétition activée." : "Compétition désactivée — masquée de l'accueil.");
   }
 
   // Admin page → jump straight to a competition's edit panel, regardless of
@@ -5660,6 +5714,7 @@ export default function App() {
   const homeBannerSlides = useMemo(() => {
     return NICHES.flatMap((niche) =>
       niche.competitions
+        .filter((c) => compEdits[c.id]?.active !== false)
         .filter((c) => compEdits[c.id]?.bannerUrl || (c.hot && compImages[c.id]?.length > 0))
         .map((c) => ({
           ...c,
@@ -5750,7 +5805,7 @@ export default function App() {
     function scheduleNext() {
       const delay = 40000 + Math.random() * 20000;
       return setTimeout(() => {
-        const hotComps = NICHES.flatMap((n) => n.competitions.filter((c) => c.hot));
+        const hotComps = NICHES.flatMap((n) => n.competitions.filter((c) => c.hot && compEdits[c.id]?.active !== false));
         const comp = hotComps[Math.floor(Math.random() * hotComps.length)];
         const template = ACTIVITY_NOTIFS[Math.floor(Math.random() * ACTIVITY_NOTIFS.length)];
         pushNotif(template(comp));
@@ -5786,7 +5841,8 @@ export default function App() {
       : NICHES.filter((n) => n.label === activeFilter)
   ).map((niche) => ({
     ...niche,
-    competitions: niche.competitions.map(withEdits),
+    // Homepage only ever shows competitions the admin has left switched on.
+    competitions: niche.competitions.map(withEdits).filter((c) => c.active),
   }));
 
   // Full, unfiltered list (every niche, every competition) — powers the
@@ -6071,6 +6127,7 @@ export default function App() {
         <AdminPage
           niches={allNichesWithEdits}
           onOpenComp={handleAdminOpenComp}
+          onToggleActive={handleToggleCompActive}
           onBack={() => setActiveTab("account")}
         />
       ) : (
