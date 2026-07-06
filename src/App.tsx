@@ -5839,11 +5839,15 @@ export default function App() {
     activeFilter === "Tous"
       ? NICHES
       : NICHES.filter((n) => n.label === activeFilter)
-  ).map((niche) => ({
-    ...niche,
-    // Homepage only ever shows competitions the admin has left switched on.
-    competitions: niche.competitions.map(withEdits).filter((c) => c.active),
-  }));
+  )
+    .map((niche) => ({
+      ...niche,
+      // Homepage only ever shows competitions the admin has left switched on.
+      competitions: niche.competitions.map(withEdits).filter((c) => c.active),
+    }))
+    // A niche whose every competition is switched off shouldn't appear
+    // as an empty section on the homepage at all.
+    .filter((niche) => niche.competitions.length > 0);
 
   // Full, unfiltered list (every niche, every competition) — powers the
   // admin page so the platform organizer can find and edit anything
