@@ -1286,10 +1286,10 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
 
 /* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
 
-function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onAddImage, onRemoveImage }) {
+function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onAddImage, onRemoveImage, startInEditMode = false }) {
   const isRegistration = comp.phase === "registration";
   const isOwnCompetition = currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(startInEditMode);
   const [editTitle, setEditTitle] = useState(comp.title);
   const [editEdition, setEditEdition] = useState(comp.edition);
   const [editEnds, setEditEnds] = useState(comp.ends);
@@ -4767,7 +4767,7 @@ function MyCompetitionsPage({ registeredCompIds, followedCompIds, onOpen }) {
   );
 }
 
-function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLogout }) {
+function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLogout, onOpenAdmin }) {
   return (
     <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
       <header
@@ -4814,6 +4814,27 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
             )}
           </div>
         </div>
+
+        {/* Admin entry point — only ever rendered for the platform organizer */}
+        {currentUser?.isOrganizer && (
+          <button
+            onClick={onOpenAdmin}
+            style={{
+              width: "100%",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              border: "1px solid #6C63FF", background: "#f0ebff", color: "#6C63FF",
+              padding: "14px 16px", marginBottom: 12, cursor: "pointer",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <BadgeCheck size={18} strokeWidth={2.5} />
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700 }}>
+                Panneau d'administration
+              </span>
+            </div>
+            <ChevronRight size={16} />
+          </button>
+        )}
 
         {/* Credits chip — drills into wallet */}
         <button
@@ -4869,6 +4890,178 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── ADMIN PAGE ────────────────────────────────────────────────────────
+   Only ever rendered for the platform organizer (yonetoussaint25@gmail.com,
+   gated both by the entry point in AccountPage and by the isOrganizer check
+   where this is mounted in App()). Lists every competition across every
+   niche in one place so nothing needs to be found by browsing the homepage
+   first — tapping a row jumps straight into that competition's edit panel. */
+function AdminPage({ niches, onOpenComp, onBack }) {
+  const [query, setQuery] = useState("");
+
+  const allEntries = niches.flatMap((niche) =>
+    niche.competitions.map((comp) => ({ comp, niche }))
+  );
+
+  const filteredEntries = query.trim() === ""
+    ? allEntries
+    : allEntries.filter(({ comp }) =>
+        comp.title.toLowerCase().includes(query.toLowerCase()) ||
+        comp.edition.toLowerCase().includes(query.toLowerCase()) ||
+        comp.niche === undefined ? false : true
+      ).filter(({ comp, niche }) =>
+        comp.title.toLowerCase().includes(query.toLowerCase()) ||
+        comp.edition.toLowerCase().includes(query.toLowerCase()) ||
+        niche.label.toLowerCase().includes(query.toLowerCase())
+      );
+
+  const totalComps = allEntries.length;
+  const liveCount = allEntries.filter((e) => e.comp.phase === "live").length;
+  const registrationCount = allEntries.filter((e) => e.comp.phase === "registration").length;
+  const totalRegistered = allEntries.reduce((sum, e) => sum + (e.comp.registeredCount || 0), 0);
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
+      <header
+        style={{
+          borderBottom: "1px solid #e0e0e0",
+          background: "#fff",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          padding: "16px 16px",
+          display: "flex", alignItems: "center", gap: 12,
+        }}
+      >
+        <button onClick={onBack} style={{ border: "none", background: "none", cursor: "pointer", padding: 4, display: "flex" }}>
+          <ArrowLeft size={20} color="#333" />
+        </button>
+        <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+            Administration
+          </span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
+            Gérer toutes les compétitions
+          </span>
+        </div>
+      </header>
+
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
+        {/* Stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18 }}>
+          {[
+            { label: "Total", value: totalComps },
+            { label: "En direct", value: liveCount },
+            { label: "Inscriptions", value: registrationCount },
+            { label: "Inscrits", value: totalRegistered },
+          ].map((stat) => (
+            <div key={stat.label} style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#111" }}>
+                {stat.value.toLocaleString("fr-FR")}
+              </div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 2 }}>
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div style={{ position: "relative", marginBottom: 14 }}>
+          <Search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#bbb" }} />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher une compétition…"
+            style={{
+              width: "100%", boxSizing: "border-box",
+              border: "1px solid #e0e0e0", borderRadius: 999,
+              padding: "10px 14px 10px 36px",
+              fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333",
+              background: "#fff", outline: "none",
+            }}
+          />
+        </div>
+
+        {/* List */}
+        {filteredEntries.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 8px" }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
+              Aucune compétition ne correspond à « {query} »
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {filteredEntries.map(({ comp, niche }) => {
+              const thumb = comp.bannerUrl || comp.images?.[0]?.url;
+              return (
+                <div
+                  key={comp.id}
+                  onClick={() => onOpenComp(comp, niche)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    background: "#fff", border: "1px solid #e0e0e0", borderRadius: 14,
+                    padding: 10, cursor: "pointer",
+                  }}
+                >
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 10, flexShrink: 0,
+                    overflow: "hidden", background: "#f0f0f0",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {thumb ? (
+                      <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    ) : (
+                      <ImageIcon size={18} color="#ccc" />
+                    )}
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {comp.title}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{
+                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                        color: "#fff", background: niche.accent,
+                        borderRadius: 999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: "0.03em",
+                      }}>
+                        {niche.label}
+                      </span>
+                      <span style={{
+                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                        color: comp.phase === "live" ? "#00B894" : "#888",
+                        textTransform: "uppercase", letterSpacing: "0.03em",
+                      }}>
+                        {comp.phase === "live" ? "● En direct" : "Inscriptions"}
+                      </span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb" }}>
+                        {comp.edition}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, flexShrink: 0 }}>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#333" }}>
+                      {(comp.registeredCount || 0).toLocaleString("fr-FR")}
+                    </span>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                      inscrits
+                    </span>
+                  </div>
+
+                  <ChevronRight size={16} color="#ccc" />
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -5423,6 +5616,7 @@ export default function App() {
   const [compEdits, setCompEdits] = useState({});
   const [compImages, setCompImages] = useState({});
   const [compRegCounts, setCompRegCounts] = useState({});
+  const [compEditIntent, setCompEditIntent] = useState(false);
 
   useEffect(() => {
     fetchCompetitionEdits().then(setCompEdits);
@@ -5444,6 +5638,14 @@ export default function App() {
       registeredCount: compRegCounts[comp.id] ?? 0,
       images: compImages[comp.id] || [],
     };
+  }
+
+  // Admin page → jump straight to a competition's edit panel, regardless of
+  // the homepage's current filter/search state. `comp` here already has
+  // edits/images applied (it comes from allNichesWithEdits).
+  function handleAdminOpenComp(comp, niche) {
+    setCompEditIntent(true);
+    setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label });
   }
 
   // Home banner slides: prefer each competition's dedicated banner image
@@ -5583,6 +5785,14 @@ export default function App() {
       ? NICHES
       : NICHES.filter((n) => n.label === activeFilter)
   ).map((niche) => ({
+    ...niche,
+    competitions: niche.competitions.map(withEdits),
+  }));
+
+  // Full, unfiltered list (every niche, every competition) — powers the
+  // admin page so the platform organizer can find and edit anything
+  // regardless of the homepage's current niche filter or search query.
+  const allNichesWithEdits = NICHES.map((niche) => ({
     ...niche,
     competitions: niche.competitions.map(withEdits),
   }));
@@ -5839,14 +6049,14 @@ export default function App() {
           onMarkRead={markRead}
           onOpen={(compId) => {
             const result = findCompWithNiche(compId);
-            if (result) setSelectedComp(withEdits({ ...result.comp, accent: result.niche.accent, niche: result.niche.label }));
+            if (result) { setCompEditIntent(false); setSelectedComp(withEdits({ ...result.comp, accent: result.niche.accent, niche: result.niche.label })); }
           }}
         />
       ) : activeTab === "mycomps" ? (
         <MyCompetitionsPage
           registeredCompIds={registeredCompIds}
           followedCompIds={followedCompIds}
-          onOpen={(comp) => setSelectedComp(withEdits(comp))}
+          onOpen={(comp) => { setCompEditIntent(false); setSelectedComp(withEdits(comp)); }}
         />
       ) : activeTab === "account" ? (
         <AccountPage
@@ -5855,6 +6065,13 @@ export default function App() {
           onOpenWallet={() => setActiveTab("wallet")}
           onLoginRequest={() => setShowAuthOverlay(true)}
           onLogout={handleLogout}
+          onOpenAdmin={() => setActiveTab("admin")}
+        />
+      ) : activeTab === "admin" && currentUser?.isOrganizer ? (
+        <AdminPage
+          niches={allNichesWithEdits}
+          onOpenComp={handleAdminOpenComp}
+          onBack={() => setActiveTab("account")}
         />
       ) : (
       <div style={{ minHeight: "100vh", background: "#fff", paddingBottom: 64 }}>
@@ -6054,7 +6271,7 @@ export default function App() {
             <NicheRow
               key={niche.id}
               niche={niche}
-              onOpen={(comp) => setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label })}
+              onOpen={(comp) => { setCompEditIntent(false); setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label }); }}
               onRegister={(comp) => requestRegistration({ ...comp, accent: niche.accent, niche: niche.label })}
               registeredCompIds={registeredCompIds}
               currentUser={currentUser}
@@ -6107,7 +6324,7 @@ export default function App() {
       {selectedComp && (
         <CompetitionBoard
           comp={selectedComp}
-          onClose={() => setSelectedComp(null)}
+          onClose={() => { setSelectedComp(null); setCompEditIntent(false); }}
           balance={balance}
           onSendGift={handleSendGift}
           onOpenBuy={() => setShowBuyModal(true)}
@@ -6121,6 +6338,7 @@ export default function App() {
           onEditComp={handleEditComp}
           onAddImage={handleAddCompImage}
           onRemoveImage={handleRemoveCompImage}
+          startInEditMode={compEditIntent}
         />
       )}
     </>
