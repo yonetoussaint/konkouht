@@ -3793,11 +3793,10 @@ function GiftModal({ balance, onClose, onSend }) {
   );
 }
 
-// Note: the Google/Facebook buttons below call supabase.auth.signInWithOAuth,
-// which requires those providers to be enabled (with their client ID/secret)
-// under Authentication → Providers in the Supabase dashboard, and the app's
-// URL added to the allowed redirect list. Until that's configured, clicking
-// them will surface an error from Supabase rather than silently failing.
+// Note: the Google button below calls supabase.auth.signInWithOAuth, which
+// requires the Google provider to be enabled (with a client ID/secret) under
+// Authentication → Providers in the Supabase dashboard, and the app's URL
+// added to the allowed redirect list. See the setup steps in competitionData.js.
 function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
   const [mode, setMode] = useState("login"); // "login" | "signup" | "reset"
   const [email, setEmail] = useState("");
@@ -4137,38 +4136,21 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
               <div style={{ flex: 1, height: 1, background: "#eee" }} />
             </div>
 
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => handleOAuth("google")}
-                disabled={!!oauthProvider}
-                style={{
-                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  border: "1px solid #e0e0e0", borderRadius: 12, background: "#fff",
-                  padding: "11px 0", cursor: oauthProvider ? "default" : "pointer",
-                  opacity: oauthProvider && oauthProvider !== "google" ? 0.5 : 1,
-                }}
-              >
-                <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#4285F4", color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>G</span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333" }}>
-                  {oauthProvider === "google" ? "…" : "Google"}
-                </span>
-              </button>
-              <button
-                onClick={() => handleOAuth("facebook")}
-                disabled={!!oauthProvider}
-                style={{
-                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  border: "1px solid #e0e0e0", borderRadius: 12, background: "#fff",
-                  padding: "11px 0", cursor: oauthProvider ? "default" : "pointer",
-                  opacity: oauthProvider && oauthProvider !== "facebook" ? 0.5 : 1,
-                }}
-              >
-                <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#1877F2", color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>f</span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333" }}>
-                  {oauthProvider === "facebook" ? "…" : "Facebook"}
-                </span>
-              </button>
-            </div>
+            <button
+              onClick={() => handleOAuth("google")}
+              disabled={!!oauthProvider}
+              style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                border: "1px solid #e0e0e0", borderRadius: 999, background: "#fff",
+                padding: "13px 0", cursor: oauthProvider ? "default" : "pointer",
+                opacity: oauthProvider ? 0.6 : 1,
+              }}
+            >
+              <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#4285F4", color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>G</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: "#333" }}>
+                {oauthProvider === "google" ? "Redirection…" : "Continuer avec Google"}
+              </span>
+            </button>
           </>
         )}
       </div>
