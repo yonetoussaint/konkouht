@@ -177,6 +177,14 @@ function hashStr(str) {
   return h;
 }
 
+// Registration fee for a competition, in credits. Organizers can set an
+// explicit comp.fee from the edit screen; competitions that never had one
+// set fall back to a deterministic per-competition default so old data
+// keeps behaving the same as before this was editable.
+function getRegistrationFee(comp) {
+  return comp.fee != null ? comp.fee : 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
+}
+
 function isValidEmail(str) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str.trim());
 }
@@ -1288,6 +1296,7 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
 
 function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onAddImage, onRemoveImage, startInEditMode = false }) {
   const isRegistration = comp.phase === "registration";
+  const registrationFee = getRegistrationFee(comp);
   const isOwnCompetition = currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
   const [showEditModal, setShowEditModal] = useState(startInEditMode);
   const [editTitle, setEditTitle] = useState(comp.title);
@@ -1298,6 +1307,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [editEndsAt, setEditEndsAt] = useState(toDatetimeLocal(comp.endsAt));
   const [editDescription, setEditDescription] = useState(comp.description || "");
   const [editPrizeAmount, setEditPrizeAmount] = useState(comp.prizeAmount != null ? String(comp.prizeAmount) : "");
+  const [editFee, setEditFee] = useState(String(registrationFee));
   const [editRewardExtra, setEditRewardExtra] = useState(comp.rewardExtra || "");
   const [editRules, setEditRules] = useState((comp.rules || []).join("\n"));
   const [editBannerUrl, setEditBannerUrl] = useState(comp.bannerUrl || null);
@@ -1315,10 +1325,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setEditEndsAt(toDatetimeLocal(comp.endsAt));
     setEditDescription(comp.description || "");
     setEditPrizeAmount(comp.prizeAmount != null ? String(comp.prizeAmount) : "");
+    setEditFee(String(getRegistrationFee(comp)));
     setEditRewardExtra(comp.rewardExtra || "");
     setEditRules((comp.rules || []).join("\n"));
     setEditBannerUrl(comp.bannerUrl || null);
-  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.endsAt, comp.description, comp.prizeAmount, comp.rewardExtra, comp.rules, comp.bannerUrl]);
+  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.endsAt, comp.description, comp.prizeAmount, comp.fee, comp.rewardExtra, comp.rules, comp.bannerUrl]);
 
   async function handleAddImageFile(e) {
     const file = e.target.files?.[0];
@@ -1347,6 +1358,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setSavingEdit(true);
     const trimmedPrize = editPrizeAmount.trim();
     const trimmedContestants = editContestants.trim();
+    const trimmedFee = editFee.trim();
     const result = await onEditComp?.({
       competitionId: comp.id,
       title: editTitle.trim() || comp.title,
@@ -1357,6 +1369,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       endsAt: editEndsAt ? new Date(editEndsAt).toISOString() : null,
       description: editDescription.trim(),
       prizeAmount: trimmedPrize === "" ? null : Number(trimmedPrize),
+      fee: trimmedFee === "" ? null : Math.max(0, parseInt(trimmedFee, 10) || 0),
       rewardExtra: editRewardExtra.trim(),
       rules: editRules.split("\n").map((r) => r.trim()).filter(Boolean),
       bannerUrl: editBannerUrl,
@@ -2052,7 +2065,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           {(isRegistration ? [
             { value: liveRegistered, label: "Inscrits" },
             { value: comp.contestants, label: "Places", accent: true },
-            { value: fmtCountdown(secondsLeft), label: "Fin inscr.", hot: comp.hot, timer: true },
+            { value: `${registrationFee} gdes`, label: "Frais insc." },
           ] : [
             { value: comp.contestants, label: "Candidats" },
             { value: fmtVotes(voteCount), label: "Votes", accent: true },
@@ -2083,6 +2096,33 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </div>
           ))}
         </div>
+
+        {isRegistration && (
+          <div style={{
+            background: "#fff",
+            borderRadius: 16,
+            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+            padding: "10px 8px",
+            margin: "8px 8px 0",
+            display: "flex", flexDirection: "column", alignItems: "center",
+          }}>
+            <div style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: 18, fontWeight: 800,
+              color: comp.hot ? "#c0392b" : "#111",
+              lineHeight: 1,
+              transition: "opacity 0.12s",
+              opacity: tickFlash ? 1 : 0.6,
+              fontVariantNumeric: "tabular-nums",
+              letterSpacing: "-0.02em",
+            }}>{fmtCountdown(secondsLeft)}</div>
+            <div style={{
+              fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa",
+              textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 4,
+              fontWeight: 600,
+            }}>Fin inscr.</div>
+          </div>
+        )}
 
         {/* ── COUNTDOWN BAR ── */}
         <div style={{
@@ -3090,6 +3130,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               value={editContestants}
               onChange={(e) => setEditContestants(e.target.value)}
               placeholder="ex: 20"
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+            />
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Frais d'inscription (gourdes)</label>
+            <input
+              type="number"
+              min="0"
+              value={editFee}
+              onChange={(e) => setEditFee(e.target.value)}
+              placeholder="ex: 100"
               style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
             />
 
@@ -4214,8 +4264,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
   const [pinError, setPinError] = useState(false);
   const [registerError, setRegisterError] = useState("");
 
-  // Deterministic registration fee per competition, in credits
-  const fee = 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
+  const fee = getRegistrationFee(comp);
   const canAfford = balance >= fee;
 
   function handleContinue() {
@@ -5759,6 +5808,7 @@ export default function App() {
       bannerUrl: e.bannerUrl != null ? e.bannerUrl : comp.bannerUrl,
       description: e.description != null ? e.description : comp.description,
       prizeAmount: e.prizeAmount != null ? e.prizeAmount : comp.prizeAmount,
+      fee: e.fee != null ? e.fee : comp.fee,
       rewardExtra: e.rewardExtra != null ? e.rewardExtra : comp.rewardExtra,
       rules: (e.rules && e.rules.length > 0) ? e.rules : comp.rules,
       // Real count from the registrations table always wins over any
@@ -5821,8 +5871,8 @@ export default function App() {
     ).slice(0, 6);
   }, [compImages, compEdits]);
 
-  async function handleEditComp({ competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, rewardExtra, rules, bannerUrl }) {
-    const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, rewardExtra, rules, bannerUrl };
+  async function handleEditComp({ competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl }) {
+    const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl };
     const { data, error } = await saveCompetitionEdit({
       competitionId,
       ...edits,
@@ -5839,6 +5889,7 @@ export default function App() {
       ...edits,
       contestants: edits.contestants != null ? edits.contestants : prev.contestants,
       endsAt: edits.endsAt != null ? edits.endsAt : prev.endsAt,
+      fee: edits.fee != null ? edits.fee : prev.fee,
     } : prev));
     showToast("Compétition mise à jour.");
     return { success: true, data };
