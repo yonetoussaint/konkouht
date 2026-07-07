@@ -5393,27 +5393,30 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
   );
 }
 
-function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenWithdraw, onOpenNotifications, onUpdateNumber, showToast, onBack }) {
+function WalletPage({ balance, transactions, currentUser, isAuthenticated, onOpenDeposit, onOpenWithdraw, onOpenNotifications, onUpdateNumber, onRequireAuth, showToast, onBack }) {
   const [txFilter, setTxFilter] = useState("all");
   const [txQuery, setTxQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
 
-  const filteredTx = transactions
+  const effectiveBalance = isAuthenticated ? balance : 0;
+  const effectiveTransactions = isAuthenticated ? transactions : [];
+
+  const filteredTx = effectiveTransactions
     .filter((t) => txFilter === "all" || t.type === txFilter)
     .filter((t) => !txQuery.trim() || t.label.toLowerCase().includes(txQuery.trim().toLowerCase()));
   const groups = groupTransactionsByDay(filteredTx);
 
-  const totalDeposited = transactions
+  const totalDeposited = effectiveTransactions
     .filter((t) => t.type === "deposit")
     .reduce((sum, t) => sum + t.amount, 0);
-  const totalGifted = transactions
+  const totalGifted = effectiveTransactions
     .filter((t) => t.type === "gift_sent")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-  const dayChange = transactions
+  const dayChange = effectiveTransactions
     .filter((t) => t.date && t.date.startsWith("Aujourd'hui"))
     .reduce((sum, t) => sum + t.amount, 0);
-  const priorBalance = balance - dayChange;
+  const priorBalance = effectiveBalance - dayChange;
   const dayChangePct = priorBalance !== 0 ? (dayChange / Math.abs(priorBalance)) * 100 : 0;
 
 
@@ -5515,7 +5518,7 @@ function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenW
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
             <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(26px, 7vw, 32px)", fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.02em", color: "#111", wordBreak: "break-all" }}>
-              {balance.toLocaleString("fr-FR")}
+              {effectiveBalance.toLocaleString("fr-FR")}
             </span>
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#999" }}>
               HTG
@@ -5527,7 +5530,40 @@ function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenW
         </div>
 
         {/* Deposit numbers — MonCash / NatCash tabs */}
-        <DepositNumbersCard currentUser={currentUser} onUpdateNumber={onUpdateNumber} showToast={showToast} />
+        {isAuthenticated ? (
+          <DepositNumbersCard currentUser={currentUser} onUpdateNumber={onUpdateNumber} showToast={showToast} />
+        ) : (
+          <div
+            style={{
+              border: "1px solid #e0e0e0",
+              background: "#fafafa",
+              borderRadius: 14,
+              marginBottom: 16,
+              padding: 16,
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#666", marginBottom: 10 }}>
+              Connectez-vous pour voir votre portefeuille et gérer vos numéros de dépôt.
+            </div>
+            <button
+              onClick={onRequireAuth}
+              style={{
+                border: "none",
+                borderRadius: 999,
+                background: "#111",
+                color: "#fff",
+                fontFamily: "Inter, sans-serif",
+                fontSize: 12,
+                fontWeight: 700,
+                padding: "10px 20px",
+                cursor: "pointer",
+              }}
+            >
+              Se connecter
+            </button>
+          </div>
+        )}
 
         {/* Quick stats */}
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -5559,8 +5595,8 @@ function WalletPage({ balance, transactions, currentUser, onOpenDeposit, onOpenW
           }}
         >
           {[
-            { label: "Déposer", icon: Plus, onClick: onOpenDeposit, filled: true },
-            { label: "Retirer", icon: ArrowUpRight, onClick: onOpenWithdraw, filled: false },
+            { label: "Déposer", icon: Plus, onClick: isAuthenticated ? onOpenDeposit : onRequireAuth, filled: true },
+            { label: "Retirer", icon: ArrowUpRight, onClick: isAuthenticated ? onOpenWithdraw : onRequireAuth, filled: false },
           ].map((action) => (
             <button
               key={action.label}
@@ -6405,10 +6441,12 @@ export default function App() {
           balance={balance}
           transactions={transactions}
           currentUser={currentUser}
+          isAuthenticated={isAuthenticated}
           onOpenDeposit={() => setShowBuyModal(true)}
           onOpenWithdraw={() => setShowWithdrawModal(true)}
           onOpenNotifications={() => setActiveTab("notifications")}
           onUpdateNumber={handleUpdateMobileMoneyNumber}
+          onRequireAuth={() => setShowAuthOverlay(true)}
           showToast={showToast}
           onBack={() => setActiveTab("home")}
         />
