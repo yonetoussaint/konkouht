@@ -6444,29 +6444,50 @@ export default function App() {
 
   async function handleUpdateMobileMoneyNumber(method, number) {
     const metadataKey = method === "moncash" ? "moncash_number" : "natcash_number";
+    const verifiedKey = method === "moncash" ? "moncash_verified" : "natcash_verified";
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData?.session) {
       throw new Error("Votre session a expiré. Reconnectez-vous et réessayez.");
     }
+    const userId = sessionData.session.user.id;
+
     const { error } = await supabase.auth.updateUser({ data: { [metadataKey]: number } });
     if (error) {
       console.error("supabase.auth.updateUser error:", error);
       throw error;
     }
+
+    // If the number is actually changing, it goes back to unverified —
+    // it only becomes verified again once a real deposit arrives from it.
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select(metadataKey)
+      .eq("id", userId)
+      .maybeSingle();
+    const numberChanged = existingProfile?.[metadataKey] !== number;
+
     // Also mirror into `profiles` so the SMS server can match this number
     // with a simple queryable column (auth.users metadata isn't queryable
     // from the backend without the admin API).
-    const { error: profileError } = await supabase.from("profiles").upsert(
-      {
-        id: sessionData.session.user.id,
-        user_id: sessionData.session.user.id, // keep both in sync while it exists
-        [metadataKey]: number,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "id" }
-    );
+    const patch = {
+      id: userId,
+      user_id: userId, // keep both in sync while it exists
+      [metadataKey]: number,
+      updated_at: new Date().toISOString(),
+    };
+    if (numberChanged) {
+      patch[verifiedKey] = false;
+    }
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert(patch, { onConflict: "id" });
     if (profileError) {
       console.error("profiles upsert error:", profileError);
+      if (profileError.code === "23505") {
+        throw new Error("Ce numéro est déjà vérifié et lié à un autre compte.");
+      }
+      throw profileError;
     }
     setCurrentUser((prev) =>
       prev
