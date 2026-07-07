@@ -5215,7 +5215,8 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
       showToast && showToast(`Numéro ${current?.label} enregistré`);
       setEditing(false);
     } catch (err) {
-      showToast && showToast("Erreur lors de l'enregistrement");
+      console.error("Failed to save mobile money number:", err);
+      showToast && showToast(err?.message ? `Erreur : ${err.message}` : "Erreur lors de l'enregistrement");
     } finally {
       setSaving(false);
     }
@@ -6333,8 +6334,15 @@ export default function App() {
 
   async function handleUpdateMobileMoneyNumber(method, number) {
     const metadataKey = method === "moncash" ? "moncash_number" : "natcash_number";
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      throw new Error("Votre session a expiré. Reconnectez-vous et réessayez.");
+    }
     const { error } = await supabase.auth.updateUser({ data: { [metadataKey]: number } });
-    if (error) throw error;
+    if (error) {
+      console.error("supabase.auth.updateUser error:", error);
+      throw error;
+    }
     setCurrentUser((prev) =>
       prev
         ? {
