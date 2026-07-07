@@ -5940,8 +5940,8 @@ export default function App() {
   const [bannerIndex, setBannerIndex] = useState(0);
   const [activeTab, setActiveTab] = useState("home");
   const [selectedComp, setSelectedComp] = useState(null);
-  const [balance, setBalance] = useState(425);
-  const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
+  const [balance, setBalance] = useState(0);
+  const [transactions, setTransactions] = useState([]);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [lastDepositMethod, setLastDepositMethod] = useState(null);
@@ -5949,6 +5949,80 @@ export default function App() {
   const [registrationComp, setRegistrationComp] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+
+  // Load real balance + transaction history from Supabase once authenticated.
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    let cancelled = false;
+
+    supabase
+      .from("wallet_balances")
+      .select("balance")
+      .eq("user_id", currentUser.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) console.error("wallet_balances fetch error:", error);
+        setBalance(data?.balance || 0);
+      });
+
+    supabase
+      .from("wallet_transactions")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(50)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.error("wallet_transactions fetch error:", error);
+          return;
+        }
+        setTransactions(
+          (data || []).map((t) => ({
+            id: t.id,
+            type: t.type,
+            label: t.label,
+            amount: Number(t.amount),
+            date: new Date(t.created_at).toLocaleString("fr-FR", {
+              day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+            }),
+          }))
+        );
+      });
+
+    return () => { cancelled = true; };
+  }, [currentUser?.id]);
+
+  // Real-time: the moment the SMS server auto-credits a matching deposit,
+  // push it straight into the wallet — no user action, no page refresh.
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const channel = supabase
+      .channel(`wallet-${currentUser.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "wallet_transactions", filter: `user_id=eq.${currentUser.id}` },
+        (payload) => {
+          const t = payload.new;
+          const amt = Number(t.amount);
+          setBalance((b) => b + amt);
+          setTransactions((tx) => {
+            if (tx.some((existing) => existing.id === t.id)) return tx;
+            return [
+              { id: t.id, type: t.type, label: t.label, amount: amt, date: "À l'instant" },
+              ...tx,
+            ];
+          });
+          if (amt > 0) {
+            showToast(`+${amt.toLocaleString("fr-FR")} HTG crédités`);
+            pushNotif({ type: "action", icon: "💰", title: "Dépôt reçu", body: t.label });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser?.id]);
   const [registeredCompIds, setRegisteredCompIds] = useState(() => new Set());
   const [followedCompIds, setFollowedCompIds] = useState(() => new Set());
   const [showAuthOverlay, setShowAuthOverlay] = useState(false);
@@ -6378,6 +6452,17 @@ export default function App() {
     if (error) {
       console.error("supabase.auth.updateUser error:", error);
       throw error;
+    }
+    // Also mirror into `profiles` so the SMS server can match this number
+    // with a simple queryable column (auth.users metadata isn't queryable
+    // from the backend without the admin API).
+    const { error: profileError } = await supabase.from("profiles").upsert({
+      user_id: sessionData.session.user.id,
+      [metadataKey]: number,
+      updated_at: new Date().toISOString(),
+    });
+    if (profileError) {
+      console.error("profiles upsert error:", profileError);
     }
     setCurrentUser((prev) =>
       prev
