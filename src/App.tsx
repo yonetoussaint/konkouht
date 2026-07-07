@@ -6456,11 +6456,15 @@ export default function App() {
     // Also mirror into `profiles` so the SMS server can match this number
     // with a simple queryable column (auth.users metadata isn't queryable
     // from the backend without the admin API).
-    const { error: profileError } = await supabase.from("profiles").upsert({
-      user_id: sessionData.session.user.id,
-      [metadataKey]: number,
-      updated_at: new Date().toISOString(),
-    });
+    const { error: profileError } = await supabase.from("profiles").upsert(
+      {
+        id: sessionData.session.user.id,
+        user_id: sessionData.session.user.id, // keep both in sync while it exists
+        [metadataKey]: number,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
     if (profileError) {
       console.error("profiles upsert error:", profileError);
     }
