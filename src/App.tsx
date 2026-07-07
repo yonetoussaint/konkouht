@@ -5195,6 +5195,7 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
 
   const current = PAYMENT_METHODS.find((m) => m.id === method);
   const userNumber = method === "moncash" ? currentUser?.moncashNumber : currentUser?.natcashNumber;
+  const isVerified = method === "moncash" ? currentUser?.moncashVerified : currentUser?.natcashVerified;
 
   function startEditing() {
     setInputValue(userNumber || "");
@@ -5349,8 +5350,28 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div style={{ minWidth: 0 }}>
             {userNumber ? (
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, letterSpacing: "0.04em", color: "#111" }}>
-                {userNumber}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, letterSpacing: "0.04em", color: "#111" }}>
+                  {userNumber}
+                </div>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                    padding: "3px 8px",
+                    borderRadius: 999,
+                    background: isVerified ? "#E8F7EE" : "#FFF6E5",
+                    color: isVerified ? "#1E8449" : "#B7791F",
+                  }}
+                >
+                  {isVerified ? "✓ Vérifié" : "⏳ En attente"}
+                </span>
               </div>
             ) : (
               <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#999", fontStyle: "italic" }}>
@@ -5385,7 +5406,9 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
       {!editing && (
         <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: userNumber ? "#C0392B" : "#888", lineHeight: 1.5, marginTop: 10 }}>
           {userNumber
-            ? `⚠ Vos dépôts ${current?.label} ne seront acceptés que s'ils proviennent de ce numéro.`
+            ? isVerified
+              ? `⚠ Vos dépôts ${current?.label} ne seront acceptés que s'ils proviennent de ce numéro.`
+              : `Ce numéro sera vérifié automatiquement dès votre premier dépôt réel ${current?.label} depuis celui-ci.`
             : `Ajoutez votre numéro ${current?.label} pour pouvoir déposer avec cette méthode.`}
         </div>
       )}
@@ -6382,12 +6405,19 @@ export default function App() {
     }
   }
 
-  function handleAuthenticated(user) {
+  async function handleAuthenticated(user) {
     const rawName = user.user_metadata?.full_name;
     const isPlatformOrganizer = user.email?.toLowerCase() === PLATFORM_ORGANIZER_EMAIL.toLowerCase();
     const fullName = isPlatformOrganizer
       ? PLATFORM_ORGANIZER_SIGLE
       : rawName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("moncash_verified, natcash_verified")
+      .eq("id", user.id)
+      .maybeSingle();
+
     setIsAuthenticated(true);
     setCurrentUser({
       id: user.id,
@@ -6397,6 +6427,8 @@ export default function App() {
       organizerStatus: isPlatformOrganizer ? "approved" : null,
       moncashNumber: user.user_metadata?.moncash_number || null,
       natcashNumber: user.user_metadata?.natcash_number || null,
+      moncashVerified: !!profileRow?.moncash_verified,
+      natcashVerified: !!profileRow?.natcash_verified,
     });
     setShowAuthOverlay(false);
     if (pendingRegistrationComp) {
@@ -6495,6 +6527,8 @@ export default function App() {
             ...prev,
             moncashNumber: method === "moncash" ? number : prev.moncashNumber,
             natcashNumber: method === "natcash" ? number : prev.natcashNumber,
+            moncashVerified: method === "moncash" && numberChanged ? false : prev.moncashVerified,
+            natcashVerified: method === "natcash" && numberChanged ? false : prev.natcashVerified,
           }
         : prev
     );
