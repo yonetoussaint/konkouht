@@ -2787,15 +2787,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   {giftStep === "participant" ? "Choisir un participant" : `Cadeau pour ${selectedParticipant?.name}`}
                 </span>
               </div>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>
-                💳 {balance.toLocaleString("fr-FR")} crédits
+              <span style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>
+                <Wallet size={14} strokeWidth={2.5} color={accent} />
+                {balance.toLocaleString("fr-FR")} HTG
               </span>
             </div>
 
             {/* Step 1 — pick participant */}
             {giftStep === "participant" && (
               <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
-                {buildParticipants(comp).slice(0, Math.min(comp.contestants, 15)).map((p) => (
+                {participantsFull.slice(0, Math.min(comp.contestants, 15)).map((p) => (
                   <button
                     key={p.index}
                     onClick={() => { setSelectedParticipant(p); setGiftStep("gift"); }}
