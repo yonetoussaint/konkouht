@@ -162,6 +162,14 @@ function AnimatedGiftIcon({ emoji, size = 40 }) {
   );
 }
 
+// Gift "points" (shown on the icon) are not the same as the actual HTG
+// price charged — points are a display/prestige number, the real cost in
+// gourdes is derived from this rate (e.g. 50 points -> 45 HTG at 0.9).
+const POINTS_TO_HTG_RATE = 0.9;
+function giftPriceHTG(gift) {
+  return Math.round(gift.cost * POINTS_TO_HTG_RATE);
+}
+
 const GIFT_CATALOG = [
   { id: "g1", name: "Applaudissement", icon: "👏", cost: 10 },
   { id: "g2", name: "Pouce levé", icon: "👍", cost: 10 },
@@ -1525,8 +1533,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [showGiftBar, setShowGiftBar] = useState(false);
   const [activeGift, setActiveGift] = useState(null);
-  const [giftStep, setGiftStep] = useState("participant"); // "participant" | "gift"
+  const [giftStep, setGiftStep] = useState("participant"); // "participant" | "gift" | "confirm"
   const [selectedParticipant, setSelectedParticipant] = useState(null);
+  const [selectedGift, setSelectedGift] = useState(null);
+  const [giftConfirmPhase, setGiftConfirmPhase] = useState("summary"); // "summary" | "pin"
+  const [giftPin, setGiftPin] = useState("");
+  const [giftPinError, setGiftPinError] = useState(false);
+  const [giftSubmitting, setGiftSubmitting] = useState(false);
   const [liveLog, setLiveLog] = useState([]);
   const [giftLeaderboard, setGiftLeaderboard] = useState(() =>
     // Seed a few fake top donors
@@ -2838,16 +2851,39 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             {/* Header row */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {giftStep === "gift" && (
+                {(giftStep === "gift" || giftStep === "confirm") && (
                   <button
-                    onClick={() => { setGiftStep("participant"); setSelectedParticipant(null); }}
+                    onClick={() => {
+                      if (giftStep === "confirm") {
+                        if (giftConfirmPhase === "pin") {
+                          setGiftConfirmPhase("summary");
+                          setGiftPin("");
+                          setGiftPinError(false);
+                          return;
+                        }
+                        setGiftStep("gift");
+                        setSelectedGift(null);
+                        setGiftConfirmPhase("summary");
+                        setGiftPin("");
+                        setGiftPinError(false);
+                        return;
+                      }
+                      setGiftStep("participant");
+                      setSelectedParticipant(null);
+                    }}
                     style={{ border: "none", background: "none", cursor: "pointer", color: "#888", padding: 0, lineHeight: 0, display: "flex", alignItems: "center" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/></svg>
                   </button>
                 )}
                 <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                  {giftStep === "participant" ? "Choisir un participant" : `Cadeau pour ${selectedParticipant?.name}`}
+                  {giftStep === "participant"
+                    ? "Choisir un participant"
+                    : giftStep === "gift"
+                    ? `Cadeau pour ${selectedParticipant?.name}`
+                    : giftConfirmPhase === "pin"
+                    ? "Code PIN"
+                    : "Confirmer le paiement"}
                 </span>
               </div>
               <span style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>
@@ -2904,7 +2940,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 }}
               >
                 {GIFT_CATALOG.map((gift) => {
-                  const affordable = balance >= gift.cost;
+                  const price = giftPriceHTG(gift);
+                  const affordable = balance >= price;
                   const isSelected = activeGift === gift.id;
                   return (
                     <button
@@ -2912,43 +2949,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       onClick={() => {
                         if (!affordable) { showToast && showToast("Solde insuffisant — rechargez votre portefeuille"); return; }
                         setActiveGift(gift.id);
-                        setTimeout(() => {
-                          onSendGift(gift, { ...comp, recipientName: selectedParticipant?.name });
-                          setVoteCount((v) => v + 1);
-                          if (selectedParticipant) {
-                            addGiftToParticipant(selectedParticipant.index, gift.cost);
-                            setLiveVotes((prev) => ({
-                              ...prev,
-                              [selectedParticipant.index]: (prev[selectedParticipant.index] ?? selectedParticipant.votes) + 1,
-                            }));
-                          }
-                          setVoted(true);
-                          setShowGiftBar(false);
-                          setActiveGift(null);
-                          setGiftStep("participant");
-                          // Inject gift into live log
-                          setLiveLog((prev) => {
-                            const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, ago: "À l'instant", gift };
-                            return [entry, ...prev.slice(0, 4)].map((e, i) => ({
-                              ...e,
-                              ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
-                            }));
-                          });
-                          // Update gift leaderboard — bump current user or add them
-                          if (currentUser) {
-                            setGiftLeaderboard((prev) => {
-                              const exists = prev.find((d) => d.isMe);
-                              let updated;
-                              if (exists) {
-                                updated = prev.map((d) => d.isMe ? { ...d, totalSpent: d.totalSpent + gift.cost, giftCount: d.giftCount + 1, topGift: gift.icon } : d);
-                              } else {
-                                updated = [...prev, { id: "me", index: 0, name: currentUser.fullName, totalSpent: gift.cost, giftCount: 1, topGift: gift.icon, isMe: true }];
-                              }
-                              return updated.sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 10);
-                            });
-                          }
-                          setSelectedParticipant(null);
-                        }, 300);
+                        setSelectedGift(gift);
+                        setGiftConfirmPhase("summary");
+                        setGiftPin("");
+                        setGiftPinError(false);
+                        setGiftStep("confirm");
                       }}
                       style={{
                         display: "flex", flexDirection: "column",
@@ -2977,6 +2982,144 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     </button>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Step 3 — confirm cost + pay + PIN */}
+            {giftStep === "confirm" && selectedGift && (
+              <div style={{ padding: "4px 2px 8px" }}>
+                {giftConfirmPhase === "summary" && (
+                  <>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "10px 0 18px" }}>
+                      <AnimatedGiftIcon emoji={selectedGift.icon} size={72} />
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#666" }}>
+                        {selectedGift.name}
+                      </span>
+                    </div>
+
+                    <div style={{ border: "1px solid #eee", borderRadius: 12, padding: "14px 16px", marginBottom: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888" }}>Destinataire</span>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>{selectedParticipant?.name}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888" }}>Points</span>
+                        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>{selectedGift.cost.toLocaleString("fr-FR")} pts</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 10, borderTop: "1px solid #f0f0f0" }}>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>Total à payer</span>
+                        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 800, color: accent }}>
+                          {giftPriceHTG(selectedGift).toLocaleString("fr-FR")} HTG
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setGiftConfirmPhase("pin")}
+                      style={{
+                        width: "100%", border: "none", borderRadius: 10,
+                        background: accent, color: "#fff",
+                        fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 700,
+                        padding: "13px 0", cursor: "pointer",
+                      }}
+                    >
+                      Payer {giftPriceHTG(selectedGift).toLocaleString("fr-FR")} HTG
+                    </button>
+                  </>
+                )}
+
+                {giftConfirmPhase === "pin" && (
+                  <>
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#666", lineHeight: 1.5, marginBottom: 14, textAlign: "center" }}>
+                      Entrez votre code PIN à 4 chiffres pour confirmer le paiement de{" "}
+                      <strong style={{ color: "#111" }}>{giftPriceHTG(selectedGift).toLocaleString("fr-FR")} HTG</strong>.
+                    </p>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={4}
+                      autoFocus
+                      value={giftPin}
+                      onChange={(e) => {
+                        setGiftPin(e.target.value.replace(/\D/g, "").slice(0, 4));
+                        setGiftPinError(false);
+                      }}
+                      style={{
+                        width: "100%", textAlign: "center", letterSpacing: "0.5em",
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 700,
+                        border: `1px solid ${giftPinError ? "#E74C3C" : "#ddd"}`,
+                        borderRadius: 10, padding: "12px 0", marginBottom: 8,
+                        outline: "none",
+                      }}
+                    />
+                    {giftPinError && (
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#E74C3C", textAlign: "center", marginBottom: 8 }}>
+                        Code PIN incorrect. Réessayez.
+                      </div>
+                    )}
+                    <button
+                      disabled={giftPin.length !== 4 || giftSubmitting}
+                      onClick={() => {
+                        if (giftPin.length !== 4) return;
+                        if (giftPin !== WALLET_PIN) {
+                          setGiftPinError(true);
+                          return;
+                        }
+                        const gift = selectedGift;
+                        setGiftSubmitting(true);
+                        onSendGift(gift, { ...comp, recipientName: selectedParticipant?.name, priceHTG: giftPriceHTG(gift) });
+                        setVoteCount((v) => v + 1);
+                        if (selectedParticipant) {
+                          addGiftToParticipant(selectedParticipant.index, gift.cost);
+                          setLiveVotes((prev) => ({
+                            ...prev,
+                            [selectedParticipant.index]: (prev[selectedParticipant.index] ?? selectedParticipant.votes) + 1,
+                          }));
+                        }
+                        setVoted(true);
+                        // Inject gift into live log
+                        setLiveLog((prev) => {
+                          const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, ago: "À l'instant", gift };
+                          return [entry, ...prev.slice(0, 4)].map((e, i) => ({
+                            ...e,
+                            ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
+                          }));
+                        });
+                        // Update gift leaderboard — bump current user or add them
+                        if (currentUser) {
+                          setGiftLeaderboard((prev) => {
+                            const exists = prev.find((d) => d.isMe);
+                            let updated;
+                            if (exists) {
+                              updated = prev.map((d) => d.isMe ? { ...d, totalSpent: d.totalSpent + gift.cost, giftCount: d.giftCount + 1, topGift: gift.icon } : d);
+                            } else {
+                              updated = [...prev, { id: "me", index: 0, name: currentUser.fullName, totalSpent: gift.cost, giftCount: 1, topGift: gift.icon, isMe: true }];
+                            }
+                            return updated.sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 10);
+                          });
+                        }
+                        setGiftSubmitting(false);
+                        setShowGiftBar(false);
+                        setActiveGift(null);
+                        setSelectedGift(null);
+                        setGiftStep("participant");
+                        setGiftConfirmPhase("summary");
+                        setGiftPin("");
+                        setSelectedParticipant(null);
+                      }}
+                      style={{
+                        width: "100%", border: "none", borderRadius: 10,
+                        background: giftPin.length === 4 && !giftSubmitting ? "#111" : "#ccc",
+                        color: "#fff",
+                        fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 700,
+                        padding: "13px 0",
+                        cursor: giftPin.length === 4 && !giftSubmitting ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      {giftSubmitting ? "Traitement..." : "Confirmer le paiement"}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -3089,7 +3232,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               <button
                 onClick={() => {
                   setShowGiftBar((v) => {
-                    if (v) { setGiftStep("participant"); setSelectedParticipant(null); }
+                    if (v) {
+                      setGiftStep("participant");
+                      setSelectedParticipant(null);
+                      setSelectedGift(null);
+                      setGiftConfirmPhase("summary");
+                      setGiftPin("");
+                      setGiftPinError(false);
+                    }
                     return !v;
                   });
                 }}
@@ -6398,14 +6548,15 @@ export default function App() {
 
 
   function handleSendGift(gift, comp) {
-    if (balance < gift.cost) {
+    const price = comp?.priceHTG ?? gift.cost;
+    if (balance < price) {
       showToast("Crédits insuffisants");
       return;
     }
-    setBalance((b) => b - gift.cost);
+    setBalance((b) => b - price);
     const recipient = comp?.recipientName;
     setTransactions((tx) => [
-      { id: `t-${Date.now()}`, type: "gift_sent", label: comp ? `${gift.name} envoyé à ${recipient || "un participant"} — ${comp.title}` : `${gift.name} envoyé`, amount: -gift.cost, date: "À l'instant" },
+      { id: `t-${Date.now()}`, type: "gift_sent", label: comp ? `${gift.name} envoyé à ${recipient || "un participant"} — ${comp.title}` : `${gift.name} envoyé`, amount: -price, date: "À l'instant" },
       ...tx,
     ]);
     if (comp) pushNotif({ type: "action", icon: gift.icon, title: `${gift.name} envoyé`, body: `Votre cadeau a été remis à ${recipient || "un participant"} de ${comp.title}.`, compId: comp.id });
