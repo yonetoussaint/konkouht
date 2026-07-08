@@ -3237,7 +3237,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         onClick={() => setDonorTab("all")}
                         style={{
                           flexShrink: 0, border: "none", borderRadius: 999,
-                          padding: "7px 14px",
+                          padding: "7px 16px",
                           background: donorTab === "all" ? "#111" : "#f0f0f0",
                           color: donorTab === "all" ? "#fff" : "#666",
                           fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
@@ -3253,15 +3253,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                           style={{
                             flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
                             border: "none", borderRadius: 999,
-                            padding: "7px 14px",
+                            padding: "6px 14px",
                             background: donorTab === grp.name ? "#111" : "#f0f0f0",
                             color: donorTab === grp.name ? "#fff" : "#666",
-                            fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+                            fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 800,
                             cursor: "pointer", whiteSpace: "nowrap",
                           }}
                         >
-                          <span style={{ fontSize: 14 }}>{grp.icon}</span>
-                          {grp.name} × {grp.count}
+                          <span style={{ fontSize: 16 }}>{grp.icon}</span>
+                          × {grp.count}
                         </button>
                       ))}
                     </div>
