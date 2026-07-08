@@ -2886,10 +2886,26 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     : "Confirmer le paiement"}
                 </span>
               </div>
-              <span style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>
-                <Wallet size={14} strokeWidth={2.5} color={accent} />
-                {balance.toLocaleString("fr-FR")} HTG
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>
+                  <Wallet size={14} strokeWidth={2.5} color={accent} />
+                  {balance.toLocaleString("fr-FR")} HTG
+                </span>
+                <button
+                  onClick={() => {
+                    setShowGiftBar(false);
+                    setGiftStep("participant");
+                    setSelectedParticipant(null);
+                    setSelectedGift(null);
+                    setGiftConfirmPhase("summary");
+                    setGiftPin("");
+                    setGiftPinError(false);
+                  }}
+                  style={{ border: "none", background: "#f5f5f5", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", color: "#666", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                >
+                  <X size={14} strokeWidth={2.5} />
+                </button>
+              </div>
             </div>
 
             {/* Step 1 — pick participant */}
@@ -3127,6 +3143,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       )}
 
       {/* ── STICKY FOOTER CTA ── */}
+      {!showGiftBar && (
       <div style={{
         position: "fixed", bottom: 8, left: 8, right: 8,
         background: "#fff",
@@ -3281,6 +3298,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           )}
         </div>
       </div>
+      )}
 
       {showAll && (
         <ParticipantListOverlay comp={comp} onClose={() => setShowAll(false)} />
