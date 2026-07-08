@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { Player } from "@lottiefiles/react-lottie-player";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
@@ -122,6 +123,44 @@ const PAYMENT_METHODS = [
   { id: "natcash", label: "NatCash", accent: "#0072CE" },
   { id: "card", label: "Carte bancaire", accent: "#111111" },
 ];
+
+// Turns an emoji character into a Google Noto "Animated Emoji" Lottie URL.
+// Google hosts a Lottie JSON per emoji at this CDN path, keyed by the
+// emoji's Unicode codepoint(s) joined with "_" (variation selector FE0F is
+// dropped from the filename).
+function notoAnimatedEmojiUrl(emoji) {
+  const codepoints = Array.from(emoji)
+    .map((ch) => ch.codePointAt(0).toString(16))
+    .filter((cp) => cp !== "fe0f");
+  return `https://fonts.gstatic.com/s/e/notoemoji/latest/${codepoints.join("_")}/lottie.json`;
+}
+
+// Renders a gift's icon as an animated sticker instead of a static emoji
+// glyph. Falls back to the plain emoji if the animation fails to load
+// (e.g. no matching Noto animation exists for that emoji, or offline).
+function AnimatedGiftIcon({ emoji, size = 40 }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <span style={{ fontSize: size * 0.7, lineHeight: 1, display: "block" }}>
+        {emoji}
+      </span>
+    );
+  }
+
+  return (
+    <Player
+      src={notoAnimatedEmojiUrl(emoji)}
+      autoplay
+      loop
+      onEvent={(event) => {
+        if (event === "error") setFailed(true);
+      }}
+      style={{ width: size, height: size }}
+    />
+  );
+}
 
 const GIFT_CATALOG = [
   { id: "g1", name: "Applaudissement", icon: "👏", cost: 10 },
@@ -2924,15 +2963,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         transform: isSelected ? "scale(1.08)" : "scale(1)",
                       }}
                     >
-                      <span
+                      <div
                         style={{
-                          fontSize: 28,
-                          lineHeight: 1,
                           filter: isSelected ? `drop-shadow(0 0 6px ${accent}88)` : "none",
+                          transition: "filter 0.15s",
                         }}
                       >
-                        {gift.icon}
-                      </span>
+                        <AnimatedGiftIcon emoji={gift.icon} size={44} />
+                      </div>
                       <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: affordable ? accent : "#bbb" }}>
                         {gift.cost.toLocaleString("fr-FR")}
                       </span>
