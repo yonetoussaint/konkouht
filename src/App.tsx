@@ -2841,10 +2841,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       {/* ── GIFT TRAY (slides up, only for voting phase) ── */}
       {!isRegistration && showGiftBar && (
         <div style={{
-          position: "fixed", bottom: 64, left: 0, right: 0,
+          position: "fixed", bottom: 0, left: 0, right: 0,
           background: "#fff",
           borderTop: `2px solid ${accent}`,
-          zIndex: 1001, padding: "14px 16px 10px",
+          zIndex: 1001, padding: "14px 16px calc(10px + env(safe-area-inset-bottom, 0px))",
           boxShadow: "0 -4px 24px rgba(0,0,0,0.1)",
         }}>
           <div style={{ maxWidth: 800, margin: "0 auto" }}>
