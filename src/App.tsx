@@ -1667,7 +1667,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     }));
   }
   const ranked = seedRanked.map((p) => ({ ...p, votes: liveVotes[p.index] ?? p.votes }));
-  const topVotes = Math.max(...ranked.map((p) => p.votes), 1);
+  const topPoints = Math.max(...ranked.map((p) => p.points), 1);
   const leader = ranked[0];
   const leaderGiftCredits = leader ? (liveGiftCredits[leader.index] ?? 0) : 0;
   const winnerPrize = basePrizePool + Math.round(leaderGiftCredits * WINNER_GIFT_SHARE);
@@ -2436,59 +2436,73 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </div>
 
             {ranked.map((p, rank) => {
+              const pct = Math.max(8, Math.round((p.points / topPoints) * 100));
               return (
                 <div key={p.index} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "10px 0",
+                  padding: "12px 0 22px",
                   borderBottom: rank < 4 ? "1px solid #f0f0f0" : "none",
                 }}>
-                  {/* Rank */}
-                  <div style={{
-                    width: 24, flexShrink: 0, textAlign: "center",
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: rank === 0 ? 18 : 13,
-                    fontWeight: 700,
-                    color: rank === 0 ? accent : "#ccc",
-                  }}>
-                    {rank === 0 ? "🥇" : rank + 1}
-                  </div>
-                  {/* Avatar */}
-                  <div style={{
-                    width: 32, height: 32, borderRadius: "50%",
-                    flexShrink: 0, overflow: "hidden",
-                    border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                  }}>
-                    <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                  </div>
-                  {/* Name + bar */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      marginBottom: 4,
-                    }}>
+                  {/* Rank + name + points */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                      <span style={{
+                        width: 20, flexShrink: 0, textAlign: "center",
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        fontSize: rank === 0 ? 16 : 12, fontWeight: 700,
+                        color: rank === 0 ? accent : "#ccc",
+                      }}>
+                        {rank === 0 ? "🥇" : rank + 1}
+                      </span>
                       <span style={{
                         fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
                         color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                       }}>{p.name}</span>
-                      <span style={{
-                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                        color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 8,
-                        transition: "color 0.3s",
-                      }}>{fmtVotes(p.votes)}</span>
                     </div>
-                    {/* Animated progress bar */}
-                    <div style={{ height: 4, background: "#f0f0f0", width: "100%" }}>
+                    <span style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                      color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 8,
+                      transition: "color 0.3s",
+                    }}>
+                      🪙 {p.points.toLocaleString("fr-FR")}
+                    </span>
+                  </div>
+
+                  {/* Race track */}
+                  <div style={{ position: "relative", height: 26, marginLeft: 28, marginRight: 4 }}>
+                    <div style={{
+                      position: "absolute", top: "50%", left: 0, right: 22,
+                      height: 3, background: "#f0f0f0", borderRadius: 2,
+                      transform: "translateY(-50%)",
+                    }}>
                       <div
                         className="bar-shimmer"
                         style={{
-                          height: "100%",
-                          width: `${Math.round((p.votes / topVotes) * 100)}%`,
+                          height: "100%", borderRadius: 2,
+                          width: `${pct}%`,
                           background: rank === 0
                             ? `linear-gradient(90deg, ${accent} 0%, ${accent}cc 50%, ${accent} 100%)`
                             : "linear-gradient(90deg, #ddd 0%, #eee 50%, #ddd 100%)",
-                          transition: "width 0.5s cubic-bezier(0.4,0,0.2,1)",
+                          transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)",
                         }}
                       />
+                    </div>
+                    {/* Finish line */}
+                    <span style={{ position: "absolute", right: -2, top: "50%", transform: "translateY(-50%)", fontSize: 13 }}>🏁</span>
+                    {/* Runner — avatar positioned along the track by points */}
+                    <div
+                      style={{
+                        position: "absolute", top: "50%",
+                        left: `calc(${pct}% - 13px)`,
+                        transform: "translateY(-50%)",
+                        transition: "left 0.6s cubic-bezier(0.4,0,0.2,1)",
+                        width: 26, height: 26, borderRadius: "50%",
+                        overflow: "hidden", background: "#fff",
+                        border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                        boxShadow: "0 1px 5px rgba(0,0,0,0.18)",
+                      }}
+                    >
+                      <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     </div>
                   </div>
                 </div>
