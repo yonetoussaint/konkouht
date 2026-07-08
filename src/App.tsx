@@ -125,11 +125,35 @@ const PAYMENT_METHODS = [
 
 const GIFT_CATALOG = [
   { id: "g1", name: "Applaudissement", icon: "👏", cost: 10 },
-  { id: "g2", name: "Étoile", icon: "⭐", cost: 25 },
-  { id: "g3", name: "Flamme", icon: "🔥", cost: 50 },
-  { id: "g4", name: "Couronne", icon: "👑", cost: 150 },
-  { id: "g5", name: "Trophée", icon: "🏆", cost: 300 },
-  { id: "g6", name: "Diamant", icon: "💎", cost: 750 },
+  { id: "g2", name: "Pouce levé", icon: "👍", cost: 10 },
+  { id: "g3", name: "Cœur", icon: "❤️", cost: 15 },
+  { id: "g4", name: "Étoile", icon: "⭐", cost: 25 },
+  { id: "g5", name: "Ballon", icon: "🎈", cost: 25 },
+  { id: "g6", name: "Fleur", icon: "💐", cost: 30 },
+  { id: "g7", name: "Flamme", icon: "🔥", cost: 50 },
+  { id: "g8", name: "Éclair", icon: "⚡", cost: 50 },
+  { id: "g9", name: "Papillon", icon: "🦋", cost: 60 },
+  { id: "g10", name: "Confettis", icon: "🎉", cost: 75 },
+  { id: "g11", name: "Cadeau", icon: "🎁", cost: 100 },
+  { id: "g12", name: "Micro", icon: "🎤", cost: 100 },
+  { id: "g13", name: "Danse", icon: "💃", cost: 120 },
+  { id: "g14", name: "Couronne", icon: "👑", cost: 150 },
+  { id: "g15", name: "Feu d'artifice", icon: "🎆", cost: 180 },
+  { id: "g16", name: "Guitare", icon: "🎸", cost: 200 },
+  { id: "g17", name: "Arc-en-ciel", icon: "🌈", cost: 220 },
+  { id: "g18", name: "Médaille d'or", icon: "🥇", cost: 250 },
+  { id: "g19", name: "Trophée", icon: "🏆", cost: 300 },
+  { id: "g20", name: "Champagne", icon: "🍾", cost: 350 },
+  { id: "g21", name: "Fusée", icon: "🚀", cost: 400 },
+  { id: "g22", name: "Sirène", icon: "🧜‍♀️", cost: 450 },
+  { id: "g23", name: "Voiture de sport", icon: "🏎️", cost: 500 },
+  { id: "g24", name: "Lion", icon: "🦁", cost: 600 },
+  { id: "g25", name: "Diamant", icon: "💎", cost: 750 },
+  { id: "g26", name: "Yacht", icon: "🛥️", cost: 900 },
+  { id: "g27", name: "Château", icon: "🏰", cost: 1200 },
+  { id: "g28", name: "Avion privé", icon: "✈️", cost: 1500 },
+  { id: "g29", name: "Fusée spatiale", icon: "🛸", cost: 2000 },
+  { id: "g30", name: "Couronne royale", icon: "👑", cost: 3000 },
 ];
 
 const INITIAL_TRANSACTIONS = [
@@ -2829,7 +2853,17 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
             {/* Step 2 — pick gift */}
             {giftStep === "gift" && (
-              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 12,
+                  maxHeight: "44vh",
+                  overflowY: "auto",
+                  paddingBottom: 8,
+                  paddingRight: 2,
+                }}
+              >
                 {GIFT_CATALOG.map((gift) => {
                   const affordable = balance >= gift.cost;
                   const isSelected = activeGift === gift.id;
@@ -2878,20 +2912,30 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         }, 300);
                       }}
                       style={{
-                        flexShrink: 0, width: 72,
                         display: "flex", flexDirection: "column",
-                        alignItems: "center", gap: 4,
-                        border: `1px solid ${isSelected ? accent : "#ddd"}`,
-                        background: isSelected ? `${accent}15` : affordable ? "#fff" : "#f7f7f5",
-                        padding: "10px 4px",
+                        alignItems: "center", justifyContent: "center", gap: 4,
+                        border: "none",
+                        background: isSelected ? `${accent}12` : "transparent",
+                        borderRadius: 10,
+                        padding: "10px 2px",
                         cursor: affordable ? "pointer" : "default",
-                        opacity: affordable ? 1 : 0.4,
-                        transition: "border-color 0.15s, background 0.15s",
+                        opacity: affordable ? 1 : 0.35,
+                        transition: "background 0.15s, transform 0.15s",
+                        transform: isSelected ? "scale(1.08)" : "scale(1)",
                       }}
                     >
-                      <span style={{ fontSize: 22, lineHeight: 1 }}>{gift.icon}</span>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#555", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.06em" }}>{gift.name}</span>
-                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: affordable ? accent : "#bbb" }}>{gift.cost}</span>
+                      <span
+                        style={{
+                          fontSize: 28,
+                          lineHeight: 1,
+                          filter: isSelected ? `drop-shadow(0 0 6px ${accent}88)` : "none",
+                        }}
+                      >
+                        {gift.icon}
+                      </span>
+                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: affordable ? accent : "#bbb" }}>
+                        {gift.cost.toLocaleString("fr-FR")}
+                      </span>
                     </button>
                   );
                 })}
