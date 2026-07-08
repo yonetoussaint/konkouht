@@ -1542,17 +1542,32 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [giftSubmitting, setGiftSubmitting] = useState(false);
   const [liveLog, setLiveLog] = useState([]);
   const [giftLeaderboard, setGiftLeaderboard] = useState(() =>
-    // Seed a few fake top donors
-    Array.from({ length: 5 }, (_, i) => ({
-      id: `donor-${i}`,
-      index: 30 + i,
-      name: fakeName(30 + i),
-      totalSpent: Math.round(3000 - i * 500 + (i * 137) % 300),
-      giftCount: 8 - i,
-      topGift: ["💎", "🔥", "🌟", "🎁", "❤️"][i],
-      isMe: false,
-    }))
+    // Seed a few fake top donors, each with a fake list of individual gifts
+    Array.from({ length: 5 }, (_, i) => {
+      const giftCount = 8 - i;
+      const gifts = Array.from({ length: giftCount }, (_, j) => {
+        const g = GIFT_CATALOG[(i * 3 + j * 7) % GIFT_CATALOG.length];
+        return {
+          id: `donor-${i}-gift-${j}`,
+          icon: g.icon,
+          name: g.name,
+          cost: g.cost,
+          ago: j === 0 ? "À l'instant" : `il y a ${(j + 1) * 3}h`,
+        };
+      });
+      return {
+        id: `donor-${i}`,
+        index: 30 + i,
+        name: fakeName(30 + i),
+        totalSpent: gifts.reduce((sum, g) => sum + g.cost, 0),
+        giftCount,
+        topGift: ["💎", "🔥", "🌟", "🎁", "❤️"][i],
+        isMe: false,
+        gifts,
+      };
+    })
   );
+  const [selectedDonor, setSelectedDonor] = useState(null);
   const accent = isRegistration ? "#6C63FF" : comp.accent;
   const rulesInfo = buildRulesInfo(comp);
   const [rulesExpanded, setRulesExpanded] = useState(false);
@@ -2606,13 +2621,18 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   const isFirst = i === 0;
                   const medals = ["🥇", "🥈", "🥉"];
                   return (
-                    <div key={donor.id} style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "10px 10px",
-                      background: isFirst ? `${accent}0f` : donor.isMe ? "#f8f8f8" : "#fff",
-                      border: isFirst ? `1px solid ${accent}33` : donor.isMe ? "1px solid #e0e0e0" : "1px solid transparent",
-                      transition: "background 0.2s",
-                    }}>
+                    <div
+                      key={donor.id}
+                      onClick={() => setSelectedDonor(donor)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "10px 10px",
+                        background: isFirst ? `${accent}0f` : donor.isMe ? "#f8f8f8" : "#fff",
+                        border: isFirst ? `1px solid ${accent}33` : donor.isMe ? "1px solid #e0e0e0" : "1px solid transparent",
+                        transition: "background 0.2s",
+                        cursor: "pointer",
+                      }}
+                    >
                       {/* Rank */}
                       <div style={{ width: 24, textAlign: "center", flexShrink: 0 }}>
                         {i < 3 ? (
@@ -2647,7 +2667,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: isFirst ? accent : "#333" }}>
                           {donor.totalSpent.toLocaleString("fr-FR")}
                         </div>
-                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.06em" }}>crédits</div>
+                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.06em" }}>points</div>
                       </div>
                     </div>
                   );
@@ -3103,15 +3123,28 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         });
                         // Update gift leaderboard — bump current user or add them
                         if (currentUser) {
+                          const giftEntry = {
+                            id: `me-gift-${Date.now()}`,
+                            icon: gift.icon,
+                            name: gift.name,
+                            cost: gift.cost,
+                            recipientName: selectedParticipant?.name,
+                            ago: "À l'instant",
+                          };
                           setGiftLeaderboard((prev) => {
                             const exists = prev.find((d) => d.isMe);
                             let updated;
                             if (exists) {
-                              updated = prev.map((d) => d.isMe ? { ...d, totalSpent: d.totalSpent + gift.cost, giftCount: d.giftCount + 1, topGift: gift.icon } : d);
+                              updated = prev.map((d) => d.isMe ? { ...d, totalSpent: d.totalSpent + gift.cost, giftCount: d.giftCount + 1, topGift: gift.icon, gifts: [giftEntry, ...(d.gifts || [])] } : d);
                             } else {
-                              updated = [...prev, { id: "me", index: 0, name: currentUser.fullName, totalSpent: gift.cost, giftCount: 1, topGift: gift.icon, isMe: true }];
+                              updated = [...prev, { id: "me", index: 0, name: currentUser.fullName, totalSpent: gift.cost, giftCount: 1, topGift: gift.icon, isMe: true, gifts: [giftEntry] }];
                             }
                             return updated.sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 10);
+                          });
+                          // Keep the detail screen in sync if it's currently open on "me"
+                          setSelectedDonor((sd) => {
+                            if (!sd?.isMe) return sd;
+                            return { ...sd, totalSpent: sd.totalSpent + gift.cost, giftCount: sd.giftCount + 1, topGift: gift.icon, gifts: [giftEntry, ...(sd.gifts || [])] };
                           });
                         }
                         setGiftSubmitting(false);
@@ -3136,6 +3169,61 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     </button>
                   </>
                 )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── DONOR GIFT HISTORY SCREEN ── */}
+      {selectedDonor && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1300, background: "#F2F2F0", overflowY: "auto" }}>
+          <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#fff", borderBottom: "1px solid #e0e0e0", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
+            <button
+              onClick={() => setSelectedDonor(null)}
+              style={{ border: "none", background: "#f5f5f5", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#333", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              <ArrowLeft size={17} strokeWidth={2.5} />
+            </button>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "2px solid #eee", background: selectedDonor.isMe ? "#111" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {selectedDonor.isMe ? (
+                <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700 }}>{selectedDonor.name.charAt(0)}</span>
+              ) : (
+                <img src={avatarImg(selectedDonor.index)} alt={selectedDonor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {selectedDonor.name}
+              </span>
+              <span style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999" }}>
+                {selectedDonor.giftCount} cadeau{selectedDonor.giftCount > 1 ? "x" : ""} · {selectedDonor.totalSpent.toLocaleString("fr-FR")} points au total
+              </span>
+            </div>
+          </div>
+
+          <div style={{ padding: "10px 14px 40px", maxWidth: 600, margin: "0 auto" }}>
+            {(!selectedDonor.gifts || selectedDonor.gifts.length === 0) ? (
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>🎁</div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>Aucun cadeau enregistré</div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {selectedDonor.gifts.map((g) => (
+                  <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 8px", background: "#fff", border: "1px solid #eee", borderRadius: 10, marginBottom: 6 }}>
+                    <AnimatedGiftIcon emoji={g.icon} size={36} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#222" }}>{g.name}</div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 1 }}>
+                        {g.recipientName ? `À ${g.recipientName} · ` : ""}{g.ago}
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800, color: accent, flexShrink: 0 }}>
+                      {g.cost.toLocaleString("fr-FR")} pts
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
