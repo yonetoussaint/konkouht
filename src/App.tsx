@@ -1552,6 +1552,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           icon: g.icon,
           name: g.name,
           cost: g.cost,
+          timestamp: Date.now() - j * 3 * 3600 * 1000,
           ago: j === 0 ? "À l'instant" : `il y a ${(j + 1) * 3}h`,
         };
       });
@@ -1568,6 +1569,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     })
   );
   const [selectedDonor, setSelectedDonor] = useState(null);
+  const [donorTab, setDonorTab] = useState("all");
   const accent = isRegistration ? "#6C63FF" : comp.accent;
   const rulesInfo = buildRulesInfo(comp);
   const [rulesExpanded, setRulesExpanded] = useState(false);
@@ -2623,7 +2625,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   return (
                     <div
                       key={donor.id}
-                      onClick={() => setSelectedDonor(donor)}
+                      onClick={() => { setSelectedDonor(donor); setDonorTab("all"); }}
                       style={{
                         display: "flex", alignItems: "center", gap: 10,
                         padding: "10px 10px",
@@ -3129,6 +3131,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             name: gift.name,
                             cost: gift.cost,
                             recipientName: selectedParticipant?.name,
+                            timestamp: Date.now(),
                             ago: "À l'instant",
                           };
                           setGiftLeaderboard((prev) => {
@@ -3208,24 +3211,81 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 <div style={{ fontSize: 28, marginBottom: 8 }}>🎁</div>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>Aucun cadeau enregistré</div>
               </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {selectedDonor.gifts.map((g) => (
-                  <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 8px", background: "#fff", border: "1px solid #eee", borderRadius: 10, marginBottom: 6 }}>
-                    <AnimatedGiftIcon emoji={g.icon} size={36} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#222" }}>{g.name}</div>
-                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 1 }}>
-                        {g.recipientName ? `À ${g.recipientName} · ` : ""}{g.ago}
+            ) : (() => {
+              const sortedGifts = [...selectedDonor.gifts].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+              // Group repeats of the same gift into tabs (e.g. "💎 Diamant x3")
+              const groupsMap = new Map();
+              sortedGifts.forEach((g) => {
+                const existing = groupsMap.get(g.name);
+                if (existing) {
+                  existing.count += 1;
+                } else {
+                  groupsMap.set(g.name, { name: g.name, icon: g.icon, count: 1 });
+                }
+              });
+              const groups = Array.from(groupsMap.values()).sort((a, b) => b.count - a.count);
+              const showTabs = groups.length > 1;
+
+              const filteredGifts = donorTab === "all" ? sortedGifts : sortedGifts.filter((g) => g.name === donorTab);
+
+              return (
+                <>
+                  {showTabs && (
+                    <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, scrollbarWidth: "none" }}>
+                      <button
+                        onClick={() => setDonorTab("all")}
+                        style={{
+                          flexShrink: 0, border: "none", borderRadius: 999,
+                          padding: "7px 14px",
+                          background: donorTab === "all" ? "#111" : "#f0f0f0",
+                          color: donorTab === "all" ? "#fff" : "#666",
+                          fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+                          cursor: "pointer", whiteSpace: "nowrap",
+                        }}
+                      >
+                        Tous ({sortedGifts.length})
+                      </button>
+                      {groups.map((grp) => (
+                        <button
+                          key={grp.name}
+                          onClick={() => setDonorTab(grp.name)}
+                          style={{
+                            flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
+                            border: "none", borderRadius: 999,
+                            padding: "7px 14px",
+                            background: donorTab === grp.name ? "#111" : "#f0f0f0",
+                            color: donorTab === grp.name ? "#fff" : "#666",
+                            fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+                            cursor: "pointer", whiteSpace: "nowrap",
+                          }}
+                        >
+                          <span style={{ fontSize: 14 }}>{grp.icon}</span>
+                          {grp.name} × {grp.count}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {filteredGifts.map((g) => (
+                      <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 8px", background: "#fff", border: "1px solid #eee", borderRadius: 10, marginBottom: 6 }}>
+                        <AnimatedGiftIcon emoji={g.icon} size={36} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#222" }}>{g.name}</div>
+                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 1 }}>
+                            {g.recipientName ? `À ${g.recipientName} · ` : ""}{g.ago}
+                          </div>
+                        </div>
+                        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800, color: accent, flexShrink: 0 }}>
+                          {g.cost.toLocaleString("fr-FR")} pts
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800, color: accent, flexShrink: 0 }}>
-                      {g.cost.toLocaleString("fr-FR")} pts
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
