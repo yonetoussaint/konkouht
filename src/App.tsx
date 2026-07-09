@@ -2070,61 +2070,54 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </p>
 
           {/* Prize — single winner: registration fees (base) + 30% of their personal gifts */}
-          <div style={{
-            background: `${accent}0f`, borderRadius: 16,
-            padding: "12px 14px", marginBottom: 12,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <Trophy size={20} color={accent} strokeWidth={2} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 800, color: "#111",
-                  fontVariantNumeric: "tabular-nums",
-                  transition: "opacity 0.15s",
-                  opacity: tickFlash ? 1 : 0.85,
-                }}>
-                  {isRegistration ? basePrizePool.toLocaleString("fr-FR") : winnerPrize.toLocaleString("fr-FR")} crédits pour le gagnant
-                </div>
-                {rulesInfo.rewardExtra && (
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", marginTop: 2 }}>
-                    {rulesInfo.rewardExtra}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{
+              display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+            }}>
+              <div style={{ background: "#fff", border: "1px solid #eee", padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+                <Trophy size={16} color="#aaa" strokeWidth={2} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3 }}>
+                    Prix à gagner
                   </div>
-                )}
+                  <div style={{
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 800, color: "#333",
+                    fontVariantNumeric: "tabular-nums",
+                    transition: "opacity 0.15s",
+                    opacity: tickFlash ? 1 : 0.85,
+                  }}>
+                    {isRegistration ? basePrizePool.toLocaleString("fr-FR") : winnerPrize.toLocaleString("fr-FR")}
+                  </div>
+                </div>
+              </div>
+              <div style={{ background: "#fff", border: `1px solid ${accent}33`, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+                <Gift size={16} color={accent} strokeWidth={2} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: accent, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: isRegistration ? "#bbb" : "#e74c3c", display: "inline-block", animation: isRegistration ? "none" : "pulse-dot 1s infinite" }} />
+                    Bonus
+                  </div>
+                  <div style={{
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 800, color: accent,
+                    fontVariantNumeric: "tabular-nums",
+                    transition: "opacity 0.15s",
+                    opacity: tickFlash ? 1 : 0.85,
+                  }}>
+                    +{isRegistration ? 0 : Math.round(leaderGiftCredits * WINNER_GIFT_SHARE).toLocaleString("fr-FR")}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Base vs leader's gift share breakdown */}
-            <div style={{
-              display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
-              marginBottom: isRegistration ? 0 : 12,
-            }}>
-              <div style={{ background: "#fff", border: "1px solid #eee", padding: "8px 10px" }}>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3 }}>
-                  Prix à gagner
-                </div>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: "#555" }}>
-                  {basePrizePool.toLocaleString("fr-FR")}
-                </div>
+            {rulesInfo.rewardExtra && (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", marginTop: 8 }}>
+                {rulesInfo.rewardExtra}
               </div>
-              <div style={{ background: "#fff", border: `1px solid ${accent}33`, padding: "8px 10px" }}>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: accent, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: isRegistration ? "#bbb" : "#e74c3c", display: "inline-block", animation: isRegistration ? "none" : "pulse-dot 1s infinite" }} />
-                  Bonus
-                </div>
-                <div style={{
-                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: accent,
-                  fontVariantNumeric: "tabular-nums",
-                  transition: "opacity 0.15s",
-                  opacity: tickFlash ? 1 : 0.85,
-                }}>
-                  +{isRegistration ? 0 : Math.round(leaderGiftCredits * WINNER_GIFT_SHARE).toLocaleString("fr-FR")}
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* Current leader callout — only meaningful once voting has started */}
             {isRegistration ? (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", paddingTop: 4 }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", paddingTop: 8 }}>
                 Le 1er du classement final remporte le prix à gagner + un bonus basé sur les cadeaux qu'il a reçus.
               </div>
             ) : (
@@ -2132,7 +2125,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 <div style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "8px 0 0",
-                  borderTop: "1px solid rgba(0,0,0,0.06)",
                 }}>
                   <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 14 }}>🥇</span>
