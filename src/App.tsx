@@ -2052,7 +2052,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       <div style={{ padding: "0 0 132px" }}>
 
         {/* ── À PROPOS / RÈGLEMENT ── */}
-        <div style={{ background: "#fff", borderRadius: 18, margin: "12px 8px", padding: "16px 14px", boxShadow: "0 2px 14px rgba(0,0,0,0.05)" }}>
+        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
           <div style={{
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
@@ -2098,7 +2098,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
               marginBottom: isRegistration ? 0 : 12,
             }}>
-              <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 6px rgba(0,0,0,0.05)", padding: "8px 10px" }}>
+              <div style={{ background: "#fff", border: "1px solid #eee", padding: "8px 10px" }}>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3 }}>
                   Prix à gagner
                 </div>
@@ -2106,7 +2106,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   {basePrizePool.toLocaleString("fr-FR")}
                 </div>
               </div>
-              <div style={{ background: "#fff", borderRadius: 12, boxShadow: `0 1px 6px ${accent}22`, padding: "8px 10px" }}>
+              <div style={{ background: "#fff", border: `1px solid ${accent}33`, padding: "8px 10px" }}>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: accent, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: isRegistration ? "#bbb" : "#e74c3c", display: "inline-block", animation: isRegistration ? "none" : "pulse-dot 1s infinite" }} />
                   Bonus
@@ -2189,7 +2189,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {/* ── STAT TILES ── */}
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 8, margin: "12px 8px 0",
+          background: "#fff", borderBottom: "1px solid #e0e0e0",
         }}>
           {(isRegistration ? [
             { value: liveRegistered, label: "Inscrits" },
@@ -2201,10 +2201,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true },
           ]).map((s, i) => (
             <div key={i} style={{
-              background: "#fff",
-              borderRadius: 16,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-              padding: "12px 8px",
+              borderLeft: i > 0 ? "1px solid #f0f0f0" : "none",
+              padding: "14px 8px",
               display: "flex", flexDirection: "column", alignItems: "center",
             }}>
               <div style={{
@@ -2229,10 +2227,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {isRegistration && (
           <div style={{
             background: "#fff",
-            borderRadius: 16,
-            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-            padding: "12px 14px",
-            margin: "8px 8px 0",
+            borderBottom: "1px solid #e0e0e0",
+            padding: "12px 16px",
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
             <div style={{
@@ -2256,9 +2252,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {/* ── COUNTDOWN BAR ── */}
         <div style={{
           background: isRegistration ? "#f0ebff" : comp.hot ? "#fff0ed" : "#f7f7f5",
-          borderRadius: 14,
-          margin: "10px 8px 0",
-          padding: "10px 14px",
+          borderBottom: "1px solid #e0e0e0",
+          padding: "12px 16px",
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{
@@ -2280,7 +2275,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
         {/* ── TOP 5 LEADERBOARD or REGISTRATION INFO ── */}
         {isRegistration ? (
-          <div style={{ background: "#fff", borderRadius: 18, margin: "10px 8px", padding: "14px", boxShadow: "0 2px 14px rgba(0,0,0,0.05)" }}>
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               marginBottom: 14,
@@ -2409,7 +2404,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <div style={{ height: 12 }} />
           </div>
         ) : (
-          <div style={{ background: "#fff", borderRadius: 18, margin: "10px 8px", padding: "14px", boxShadow: "0 2px 14px rgba(0,0,0,0.05)" }}>
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               marginBottom: 14,
@@ -2682,7 +2677,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         )}
 
         {/* ── COMMENTS ── */}
-        <div style={{ background: "#fff", borderRadius: 18, margin: "10px 8px 20px", padding: "14px 14px 20px", boxShadow: "0 2px 14px rgba(0,0,0,0.05)" }}>
+        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px 20px" }}>
           <div style={{
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
