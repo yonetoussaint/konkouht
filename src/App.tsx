@@ -2109,33 +2109,39 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               </div>
             </div>
 
-            {rulesInfo.rewardExtra && (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", marginTop: 8 }}>
-                {rulesInfo.rewardExtra}
-              </div>
-            )}
+            {(rulesInfo.rewardExtra || isRegistration || leader) && (
+              <div style={{
+                border: "1px solid #eee", padding: "10px 12px", marginTop: 8,
+                display: "flex", flexDirection: "column", gap: 6,
+              }}>
+                {rulesInfo.rewardExtra && (
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888" }}>
+                    {rulesInfo.rewardExtra}
+                  </div>
+                )}
 
-            {/* Current leader callout — only meaningful once voting has started */}
-            {isRegistration ? (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", paddingTop: 8 }}>
-                Le 1er du classement final remporte le prix à gagner + un bonus basé sur les cadeaux qu'il a reçus.
+                {/* Current leader callout — only meaningful once voting has started */}
+                {isRegistration ? (
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999" }}>
+                    Le 1er du classement final remporte le prix à gagner + un bonus basé sur les cadeaux qu'il a reçus.
+                  </div>
+                ) : (
+                  leader && (
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 14 }}>🥇</span>
+                        {leader.name}
+                        <span style={{ color: "#aaa", fontWeight: 500 }}>· actuellement en tête</span>
+                      </span>
+                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 800, color: accent }}>
+                        {winnerPrize.toLocaleString("fr-FR")}
+                      </span>
+                    </div>
+                  )
+                )}
               </div>
-            ) : (
-              leader && (
-                <div style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "8px 0 0",
-                }}>
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 14 }}>🥇</span>
-                    {leader.name}
-                    <span style={{ color: "#aaa", fontWeight: 500 }}>· actuellement en tête</span>
-                  </span>
-                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 800, color: accent }}>
-                    {winnerPrize.toLocaleString("fr-FR")}
-                  </span>
-                </div>
-              )
             )}
           </div>
 
