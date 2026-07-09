@@ -2439,42 +2439,37 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               const pct = Math.max(8, Math.round((p.points / topPoints) * 100));
               return (
                 <div key={p.index} style={{
-                  padding: "12px 0 22px",
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "11px 0",
                   borderBottom: rank < 4 ? "1px solid #f0f0f0" : "none",
                 }}>
-                  {/* Rank + name + points */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                      <span style={{
-                        width: 20, flexShrink: 0, textAlign: "center",
-                        fontFamily: "'Space Grotesk', sans-serif",
-                        fontSize: rank === 0 ? 16 : 12, fontWeight: 700,
-                        color: rank === 0 ? accent : "#ccc",
-                      }}>
-                        {rank === 0 ? "🥇" : rank + 1}
-                      </span>
-                      <span style={{
-                        fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                        color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}>{p.name}</span>
-                    </div>
-                    <span style={{
-                      display: "flex", alignItems: "center", gap: 4,
-                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                      color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 8,
-                      transition: "color 0.3s",
-                    }}>
-                      🪙 {p.points.toLocaleString("fr-FR")}
-                    </span>
+                  {/* Rank */}
+                  <span style={{
+                    width: 20, flexShrink: 0, textAlign: "center",
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: rank === 0 ? 16 : 12, fontWeight: 700,
+                    color: rank === 0 ? accent : "#ccc",
+                  }}>
+                    {rank === 0 ? "🥇" : rank + 1}
+                  </span>
+
+                  {/* Profile pic */}
+                  <div style={{
+                    width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                    overflow: "hidden", background: "#fff",
+                    border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                    boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
+                  }}>
+                    <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   </div>
 
-                  {/* Race track */}
-                  <div style={{ position: "relative", height: 26, marginLeft: 28, marginRight: 4 }}>
-                    <div style={{
-                      position: "absolute", top: "50%", left: 0, right: 22,
-                      height: 3, background: "#f0f0f0", borderRadius: 2,
-                      transform: "translateY(-50%)",
-                    }}>
+                  {/* Name + progress bar */}
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
+                    <span style={{
+                      fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                      color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    }}>{p.name}</span>
+                    <div style={{ height: 4, background: "#f0f0f0", borderRadius: 2, overflow: "hidden" }}>
                       <div
                         className="bar-shimmer"
                         style={{
@@ -2487,24 +2482,17 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         }}
                       />
                     </div>
-                    {/* Finish line */}
-                    <span style={{ position: "absolute", right: -2, top: "50%", transform: "translateY(-50%)", fontSize: 13 }}>🏁</span>
-                    {/* Runner — avatar positioned along the track by points */}
-                    <div
-                      style={{
-                        position: "absolute", top: "50%",
-                        left: `calc(${pct}% - 13px)`,
-                        transform: "translateY(-50%)",
-                        transition: "left 0.6s cubic-bezier(0.4,0,0.2,1)",
-                        width: 26, height: 26, borderRadius: "50%",
-                        overflow: "hidden", background: "#fff",
-                        border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                        boxShadow: "0 1px 5px rgba(0,0,0,0.18)",
-                      }}
-                    >
-                      <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                    </div>
                   </div>
+
+                  {/* Coins */}
+                  <span style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                    color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 4,
+                    transition: "color 0.3s",
+                  }}>
+                    🪙 {p.points.toLocaleString("fr-FR")}
+                  </span>
                 </div>
               );
             })}
