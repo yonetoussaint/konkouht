@@ -3281,18 +3281,27 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     </div>
                   )}
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    {filteredGifts.map((g) => (
-                      <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 8px", background: "#fff", border: "1px solid #eee", borderRadius: 10, marginBottom: 6 }}>
-                        <AnimatedGiftIcon emoji={g.icon} size={36} />
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    {filteredGifts.map((g, i) => (
+                      <div
+                        key={g.id}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 12,
+                          padding: "13px 4px",
+                          borderBottom: i === filteredGifts.length - 1 ? "none" : "1px solid #ececec",
+                        }}
+                      >
+                        <div style={{ flexShrink: 0 }}>
+                          <AnimatedGiftIcon emoji={g.icon} size={26} />
+                        </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#222" }}>{g.name}</div>
-                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 1 }}>
+                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13.5, fontWeight: 600, color: "#1a1a1a" }}>{g.name}</div>
+                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10.5, color: "#aaa", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                             {g.recipientName ? `À ${g.recipientName} · ` : ""}{g.ago}
                           </div>
                         </div>
-                        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800, color: accent, flexShrink: 0 }}>
-                          {g.cost.toLocaleString("fr-FR")} pts
+                        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#111", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+                          {g.cost.toLocaleString("fr-FR")}
                         </div>
                       </div>
                     ))}
