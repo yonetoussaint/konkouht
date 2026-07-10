@@ -1475,6 +1475,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [voteCount, setVoteCount] = useState(comp.votes);
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [activeTab, setActiveTab] = useState("home"); // "home" | "participants" | "medias" | "donateurs"
   const [activeBanner, setActiveBanner] = useState(0);
   const bannerVideoRefs = useRef({});
   const [videoErrors, setVideoErrors] = useState({});
@@ -2072,8 +2073,38 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       {/* ── ORGANISER BAR ── */}
       <OrgBar comp={comp} accent={accent} />
 
+      {/* ── TABS ── */}
+      <div style={{
+        display: "flex", background: "#fff", borderBottom: "1px solid #e0e0e0",
+        position: "sticky", top: 0, zIndex: 20,
+      }}>
+        {[
+          { key: "home", label: "Home" },
+          { key: "participants", label: "Participants" },
+          { key: "medias", label: "Médias" },
+          { key: "donateurs", label: "Donateurs" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              flex: 1, border: "none", background: "none", cursor: "pointer",
+              padding: "13px 4px 11px",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+              color: activeTab === tab.key ? "#111" : "#aaa",
+              borderBottom: activeTab === tab.key ? `2px solid ${accent}` : "2px solid transparent",
+              transition: "color 0.15s, border-color 0.15s",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div style={{ padding: "0 0 132px" }}>
 
+        {activeTab === "home" && (
+        <>
         {/* ── À PROPOS / RÈGLEMENT ── */}
         <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
           <div style={{
@@ -2294,8 +2325,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </span>
         </div>
 
+        </>
+        )}
+
         {/* ── TOP 5 LEADERBOARD or REGISTRATION INFO ── */}
-        {isRegistration ? (
+        {activeTab === "participants" && (
+        isRegistration ? (
           <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -2514,10 +2549,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             })}
             <div style={{ height: 12 }} />
           </div>
+        )
         )}
 
         {/* ── PARTICIPANTS STRIP (only for voting phase) ── */}
-        {!isRegistration && (
+        {activeTab === "medias" && !isRegistration && (
           <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", paddingTop: 14, paddingBottom: 14 }}>
             <div style={{
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
@@ -2561,7 +2597,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         )}
 
         {/* ── TOP DONATEURS ── */}
-        {!isRegistration && (
+        {activeTab === "donateurs" && !isRegistration && (
           <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 8px" }}>
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
