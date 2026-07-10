@@ -1837,6 +1837,23 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     });
   }
 
+  // Interleave live gift entries and comments into one chronological feed, TikTok-style.
+  const feedItems = useMemo(() => {
+    const giftItems = liveLog.map((entry, i) => ({
+      type: "gift",
+      key: `gift-${entry.id}`,
+      minutesAgo: i * 2,
+      entry,
+    }));
+    const commentItems = comments.map((c) => ({
+      type: "comment",
+      key: `comment-${c.id}`,
+      minutesAgo: c.minutesAgo,
+      comment: c,
+    }));
+    return [...giftItems, ...commentItems].sort((a, b) => a.minutesAgo - b.minutesAgo);
+  }, [liveLog, comments]);
+
   const heroBannerSlides = useMemo(() => {
     const images = comp.images || [];
     if (images.length === 0) return [{ type: "placeholder" }];
@@ -2537,58 +2554,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </div>
         )}
 
-        {/* ── LIVE ACTIVITY (only for voting phase) ── */}
-        {!isRegistration && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
-              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-            }}>
-              <span style={{
-                width: 7, height: 7, borderRadius: "50%", background: "#e74c3c",
-                display: "inline-block", animation: "pulse-dot 1s infinite",
-              }} />
-              Activité en direct
-            </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {liveLog.length === 0 ? (
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb", padding: "8px 0" }}>
-                  Aucun cadeau envoyé pour l'instant.
-                </div>
-              ) : liveLog.map((entry, i) => (
-                <div key={entry.id} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "8px 0",
-                  borderBottom: i < liveLog.length - 1 ? "1px solid #f5f5f5" : "none",
-                  opacity: i === 0 ? 1 : 0.55 + (0.45 * (1 - i / liveLog.length)),
-                  transition: "opacity 0.5s",
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{
-                      width: 26, height: 26, borderRadius: "50%",
-                      flexShrink: 0, overflow: "hidden",
-                      border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                    }}>
-                      <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                    </div>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 500 }}>
-                      <span style={{ fontSize: 14 }}>{entry.gift.icon}</span>{" "}
-                      <span style={{ fontWeight: 700, color: accent }}>{entry.gift.name}</span>
-                      {" "}envoyé à{" "}
-                      <span style={{ color: accent, fontWeight: 700 }}>{fakeName(entry.pIndex)}</span>
-                    </span>
-                  </div>
-                  <span style={{
-                    fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb",
-                    fontWeight: 500, flexShrink: 0, marginLeft: 10,
-                  }}>{entry.ago}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* ── TOP DONATEURS ── */}
         {!isRegistration && (
           <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 8px" }}>
@@ -2674,14 +2639,20 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </div>
         )}
 
-        {/* ── COMMENTS ── */}
+        {/* ── ACTIVITY (gifts + comments interleaved, TikTok-style) ── */}
         <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px 20px" }}>
           <div style={{
+            display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-            marginBottom: 12,
           }}>
-            Commentaires ({comments.length})
+            {!isRegistration && (
+              <span style={{
+                width: 7, height: 7, borderRadius: "50%", background: "#e74c3c",
+                display: "inline-block", animation: "pulse-dot 1s infinite",
+              }} />
+            )}
+            Activité · Commentaires ({comments.length})
           </div>
 
           {/* Composer */}
@@ -2725,23 +2696,57 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </div>
           </div>
 
-          {/* Thread */}
+          {/* Interleaved feed: gifts + comments, newest first */}
           <div style={{ display: "flex", flexDirection: "column" }}>
             {commentsLoading ? (
               <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
-                Chargement des commentaires…
+                Chargement…
               </div>
-            ) : comments.length === 0 ? (
+            ) : feedItems.length === 0 ? (
               <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
-                Aucun commentaire pour le moment. Soyez le premier à commenter !
+                Aucune activité pour le moment. Soyez le premier à commenter !
               </div>
-            ) : comments.map((c, i) => {
+            ) : feedItems.map((item, i) => {
+              const isLast = i === feedItems.length - 1;
+
+              if (item.type === "gift") {
+                const entry = item.entry;
+                return (
+                  <div key={item.key} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "8px 0",
+                    borderBottom: isLast ? "none" : "1px solid #f5f5f5",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{
+                        width: 26, height: 26, borderRadius: "50%",
+                        flexShrink: 0, overflow: "hidden",
+                        border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                      }}>
+                        <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      </div>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 500 }}>
+                        <span style={{ fontSize: 14 }}>{entry.gift.icon}</span>{" "}
+                        <span style={{ fontWeight: 700, color: accent }}>{entry.gift.name}</span>
+                        {" "}envoyé à{" "}
+                        <span style={{ color: accent, fontWeight: 700 }}>{fakeName(entry.pIndex)}</span>
+                      </span>
+                    </div>
+                    <span style={{
+                      fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb",
+                      fontWeight: 500, flexShrink: 0, marginLeft: 10,
+                    }}>{entry.ago}</span>
+                  </div>
+                );
+              }
+
+              const c = item.comment;
               const liked = likedCommentIds.has(c.id);
               const repliesOpen = expandedReplies.has(c.id);
               const isReplying = replyingTo === c.id;
               return (
-                <div key={c.id} style={{
-                  borderBottom: i < comments.length - 1 ? "1px solid #f0f0f0" : "none",
+                <div key={item.key} style={{
+                  borderBottom: isLast ? "none" : "1px solid #f0f0f0",
                   padding: "10px 0",
                 }}>
                   {/* Main comment */}
