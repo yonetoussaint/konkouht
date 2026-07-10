@@ -1532,6 +1532,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   };
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [showGiftBar, setShowGiftBar] = useState(false);
+  const [floatHearts, setFloatHearts] = useState([]);
+  const handleSendRose = () => {
+    const id = Date.now() + Math.random();
+    setFloatHearts((prev) => [...prev, { id, x: Math.random() * 24 - 12 }]);
+    setTimeout(() => setFloatHearts((prev) => prev.filter((h) => h.id !== id)), 1400);
+  };
   const [activeGift, setActiveGift] = useState(null);
   const [giftStep, setGiftStep] = useState("participant"); // "participant" | "gift" | "confirm"
   const [selectedParticipant, setSelectedParticipant] = useState(null);
@@ -2655,46 +2661,48 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             Activité · Commentaires ({comments.length})
           </div>
 
-          {/* Composer */}
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-              background: currentUser ? "#111" : "#e0e0e0", color: "#fff",
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              {currentUser ? currentUser.fullName.charAt(0).toUpperCase() : <User size={14} color="#999" />}
+          {/* Composer — only shown during registration; voting phase types from the sticky bottom bar */}
+          {isRegistration && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                background: currentUser ? "#111" : "#e0e0e0", color: "#fff",
+                fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {currentUser ? currentUser.fullName.charAt(0).toUpperCase() : <User size={14} color="#999" />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="text"
+                  value={commentDraft}
+                  onChange={(e) => setCommentDraft(e.target.value)}
+                  onFocus={() => { if (!currentUser) onRequestAuth?.(); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
+                  placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
+                  style={{
+                    flex: 1, minWidth: 0, border: "none", borderRadius: 999, background: "#f5f5f5",
+                    padding: "10px 16px", fontFamily: "Inter, sans-serif", fontSize: 13,
+                    color: "#333", outline: "none",
+                  }}
+                />
+                <button
+                  onClick={handlePostComment}
+                  disabled={!commentDraft.trim() || posting}
+                  style={{
+                    border: "none", borderRadius: 999, background: commentDraft.trim() ? accent : "#eee",
+                    color: commentDraft.trim() ? "#fff" : "#bbb",
+                    padding: "10px 14px", flexShrink: 0, whiteSpace: "nowrap",
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                    textTransform: "uppercase", letterSpacing: "0.04em",
+                    cursor: commentDraft.trim() ? "pointer" : "default",
+                  }}
+                >
+                  Publier
+                </button>
+              </div>
             </div>
-            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
-              <input
-                type="text"
-                value={commentDraft}
-                onChange={(e) => setCommentDraft(e.target.value)}
-                onFocus={() => { if (!currentUser) onRequestAuth?.(); }}
-                onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
-                placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
-                style={{
-                  flex: 1, minWidth: 0, border: "none", borderRadius: 999, background: "#f5f5f5",
-                  padding: "10px 16px", fontFamily: "Inter, sans-serif", fontSize: 13,
-                  color: "#333", outline: "none",
-                }}
-              />
-              <button
-                onClick={handlePostComment}
-                disabled={!commentDraft.trim() || posting}
-                style={{
-                  border: "none", borderRadius: 999, background: commentDraft.trim() ? accent : "#eee",
-                  color: commentDraft.trim() ? "#fff" : "#bbb",
-                  padding: "10px 14px", flexShrink: 0, whiteSpace: "nowrap",
-                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                  textTransform: "uppercase", letterSpacing: "0.04em",
-                  cursor: commentDraft.trim() ? "pointer" : "default",
-                }}
-              >
-                Publier
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* Interleaved feed: gifts + comments, newest first */}
           <div style={{ display: "flex", flexDirection: "column" }}>
@@ -3302,16 +3310,18 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       {/* ── STICKY FOOTER CTA ── */}
       {!showGiftBar && (
       <div style={{
-        position: "fixed", bottom: 8, left: 8, right: 8,
-        background: "#fff",
-        borderRadius: 20,
-        boxShadow: "0 -2px 24px rgba(0,0,0,0.15)",
-        padding: "10px 12px",
+        position: "fixed", bottom: isRegistration ? 8 : 0, left: isRegistration ? 8 : 0, right: isRegistration ? 8 : 0,
+        background: isRegistration ? "#fff" : "rgba(20,20,20,0.82)",
+        backdropFilter: isRegistration ? "none" : "blur(14px)",
+        WebkitBackdropFilter: isRegistration ? "none" : "blur(14px)",
+        borderRadius: isRegistration ? 20 : 0,
+        boxShadow: isRegistration ? "0 -2px 24px rgba(0,0,0,0.15)" : "none",
+        padding: isRegistration ? "10px 12px" : "8px 10px calc(8px + env(safe-area-inset-bottom, 0px))",
         zIndex: 1001,
       }}>
         <div style={{
           maxWidth: 800, margin: "0 auto",
-          display: "flex", gap: 8,
+          display: "flex", alignItems: "center", gap: 8,
         }}>
           {isRegistration ? (
             isOwnCompetition ? (
@@ -3386,23 +3396,45 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </button>
             )
           ) : (
-            // Voting footer
+            // Voting footer — TikTok Live style: comment input + rose + gift + share
             <>
-              {/* Vote count badge */}
-              <div style={{
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                padding: "0 14px",
-                flexShrink: 0,
-              }}>
-                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 800, color: "#111", lineHeight: 1 }}>
-                  {fmtVotes(voteCount)}
-                </span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
-                  votes
-                </span>
-              </div>
+              {/* Comment input pill */}
+              <input
+                type="text"
+                value={commentDraft}
+                onChange={(e) => setCommentDraft(e.target.value)}
+                onFocus={() => { if (!currentUser) onRequestAuth?.(); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
+                placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
+                style={{
+                  flex: 1, minWidth: 0, border: "none", borderRadius: 999,
+                  background: "rgba(255,255,255,0.14)",
+                  padding: "11px 16px", fontFamily: "Inter, sans-serif", fontSize: 13,
+                  color: "#fff", outline: "none",
+                }}
+              />
 
-              {/* Main CTA */}
+              {/* Rose / like button */}
+              <button
+                onClick={handleSendRose}
+                style={{
+                  position: "relative",
+                  width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
+                  border: "none", background: "rgba(255,255,255,0.14)",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <span style={{ fontSize: 18 }}>🌹</span>
+                {floatHearts.map((h) => (
+                  <span key={h.id} style={{
+                    position: "absolute", left: `calc(50% + ${h.x}px)`, bottom: "60%",
+                    fontSize: 14, pointerEvents: "none",
+                    animation: "float-heart 1.4s ease-out forwards",
+                  }}>❤️</span>
+                ))}
+              </button>
+
+              {/* Gift button */}
               <button
                 onClick={() => {
                   setShowGiftBar((v) => {
@@ -3418,43 +3450,37 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   });
                 }}
                 style={{
-                  flex: 1,
-                  border: "none",
-                  borderRadius: 999,
-                  background: showGiftBar ? accent : "#111",
-                  color: "#fff",
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  padding: "13px 16px",
-                  cursor: "pointer",
-                  boxShadow: `0 4px 14px ${showGiftBar ? accent : "#111"}40`,
-                  transition: "background 0.2s",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
+                  border: "none", background: showGiftBar ? accent : "rgba(255,255,255,0.14)",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
-                <Gift size={15} strokeWidth={2.5} />
-                {voted ? "Autre cadeau" : "Voter · Cadeau"}
+                <Gift size={17} color="#fff" strokeWidth={2.2} />
               </button>
 
               {/* Share button */}
               <button style={{
-                width: 46, flexShrink: 0, borderRadius: "50%",
-                border: "1px solid #eee", background: "#fff",
-                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
+                border: "none", background: "rgba(255,255,255,0.14)",
+                cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
               }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
                   <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
                   <polyline points="16 6 12 2 8 6"/>
                   <line x1="12" y1="2" x2="12" y2="15"/>
                 </svg>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8, color: "#fff", fontWeight: 600 }}>
+                  {fmtVotes(voteCount)}
+                </span>
               </button>
             </>
           )}
         </div>
       </div>
+      )}
+
+      {!isRegistration && (
+        <style>{`@keyframes float-heart { 0% { opacity: 1; transform: translate(-50%, 0) scale(0.8); } 100% { opacity: 0; transform: translate(-50%, -60px) scale(1.1); } }`}</style>
       )}
 
       {showAll && (
