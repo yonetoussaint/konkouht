@@ -835,6 +835,23 @@ const TEXT_SNIPPETS = [
   "J'ai tout sacrifié pour arriver ici, et je ne compte pas reculer...",
 ];
 
+// "Why I'm competing" mock stories — shown inside AlbumSheet so a donor
+// understands the person behind the gift, not just a media gallery. Cycled
+// by participant index like TEXT_SNIPPETS; swap for a real per-participant
+// field (e.g. registrations.motivation) once wired to Supabase.
+const WHY_STORIES = [
+  "Je viens d'une famille de neuf enfants et j'ai appris très jeune à me battre pour ce que je veux. Ce concours, c'est ma chance de montrer que le talent n'attend pas les moyens.",
+  "Après un accident qui m'a presque empêché de continuer, je me suis promis de remonter sur scène. Chaque vote ici, c'est un pas de plus vers cette promesse.",
+  "Mon quartier ne m'a jamais vu comme quelqu'un d'ordinaire, et je veux le prouver au pays entier. Je porte leurs couleurs à chaque prestation.",
+  "J'ai quitté l'école pour aider ma mère, mais jamais j'ai arrêté de m'entraîner le soir. Ce concours est la première vraie porte qu'on m'ouvre.",
+  "Je fais ça pour mon fils, pour qu'il grandisse en voyant que persévérer paie toujours, même quand tout semble contre nous.",
+  "Trois ans à économiser pour du matériel correct, deux ans à me faire refuser partout. Je suis enfin là où je devrais être depuis le début.",
+];
+
+function getWhyStory(index) {
+  return WHY_STORIES[index % WHY_STORIES.length];
+}
+
 function ParticipantCard({ index, mediaType, accent, votes }) {
   const name = fakeName(index);
   const imgSeed = `part_${index}`;
@@ -1170,6 +1187,51 @@ function ParticipantListOverlay({ comp, participants, onClose }) {
   );
 }
 
+/* ─── ALBUM GRID OVERLAY ─────────────────────────────────────────────────
+   Full grid of every participant's album — this is what "Voir tout" opens
+   from the Médias tab. Kept separate from ParticipantListOverlay, which is
+   the votes/ranking table used by the Classement tab's own "Voir tout". */
+
+function AlbumGridOverlay({ comp, onClose, onOpenAlbum }) {
+  const count = comp.contestants || 0;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
+      <div
+        style={{
+          position: "sticky", top: 0, background: "#fff",
+          borderBottom: "1px solid #e0e0e0", padding: "14px 16px",
+          display: "flex", alignItems: "center", gap: 12, zIndex: 1,
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#111" }}>
+          Albums
+        </span>
+      </div>
+
+      <div style={{
+        maxWidth: 800, margin: "0 auto", padding: 12,
+        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6,
+      }}>
+        {Array.from({ length: count }, (_, i) => {
+          const p = buildParticipants(comp)[i];
+          return (
+            <div key={i} onClick={() => onOpenAlbum(i)} style={{ cursor: "pointer" }}>
+              <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── REGISTRANT LIST OVERLAY ───────────────────────────────────────────── */
 
 function RegistrantListOverlay({ comp, registrants, accent, onClose }) {
@@ -1320,12 +1382,19 @@ function OrgBar({ comp, accent }) {
 
 /* ─── ALBUM SHEET ───────────────────────────────────────────────────────── */
 
-function AlbumSheet({ participantIndex, name, accent, onClose }) {
+function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", onClose }) {
   const photoCount = 3 + (participantIndex * 7 + 11) % 10;
   const photos = Array.from({ length: photoCount }, (_, i) => ({
     id: i,
     src: `https://picsum.photos/seed/album_${participantIndex}_${i}/600/600`,
   }));
+  const story = getWhyStory(participantIndex);
+
+  const subtitle =
+    mediaType === "photo" ? `${photoCount} photo${photoCount > 1 ? "s" : ""}` :
+    mediaType === "video" ? "Message vidéo" :
+    mediaType === "pdf" ? "Dossier de candidature" :
+    "Pourquoi je participe";
 
   return (
     <div
@@ -1358,7 +1427,7 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
               {name}
             </div>
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 2 }}>
-              {photoCount} photo{photoCount > 1 ? "s" : ""}
+              {subtitle}
             </div>
           </div>
           <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
@@ -1366,13 +1435,34 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
           </button>
         </div>
 
-        {/* Scrollable slides */}
+        {/* Scrollable content */}
         <div style={{
           overflowY: "auto",
-          padding: "12px 16px 24px",
+          padding: "16px 16px 24px",
           display: "flex", flexDirection: "column", gap: 12,
         }}>
-          {photos.map((photo) => (
+          {/* "Why I'm competing" — shown for every media type so a donor
+              knows who they're gifting before seeing the rest of the content. */}
+          <div style={{
+            background: "#faf9f7", border: "1px solid #eee",
+            padding: "12px 14px", marginBottom: 4,
+          }}>
+            <div style={{
+              fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+              color: accent, textTransform: "uppercase", letterSpacing: "0.08em",
+              marginBottom: 6,
+            }}>
+              Pourquoi je participe
+            </div>
+            <p style={{
+              fontFamily: "Inter, sans-serif", fontSize: 13, lineHeight: 1.6,
+              color: "#333", margin: 0,
+            }}>
+              {story}
+            </p>
+          </div>
+
+          {mediaType === "photo" && photos.map((photo) => (
             <div key={photo.id} style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", background: "#f0f0f0", flexShrink: 0 }}>
               <img
                 src={photo.src}
@@ -1381,6 +1471,42 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
               />
             </div>
           ))}
+
+          {mediaType === "video" && (
+            <div style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", position: "relative", background: "#111" }}>
+              <img
+                src={picsumImg(`vid_${participantIndex}`, 480, 480)}
+                alt={name}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.55)" }}
+              />
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.4)" }}>
+                  <Play size={22} color="#fff" fill="#fff" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {mediaType === "text" && (
+            <p style={{
+              fontFamily: "Inter, sans-serif", fontSize: 13, lineHeight: 1.7,
+              color: "#444", margin: 0, padding: "0 2px",
+            }}>
+              {TEXT_SNIPPETS[participantIndex % TEXT_SNIPPETS.length]}
+            </p>
+          )}
+
+          {mediaType === "pdf" && (
+            <div style={{
+              border: "1px solid #e0e0e0", background: "#fafafa",
+              padding: "20px 14px",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+            }}>
+              <File size={30} color="#888" strokeWidth={1.5} />
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555" }}>Dossier.pdf</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>Candidature complète — 1.2 Mo</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1475,6 +1601,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [voteCount, setVoteCount] = useState(comp.votes);
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [showAllAlbums, setShowAllAlbums] = useState(false);
   const [activeTab, setActiveTab] = useState("home"); // "home" | "participants" | "medias" | "donateurs"
   const [activeBanner, setActiveBanner] = useState(0);
   const bannerVideoRefs = useRef({});
@@ -2567,14 +2694,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => {
                 const p = buildParticipants(comp)[i];
                 return (
-                  <div key={i} onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i) })} style={{ flexShrink: 0, width: comp.mediaType === "photo" ? "30vw" : "28vw", maxWidth: 160, cursor: "pointer" }}>
+                  <div key={i} onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })} style={{ flexShrink: 0, width: comp.mediaType === "photo" ? "30vw" : "28vw", maxWidth: 160, cursor: "pointer" }}>
                     <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
                   </div>
                 );
               })}
               {comp.contestants > 12 && (
                 <div
-                  onClick={() => setShowAll(true)}
+                  onClick={() => setShowAllAlbums(true)}
                   style={{
                     flexShrink: 0, width: 120,
                     border: "1px dashed #ddd", background: "#fafafa",
@@ -3523,6 +3650,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         <ParticipantListOverlay comp={comp} onClose={() => setShowAll(false)} />
       )}
 
+      {showAllAlbums && (
+        <AlbumGridOverlay
+          comp={comp}
+          onClose={() => setShowAllAlbums(false)}
+          onOpenAlbum={(i) => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })}
+        />
+      )}
+
       {showAllRegistrants && (
         <RegistrantListOverlay comp={comp} registrants={registrants} accent={accent} onClose={() => setShowAllRegistrants(false)} />
       )}
@@ -3531,6 +3666,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         <AlbumSheet
           participantIndex={albumSheet.participantIndex}
           name={albumSheet.name}
+          mediaType={albumSheet.mediaType}
           accent={accent}
           onClose={() => setAlbumSheet(null)}
         />
