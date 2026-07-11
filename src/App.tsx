@@ -2239,7 +2239,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {activeTab === "home" && (
         <>
         {/* ── À PROPOS / RÈGLEMENT ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
+        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "12px 14px" }}>
           <div style={{
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
@@ -2261,7 +2261,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <div style={{
               display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
             }}>
-              <div style={{ background: "#fff", border: "1px solid #eee", padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ background: "#fff", border: "1px solid #eee", padding: "8px 10px", display: "flex", alignItems: "center", gap: 8 }}>
                 <Trophy size={16} color="#aaa" strokeWidth={2} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3 }}>
@@ -2277,7 +2277,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   </div>
                 </div>
               </div>
-              <div style={{ background: "#fff", border: `1px solid ${accent}33`, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ background: "#fff", border: `1px solid ${accent}33`, padding: "8px 10px", display: "flex", alignItems: "center", gap: 8 }}>
                 <Gift size={16} color={accent} strokeWidth={2} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: accent, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
@@ -2298,7 +2298,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
             {(rulesInfo.rewardExtra || isRegistration || leader) && (
               <div style={{
-                border: "1px solid #eee", padding: "10px 12px", marginTop: 8,
+                border: "1px solid #eee", padding: "8px 10px", marginTop: 8,
                 display: "flex", flexDirection: "column", gap: 6,
               }}>
                 {rulesInfo.rewardExtra && (
@@ -2339,7 +2339,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 onClick={() => setRulesExpanded((v) => !v)}
                 style={{
                   width: "100%", border: "none", borderRadius: 14, background: "#f5f5f5",
-                  padding: "12px 14px", cursor: "pointer",
+                  padding: "10px 12px", cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
                   color: "#333", textTransform: "uppercase", letterSpacing: "0.06em",
@@ -2354,7 +2354,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
               {rulesExpanded && (
                 <ol style={{
-                  margin: "10px 0 0", padding: "0 0 0 18px",
+                  margin: "10px 0 0", padding: "0 0 0 16px",
                   display: "flex", flexDirection: "column", gap: 8,
                 }}>
                   {rulesInfo.rules.map((rule, i) => (
@@ -2387,7 +2387,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           ]).map((s, i) => (
             <div key={i} style={{
               borderLeft: i > 0 ? "1px solid #f0f0f0" : "none",
-              padding: "14px 8px",
+              padding: "12px 6px",
               display: "flex", flexDirection: "column", alignItems: "center",
             }}>
               <div style={{
@@ -2413,7 +2413,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           <div style={{
             background: "#fff",
             borderBottom: "1px solid #e0e0e0",
-            padding: "12px 16px",
+            padding: "10px 14px",
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
             <div style={{
@@ -2438,7 +2438,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         <div style={{
           background: isRegistration ? "#f0ebff" : comp.hot ? "#fff0ed" : "#f7f7f5",
           borderBottom: "1px solid #e0e0e0",
-          padding: "12px 16px",
+          padding: "10px 14px",
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{
@@ -2459,10 +2459,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         </div>
 
         {/* ── PARTICIPANTS PREVIEW ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0" }}>
+        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "12px 0" }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 12, paddingLeft: 16, paddingRight: 16,
+            marginBottom: 12, paddingLeft: 14, paddingRight: 14,
           }}>
             <span style={{
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
@@ -2485,12 +2485,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </button>
           </div>
 
-          <div style={{ paddingLeft: 16, paddingRight: 16 }}>
+          <div style={{ paddingLeft: 14, paddingRight: 14 }}>
             {isRegistration ? (
               registrants.slice(0, 3).map((r) => (
                 <div key={r.id} style={{
                   display: "flex", alignItems: "center", gap: 10,
-                  padding: "9px 0",
+                  padding: "7px 0",
                   borderBottom: "1px solid #f3f3f3",
                 }}>
                   <div style={{
@@ -2523,7 +2523,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 return (
                   <div key={p.index} style={{
                     display: "flex", alignItems: "center", gap: 10,
-                    padding: "11px 0",
+                    padding: "9px 0",
                     borderBottom: rank < 2 ? "1px solid #f0f0f0" : "none",
                   }}>
                     {/* Rank */}
@@ -2584,10 +2584,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
         {/* ── MÉDIAS PREVIEW ── */}
         {!isRegistration && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0" }}>
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "12px 0" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 12, paddingLeft: 16, paddingRight: 16,
+              marginBottom: 12, paddingLeft: 14, paddingRight: 14,
             }}>
               <span style={{
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
@@ -2610,7 +2610,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               </button>
             </div>
 
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 14, paddingRight: 14, scrollbarWidth: "none" }}>
               {Array.from({ length: Math.min(comp.contestants, 10) }, (_, i) => {
                 const p = buildParticipants(comp)[i];
                 return (
@@ -2629,10 +2629,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
         {/* ── DONATEURS PREVIEW ── */}
         {!isRegistration && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0" }}>
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "12px 0" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 12, paddingLeft: 16, paddingRight: 16,
+              marginBottom: 12, paddingLeft: 14, paddingRight: 14,
             }}>
               <span style={{
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
@@ -2656,11 +2656,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </div>
 
             {giftLeaderboard.length === 0 ? (
-              <div style={{ padding: "8px 16px 4px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+              <div style={{ padding: "6px 14px 2px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
                 Aucun donateur pour le moment.
               </div>
             ) : (
-              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingLeft: 14, paddingRight: 14, scrollbarWidth: "none" }}>
                 {giftLeaderboard.slice(0, 10).map((donor, i) => (
                   <div key={donor.id} style={{ flexShrink: 0, width: 72, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                     <div style={{
@@ -2693,10 +2693,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
         {/* ── LIVE PREVIEW ── */}
         {!isRegistration && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0" }}>
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "12px 0" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 12, paddingLeft: 16, paddingRight: 16,
+              marginBottom: 12, paddingLeft: 14, paddingRight: 14,
             }}>
               <span style={{
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
@@ -2724,11 +2724,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </div>
 
             {feedItems.length === 0 ? (
-              <div style={{ padding: "8px 16px 4px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+              <div style={{ padding: "6px 14px 2px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
                 Aucune activité pour le moment.
               </div>
             ) : (
-              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 14, paddingRight: 14, scrollbarWidth: "none" }}>
                 {feedItems.slice(0, 10).map((item) => {
                   if (item.type === "gift") {
                     const entry = item.entry;
@@ -2736,7 +2736,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       <div key={item.key} style={{
                         flexShrink: 0, maxWidth: 170,
                         border: "1px solid #f0f0f0", background: "#fafafa",
-                        padding: "8px 10px",
+                        padding: "6px 8px",
                         display: "flex", alignItems: "center", gap: 8,
                       }}>
                         <div style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "2px solid #eee" }}>
@@ -2756,7 +2756,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     <div key={item.key} style={{
                       flexShrink: 0, width: 170,
                       border: "1px solid #f0f0f0",
-                      padding: "8px 10px",
+                      padding: "6px 8px",
                       display: "flex", flexDirection: "column", gap: 4,
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
