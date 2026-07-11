@@ -2210,6 +2210,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           { key: "participants", label: "Participants" },
           { key: "medias", label: "Médias" },
           { key: "donateurs", label: "Donateurs" },
+          { key: "live", label: "Live" },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -2223,7 +2224,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               transition: "color 0.15s, border-color 0.15s",
             }}
           >
-            {tab.label}
+            {tab.key === "live" && !isRegistration ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+                {tab.label}
+              </span>
+            ) : tab.label}
           </button>
         ))}
       </div>
@@ -2806,7 +2812,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </div>
         )}
 
-        {/* ── ACTIVITY (gifts + comments interleaved, TikTok-style) ── */}
+        {/* ── LIVE TAB (gifts + comments interleaved, TikTok-style) ── */}
+        {activeTab === "live" && !isRegistration && (
         <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px 20px" }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
@@ -3024,6 +3031,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             })}
           </div>
         </div>
+        )}
 
       </div>
 
