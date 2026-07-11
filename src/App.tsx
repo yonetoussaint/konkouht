@@ -1217,7 +1217,7 @@ function AlbumGridOverlay({ comp, onClose, onOpenAlbum }) {
 
       <div style={{
         maxWidth: 800, margin: "0 auto", padding: 12,
-        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6,
+        display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8,
       }}>
         {Array.from({ length: count }, (_, i) => {
           const p = buildParticipants(comp)[i];
@@ -2689,12 +2689,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             }}>
               Albums
             </div>
-            <div style={{ display: "flex", gap: 2, overflowX: "auto", paddingBottom: 0, paddingLeft: 8, paddingRight: 8, scrollbarWidth: "none" }}>
-              <style>{`div::-webkit-scrollbar{display:none}`}</style>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, paddingLeft: 8, paddingRight: 8 }}>
               {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => {
                 const p = buildParticipants(comp)[i];
                 return (
-                  <div key={i} onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })} style={{ flexShrink: 0, width: comp.mediaType === "photo" ? "30vw" : "28vw", maxWidth: 160, cursor: "pointer" }}>
+                  <div key={i} onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })} style={{ cursor: "pointer" }}>
                     <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
                   </div>
                 );
@@ -2703,7 +2702,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 <div
                   onClick={() => setShowAllAlbums(true)}
                   style={{
-                    flexShrink: 0, width: 120,
                     border: "1px dashed #ddd", background: "#fafafa",
                     display: "flex", flexDirection: "column",
                     alignItems: "center", justifyContent: "center",
