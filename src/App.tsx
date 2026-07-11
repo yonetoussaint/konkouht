@@ -2458,6 +2458,280 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </span>
         </div>
 
+        {/* ── PARTICIPANTS PREVIEW ── */}
+        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0" }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 12, paddingLeft: 16, paddingRight: 16,
+          }}>
+            <span style={{
+              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+            }}>Participants</span>
+            <button
+              onClick={() => setActiveTab("participants")}
+              style={{
+                border: "none", background: "none", color: accent,
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                letterSpacing: "0.08em", textTransform: "uppercase",
+                cursor: "pointer", padding: 0,
+                display: "flex", alignItems: "center", gap: 4,
+              }}
+            >
+              Voir plus
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+              </svg>
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+            {isRegistration ? (
+              registrants.slice(0, 10).map((r) => (
+                <div key={r.id} style={{ flexShrink: 0, width: 68, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: "50%", flexShrink: 0,
+                    background: "#f0ebff", color: "#6C63FF",
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {r.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#333", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                    {r.name}
+                  </span>
+                </div>
+              ))
+            ) : (
+              ranked.slice(0, 10).map((p, rank) => (
+                <div key={p.index} style={{ flexShrink: 0, width: 68, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: "50%", flexShrink: 0,
+                    overflow: "hidden", background: "#fff",
+                    border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                    boxShadow: "0 1px 5px rgba(0,0,0,0.12)", position: "relative",
+                  }}>
+                    <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    {rank === 0 && (
+                      <span style={{ position: "absolute", bottom: -2, right: -2, fontSize: 14 }}>🥇</span>
+                    )}
+                  </div>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#333", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                    {p.name}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* ── MÉDIAS PREVIEW ── */}
+        {!isRegistration && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 12, paddingLeft: 16, paddingRight: 16,
+            }}>
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              }}>Médias</span>
+              <button
+                onClick={() => setActiveTab("medias")}
+                style={{
+                  border: "none", background: "none", color: accent,
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  cursor: "pointer", padding: 0,
+                  display: "flex", alignItems: "center", gap: 4,
+                }}
+              >
+                Voir plus
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+                </svg>
+              </button>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+              {Array.from({ length: Math.min(comp.contestants, 10) }, (_, i) => {
+                const p = buildParticipants(comp)[i];
+                return (
+                  <div
+                    key={i}
+                    onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })}
+                    style={{ flexShrink: 0, width: 110, cursor: "pointer" }}
+                  >
+                    <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── DONATEURS PREVIEW ── */}
+        {!isRegistration && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 12, paddingLeft: 16, paddingRight: 16,
+            }}>
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              }}>Donateurs</span>
+              <button
+                onClick={() => setActiveTab("donateurs")}
+                style={{
+                  border: "none", background: "none", color: accent,
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  cursor: "pointer", padding: 0,
+                  display: "flex", alignItems: "center", gap: 4,
+                }}
+              >
+                Voir plus
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+                </svg>
+              </button>
+            </div>
+
+            {giftLeaderboard.length === 0 ? (
+              <div style={{ padding: "8px 16px 4px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+                Aucun donateur pour le moment.
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+                {giftLeaderboard.slice(0, 10).map((donor, i) => (
+                  <div key={donor.id} style={{ flexShrink: 0, width: 72, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                    <div style={{
+                      width: 52, height: 52, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                      border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                      background: donor.isMe ? "#111" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center", position: "relative",
+                    }}>
+                      {donor.isMe ? (
+                        <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700 }}>{donor.name.charAt(0)}</span>
+                      ) : (
+                        <img src={avatarImg(donor.index)} alt={donor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      )}
+                      {i === 0 && (
+                        <span style={{ position: "absolute", bottom: -2, right: -2, fontSize: 14 }}>👑</span>
+                      )}
+                    </div>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#333", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                      {donor.name}
+                    </span>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: i === 0 ? accent : "#888" }}>
+                      {donor.totalSpent.toLocaleString("fr-FR")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── LIVE PREVIEW ── */}
+        {!isRegistration && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 0" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 12, paddingLeft: 16, paddingRight: 16,
+            }}>
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+                display: "flex", alignItems: "center", gap: 6,
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+                Live
+              </span>
+              <button
+                onClick={() => setActiveTab("live")}
+                style={{
+                  border: "none", background: "none", color: accent,
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  cursor: "pointer", padding: 0,
+                  display: "flex", alignItems: "center", gap: 4,
+                }}
+              >
+                Voir plus
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+                </svg>
+              </button>
+            </div>
+
+            {feedItems.length === 0 ? (
+              <div style={{ padding: "8px 16px 4px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+                Aucune activité pour le moment.
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+                {feedItems.slice(0, 10).map((item) => {
+                  if (item.type === "gift") {
+                    const entry = item.entry;
+                    return (
+                      <div key={item.key} style={{
+                        flexShrink: 0, maxWidth: 170,
+                        border: "1px solid #f0f0f0", background: "#fafafa",
+                        padding: "8px 10px",
+                        display: "flex", alignItems: "center", gap: 8,
+                      }}>
+                        <div style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "2px solid #eee" }}>
+                          <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        </div>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#333", whiteSpace: "nowrap" }}>
+                          <span>{entry.gift.icon}</span>{" "}
+                          <span style={{ fontWeight: 700, color: accent }}>{entry.gift.name}</span>
+                          {" → "}
+                          <span style={{ fontWeight: 700 }}>{fakeName(entry.pIndex)}</span>
+                        </span>
+                      </div>
+                    );
+                  }
+                  const c = item.comment;
+                  return (
+                    <div key={item.key} style={{
+                      flexShrink: 0, width: 170,
+                      border: "1px solid #f0f0f0",
+                      padding: "8px 10px",
+                      display: "flex", flexDirection: "column", gap: 4,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{
+                          width: 20, height: 20, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                          background: c.isMine ? "#111" : "transparent",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          {c.isMine ? (
+                            <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{c.name.charAt(0)}</span>
+                          ) : (
+                            <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          )}
+                        </div>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {c.name}
+                        </span>
+                      </div>
+                      <p style={{
+                        fontFamily: "Inter, sans-serif", fontSize: 11, color: "#666", lineHeight: 1.4, margin: 0,
+                        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                      }}>
+                        {c.text}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         </>
         )}
 
