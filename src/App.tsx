@@ -2734,20 +2734,36 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     const entry = item.entry;
                     return (
                       <div key={item.key} style={{
-                        flexShrink: 0, maxWidth: 170,
+                        flexShrink: 0, width: 108,
                         border: "1px solid #f0f0f0", background: "#fafafa",
-                        padding: "2px 4px",
-                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "10px 8px 8px",
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
                       }}>
-                        <div style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "2px solid #eee" }}>
-                          <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                        </div>
-                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#333", whiteSpace: "nowrap" }}>
-                          <span>{entry.gift.icon}</span>{" "}
-                          <span style={{ fontWeight: 700, color: accent }}>{entry.gift.name}</span>
-                          {" → "}
-                          <span style={{ fontWeight: 700 }}>{fakeName(entry.pIndex)}</span>
+                        {/* Emoji — the central element */}
+                        <span style={{ fontSize: 34, lineHeight: 1 }}>{entry.gift.icon}</span>
+                        <span style={{
+                          fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+                          color: accent, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%",
+                        }}>
+                          {entry.gift.name}
                         </span>
+
+                        {/* Recipient — who the gift is for */}
+                        <div style={{
+                          display: "flex", alignItems: "center", gap: 4,
+                          marginTop: 4, paddingTop: 6, borderTop: "1px solid #eee", width: "100%",
+                          justifyContent: "center",
+                        }}>
+                          <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #eee" }}>
+                            <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          </div>
+                          <span style={{
+                            fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#666",
+                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                          }}>
+                            {fakeName(entry.pIndex)}
+                          </span>
+                        </div>
                       </div>
                     );
                   }
