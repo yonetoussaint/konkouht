@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2 } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -1090,6 +1090,13 @@ function fmtCommentTime(minutesAgo) {
   const hours = Math.floor(minutesAgo / 60);
   if (hours < 24) return `${hours}h`;
   return `${Math.floor(hours / 24)}j`;
+}
+
+function fmtAgoFr(minutesAgo) {
+  if (minutesAgo < 60) return `Il y a ${minutesAgo} min`;
+  const hours = Math.floor(minutesAgo / 60);
+  if (hours < 24) return `Il y a ${hours} h`;
+  return `Il y a ${Math.floor(hours / 24)} j`;
 }
 
 /* ─── RULES / PRIZE / DESCRIPTION ───────────────────────────────────────── */
@@ -2737,10 +2744,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     const replyCount = entry.id % 3;
                     return (
                       <div key={item.key} style={{
-                        flexShrink: 0, width: 170, minHeight: 208,
+                        flexShrink: 0, width: 170,
                         border: "1px solid #f0f0f0",
-                        padding: "8px 8px 6px",
-                        display: "flex", flexDirection: "column", gap: 6,
+                        padding: "7px 8px 5px",
+                        display: "flex", flexDirection: "column", gap: 4,
                       }}>
                         {/* Header — sender profile, same as a comment card */}
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -2753,14 +2760,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                               {(entry.senderName || "V").charAt(0)}
                             </span>
                           </div>
-                          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
-                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {entry.senderName || "Vous"}
-                            </span>
-                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb" }}>
-                              {fmtCommentTime(item.minutesAgo)}
-                            </span>
-                          </div>
+                          <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {entry.senderName || "Vous"}
+                          </span>
                           {/* Gift tag — distinguishes this from a comment card */}
                           <span style={{
                             flexShrink: 0,
@@ -2775,8 +2777,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         </div>
 
                         {/* Emoji — the central element */}
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, padding: "2px 0" }}>
-                          <span style={{ fontSize: 30, lineHeight: 1 }}>{entry.gift.icon}</span>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "3px 0" }}>
+                          <span style={{ fontSize: 26, lineHeight: 1 }}>{entry.gift.icon}</span>
                           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: accent }}>
                             {entry.gift.name}
                           </span>
@@ -2785,7 +2787,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         {/* Recipient — who the gift is for */}
                         <div style={{
                           display: "flex", alignItems: "center", gap: 5,
-                          paddingTop: 5, borderTop: "1px solid #f0f0f0",
+                          paddingTop: 4, borderTop: "1px solid #f0f0f0",
                         }}>
                           <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #eee" }}>
                             <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -2808,7 +2810,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             <MessageCircle size={12} color="#bbb" strokeWidth={2} />
                             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#999" }}>{replyCount}</span>
                           </div>
-                          <Share2 size={12} color="#bbb" strokeWidth={2} style={{ marginLeft: "auto" }} />
+                          <span style={{ marginLeft: "auto", fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", whiteSpace: "nowrap" }}>
+                            {fmtAgoFr(item.minutesAgo)}
+                          </span>
                         </div>
                       </div>
                     );
@@ -2817,10 +2821,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   const liked = likedCommentIds.has(c.id);
                   return (
                     <div key={item.key} style={{
-                      flexShrink: 0, width: 170, minHeight: 208,
+                      flexShrink: 0, width: 170,
                       border: "1px solid #f0f0f0",
-                      padding: "8px 8px 6px",
-                      display: "flex", flexDirection: "column", gap: 6,
+                      padding: "7px 8px 5px",
+                      display: "flex", flexDirection: "column", gap: 4,
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <div style={{
@@ -2834,19 +2838,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                           )}
                         </div>
-                        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
-                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {c.name}
-                          </span>
-                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb" }}>
-                            {fmtCommentTime(item.minutesAgo)}
-                          </span>
-                        </div>
+                        <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {c.name}
+                        </span>
                       </div>
                       <p style={{
-                        flex: 1,
                         fontFamily: "Inter, sans-serif", fontSize: 11, color: "#666", lineHeight: 1.4, margin: 0,
-                        display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
+                        display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
                       }}>
                         {c.text}
                       </p>
@@ -2861,7 +2859,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                           <MessageCircle size={12} color="#bbb" strokeWidth={2} />
                           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#999" }}>{c.replies.length}</span>
                         </div>
-                        <Share2 size={12} color="#bbb" strokeWidth={2} style={{ marginLeft: "auto" }} />
+                        <span style={{ marginLeft: "auto", fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", whiteSpace: "nowrap" }}>
+                          {fmtAgoFr(item.minutesAgo)}
+                        </span>
                       </div>
                     </div>
                   );
