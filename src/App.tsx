@@ -1892,11 +1892,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const SCROLL_THRESHOLD = 140;
   const t = Math.min(scrollY / SCROLL_THRESHOLD, 1);
   const headerBg = `rgba(255,255,255,${t})`;
-  const closeColor = t > 0.5 ? "#111" : "#fff";
-  const closeBg = t > 0.5 ? `rgba(0,0,0,0.06)` : `rgba(0,0,0,${0.35 * (1 - t) + 0.06 * t})`;
-  const closeBorder = t > 0.5 ? `1px solid rgba(0,0,0,0.12)` : `1px solid rgba(255,255,255,${0.4 * (1 - t)})`;
-  const pillTextColor = t > 0.5 ? "#333" : "#fff";
-  const pillBg = t > 0.5 ? `rgba(0,0,0,0.07)` : accent;
   const borderColor = t > 0.5 ? `rgba(0,0,0,0.1)` : `rgba(255,255,255,0.3)`;
 
   // Live vote tick — random participant gets +1–4 votes (and matching gift credit) every 1.8s (voting phase only)
@@ -2016,47 +2011,40 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         transition: "opacity 0.3s",
       }}>
         <button onClick={onClose} style={{
-          width: 32, height: 32, borderRadius: "50%", border: closeBorder, background: closeBg,
-          color: closeColor, fontSize: 15, cursor: "pointer",
+          width: 32, height: 32, borderRadius: "50%",
+          background: "rgba(255,255,255,0.25)",
+          backdropFilter: "blur(12px) saturate(180%)",
+          WebkitBackdropFilter: "blur(12px) saturate(180%)",
+          border: "1px solid rgba(255,255,255,0.4)",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
+          color: "#222", fontSize: 15, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          pointerEvents: "all", transition: "background 0.2s, color 0.2s, border 0.2s",
-        }}><X size={14} /></button>        <div style={{ display: "flex", gap: 5, alignItems: "center", pointerEvents: "all" }}>
-          {comp.hot && (
-            <span style={{
-              fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              color: pillTextColor, background: t > 0.5 ? "rgba(0,0,0,0.07)" : "rgba(0,0,0,0.45)",
-              padding: "3px 8px", borderRadius: 999, transition: "color 0.2s, background 0.2s",
-            }}>EN VUE</span>
-          )}
-          <span style={{
-            fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-            letterSpacing: "0.1em", textTransform: "uppercase",
-            color: pillTextColor, background: pillBg,
-            padding: "3px 8px", borderRadius: 999,
-            transition: "color 0.2s, background 0.2s, border-color 0.2s",
-          }}>{comp.edition}</span>
-          {/* Competition follow — separate from organiser follow */}
-          <button
-            onClick={() => onToggleFollow?.(comp)}
-            title={isFollowed ? "Ne plus suivre cette compétition" : "Suivre cette compétition"}
-            style={{
-              width: 32, height: 32, borderRadius: "50%",
-              border: isFollowed ? "1px solid rgba(255,255,255,0.9)" : closeBorder,
-              background: isFollowed ? "rgba(255,255,255,0.9)" : closeBg,
-              color: isFollowed ? accent : closeColor,
-              cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "background 0.2s, color 0.2s, border 0.2s",
-            }}
-          >
-            <Bell size={13} strokeWidth={isFollowed ? 2.5 : 2} fill={isFollowed ? accent : "none"} />
-          </button>
-        </div>
+          pointerEvents: "all",
+        }}><X size={14} /></button>
+
+        {/* Competition follow — separate from organiser follow */}
+        <button
+          onClick={() => onToggleFollow?.(comp)}
+          title={isFollowed ? "Ne plus suivre cette compétition" : "Suivre cette compétition"}
+          style={{
+            width: 32, height: 32, borderRadius: "50%",
+            background: isFollowed ? `${accent}33` : "rgba(255,255,255,0.25)",
+            backdropFilter: "blur(12px) saturate(180%)",
+            WebkitBackdropFilter: "blur(12px) saturate(180%)",
+            border: isFollowed ? `1px solid ${accent}88` : "1px solid rgba(255,255,255,0.4)",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
+            color: isFollowed ? accent : "#222",
+            cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "all",
+          }}
+        >
+          <Bell size={13} strokeWidth={isFollowed ? 2.5 : 2} fill={isFollowed ? accent : "none"} />
+        </button>
       </div>
 
       {/* ── HERO ── */}
-      <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0, marginTop: -44 }}>
+      <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0, marginTop: -46 }}>
 
         {/* Banner slides */}
         {(() => {
