@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2 } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -1667,12 +1667,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   };
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [showGiftBar, setShowGiftBar] = useState(false);
-  const [floatHearts, setFloatHearts] = useState([]);
-  const handleSendRose = () => {
-    const id = Date.now() + Math.random();
-    setFloatHearts((prev) => [...prev, { id, x: Math.random() * 24 - 12 }]);
-    setTimeout(() => setFloatHearts((prev) => prev.filter((h) => h.id !== id)), 1400);
-  };
   const [activeGift, setActiveGift] = useState(null);
   const [giftStep, setGiftStep] = useState("participant"); // "participant" | "gift" | "confirm"
   const [selectedParticipant, setSelectedParticipant] = useState(null);
@@ -2023,24 +2017,42 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         }}><X size={14} /></button>
 
         {/* Competition follow — separate from organiser follow */}
-        <button
-          onClick={() => onToggleFollow?.(comp)}
-          title={isFollowed ? "Ne plus suivre cette compétition" : "Suivre cette compétition"}
-          style={{
-            width: 32, height: 32, borderRadius: "50%",
-            background: isFollowed ? `${accent}33` : "rgba(255,255,255,0.25)",
-            backdropFilter: "blur(12px) saturate(180%)",
-            WebkitBackdropFilter: "blur(12px) saturate(180%)",
-            border: isFollowed ? `1px solid ${accent}88` : "1px solid rgba(255,255,255,0.4)",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
-            color: isFollowed ? accent : "#222",
-            cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            pointerEvents: "all",
-          }}
-        >
-          <Bell size={13} strokeWidth={isFollowed ? 2.5 : 2} fill={isFollowed ? accent : "none"} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, pointerEvents: "all" }}>
+          <button
+            onClick={() => onToggleFollow?.(comp)}
+            title={isFollowed ? "Ne plus suivre cette compétition" : "Suivre cette compétition"}
+            style={{
+              width: 32, height: 32, borderRadius: "50%",
+              background: isFollowed ? `${accent}33` : "rgba(255,255,255,0.25)",
+              backdropFilter: "blur(12px) saturate(180%)",
+              WebkitBackdropFilter: "blur(12px) saturate(180%)",
+              border: isFollowed ? `1px solid ${accent}88` : "1px solid rgba(255,255,255,0.4)",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
+              color: isFollowed ? accent : "#222",
+              cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <Bell size={13} strokeWidth={isFollowed ? 2.5 : 2} fill={isFollowed ? accent : "none"} />
+          </button>
+
+          <button
+            title="Partager"
+            style={{
+              width: 32, height: 32, borderRadius: "50%",
+              background: "rgba(255,255,255,0.25)",
+              backdropFilter: "blur(12px) saturate(180%)",
+              WebkitBackdropFilter: "blur(12px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.4)",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
+              color: "#222",
+              cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <Share2 size={13} strokeWidth={2} />
+          </button>
+        </div>
       </div>
 
       {/* ── HERO ── */}
@@ -3897,11 +3909,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       {!showGiftBar && (
       <div style={{
         position: "fixed", bottom: isRegistration ? 8 : 0, left: isRegistration ? 8 : 0, right: isRegistration ? 8 : 0,
-        background: isRegistration ? "#fff" : "rgba(20,20,20,0.82)",
-        backdropFilter: isRegistration ? "none" : "blur(14px)",
-        WebkitBackdropFilter: isRegistration ? "none" : "blur(14px)",
+        background: "#fff",
+        borderTop: isRegistration ? "none" : "1px solid #eee",
         borderRadius: isRegistration ? 20 : 0,
-        boxShadow: isRegistration ? "0 -2px 24px rgba(0,0,0,0.15)" : "none",
+        boxShadow: isRegistration ? "0 -2px 24px rgba(0,0,0,0.15)" : "0 -2px 16px rgba(0,0,0,0.06)",
         padding: isRegistration ? "10px 12px" : "8px 10px calc(8px + env(safe-area-inset-bottom, 0px))",
         zIndex: 1001,
       }}>
@@ -3982,9 +3993,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </button>
             )
           ) : (
-            // Voting footer — TikTok Live style: comment input + rose + gift + share
-            <>
-              {/* Comment input pill */}
+            // Voting footer — comment input with gift button embedded inside it
+            <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
               <input
                 type="text"
                 value={commentDraft}
@@ -3993,34 +4003,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
                 placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
                 style={{
-                  flex: 1, minWidth: 0, border: "none", borderRadius: 999,
-                  background: "rgba(255,255,255,0.14)",
-                  padding: "11px 16px", fontFamily: "Inter, sans-serif", fontSize: 13,
-                  color: "#fff", outline: "none",
+                  width: "100%", minWidth: 0, border: "1px solid #ececec", borderRadius: 999,
+                  background: "#f5f5f5",
+                  padding: "11px 52px 11px 16px", fontFamily: "Inter, sans-serif", fontSize: 13,
+                  color: "#111", outline: "none",
                 }}
               />
 
-              {/* Rose / like button */}
-              <button
-                onClick={handleSendRose}
-                style={{
-                  position: "relative",
-                  width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
-                  border: "none", background: "rgba(255,255,255,0.14)",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <span style={{ fontSize: 18 }}>🌹</span>
-                {floatHearts.map((h) => (
-                  <span key={h.id} style={{
-                    position: "absolute", left: `calc(50% + ${h.x}px)`, bottom: "60%",
-                    fontSize: 14, pointerEvents: "none",
-                    animation: "float-heart 1.4s ease-out forwards",
-                  }}>❤️</span>
-                ))}
-              </button>
-
-              {/* Gift button */}
+              {/* Gift button — embedded inside the input, right edge */}
               <button
                 onClick={() => {
                   setShowGiftBar((v) => {
@@ -4036,37 +4026,19 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   });
                 }}
                 style={{
-                  width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
-                  border: "none", background: showGiftBar ? accent : "rgba(255,255,255,0.14)",
+                  position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+                  width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
+                  border: "none", background: showGiftBar ? accent : "#fff",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
                   cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
-                <Gift size={17} color="#fff" strokeWidth={2.2} />
+                <Gift size={16} color={showGiftBar ? "#fff" : accent} strokeWidth={2.2} />
               </button>
-
-              {/* Share button */}
-              <button style={{
-                width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
-                border: "none", background: "rgba(255,255,255,0.14)",
-                cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
-              }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                  <polyline points="16 6 12 2 8 6"/>
-                  <line x1="12" y1="2" x2="12" y2="15"/>
-                </svg>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8, color: "#fff", fontWeight: 600 }}>
-                  {fmtVotes(voteCount)}
-                </span>
-              </button>
-            </>
+            </div>
           )}
         </div>
       </div>
-      )}
-
-      {!isRegistration && (
-        <style>{`@keyframes float-heart { 0% { opacity: 1; transform: translate(-50%, 0) scale(0.8); } 100% { opacity: 0; transform: translate(-50%, -60px) scale(1.1); } }`}</style>
       )}
 
       {showAll && (
