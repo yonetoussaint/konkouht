@@ -3455,6 +3455,19 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
       </div>
 
+      {/* ── GIFT TRAY BACKDROP ── */}
+      {!isRegistration && showGiftBar && (
+        <div
+          onClick={() => setShowGiftBar(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+          }}
+        />
+      )}
+
       {/* ── GIFT TRAY (slides up, only for voting phase) ── */}
       {!isRegistration && showGiftBar && (
         <div style={{
