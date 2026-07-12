@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2 } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
-
+0a
 // FNCH ("Fédération Nationale des Concours d'Haïti") is the platform's own
 // organizing body — every competition on the app is run under this sigle,
 // and this account is auto-recognized as its verified organizer.
@@ -2732,12 +2732,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 {feedItems.slice(0, 10).map((item) => {
                   if (item.type === "gift") {
                     const entry = item.entry;
+                    const liked = likedCommentIds.has(entry.id);
+                    const likeCount = (entry.id % 12) + (liked ? 1 : 0);
+                    const replyCount = entry.id % 3;
                     return (
                       <div key={item.key} style={{
-                        flexShrink: 0, width: 170,
+                        flexShrink: 0, width: 170, minHeight: 208,
                         border: "1px solid #f0f0f0",
-                        padding: "2px 4px",
-                        display: "flex", flexDirection: "column", gap: 4,
+                        padding: "8px 8px 6px",
+                        display: "flex", flexDirection: "column", gap: 6,
                       }}>
                         {/* Header — sender profile, same as a comment card */}
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -2750,9 +2753,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                               {(entry.senderName || "V").charAt(0)}
                             </span>
                           </div>
-                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {entry.senderName || "Vous"}
-                          </span>
+                          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
+                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {entry.senderName || "Vous"}
+                            </span>
+                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb" }}>
+                              {fmtCommentTime(item.minutesAgo)}
+                            </span>
+                          </div>
                           {/* Gift tag — distinguishes this from a comment card */}
                           <span style={{
                             flexShrink: 0,
@@ -2767,7 +2775,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         </div>
 
                         {/* Emoji — the central element */}
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "2px 0" }}>
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, padding: "2px 0" }}>
                           <span style={{ fontSize: 30, lineHeight: 1 }}>{entry.gift.icon}</span>
                           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: accent }}>
                             {entry.gift.name}
@@ -2789,16 +2797,30 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             pour <span style={{ fontWeight: 700, color: "#666" }}>{fakeName(entry.pIndex)}</span>
                           </span>
                         </div>
+
+                        {/* Engagement bar */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 4, borderTop: "1px solid #f0f0f0" }}>
+                          <button onClick={() => handleToggleLike(entry.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 3 }}>
+                            <Heart size={12} fill={liked ? "#e74c3c" : "none"} color={liked ? "#e74c3c" : "#bbb"} strokeWidth={2} />
+                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: liked ? "#e74c3c" : "#999" }}>{likeCount}</span>
+                          </button>
+                          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                            <MessageCircle size={12} color="#bbb" strokeWidth={2} />
+                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#999" }}>{replyCount}</span>
+                          </div>
+                          <Share2 size={12} color="#bbb" strokeWidth={2} style={{ marginLeft: "auto" }} />
+                        </div>
                       </div>
                     );
                   }
                   const c = item.comment;
+                  const liked = likedCommentIds.has(c.id);
                   return (
                     <div key={item.key} style={{
-                      flexShrink: 0, width: 170,
+                      flexShrink: 0, width: 170, minHeight: 208,
                       border: "1px solid #f0f0f0",
-                      padding: "2px 4px",
-                      display: "flex", flexDirection: "column", gap: 4,
+                      padding: "8px 8px 6px",
+                      display: "flex", flexDirection: "column", gap: 6,
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <div style={{
@@ -2812,16 +2834,35 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                           )}
                         </div>
-                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {c.name}
-                        </span>
+                        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
+                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {c.name}
+                          </span>
+                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb" }}>
+                            {fmtCommentTime(item.minutesAgo)}
+                          </span>
+                        </div>
                       </div>
                       <p style={{
+                        flex: 1,
                         fontFamily: "Inter, sans-serif", fontSize: 11, color: "#666", lineHeight: 1.4, margin: 0,
-                        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                        display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
                       }}>
                         {c.text}
                       </p>
+
+                      {/* Engagement bar */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 4, borderTop: "1px solid #f0f0f0" }}>
+                        <button onClick={() => handleToggleLike(c.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 3 }}>
+                          <Heart size={12} fill={liked ? "#e74c3c" : "none"} color={liked ? "#e74c3c" : "#bbb"} strokeWidth={2} />
+                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: liked ? "#e74c3c" : "#999" }}>{c.likes + (liked ? 1 : 0)}</span>
+                        </button>
+                        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                          <MessageCircle size={12} color="#bbb" strokeWidth={2} />
+                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#999" }}>{c.replies.length}</span>
+                        </div>
+                        <Share2 size={12} color="#bbb" strokeWidth={2} style={{ marginLeft: "auto" }} />
+                      </div>
                     </div>
                   );
                 })}
