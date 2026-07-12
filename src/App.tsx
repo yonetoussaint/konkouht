@@ -4,7 +4,7 @@ import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistration
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2 } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
-0a
+
 // FNCH ("Fédération Nationale des Concours d'Haïti") is the platform's own
 // organizing body — every competition on the app is run under this sigle,
 // and this account is auto-recognized as its verified organizer.
