@@ -2746,62 +2746,64 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       <div key={item.key} style={{
                         flexShrink: 0, width: 170,
                         border: "1px solid #f0f0f0",
-                        padding: "7px 8px 5px",
-                        display: "flex", flexDirection: "column", gap: 4,
+                        display: "flex", flexDirection: "column",
                       }}>
-                        {/* Header — sender profile, same as a comment card */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{
-                            width: 20, height: 20, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
-                            background: "#111",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                          }}>
-                            <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>
-                              {(entry.senderName || "V").charAt(0)}
+                        {/* Body */}
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, padding: "7px 8px 6px" }}>
+                          {/* Header — sender profile, same as a comment card */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{
+                              width: 20, height: 20, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                              background: "#111",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                            }}>
+                              <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>
+                                {(entry.senderName || "V").charAt(0)}
+                              </span>
+                            </div>
+                            <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {entry.senderName || "Vous"}
+                            </span>
+                            {/* Gift tag — distinguishes this from a comment card */}
+                            <span style={{
+                              flexShrink: 0,
+                              display: "flex", alignItems: "center", gap: 2,
+                              background: `${accent}18`, color: accent,
+                              fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                              textTransform: "uppercase", letterSpacing: "0.04em",
+                              padding: "2px 5px", borderRadius: 999,
+                            }}>
+                              🎁 Cadeau
                             </span>
                           </div>
-                          <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {entry.senderName || "Vous"}
-                          </span>
-                          {/* Gift tag — distinguishes this from a comment card */}
-                          <span style={{
-                            flexShrink: 0,
-                            display: "flex", alignItems: "center", gap: 2,
-                            background: `${accent}18`, color: accent,
-                            fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-                            textTransform: "uppercase", letterSpacing: "0.04em",
-                            padding: "2px 5px", borderRadius: 999,
-                          }}>
-                            🎁 Cadeau
-                          </span>
-                        </div>
 
-                        {/* Emoji — the central element */}
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "3px 0" }}>
-                          <span style={{ fontSize: 26, lineHeight: 1 }}>{entry.gift.icon}</span>
-                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: accent }}>
-                            {entry.gift.name}
-                          </span>
-                        </div>
-
-                        {/* Recipient — who the gift is for */}
-                        <div style={{
-                          display: "flex", alignItems: "center", gap: 5,
-                          paddingTop: 4, borderTop: "1px solid #f0f0f0",
-                        }}>
-                          <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #eee" }}>
-                            <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          {/* Emoji — the central element */}
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, padding: "3px 0" }}>
+                            <span style={{ fontSize: 26, lineHeight: 1 }}>{entry.gift.icon}</span>
+                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: accent }}>
+                              {entry.gift.name}
+                            </span>
                           </div>
-                          <span style={{
-                            fontFamily: "Inter, sans-serif", fontSize: 10, color: "#888",
-                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+
+                          {/* Recipient — who the gift is for */}
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: 5,
+                            paddingTop: 4, borderTop: "1px solid #f0f0f0",
                           }}>
-                            pour <span style={{ fontWeight: 700, color: "#666" }}>{fakeName(entry.pIndex)}</span>
-                          </span>
+                            <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #eee" }}>
+                              <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            </div>
+                            <span style={{
+                              fontFamily: "Inter, sans-serif", fontSize: 10, color: "#888",
+                              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                            }}>
+                              pour <span style={{ fontWeight: 700, color: "#666" }}>{fakeName(entry.pIndex)}</span>
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Engagement bar */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 4, borderTop: "1px solid #f0f0f0" }}>
+                        {/* Engagement bar — edge-to-edge separator, always at the bottom */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 8px", borderTop: "1px solid #f0f0f0" }}>
                           <button onClick={() => handleToggleLike(entry.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 3 }}>
                             <Heart size={12} fill={liked ? "#e74c3c" : "none"} color={liked ? "#e74c3c" : "#bbb"} strokeWidth={2} />
                             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: liked ? "#e74c3c" : "#999" }}>{likeCount}</span>
@@ -2823,34 +2825,37 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     <div key={item.key} style={{
                       flexShrink: 0, width: 170,
                       border: "1px solid #f0f0f0",
-                      padding: "7px 8px 5px",
-                      display: "flex", flexDirection: "column", gap: 4,
+                      display: "flex", flexDirection: "column",
                     }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <div style={{
-                          width: 20, height: 20, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
-                          background: c.isMine ? "#111" : "transparent",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          {c.isMine ? (
-                            <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{c.name.charAt(0)}</span>
-                          ) : (
-                            <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                          )}
+                      {/* Body */}
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, padding: "7px 8px 6px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{
+                            width: 20, height: 20, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                            background: c.isMine ? "#111" : "transparent",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            {c.isMine ? (
+                              <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{c.name.charAt(0)}</span>
+                            ) : (
+                              <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            )}
+                          </div>
+                          <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {c.name}
+                          </span>
                         </div>
-                        <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {c.name}
-                        </span>
+                        <p style={{
+                          flex: 1,
+                          fontFamily: "Inter, sans-serif", fontSize: 11, color: "#666", lineHeight: 1.4, margin: 0,
+                          display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+                        }}>
+                          {c.text}
+                        </p>
                       </div>
-                      <p style={{
-                        fontFamily: "Inter, sans-serif", fontSize: 11, color: "#666", lineHeight: 1.4, margin: 0,
-                        display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
-                      }}>
-                        {c.text}
-                      </p>
 
-                      {/* Engagement bar */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 4, borderTop: "1px solid #f0f0f0" }}>
+                      {/* Engagement bar — edge-to-edge separator, always at the bottom */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 8px", borderTop: "1px solid #f0f0f0" }}>
                         <button onClick={() => handleToggleLike(c.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 3 }}>
                           <Heart size={12} fill={liked ? "#e74c3c" : "none"} color={liked ? "#e74c3c" : "#bbb"} strokeWidth={2} />
                           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: liked ? "#e74c3c" : "#999" }}>{c.likes + (liked ? 1 : 0)}</span>
