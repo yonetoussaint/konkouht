@@ -2010,8 +2010,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "7px 12px",
         background: headerBg,
-        backdropFilter: t < 0.8 ? "blur(6px)" : "none",
-        WebkitBackdropFilter: t < 0.8 ? "blur(6px)" : "none",
         borderBottom: t > 0.5 ? `1px solid rgba(0,0,0,${0.08 * t})` : "none",
         pointerEvents: "none",
         opacity: bannerFullscreen ? 0 : 1,
