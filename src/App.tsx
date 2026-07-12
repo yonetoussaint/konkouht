@@ -2734,34 +2734,59 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     const entry = item.entry;
                     return (
                       <div key={item.key} style={{
-                        flexShrink: 0, width: 108,
-                        border: "1px solid #f0f0f0", background: "#fafafa",
-                        padding: "10px 8px 8px",
-                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                        flexShrink: 0, width: 170,
+                        border: "1px solid #f0f0f0",
+                        padding: "2px 4px",
+                        display: "flex", flexDirection: "column", gap: 4,
                       }}>
+                        {/* Header — sender profile, same as a comment card */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{
+                            width: 20, height: 20, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                            background: "#111",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>
+                              {(entry.senderName || "V").charAt(0)}
+                            </span>
+                          </div>
+                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {entry.senderName || "Vous"}
+                          </span>
+                          {/* Gift tag — distinguishes this from a comment card */}
+                          <span style={{
+                            flexShrink: 0,
+                            display: "flex", alignItems: "center", gap: 2,
+                            background: `${accent}18`, color: accent,
+                            fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                            textTransform: "uppercase", letterSpacing: "0.04em",
+                            padding: "2px 5px", borderRadius: 999,
+                          }}>
+                            🎁 Cadeau
+                          </span>
+                        </div>
+
                         {/* Emoji — the central element */}
-                        <span style={{ fontSize: 34, lineHeight: 1 }}>{entry.gift.icon}</span>
-                        <span style={{
-                          fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-                          color: accent, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%",
-                        }}>
-                          {entry.gift.name}
-                        </span>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "2px 0" }}>
+                          <span style={{ fontSize: 30, lineHeight: 1 }}>{entry.gift.icon}</span>
+                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: accent }}>
+                            {entry.gift.name}
+                          </span>
+                        </div>
 
                         {/* Recipient — who the gift is for */}
                         <div style={{
-                          display: "flex", alignItems: "center", gap: 4,
-                          marginTop: 4, paddingTop: 6, borderTop: "1px solid #eee", width: "100%",
-                          justifyContent: "center",
+                          display: "flex", alignItems: "center", gap: 5,
+                          paddingTop: 5, borderTop: "1px solid #f0f0f0",
                         }}>
                           <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #eee" }}>
                             <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                           </div>
                           <span style={{
-                            fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#666",
+                            fontFamily: "Inter, sans-serif", fontSize: 10, color: "#888",
                             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                           }}>
-                            {fakeName(entry.pIndex)}
+                            pour <span style={{ fontWeight: 700, color: "#666" }}>{fakeName(entry.pIndex)}</span>
                           </span>
                         </div>
                       </div>
@@ -3641,7 +3666,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         setVoted(true);
                         // Inject gift into live log
                         setLiveLog((prev) => {
-                          const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, ago: "À l'instant", gift };
+                          const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, ago: "À l'instant", gift, senderName: currentUser?.name || "Vous" };
                           return [entry, ...prev.slice(0, 4)].map((e, i) => ({
                             ...e,
                             ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
