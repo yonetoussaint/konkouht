@@ -2066,7 +2066,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           return (
             <>
               {/* Main slider */}
-              <div style={{ width: "100%", aspectRatio: "1 / 1", position: "relative", overflow: "hidden" }}>
+              <div style={{ width: "100%", aspectRatio: "3 / 1", position: "relative", overflow: "hidden" }}>
                 {bannerSlides.map((slide, i) => (
                   <div key={i} style={{
                     position: "absolute", inset: 0,
