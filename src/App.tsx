@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
+import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio } from "lucide-react";
 
@@ -4228,18 +4229,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             {commentaryMuted ? (
               <VolumeX size={20} color="#fff" strokeWidth={2.2} />
             ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 3, height: 20 }}>
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    style={{
-                      width: 4, borderRadius: 2, background: "#fff",
-                      height: commentaryReady ? 18 : 6,
-                      animation: commentaryReady ? `commentary-wave 0.9s ease-in-out ${i * 0.15}s infinite` : "none",
-                    }}
-                  />
-                ))}
-              </div>
+              <AudioBarsLoader
+                height="22"
+                width="22"
+                color="#fff"
+                ariaLabel="commentaire-audio-en-cours"
+                visible={commentaryReady}
+              />
             )}
             <span style={{
               position: "absolute", top: -2, right: -2,
@@ -4249,12 +4245,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             }} />
           </button>
 
-          <style>{`
-            @keyframes commentary-wave {
-              0%, 100% { height: 6px; }
-              50% { height: 18px; }
-            }
-          `}</style>
         </div>
       )}
 
