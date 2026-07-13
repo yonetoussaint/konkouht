@@ -4234,7 +4234,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 width="22"
                 color="#fff"
                 ariaLabel="commentaire-audio-en-cours"
-                visible={commentaryReady}
+                visible={true}
               />
             )}
             <span style={{
