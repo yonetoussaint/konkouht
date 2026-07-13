@@ -2386,7 +2386,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             { value: comp.contestants, label: "Places", accent: true },
             { value: `${registrationFee} G`, label: "Frais insc." },
           ] : [
-            { value: comp.contestants, label: "Candidats" },
+            { value: liveRegistered, label: "Candidats" },
             { value: fmtVotes(voteCount), label: "Votes", accent: true },
             { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true },
           ]).map((s, i) => (
@@ -2687,7 +2687,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       {donor.name}
                     </span>
                     <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: i === 0 ? accent : "#888" }}>
-                      {donor.totalSpent.toLocaleString("fr-FR")}
+                      🪙 {donor.totalSpent.toLocaleString("fr-FR")}
                     </span>
                   </div>
                 ))}
@@ -3216,7 +3216,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       {/* Total */}
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: isFirst ? accent : "#333" }}>
-                          {donor.totalSpent.toLocaleString("fr-FR")}
+                          🪙 {donor.totalSpent.toLocaleString("fr-FR")}
                         </div>
                         <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.06em" }}>points</div>
                       </div>
@@ -3806,7 +3806,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 {selectedDonor.name}
               </span>
               <span style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999" }}>
-                {selectedDonor.giftCount} cadeau{selectedDonor.giftCount > 1 ? "x" : ""} · {selectedDonor.totalSpent.toLocaleString("fr-FR")} points au total
+                {selectedDonor.giftCount} cadeau{selectedDonor.giftCount > 1 ? "x" : ""} · 🪙 {selectedDonor.totalSpent.toLocaleString("fr-FR")} points au total
               </span>
             </div>
           </div>
