@@ -4036,12 +4036,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         title="Autocollants"
                         style={{
                           width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
-                          border: "none", background: "#fff",
-                          boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+                          border: "none", background: "transparent",
                           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                         }}
                       >
-                        <Sticker size={16} color="#888" strokeWidth={2} />
+                        <Sticker size={17} color="#888" strokeWidth={2} />
                       </button>
 
                       {/* Gift button */}
@@ -4061,12 +4060,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         }}
                         style={{
                           width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
-                          border: "none", background: showGiftBar ? accent : "#fff",
-                          boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+                          border: "none", background: showGiftBar ? `${accent}18` : "transparent",
                           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                         }}
                       >
-                        <Gift size={16} color={showGiftBar ? "#fff" : accent} strokeWidth={2.2} />
+                        <Gift size={17} color={accent} strokeWidth={2.2} />
                       </button>
                     </div>
                   )}
