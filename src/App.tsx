@@ -2271,38 +2271,128 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       {/* ── ORGANISER BAR ── */}
       <OrgBar comp={comp} accent={accent} />
 
-      {/* ── TABS ── */}
-      <div style={{
-        display: "flex", background: "#fff", borderBottom: "1px solid #e0e0e0",
-        position: "sticky", top: 0, zIndex: 20,
-      }}>
-        {[
-          { key: "home", label: "Home" },
-          { key: "participants", label: "Participants" },
-          { key: "medias", label: "Médias" },
-          { key: "donateurs", label: "Donateurs" },
-          { key: "live", label: "Live" },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            style={{
-              flex: 1, border: "none", background: "none", cursor: "pointer",
-              padding: "13px 4px 11px",
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
-              color: activeTab === tab.key ? "#111" : "#aaa",
-              borderBottom: activeTab === tab.key ? `2px solid ${accent}` : "2px solid transparent",
-              transition: "color 0.15s, border-color 0.15s",
-            }}
-          >
-            {tab.key === "live" && !isRegistration ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+      {/* ── TABS + LIVE COMMENTARY BAND (sticky as one unit) ── */}
+      <div style={{ position: "sticky", top: 0, zIndex: 20 }}>
+        <div style={{
+          display: "flex", background: "#fff", borderBottom: "1px solid #e0e0e0",
+        }}>
+          {[
+            { key: "home", label: "Home" },
+            { key: "participants", label: "Participants" },
+            { key: "medias", label: "Médias" },
+            { key: "donateurs", label: "Donateurs" },
+            { key: "live", label: "Live" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                flex: 1, border: "none", background: "none", cursor: "pointer",
+                padding: "13px 4px 11px",
+                fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+                color: activeTab === tab.key ? "#111" : "#aaa",
+                borderBottom: activeTab === tab.key ? `2px solid ${accent}` : "2px solid transparent",
+                transition: "color 0.15s, border-color 0.15s",
+              }}
+            >
+              {tab.key === "live" && !isRegistration ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+                  {tab.label}
+                </span>
+              ) : tab.label}
+            </button>
+          ))}
+        </div>
+
+        {showCommentaryBand && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            background: "#111", borderBottom: `2px solid ${accent}`,
+            padding: "8px 10px",
+          }}>
+            <audio ref={commentaryAudioRef} src="" loop style={{ display: "none" }} />
+
+            <div style={{
+              width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+              background: accent, display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <Radio size={14} color="#fff" strokeWidth={2.5} />
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
-                {tab.label}
-              </span>
-            ) : tab.label}
-          </button>
-        ))}
+                <span style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800,
+                  color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.1em",
+                }}>
+                  En direct
+                </span>
+                {commentaryMuted && (
+                  <span style={{
+                    fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                    color: "#777", textTransform: "uppercase", letterSpacing: "0.06em",
+                  }}>
+                    · Coupé
+                  </span>
+                )}
+              </div>
+              <div style={{
+                fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#fff",
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1,
+              }}>
+                {commentator.name} <span style={{ color: "#888", fontWeight: 500 }}>· Chroniqueur</span>
+              </div>
+            </div>
+
+            {/* Waveform, animates only while actually playing unmuted */}
+            <div style={{ display: "flex", alignItems: "center", gap: 2, height: 16, flexShrink: 0 }}>
+              {[0, 1, 2, 3].map((i) => (
+                <span
+                  key={i}
+                  style={{
+                    width: 3, borderRadius: 2, background: accent,
+                    height: !commentaryMuted && commentaryReady ? 16 : 5,
+                    animation: !commentaryMuted && commentaryReady ? `commentary-wave 0.9s ease-in-out ${i * 0.12}s infinite` : "none",
+                    transition: "height 0.2s",
+                  }}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={toggleCommentaryMute}
+              aria-label={commentaryMuted ? "Activer le son" : "Couper le son"}
+              style={{
+                width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                border: "1px solid #333", background: "#1c1c1c", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              {commentaryMuted ? <VolumeX size={14} color="#fff" /> : <Volume2 size={14} color={accent} />}
+            </button>
+
+            <button
+              onClick={() => setCommentaryDismissed(true)}
+              aria-label="Fermer le bandeau du chroniqueur"
+              style={{
+                width: 22, height: 22, flexShrink: 0,
+                border: "none", background: "none", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <X size={15} color="#777" />
+            </button>
+
+            <style>{`
+              @keyframes commentary-wave {
+                0%, 100% { height: 5px; }
+                50% { height: 16px; }
+              }
+            `}</style>
+          </div>
+        )}
       </div>
 
       <div style={{ padding: "0 0 132px" }}>
