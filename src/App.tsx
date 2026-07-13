@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -248,12 +248,37 @@ function hashStr(str) {
   return h;
 }
 
+// Mock chroniqueurs sportifs for the live audio commentary band. Deterministic
+// per-competition pick via hashStr so the same competition always shows the
+// same commentator. Replace/extend once real hosts are onboarded.
+const COMMENTATORS = [
+  { name: "Marc Fontaine" },
+  { name: "Sophie Laurent" },
+  { name: "Thierry Dubois" },
+  { name: "Karine Joseph" },
+  { name: "Yves Baptiste" },
+];
+
 // Registration fee for a competition, in credits. Organizers can set an
 // explicit comp.fee from the edit screen; competitions that never had one
 // set fall back to a deterministic per-competition default so old data
 // keeps behaving the same as before this was editable.
 function getRegistrationFee(comp) {
   return comp.fee != null ? comp.fee : 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
+}
+
+// Compact French-style formatting for coin/point totals: 1 200 -> "1,2k",
+// 3 400 000 -> "3,4M". Small numbers stay exact with fr-FR thousands
+// separators so the leaderboard doesn't feel abbreviated for no reason.
+function formatCoins(n) {
+  const abs = Math.abs(n);
+  if (abs >= 1000000) {
+    return (n / 1000000).toFixed(1).replace(".", ",").replace(",0", "") + "M";
+  }
+  if (abs >= 1000) {
+    return (n / 1000).toFixed(1).replace(".", ",").replace(",0", "") + "k";
+  }
+  return n.toLocaleString("fr-FR");
 }
 
 function isValidEmail(str) {
@@ -835,6 +860,23 @@ const TEXT_SNIPPETS = [
   "J'ai tout sacrifié pour arriver ici, et je ne compte pas reculer...",
 ];
 
+// "Why I'm competing" mock stories — shown inside AlbumSheet so a donor
+// understands the person behind the gift, not just a media gallery. Cycled
+// by participant index like TEXT_SNIPPETS; swap for a real per-participant
+// field (e.g. registrations.motivation) once wired to Supabase.
+const WHY_STORIES = [
+  "Je viens d'une famille de neuf enfants et j'ai appris très jeune à me battre pour ce que je veux. Ce concours, c'est ma chance de montrer que le talent n'attend pas les moyens.",
+  "Après un accident qui m'a presque empêché de continuer, je me suis promis de remonter sur scène. Chaque vote ici, c'est un pas de plus vers cette promesse.",
+  "Mon quartier ne m'a jamais vu comme quelqu'un d'ordinaire, et je veux le prouver au pays entier. Je porte leurs couleurs à chaque prestation.",
+  "J'ai quitté l'école pour aider ma mère, mais jamais j'ai arrêté de m'entraîner le soir. Ce concours est la première vraie porte qu'on m'ouvre.",
+  "Je fais ça pour mon fils, pour qu'il grandisse en voyant que persévérer paie toujours, même quand tout semble contre nous.",
+  "Trois ans à économiser pour du matériel correct, deux ans à me faire refuser partout. Je suis enfin là où je devrais être depuis le début.",
+];
+
+function getWhyStory(index) {
+  return WHY_STORIES[index % WHY_STORIES.length];
+}
+
 function ParticipantCard({ index, mediaType, accent, votes }) {
   const name = fakeName(index);
   const imgSeed = `part_${index}`;
@@ -1075,6 +1117,13 @@ function fmtCommentTime(minutesAgo) {
   return `${Math.floor(hours / 24)}j`;
 }
 
+function fmtAgoFr(minutesAgo) {
+  if (minutesAgo < 60) return `Il y a ${minutesAgo} min`;
+  const hours = Math.floor(minutesAgo / 60);
+  if (hours < 24) return `Il y a ${hours} h`;
+  return `Il y a ${Math.floor(hours / 24)} j`;
+}
+
 /* ─── RULES / PRIZE / DESCRIPTION ───────────────────────────────────────── */
 
 function buildRulesInfo(comp) {
@@ -1165,6 +1214,51 @@ function ParticipantListOverlay({ comp, participants, onClose }) {
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── ALBUM GRID OVERLAY ─────────────────────────────────────────────────
+   Full grid of every participant's album — this is what "Voir tout" opens
+   from the Médias tab. Kept separate from ParticipantListOverlay, which is
+   the votes/ranking table used by the Classement tab's own "Voir tout". */
+
+function AlbumGridOverlay({ comp, onClose, onOpenAlbum }) {
+  const count = comp.contestants || 0;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
+      <div
+        style={{
+          position: "sticky", top: 0, background: "#fff",
+          borderBottom: "1px solid #e0e0e0", padding: "14px 16px",
+          display: "flex", alignItems: "center", gap: 12, zIndex: 1,
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#111" }}>
+          Albums
+        </span>
+      </div>
+
+      <div style={{
+        maxWidth: 800, margin: "0 auto", padding: 12,
+        display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8,
+      }}>
+        {Array.from({ length: count }, (_, i) => {
+          const p = buildParticipants(comp)[i];
+          return (
+            <div key={i} onClick={() => onOpenAlbum(i)} style={{ cursor: "pointer" }}>
+              <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1320,12 +1414,19 @@ function OrgBar({ comp, accent }) {
 
 /* ─── ALBUM SHEET ───────────────────────────────────────────────────────── */
 
-function AlbumSheet({ participantIndex, name, accent, onClose }) {
+function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", onClose }) {
   const photoCount = 3 + (participantIndex * 7 + 11) % 10;
   const photos = Array.from({ length: photoCount }, (_, i) => ({
     id: i,
     src: `https://picsum.photos/seed/album_${participantIndex}_${i}/600/600`,
   }));
+  const story = getWhyStory(participantIndex);
+
+  const subtitle =
+    mediaType === "photo" ? `${photoCount} photo${photoCount > 1 ? "s" : ""}` :
+    mediaType === "video" ? "Message vidéo" :
+    mediaType === "pdf" ? "Dossier de candidature" :
+    "Pourquoi je participe";
 
   return (
     <div
@@ -1358,7 +1459,7 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
               {name}
             </div>
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 2 }}>
-              {photoCount} photo{photoCount > 1 ? "s" : ""}
+              {subtitle}
             </div>
           </div>
           <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
@@ -1366,13 +1467,34 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
           </button>
         </div>
 
-        {/* Scrollable slides */}
+        {/* Scrollable content */}
         <div style={{
           overflowY: "auto",
-          padding: "12px 16px 24px",
+          padding: "16px 16px 24px",
           display: "flex", flexDirection: "column", gap: 12,
         }}>
-          {photos.map((photo) => (
+          {/* "Why I'm competing" — shown for every media type so a donor
+              knows who they're gifting before seeing the rest of the content. */}
+          <div style={{
+            background: "#faf9f7", border: "1px solid #eee",
+            padding: "12px 14px", marginBottom: 4,
+          }}>
+            <div style={{
+              fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+              color: accent, textTransform: "uppercase", letterSpacing: "0.08em",
+              marginBottom: 6,
+            }}>
+              Pourquoi je participe
+            </div>
+            <p style={{
+              fontFamily: "Inter, sans-serif", fontSize: 13, lineHeight: 1.6,
+              color: "#333", margin: 0,
+            }}>
+              {story}
+            </p>
+          </div>
+
+          {mediaType === "photo" && photos.map((photo) => (
             <div key={photo.id} style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", background: "#f0f0f0", flexShrink: 0 }}>
               <img
                 src={photo.src}
@@ -1381,6 +1503,42 @@ function AlbumSheet({ participantIndex, name, accent, onClose }) {
               />
             </div>
           ))}
+
+          {mediaType === "video" && (
+            <div style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", position: "relative", background: "#111" }}>
+              <img
+                src={picsumImg(`vid_${participantIndex}`, 480, 480)}
+                alt={name}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.55)" }}
+              />
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.4)" }}>
+                  <Play size={22} color="#fff" fill="#fff" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {mediaType === "text" && (
+            <p style={{
+              fontFamily: "Inter, sans-serif", fontSize: 13, lineHeight: 1.7,
+              color: "#444", margin: 0, padding: "0 2px",
+            }}>
+              {TEXT_SNIPPETS[participantIndex % TEXT_SNIPPETS.length]}
+            </p>
+          )}
+
+          {mediaType === "pdf" && (
+            <div style={{
+              border: "1px solid #e0e0e0", background: "#fafafa",
+              padding: "20px 14px",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+            }}>
+              <File size={30} color="#888" strokeWidth={1.5} />
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555" }}>Dossier.pdf</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>Candidature complète — 1.2 Mo</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1475,7 +1633,49 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [voteCount, setVoteCount] = useState(comp.votes);
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [showAllAlbums, setShowAllAlbums] = useState(false);
   const [activeTab, setActiveTab] = useState("home"); // "home" | "participants" | "medias" | "donateurs"
+
+  // ── LIVE AUDIO COMMENTARY ──────────────────────────────────────────────
+  // Floating/band audio player for a "chroniqueur sportif" narrating the
+  // competition live. No real stream is wired up yet — src is left empty
+  // on purpose; swap in a real HLS/Icecast URL on the <audio> element below
+  // once a stream source exists. Everything else (mute state, autoplay
+  // attempt, waveform animation, dismiss) is fully functional already.
+  const commentator = COMMENTATORS[Math.abs(hashStr(comp.id)) % COMMENTATORS.length];
+  const [commentaryMuted, setCommentaryMuted] = useState(true);
+  const [commentaryDismissed, setCommentaryDismissed] = useState(false);
+  const [commentaryReady, setCommentaryReady] = useState(false); // true once audio starts actually playing
+  const commentaryAudioRef = useRef(null);
+  const showCommentaryBand = !isRegistration && !commentaryDismissed;
+
+  useEffect(() => {
+    if (!showCommentaryBand) return;
+    const audio = commentaryAudioRef.current;
+    if (!audio) return;
+    // Browsers allow autoplay when muted. Once a real src is set this will
+    // actually start audio; today it just no-ops (and we swallow the
+    // rejection) since there's nothing to play yet.
+    audio.muted = commentaryMuted;
+    const p = audio.play();
+    if (p?.then) {
+      p.then(() => setCommentaryReady(true)).catch(() => setCommentaryReady(false));
+    }
+  }, [showCommentaryBand, commentaryMuted]);
+
+  function toggleCommentaryMute() {
+    const audio = commentaryAudioRef.current;
+    setCommentaryMuted((prev) => {
+      const next = !prev;
+      if (audio) {
+        audio.muted = next;
+        if (!next) audio.play().catch(() => {});
+      }
+      return next;
+    });
+  }
+  // ─────────────────────────────────────────────────────────────────────
+
   const [activeBanner, setActiveBanner] = useState(0);
   const bannerVideoRefs = useRef({});
   const [videoErrors, setVideoErrors] = useState({});
@@ -1533,12 +1733,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   };
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [showGiftBar, setShowGiftBar] = useState(false);
-  const [floatHearts, setFloatHearts] = useState([]);
-  const handleSendRose = () => {
-    const id = Date.now() + Math.random();
-    setFloatHearts((prev) => [...prev, { id, x: Math.random() * 24 - 12 }]);
-    setTimeout(() => setFloatHearts((prev) => prev.filter((h) => h.id !== id)), 1400);
-  };
   const [activeGift, setActiveGift] = useState(null);
   const [giftStep, setGiftStep] = useState("participant"); // "participant" | "gift" | "confirm"
   const [selectedParticipant, setSelectedParticipant] = useState(null);
@@ -1758,11 +1952,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const SCROLL_THRESHOLD = 140;
   const t = Math.min(scrollY / SCROLL_THRESHOLD, 1);
   const headerBg = `rgba(255,255,255,${t})`;
-  const closeColor = t > 0.5 ? "#111" : "#fff";
-  const closeBg = t > 0.5 ? `rgba(0,0,0,0.06)` : `rgba(0,0,0,${0.35 * (1 - t) + 0.06 * t})`;
-  const closeBorder = t > 0.5 ? `1px solid rgba(0,0,0,0.12)` : `1px solid rgba(255,255,255,${0.4 * (1 - t)})`;
-  const pillTextColor = t > 0.5 ? "#333" : "#fff";
-  const pillBg = t > 0.5 ? `rgba(0,0,0,0.07)` : accent;
   const borderColor = t > 0.5 ? `rgba(0,0,0,0.1)` : `rgba(255,255,255,0.3)`;
 
   // Live vote tick — random participant gets +1–4 votes (and matching gift credit) every 1.8s (voting phase only)
@@ -1876,55 +2065,64 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "7px 12px",
         background: headerBg,
-        backdropFilter: t < 0.8 ? "blur(6px)" : "none",
-        WebkitBackdropFilter: t < 0.8 ? "blur(6px)" : "none",
         borderBottom: t > 0.5 ? `1px solid rgba(0,0,0,${0.08 * t})` : "none",
         pointerEvents: "none",
         opacity: bannerFullscreen ? 0 : 1,
         transition: "opacity 0.3s",
       }}>
         <button onClick={onClose} style={{
-          width: 32, height: 32, borderRadius: "50%", border: closeBorder, background: closeBg,
-          color: closeColor, fontSize: 15, cursor: "pointer",
+          width: 32, height: 32, borderRadius: "50%",
+          background: "rgba(255,255,255,0.25)",
+          backdropFilter: "blur(12px) saturate(180%)",
+          WebkitBackdropFilter: "blur(12px) saturate(180%)",
+          border: "1px solid rgba(255,255,255,0.4)",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
+          color: "#222", fontSize: 15, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          pointerEvents: "all", transition: "background 0.2s, color 0.2s, border 0.2s",
-        }}><X size={14} /></button>        <div style={{ display: "flex", gap: 5, alignItems: "center", pointerEvents: "all" }}>
-          {comp.hot && (
-            <span style={{
-              fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              color: pillTextColor, background: t > 0.5 ? "rgba(0,0,0,0.07)" : "rgba(0,0,0,0.45)",
-              padding: "3px 8px", borderRadius: 999, transition: "color 0.2s, background 0.2s",
-            }}>EN VUE</span>
-          )}
-          <span style={{
-            fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-            letterSpacing: "0.1em", textTransform: "uppercase",
-            color: pillTextColor, background: pillBg,
-            padding: "3px 8px", borderRadius: 999,
-            transition: "color 0.2s, background 0.2s, border-color 0.2s",
-          }}>{comp.edition}</span>
-          {/* Competition follow — separate from organiser follow */}
+          pointerEvents: "all",
+        }}><X size={14} /></button>
+
+        {/* Competition follow — separate from organiser follow */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, pointerEvents: "all" }}>
           <button
             onClick={() => onToggleFollow?.(comp)}
             title={isFollowed ? "Ne plus suivre cette compétition" : "Suivre cette compétition"}
             style={{
               width: 32, height: 32, borderRadius: "50%",
-              border: isFollowed ? "1px solid rgba(255,255,255,0.9)" : closeBorder,
-              background: isFollowed ? "rgba(255,255,255,0.9)" : closeBg,
-              color: isFollowed ? accent : closeColor,
+              background: isFollowed ? `${accent}33` : "rgba(255,255,255,0.25)",
+              backdropFilter: "blur(12px) saturate(180%)",
+              WebkitBackdropFilter: "blur(12px) saturate(180%)",
+              border: isFollowed ? `1px solid ${accent}88` : "1px solid rgba(255,255,255,0.4)",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
+              color: isFollowed ? accent : "#222",
               cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "background 0.2s, color 0.2s, border 0.2s",
             }}
           >
             <Bell size={13} strokeWidth={isFollowed ? 2.5 : 2} fill={isFollowed ? accent : "none"} />
+          </button>
+
+          <button
+            title="Partager"
+            style={{
+              width: 32, height: 32, borderRadius: "50%",
+              background: "rgba(255,255,255,0.25)",
+              backdropFilter: "blur(12px) saturate(180%)",
+              WebkitBackdropFilter: "blur(12px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.4)",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
+              color: "#222",
+              cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <Share2 size={13} strokeWidth={2} />
           </button>
         </div>
       </div>
 
       {/* ── HERO ── */}
-      <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0, marginTop: -44 }}>
+      <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0, marginTop: -46 }}>
 
         {/* Banner slides */}
         {(() => {
@@ -1932,7 +2130,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           return (
             <>
               {/* Main slider */}
-              <div style={{ width: "100%", aspectRatio: "1 / 1", position: "relative", overflow: "hidden" }}>
+              <div style={{ width: "100%", aspectRatio: "3 / 1", position: "relative", overflow: "hidden" }}>
                 {bannerSlides.map((slide, i) => (
                   <div key={i} style={{
                     position: "absolute", inset: 0,
@@ -1983,7 +2181,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   zIndex: 1,
                 }} />
                 {/* Hero content */}
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 5, padding: "0 16px 16px", opacity: bannerFullscreen ? 0 : 1, transition: "opacity 0.3s", pointerEvents: bannerFullscreen ? "none" : "all" }}>
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 5, padding: "0 8px 16px", opacity: bannerFullscreen ? 0 : 1, transition: "opacity 0.3s", pointerEvents: bannerFullscreen ? "none" : "all" }}>
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>{comp.niche}</div>
                   <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(22px, 5vw, 34px)", fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.05, textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>{comp.title}</div>
                 </div>
@@ -2083,6 +2281,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           { key: "participants", label: "Participants" },
           { key: "medias", label: "Médias" },
           { key: "donateurs", label: "Donateurs" },
+          { key: "live", label: "Live" },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -2096,7 +2295,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               transition: "color 0.15s, border-color 0.15s",
             }}
           >
-            {tab.label}
+            {tab.key === "live" && !isRegistration ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+                {tab.label}
+              </span>
+            ) : tab.label}
           </button>
         ))}
       </div>
@@ -2106,12 +2310,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {activeTab === "home" && (
         <>
         {/* ── À PROPOS / RÈGLEMENT ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
+        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 10px" }}>
           <div style={{
+            display: "flex", alignItems: "center", gap: 6,
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
             marginBottom: 10,
           }}>
+            <Info size={13} strokeWidth={2.5} />
             À propos
           </div>
 
@@ -2128,7 +2334,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <div style={{
               display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
             }}>
-              <div style={{ background: "#fff", border: "1px solid #eee", padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ background: "#fff", border: "1px solid #eee", padding: "4px 6px", display: "flex", alignItems: "center", gap: 8 }}>
                 <Trophy size={16} color="#aaa" strokeWidth={2} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3 }}>
@@ -2144,7 +2350,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   </div>
                 </div>
               </div>
-              <div style={{ background: "#fff", border: `1px solid ${accent}33`, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ background: "#fff", border: `1px solid ${accent}33`, padding: "4px 6px", display: "flex", alignItems: "center", gap: 8 }}>
                 <Gift size={16} color={accent} strokeWidth={2} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: accent, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
@@ -2165,7 +2371,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
             {(rulesInfo.rewardExtra || isRegistration || leader) && (
               <div style={{
-                border: "1px solid #eee", padding: "10px 12px", marginTop: 8,
+                border: "1px solid #eee", padding: "4px 6px", marginTop: 8,
                 display: "flex", flexDirection: "column", gap: 6,
               }}>
                 {rulesInfo.rewardExtra && (
@@ -2206,7 +2412,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 onClick={() => setRulesExpanded((v) => !v)}
                 style={{
                   width: "100%", border: "none", borderRadius: 14, background: "#f5f5f5",
-                  padding: "12px 14px", cursor: "pointer",
+                  padding: "6px 8px", cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
                   color: "#333", textTransform: "uppercase", letterSpacing: "0.06em",
@@ -2221,7 +2427,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
               {rulesExpanded && (
                 <ol style={{
-                  margin: "10px 0 0", padding: "0 0 0 18px",
+                  margin: "10px 0 0", padding: "0 0 0 12px",
                   display: "flex", flexDirection: "column", gap: 8,
                 }}>
                   {rulesInfo.rules.map((rule, i) => (
@@ -2248,13 +2454,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             { value: comp.contestants, label: "Places", accent: true },
             { value: `${registrationFee} G`, label: "Frais insc." },
           ] : [
-            { value: comp.contestants, label: "Candidats" },
+            { value: liveRegistered, label: "Candidats" },
             { value: fmtVotes(voteCount), label: "Votes", accent: true },
             { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true },
           ]).map((s, i) => (
             <div key={i} style={{
               borderLeft: i > 0 ? "1px solid #f0f0f0" : "none",
-              padding: "14px 8px",
+              padding: "8px 2px",
               display: "flex", flexDirection: "column", alignItems: "center",
             }}>
               <div style={{
@@ -2280,7 +2486,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           <div style={{
             background: "#fff",
             borderBottom: "1px solid #e0e0e0",
-            padding: "12px 16px",
+            padding: "6px 10px",
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
             <div style={{
@@ -2305,7 +2511,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         <div style={{
           background: isRegistration ? "#f0ebff" : comp.hot ? "#fff0ed" : "#f7f7f5",
           borderBottom: "1px solid #e0e0e0",
-          padding: "12px 16px",
+          padding: "6px 10px",
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{
@@ -2325,6 +2531,420 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </span>
         </div>
 
+        {/* ── PARTICIPANTS PREVIEW ── */}
+        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 0" }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 12, paddingLeft: 10, paddingRight: 10,
+          }}>
+            <span style={{
+              display: "flex", alignItems: "center", gap: 6,
+              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+            }}><Users size={13} strokeWidth={2.5} />Participants</span>
+            <button
+              onClick={() => setActiveTab("participants")}
+              style={{
+                border: "none", background: "none", color: accent,
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                letterSpacing: "0.08em", textTransform: "uppercase",
+                cursor: "pointer", padding: 0,
+                display: "flex", alignItems: "center", gap: 4,
+              }}
+            >
+              Voir plus
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+              </svg>
+            </button>
+          </div>
+
+          <div style={{ paddingLeft: 10, paddingRight: 10 }}>
+            {isRegistration ? (
+              registrants.slice(0, 3).map((r, idx, arr) => (
+                <div key={r.id} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "3px 0",
+                  borderBottom: idx < arr.length - 1 ? "1px solid #f3f3f3" : "none",
+                }}>
+                  <div style={{
+                    width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                    background: "#f0ebff", color: "#6C63FF",
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {r.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {r.name}
+                    </span>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
+                      Inscrit le {r.date} à {r.time}
+                    </span>
+                  </div>
+                  <span style={{
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                    color: "#6C63FF", flexShrink: 0,
+                  }}>
+                    {r.fee} gourdes
+                  </span>
+                </div>
+              ))
+            ) : (
+              ranked.slice(0, 3).map((p, rank, arr) => {
+                const pct = Math.max(8, Math.round((p.points / topPoints) * 100));
+                return (
+                  <div key={p.index} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "5px 0",
+                    borderBottom: rank < arr.length - 1 ? "1px solid #f0f0f0" : "none",
+                  }}>
+                    {/* Rank */}
+                    <span style={{
+                      width: 20, flexShrink: 0, textAlign: "center",
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontSize: rank === 0 ? 16 : 12, fontWeight: 700,
+                      color: rank === 0 ? accent : "#ccc",
+                    }}>
+                      {rank === 0 ? "🥇" : rank + 1}
+                    </span>
+
+                    {/* Profile pic */}
+                    <div style={{
+                      width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                      overflow: "hidden", background: "#fff",
+                      border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                      boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
+                    }}>
+                      <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    </div>
+
+                    {/* Name + progress bar */}
+                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
+                      <span style={{
+                        fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                        color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      }}>{p.name}</span>
+                      <div style={{ height: 4, background: "#f0f0f0", borderRadius: 2, overflow: "hidden" }}>
+                        <div
+                          className="bar-shimmer"
+                          style={{
+                            height: "100%", borderRadius: 2,
+                            width: `${pct}%`,
+                            background: rank === 0
+                              ? `linear-gradient(90deg, ${accent} 0%, ${accent}cc 50%, ${accent} 100%)`
+                              : "linear-gradient(90deg, #ddd 0%, #eee 50%, #ddd 100%)",
+                            transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)",
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Coins */}
+                    <span style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                      color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 4,
+                    }}>
+                      🪙 {p.points.toLocaleString("fr-FR")}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* ── MÉDIAS PREVIEW ── */}
+        {!isRegistration && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 0" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 12, paddingLeft: 10, paddingRight: 10,
+            }}>
+              <span style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              }}><ImageIcon size={13} strokeWidth={2.5} />Médias</span>
+              <button
+                onClick={() => setActiveTab("medias")}
+                style={{
+                  border: "none", background: "none", color: accent,
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  cursor: "pointer", padding: 0,
+                  display: "flex", alignItems: "center", gap: 4,
+                }}
+              >
+                Voir plus
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+                </svg>
+              </button>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 10, paddingRight: 10, scrollbarWidth: "none" }}>
+              {Array.from({ length: Math.min(comp.contestants, 10) }, (_, i) => {
+                const p = buildParticipants(comp)[i];
+                return (
+                  <div
+                    key={i}
+                    onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })}
+                    style={{ flexShrink: 0, width: 110, cursor: "pointer" }}
+                  >
+                    <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── DONATEURS PREVIEW ── */}
+        {!isRegistration && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 0" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 12, paddingLeft: 10, paddingRight: 10,
+            }}>
+              <span style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              }}><Gift size={13} strokeWidth={2.5} />Donateurs</span>
+              <button
+                onClick={() => setActiveTab("donateurs")}
+                style={{
+                  border: "none", background: "none", color: accent,
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  cursor: "pointer", padding: 0,
+                  display: "flex", alignItems: "center", gap: 4,
+                }}
+              >
+                Voir plus
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+                </svg>
+              </button>
+            </div>
+
+            {giftLeaderboard.length === 0 ? (
+              <div style={{ padding: "2px 10px 0px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+                Aucun donateur pour le moment.
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingLeft: 10, paddingRight: 10, scrollbarWidth: "none" }}>
+                {giftLeaderboard.slice(0, 10).map((donor, i) => (
+                  <div key={donor.id} style={{ flexShrink: 0, width: 72, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                    <div style={{
+                      width: 52, height: 52, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                      border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                      background: donor.isMe ? "#111" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center", position: "relative",
+                    }}>
+                      {donor.isMe ? (
+                        <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700 }}>{donor.name.charAt(0)}</span>
+                      ) : (
+                        <img src={avatarImg(donor.index)} alt={donor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      )}
+                      {i === 0 && (
+                        <span style={{ position: "absolute", bottom: -2, right: -2, fontSize: 14 }}>👑</span>
+                      )}
+                    </div>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#333", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                      {donor.name}
+                    </span>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: i === 0 ? accent : "#888" }}>
+                      🪙 {formatCoins(donor.totalSpent)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── LIVE PREVIEW ── */}
+        {!isRegistration && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 0" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 12, paddingLeft: 10, paddingRight: 10,
+            }}>
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+                display: "flex", alignItems: "center", gap: 6,
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+                Live
+              </span>
+              <button
+                onClick={() => setActiveTab("live")}
+                style={{
+                  border: "none", background: "none", color: accent,
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  cursor: "pointer", padding: 0,
+                  display: "flex", alignItems: "center", gap: 4,
+                }}
+              >
+                Voir plus
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+                </svg>
+              </button>
+            </div>
+
+            {feedItems.length === 0 ? (
+              <div style={{ padding: "2px 10px 0px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+                Aucune activité pour le moment.
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 10, paddingRight: 10, scrollbarWidth: "none" }}>
+                {feedItems.slice(0, 10).map((item) => {
+                  if (item.type === "gift") {
+                    const entry = item.entry;
+                    const liked = likedCommentIds.has(entry.id);
+                    const likeCount = (entry.id % 12) + (liked ? 1 : 0);
+                    const replyCount = entry.id % 3;
+                    return (
+                      <div key={item.key} style={{
+                        flexShrink: 0, width: 170,
+                        border: "1px solid #f0f0f0",
+                        display: "flex", flexDirection: "column",
+                      }}>
+                        {/* Body */}
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, padding: "7px 8px 6px" }}>
+                          {/* Header — sender profile, same as a comment card */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{
+                              width: 20, height: 20, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                              background: "#111",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                            }}>
+                              <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>
+                                {(entry.senderName || "V").charAt(0)}
+                              </span>
+                            </div>
+                            <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {entry.senderName || "Vous"}
+                            </span>
+                            {/* Gift tag — distinguishes this from a comment card */}
+                            <span style={{
+                              flexShrink: 0,
+                              display: "flex", alignItems: "center", gap: 2,
+                              background: `${accent}18`, color: accent,
+                              fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                              textTransform: "uppercase", letterSpacing: "0.04em",
+                              padding: "2px 5px", borderRadius: 999,
+                            }}>
+                              🎁 Cadeau
+                            </span>
+                          </div>
+
+                          {/* Emoji — the central element */}
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, padding: "3px 0" }}>
+                            <span style={{ fontSize: 26, lineHeight: 1 }}>{entry.gift.icon}</span>
+                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: accent }}>
+                              {entry.gift.name}
+                            </span>
+                          </div>
+
+                          {/* Recipient — who the gift is for */}
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: 5,
+                            paddingTop: 4, borderTop: "1px solid #f0f0f0",
+                          }}>
+                            <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #eee" }}>
+                              <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            </div>
+                            <span style={{
+                              fontFamily: "Inter, sans-serif", fontSize: 10, color: "#888",
+                              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                            }}>
+                              pour <span style={{ fontWeight: 700, color: "#666" }}>{fakeName(entry.pIndex)}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Engagement bar — edge-to-edge separator, always at the bottom */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 8px", borderTop: "1px solid #f0f0f0" }}>
+                          <button onClick={() => handleToggleLike(entry.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 3 }}>
+                            <Heart size={12} fill={liked ? "#e74c3c" : "none"} color={liked ? "#e74c3c" : "#bbb"} strokeWidth={2} />
+                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: liked ? "#e74c3c" : "#999" }}>{likeCount}</span>
+                          </button>
+                          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                            <MessageCircle size={12} color="#bbb" strokeWidth={2} />
+                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#999" }}>{replyCount}</span>
+                          </div>
+                          <span style={{ marginLeft: "auto", fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", whiteSpace: "nowrap" }}>
+                            {fmtAgoFr(item.minutesAgo)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  const c = item.comment;
+                  const liked = likedCommentIds.has(c.id);
+                  return (
+                    <div key={item.key} style={{
+                      flexShrink: 0, width: 170,
+                      border: "1px solid #f0f0f0",
+                      display: "flex", flexDirection: "column",
+                    }}>
+                      {/* Body */}
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, padding: "7px 8px 6px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{
+                            width: 20, height: 20, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                            background: c.isMine ? "#111" : "transparent",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            {c.isMine ? (
+                              <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{c.name.charAt(0)}</span>
+                            ) : (
+                              <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            )}
+                          </div>
+                          <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {c.name}
+                          </span>
+                        </div>
+                        <p style={{
+                          flex: 1,
+                          fontFamily: "Inter, sans-serif", fontSize: 11, color: "#666", lineHeight: 1.4, margin: 0,
+                          display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+                        }}>
+                          {c.text}
+                        </p>
+                      </div>
+
+                      {/* Engagement bar — edge-to-edge separator, always at the bottom */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 8px", borderTop: "1px solid #f0f0f0" }}>
+                        <button onClick={() => handleToggleLike(c.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 3 }}>
+                          <Heart size={12} fill={liked ? "#e74c3c" : "none"} color={liked ? "#e74c3c" : "#bbb"} strokeWidth={2} />
+                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: liked ? "#e74c3c" : "#999" }}>{c.likes + (liked ? 1 : 0)}</span>
+                        </button>
+                        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                          <MessageCircle size={12} color="#bbb" strokeWidth={2} />
+                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#999" }}>{c.replies.length}</span>
+                        </div>
+                        <span style={{ marginLeft: "auto", fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", whiteSpace: "nowrap" }}>
+                          {fmtAgoFr(item.minutesAgo)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         </>
         )}
 
@@ -2337,9 +2957,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               marginBottom: 14,
             }}>
               <span style={{
+                display: "flex", alignItems: "center", gap: 6,
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
                 color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}>Inscription en cours</span>
+              }}><Users size={13} strokeWidth={2.5} />Inscription en cours</span>
             </div>
             <div style={{
               padding: "20px", background: "#f8f7fc", borderRadius: 16,
@@ -2389,9 +3010,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               marginBottom: 10,
             }}>
               <span style={{
+                display: "flex", alignItems: "center", gap: 6,
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
                 color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}>Membres inscrits</span>
+              }}><Users size={13} strokeWidth={2.5} />Membres inscrits</span>
               {registrants.length > 5 && (
                 <button
                   onClick={() => setShowAllRegistrants(true)}
@@ -2426,11 +3048,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 Aucune inscription pour le moment.
               </div>
             ) : (
-              registrants.slice(0, 5).map((r) => (
+              registrants.slice(0, 5).map((r, idx, arr) => (
                 <div key={r.id} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "9px 0",
-                  borderBottom: "1px solid #f3f3f3",
+                  borderBottom: idx < arr.length - 1 ? "1px solid #f3f3f3" : "none",
                 }}>
                   <div style={{
                     width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
@@ -2466,9 +3088,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               marginBottom: 14,
             }}>
               <span style={{
+                display: "flex", alignItems: "center", gap: 6,
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
                 color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}>Classement · Top 5</span>
+              }}><Trophy size={13} strokeWidth={2.5} />Classement · Top 5</span>
               <button
                 onClick={() => setShowAll(true)}
                 style={{
@@ -2492,7 +3115,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 <div key={p.index} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "11px 0",
-                  borderBottom: rank < 4 ? "1px solid #f0f0f0" : "none",
+                  borderBottom: rank < ranked.length - 1 ? "1px solid #f0f0f0" : "none",
                 }}>
                   {/* Rank */}
                   <span style={{
@@ -2556,27 +3179,27 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {activeTab === "medias" && !isRegistration && (
           <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", paddingTop: 14, paddingBottom: 14 }}>
             <div style={{
+              display: "flex", alignItems: "center", gap: 6,
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
               color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
               marginBottom: 12, paddingLeft: 8, paddingRight: 8,
             }}>
+              <ImageIcon size={13} strokeWidth={2.5} />
               Albums
             </div>
-            <div style={{ display: "flex", gap: 2, overflowX: "auto", paddingBottom: 0, paddingLeft: 8, paddingRight: 8, scrollbarWidth: "none" }}>
-              <style>{`div::-webkit-scrollbar{display:none}`}</style>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, paddingLeft: 8, paddingRight: 8 }}>
               {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => {
                 const p = buildParticipants(comp)[i];
                 return (
-                  <div key={i} onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i) })} style={{ flexShrink: 0, width: comp.mediaType === "photo" ? "30vw" : "28vw", maxWidth: 160, cursor: "pointer" }}>
+                  <div key={i} onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })} style={{ cursor: "pointer" }}>
                     <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
                   </div>
                 );
               })}
               {comp.contestants > 12 && (
                 <div
-                  onClick={() => setShowAll(true)}
+                  onClick={() => setShowAllAlbums(true)}
                   style={{
-                    flexShrink: 0, width: 120,
                     border: "1px dashed #ddd", background: "#fafafa",
                     display: "flex", flexDirection: "column",
                     alignItems: "center", justifyContent: "center",
@@ -2669,7 +3292,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       {/* Total */}
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: isFirst ? accent : "#333" }}>
-                          {donor.totalSpent.toLocaleString("fr-FR")}
+                          🪙 {formatCoins(donor.totalSpent)}
                         </div>
                         <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.06em" }}>points</div>
                       </div>
@@ -2681,18 +3304,21 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </div>
         )}
 
-        {/* ── ACTIVITY (gifts + comments interleaved, TikTok-style) ── */}
+        {/* ── LIVE TAB (gifts + comments interleaved, TikTok-style) ── */}
+        {activeTab === "live" && !isRegistration && (
         <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px 20px" }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
           }}>
-            {!isRegistration && (
+            {!isRegistration ? (
               <span style={{
                 width: 7, height: 7, borderRadius: "50%", background: "#e74c3c",
                 display: "inline-block", animation: "pulse-dot 1s infinite",
               }} />
+            ) : (
+              <MessageCircle size={13} strokeWidth={2.5} />
             )}
             Activité · Commentaires ({comments.length})
           </div>
@@ -2899,10 +3525,24 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             })}
           </div>
         </div>
+        )}
 
       </div>
 
       </div>
+
+      {/* ── GIFT TRAY BACKDROP ── */}
+      {!isRegistration && showGiftBar && (
+        <div
+          onClick={() => setShowGiftBar(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+          }}
+        />
+      )}
 
       {/* ── GIFT TRAY (slides up, only for voting phase) ── */}
       {!isRegistration && showGiftBar && (
@@ -3161,7 +3801,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         setVoted(true);
                         // Inject gift into live log
                         setLiveLog((prev) => {
-                          const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, ago: "À l'instant", gift };
+                          const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, ago: "À l'instant", gift, senderName: currentUser?.name || "Vous" };
                           return [entry, ...prev.slice(0, 4)].map((e, i) => ({
                             ...e,
                             ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
@@ -3244,7 +3884,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 {selectedDonor.name}
               </span>
               <span style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999" }}>
-                {selectedDonor.giftCount} cadeau{selectedDonor.giftCount > 1 ? "x" : ""} · {selectedDonor.totalSpent.toLocaleString("fr-FR")} points au total
+                {selectedDonor.giftCount} cadeau{selectedDonor.giftCount > 1 ? "x" : ""} · 🪙 {formatCoins(selectedDonor.totalSpent)} points au total
               </span>
             </div>
           </div>
@@ -3347,11 +3987,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       {!showGiftBar && (
       <div style={{
         position: "fixed", bottom: isRegistration ? 8 : 0, left: isRegistration ? 8 : 0, right: isRegistration ? 8 : 0,
-        background: isRegistration ? "#fff" : "rgba(20,20,20,0.82)",
-        backdropFilter: isRegistration ? "none" : "blur(14px)",
-        WebkitBackdropFilter: isRegistration ? "none" : "blur(14px)",
+        background: "#fff",
+        borderTop: isRegistration ? "none" : "1px solid #eee",
         borderRadius: isRegistration ? 20 : 0,
-        boxShadow: isRegistration ? "0 -2px 24px rgba(0,0,0,0.15)" : "none",
+        boxShadow: isRegistration ? "0 -2px 24px rgba(0,0,0,0.15)" : "0 -2px 16px rgba(0,0,0,0.06)",
         padding: isRegistration ? "10px 12px" : "8px 10px calc(8px + env(safe-area-inset-bottom, 0px))",
         zIndex: 1001,
       }}>
@@ -3432,95 +4071,99 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </button>
             )
           ) : (
-            // Voting footer — TikTok Live style: comment input + rose + gift + share
-            <>
-              {/* Comment input pill */}
-              <input
-                type="text"
-                value={commentDraft}
-                onChange={(e) => setCommentDraft(e.target.value)}
-                onFocus={() => { if (!currentUser) onRequestAuth?.(); }}
-                onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
-                placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
-                style={{
-                  flex: 1, minWidth: 0, border: "none", borderRadius: 999,
-                  background: "rgba(255,255,255,0.14)",
-                  padding: "11px 16px", fontFamily: "Inter, sans-serif", fontSize: 13,
-                  color: "#fff", outline: "none",
-                }}
-              />
+            // Voting footer — comment input with sticker + gift embedded, swapping to a send icon while typing
+            (() => {
+              const isTyping = commentDraft.trim().length > 0;
+              return (
+                <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
+                  <input
+                    type="text"
+                    value={commentDraft}
+                    onChange={(e) => setCommentDraft(e.target.value)}
+                    onFocus={() => { if (!currentUser) onRequestAuth?.(); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
+                    placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
+                    style={{
+                      width: "100%", minWidth: 0, border: "1px solid #ececec", borderRadius: 999,
+                      background: "#f5f5f5",
+                      padding: isTyping ? "11px 52px 11px 16px" : "11px 90px 11px 16px",
+                      fontFamily: "Inter, sans-serif", fontSize: 13,
+                      color: "#111", outline: "none",
+                      transition: "padding 0.15s",
+                    }}
+                  />
 
-              {/* Rose / like button */}
-              <button
-                onClick={handleSendRose}
-                style={{
-                  position: "relative",
-                  width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
-                  border: "none", background: "rgba(255,255,255,0.14)",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <span style={{ fontSize: 18 }}>🌹</span>
-                {floatHearts.map((h) => (
-                  <span key={h.id} style={{
-                    position: "absolute", left: `calc(50% + ${h.x}px)`, bottom: "60%",
-                    fontSize: 14, pointerEvents: "none",
-                    animation: "float-heart 1.4s ease-out forwards",
-                  }}>❤️</span>
-                ))}
-              </button>
+                  {isTyping ? (
+                    /* Send button — replaces sticker + gift while typing */
+                    <button
+                      onClick={handlePostComment}
+                      style={{
+                        position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+                        width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
+                        border: "none", background: accent,
+                        boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <Send size={15} color="#fff" strokeWidth={2.2} />
+                    </button>
+                  ) : (
+                    <div style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 6 }}>
+                      {/* Sticker button */}
+                      <button
+                        title="Autocollants"
+                        style={{
+                          width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
+                          border: "none", background: "transparent",
+                          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        <Sticker size={17} color="#888" strokeWidth={2} />
+                      </button>
 
-              {/* Gift button */}
-              <button
-                onClick={() => {
-                  setShowGiftBar((v) => {
-                    if (v) {
-                      setGiftStep("participant");
-                      setSelectedParticipant(null);
-                      setSelectedGift(null);
-                      setGiftConfirmPhase("summary");
-                      setGiftPin("");
-                      setGiftPinError(false);
-                    }
-                    return !v;
-                  });
-                }}
-                style={{
-                  width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
-                  border: "none", background: showGiftBar ? accent : "rgba(255,255,255,0.14)",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <Gift size={17} color="#fff" strokeWidth={2.2} />
-              </button>
-
-              {/* Share button */}
-              <button style={{
-                width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
-                border: "none", background: "rgba(255,255,255,0.14)",
-                cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
-              }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                  <polyline points="16 6 12 2 8 6"/>
-                  <line x1="12" y1="2" x2="12" y2="15"/>
-                </svg>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8, color: "#fff", fontWeight: 600 }}>
-                  {fmtVotes(voteCount)}
-                </span>
-              </button>
-            </>
+                      {/* Gift button */}
+                      <button
+                        onClick={() => {
+                          setShowGiftBar((v) => {
+                            if (v) {
+                              setGiftStep("participant");
+                              setSelectedParticipant(null);
+                              setSelectedGift(null);
+                              setGiftConfirmPhase("summary");
+                              setGiftPin("");
+                              setGiftPinError(false);
+                            }
+                            return !v;
+                          });
+                        }}
+                        style={{
+                          width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
+                          border: "none", background: showGiftBar ? `${accent}18` : "transparent",
+                          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        <Gift size={17} color={accent} strokeWidth={2.2} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()
           )}
         </div>
       </div>
       )}
 
-      {!isRegistration && (
-        <style>{`@keyframes float-heart { 0% { opacity: 1; transform: translate(-50%, 0) scale(0.8); } 100% { opacity: 0; transform: translate(-50%, -60px) scale(1.1); } }`}</style>
-      )}
-
       {showAll && (
         <ParticipantListOverlay comp={comp} onClose={() => setShowAll(false)} />
+      )}
+
+      {showAllAlbums && (
+        <AlbumGridOverlay
+          comp={comp}
+          onClose={() => setShowAllAlbums(false)}
+          onOpenAlbum={(i) => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })}
+        />
       )}
 
       {showAllRegistrants && (
@@ -3531,6 +4174,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         <AlbumSheet
           participantIndex={albumSheet.participantIndex}
           name={albumSheet.name}
+          mediaType={albumSheet.mediaType}
           accent={accent}
           onClose={() => setAlbumSheet(null)}
         />
