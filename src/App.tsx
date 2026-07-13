@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -254,6 +254,20 @@ function hashStr(str) {
 // keeps behaving the same as before this was editable.
 function getRegistrationFee(comp) {
   return comp.fee != null ? comp.fee : 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
+}
+
+// Compact French-style formatting for coin/point totals: 1 200 -> "1,2k",
+// 3 400 000 -> "3,4M". Small numbers stay exact with fr-FR thousands
+// separators so the leaderboard doesn't feel abbreviated for no reason.
+function formatCoins(n) {
+  const abs = Math.abs(n);
+  if (abs >= 1000000) {
+    return (n / 1000000).toFixed(1).replace(".", ",").replace(",0", "") + "M";
+  }
+  if (abs >= 1000) {
+    return (n / 1000).toFixed(1).replace(".", ",").replace(",0", "") + "k";
+  }
+  return n.toLocaleString("fr-FR");
 }
 
 function isValidEmail(str) {
@@ -2246,10 +2260,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {/* ── À PROPOS / RÈGLEMENT ── */}
         <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 10px" }}>
           <div style={{
+            display: "flex", alignItems: "center", gap: 6,
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
             marginBottom: 10,
           }}>
+            <Info size={13} strokeWidth={2.5} />
             À propos
           </div>
 
@@ -2470,9 +2486,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             marginBottom: 12, paddingLeft: 10, paddingRight: 10,
           }}>
             <span style={{
+              display: "flex", alignItems: "center", gap: 6,
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
               color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-            }}>Participants</span>
+            }}><Users size={13} strokeWidth={2.5} />Participants</span>
             <button
               onClick={() => setActiveTab("participants")}
               style={{
@@ -2492,11 +2509,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
           <div style={{ paddingLeft: 10, paddingRight: 10 }}>
             {isRegistration ? (
-              registrants.slice(0, 3).map((r) => (
+              registrants.slice(0, 3).map((r, idx, arr) => (
                 <div key={r.id} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "3px 0",
-                  borderBottom: "1px solid #f3f3f3",
+                  borderBottom: idx < arr.length - 1 ? "1px solid #f3f3f3" : "none",
                 }}>
                   <div style={{
                     width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
@@ -2523,13 +2540,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 </div>
               ))
             ) : (
-              ranked.slice(0, 3).map((p, rank) => {
+              ranked.slice(0, 3).map((p, rank, arr) => {
                 const pct = Math.max(8, Math.round((p.points / topPoints) * 100));
                 return (
                   <div key={p.index} style={{
                     display: "flex", alignItems: "center", gap: 10,
                     padding: "5px 0",
-                    borderBottom: rank < 2 ? "1px solid #f0f0f0" : "none",
+                    borderBottom: rank < arr.length - 1 ? "1px solid #f0f0f0" : "none",
                   }}>
                     {/* Rank */}
                     <span style={{
@@ -2595,9 +2612,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               marginBottom: 12, paddingLeft: 10, paddingRight: 10,
             }}>
               <span style={{
+                display: "flex", alignItems: "center", gap: 6,
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
                 color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}>Médias</span>
+              }}><ImageIcon size={13} strokeWidth={2.5} />Médias</span>
               <button
                 onClick={() => setActiveTab("medias")}
                 style={{
@@ -2640,9 +2658,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               marginBottom: 12, paddingLeft: 10, paddingRight: 10,
             }}>
               <span style={{
+                display: "flex", alignItems: "center", gap: 6,
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
                 color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}>Donateurs</span>
+              }}><Gift size={13} strokeWidth={2.5} />Donateurs</span>
               <button
                 onClick={() => setActiveTab("donateurs")}
                 style={{
@@ -2687,7 +2706,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       {donor.name}
                     </span>
                     <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: i === 0 ? accent : "#888" }}>
-                      🪙 {donor.totalSpent.toLocaleString("fr-FR")}
+                      🪙 {formatCoins(donor.totalSpent)}
                     </span>
                   </div>
                 ))}
@@ -2886,9 +2905,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               marginBottom: 14,
             }}>
               <span style={{
+                display: "flex", alignItems: "center", gap: 6,
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
                 color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}>Inscription en cours</span>
+              }}><Users size={13} strokeWidth={2.5} />Inscription en cours</span>
             </div>
             <div style={{
               padding: "20px", background: "#f8f7fc", borderRadius: 16,
@@ -2938,9 +2958,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               marginBottom: 10,
             }}>
               <span style={{
+                display: "flex", alignItems: "center", gap: 6,
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
                 color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}>Membres inscrits</span>
+              }}><Users size={13} strokeWidth={2.5} />Membres inscrits</span>
               {registrants.length > 5 && (
                 <button
                   onClick={() => setShowAllRegistrants(true)}
@@ -2975,11 +2996,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 Aucune inscription pour le moment.
               </div>
             ) : (
-              registrants.slice(0, 5).map((r) => (
+              registrants.slice(0, 5).map((r, idx, arr) => (
                 <div key={r.id} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "9px 0",
-                  borderBottom: "1px solid #f3f3f3",
+                  borderBottom: idx < arr.length - 1 ? "1px solid #f3f3f3" : "none",
                 }}>
                   <div style={{
                     width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
@@ -3015,9 +3036,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               marginBottom: 14,
             }}>
               <span style={{
+                display: "flex", alignItems: "center", gap: 6,
                 fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
                 color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}>Classement · Top 5</span>
+              }}><Trophy size={13} strokeWidth={2.5} />Classement · Top 5</span>
               <button
                 onClick={() => setShowAll(true)}
                 style={{
@@ -3041,7 +3063,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 <div key={p.index} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "11px 0",
-                  borderBottom: rank < 4 ? "1px solid #f0f0f0" : "none",
+                  borderBottom: rank < ranked.length - 1 ? "1px solid #f0f0f0" : "none",
                 }}>
                   {/* Rank */}
                   <span style={{
@@ -3105,10 +3127,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {activeTab === "medias" && !isRegistration && (
           <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", paddingTop: 14, paddingBottom: 14 }}>
             <div style={{
+              display: "flex", alignItems: "center", gap: 6,
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
               color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
               marginBottom: 12, paddingLeft: 8, paddingRight: 8,
             }}>
+              <ImageIcon size={13} strokeWidth={2.5} />
               Albums
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, paddingLeft: 8, paddingRight: 8 }}>
@@ -3216,7 +3240,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       {/* Total */}
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: isFirst ? accent : "#333" }}>
-                          🪙 {donor.totalSpent.toLocaleString("fr-FR")}
+                          🪙 {formatCoins(donor.totalSpent)}
                         </div>
                         <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.06em" }}>points</div>
                       </div>
@@ -3236,11 +3260,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
             color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
           }}>
-            {!isRegistration && (
+            {!isRegistration ? (
               <span style={{
                 width: 7, height: 7, borderRadius: "50%", background: "#e74c3c",
                 display: "inline-block", animation: "pulse-dot 1s infinite",
               }} />
+            ) : (
+              <MessageCircle size={13} strokeWidth={2.5} />
             )}
             Activité · Commentaires ({comments.length})
           </div>
@@ -3806,7 +3832,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 {selectedDonor.name}
               </span>
               <span style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999" }}>
-                {selectedDonor.giftCount} cadeau{selectedDonor.giftCount > 1 ? "x" : ""} · 🪙 {selectedDonor.totalSpent.toLocaleString("fr-FR")} points au total
+                {selectedDonor.giftCount} cadeau{selectedDonor.giftCount > 1 ? "x" : ""} · 🪙 {formatCoins(selectedDonor.totalSpent)} points au total
               </span>
             </div>
           </div>
