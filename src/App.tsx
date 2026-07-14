@@ -1546,6 +1546,129 @@ function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", onClo
   );
 }
 
+/* ─── LIVE COMMENTARY STREAM SHEET (X Spaces / podcast style) ─────────── */
+
+function CommentaryStreamSheet({ commentator, accent, muted, onToggleMute, onClose }) {
+  const listenerCount = 40 + (Math.abs(hashStr(commentator.name)) % 900);
+  const initials = commentator.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1200,
+        background: "rgba(0,0,0,0.6)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480,
+          background: "#111",
+          borderTop: "1px solid #2a2a2a",
+          maxHeight: "80vh",
+          display: "flex", flexDirection: "column",
+        }}
+      >
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "#333" }} />
+        </div>
+
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "6px 18px 14px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 800, color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              En direct
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Réduire"
+            style={{
+              width: 26, height: 26, border: "none", background: "#1c1c1c", borderRadius: "50%",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <ChevronLeft size={14} color="#999" style={{ transform: "rotate(-90deg)" }} />
+          </button>
+        </div>
+
+        <div style={{ padding: "0 18px 22px", overflowY: "auto" }}>
+          {/* Host */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: "50%",
+              background: accent, display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#111" }}>
+                {initials}
+              </span>
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 700, color: "#fff" }}>
+                {commentator.name}
+              </div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", marginTop: 2 }}>
+                Chroniqueur sportif
+              </div>
+            </div>
+          </div>
+
+          {/* Big animated bars */}
+          <div style={{
+            marginTop: 20, display: "flex", alignItems: "center", justifyContent: "center",
+            background: "#1a1a1a", borderRadius: 12, padding: "22px 0",
+          }}>
+            <AudioBarsLoader height="40" width="40" color={accent} ariaLabel="commentaire-audio-en-cours" visible={true} />
+          </div>
+
+          {/* Listener count */}
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", marginTop: 14, textAlign: "center" }}>
+            {listenerCount} auditeurs à l'écoute
+          </div>
+
+          {/* Description */}
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#bbb", lineHeight: 1.5, marginTop: 14 }}>
+            Suivez le commentaire audio en direct de cette compétition — analyses, moments forts et ambiance, commentés en temps réel.
+          </div>
+
+          {/* Controls */}
+          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+            <button
+              onClick={onToggleMute}
+              style={{
+                flex: 1, height: 44, borderRadius: 22, border: "1px solid #333",
+                background: muted ? "#1c1c1c" : "#fff",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                cursor: "pointer",
+              }}
+            >
+              {muted ? (
+                <>
+                  <VolumeX size={16} color="#fff" strokeWidth={2.2} />
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#fff" }}>Activer le son</span>
+                </>
+              ) : (
+                <>
+                  <Volume2 size={16} color="#111" strokeWidth={2.2} />
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>Couper le son</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
 
 function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onAddImage, onRemoveImage, startInEditMode = false }) {
@@ -1638,18 +1761,19 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [activeTab, setActiveTab] = useState("home"); // "home" | "participants" | "medias" | "donateurs"
 
   // ── LIVE AUDIO COMMENTARY ──────────────────────────────────────────────
-  // Floating/band audio player for a "chroniqueur sportif" narrating the
-  // competition live. No real stream is wired up yet — src is left empty
-  // on purpose; swap in a real HLS/Icecast URL on the <audio> element below
-  // once a stream source exists. Everything else (mute state, autoplay
-  // attempt, waveform animation, dismiss) is fully functional already.
+  // Floating, permanent audio player for a "chroniqueur sportif" narrating
+  // the competition live — always visible while a competition is open (like
+  // X's persistent Spaces mini-player). Tapping it opens a detailed bottom
+  // sheet with stream info; muting only happens from inside that sheet. No
+  // real stream is wired up yet — src is left empty on purpose; swap in a
+  // real HLS/Icecast URL on the <audio> element below once a stream source
+  // exists.
   const commentator = COMMENTATORS[Math.abs(hashStr(comp.id)) % COMMENTATORS.length];
   const [commentaryMuted, setCommentaryMuted] = useState(true);
-  const [commentaryDismissed, setCommentaryDismissed] = useState(false);
-  const [commentaryCardOpen, setCommentaryCardOpen] = useState(false); // small info card above the floating button
+  const [commentarySheetOpen, setCommentarySheetOpen] = useState(false);
   const [commentaryReady, setCommentaryReady] = useState(false); // true once audio starts actually playing
   const commentaryAudioRef = useRef(null);
-  const showCommentaryBand = !isRegistration && !commentaryDismissed;
+  const showCommentaryBand = !isRegistration;
 
   useEffect(() => {
     if (!showCommentaryBand) return;
@@ -4173,51 +4297,19 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         >
           <audio ref={commentaryAudioRef} src="" loop style={{ display: "none" }} />
 
-          {commentaryCardOpen && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 8,
-              background: "#111", borderRadius: 12,
-              padding: "8px 10px", maxWidth: 210,
-              boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-            }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 800, color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                    En direct
-                  </span>
-                </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }}>
-                  {commentator.name}
-                </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#888", marginTop: 1 }}>
-                  Chroniqueur {commentaryMuted && "· Coupé"}
-                </div>
-              </div>
-              <button
-                onClick={() => setCommentaryDismissed(true)}
-                aria-label="Fermer le chroniqueur"
-                style={{
-                  width: 20, height: 20, flexShrink: 0, border: "none", background: "none",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <X size={14} color="#777" />
-              </button>
-            </div>
+          {commentarySheetOpen && (
+            <CommentaryStreamSheet
+              commentator={commentator}
+              accent={accent}
+              muted={commentaryMuted}
+              onToggleMute={toggleCommentaryMute}
+              onClose={() => setCommentarySheetOpen(false)}
+            />
           )}
 
           <button
-            onClick={() => {
-              if (commentaryMuted) {
-                toggleCommentaryMute();
-                setCommentaryCardOpen(true);
-              } else {
-                toggleCommentaryMute();
-              }
-            }}
-            onDoubleClick={() => setCommentaryCardOpen((v) => !v)}
-            aria-label={commentaryMuted ? "Activer le commentaire audio" : "Couper le commentaire audio"}
+            onClick={() => setCommentarySheetOpen(true)}
+            aria-label="Voir le chroniqueur en direct"
             style={{
               width: 54, height: 54, borderRadius: "50%",
               border: "none", background: accent, cursor: "pointer",
@@ -4226,17 +4318,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               position: "relative",
             }}
           >
-            {commentaryMuted ? (
-              <VolumeX size={20} color="#fff" strokeWidth={2.2} />
-            ) : (
-              <AudioBarsLoader
-                height="22"
-                width="22"
-                color="#fff"
-                ariaLabel="commentaire-audio-en-cours"
-                visible={true}
-              />
-            )}
+            <AudioBarsLoader
+              height="22"
+              width="22"
+              color="#fff"
+              ariaLabel="commentaire-audio-en-cours"
+              visible={true}
+            />
             <span style={{
               position: "absolute", top: -2, right: -2,
               width: 12, height: 12, borderRadius: "50%",
