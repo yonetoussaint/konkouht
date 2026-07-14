@@ -1836,15 +1836,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     if (!showCommentaryBand) return;
     const audio = commentaryAudioRef.current;
     if (!audio) return;
-    // Browsers allow autoplay when muted. Once a real src is set this will
-    // actually start audio; today it just no-ops (and we swallow the
-    // rejection) since there's nothing to play yet.
-    audio.muted = commentaryMuted;
+    // Browsers allow autoplay when muted, so this silent bootstrap play is
+    // always allowed. Real (audible) playback only starts from a genuine
+    // user gesture — see toggleCommentaryMute, called from the floating
+    // button's onClick and from the mute control inside the room sheet.
+    audio.muted = true;
     const p = audio.play();
     if (p?.then) {
       p.then(() => setCommentaryReady(true)).catch(() => setCommentaryReady(false));
     }
-  }, [showCommentaryBand, commentaryMuted]);
+  }, [showCommentaryBand]);
 
   function toggleCommentaryMute() {
     const audio = commentaryAudioRef.current;
@@ -1852,10 +1853,18 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       const next = !prev;
       if (audio) {
         audio.muted = next;
-        if (!next) audio.play().catch(() => {});
+        if (!next) {
+          // Called from a click handler, so this counts as a user gesture
+          // and browsers will allow audible playback here.
+          audio.play().then(() => setCommentaryReady(true)).catch(() => setCommentaryReady(false));
+        }
       }
       return next;
     });
+  }
+  function openCommentaryRoom() {
+    setCommentarySheetOpen(true);
+    if (commentaryMuted) toggleCommentaryMute();
   }
   // ─────────────────────────────────────────────────────────────────────
 
@@ -4351,7 +4360,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6,
           }}
         >
-          <audio ref={commentaryAudioRef} src="https://ice1.somafm.com/groovesalad-128-mp3" loop style={{ display: "none" }} />
+          <audio ref={commentaryAudioRef} src="https://ice1.somafm.com/groovesalad-128-mp3" loop muted preload="auto" playsInline style={{ display: "none" }} />
 
           {commentarySheetOpen && (
             <CommentaryStreamSheet
@@ -4366,7 +4375,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           )}
 
           <button
-            onClick={() => setCommentarySheetOpen(true)}
+            onClick={openCommentaryRoom}
             aria-label="Voir le chroniqueur en direct"
             style={{
               width: 54, height: 54, borderRadius: "50%",
