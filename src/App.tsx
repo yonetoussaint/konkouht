@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -1548,9 +1548,47 @@ function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", onClo
 
 /* ─── LIVE COMMENTARY STREAM SHEET (X Spaces / podcast style) ─────────── */
 
-function CommentaryStreamSheet({ commentator, accent, muted, onToggleMute, onClose }) {
-  const listenerCount = 40 + (Math.abs(hashStr(commentator.name)) % 900);
-  const initials = commentator.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+function RoomAvatar({ index, name, size = 56, speaking = false, ring, badge }) {
+  const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <div style={{
+        width: size, height: size, borderRadius: "50%", overflow: "hidden",
+        border: speaking ? `2px solid ${ring || "#2ecc71"}` : "2px solid transparent",
+        boxSizing: "border-box",
+      }}>
+        {index != null ? (
+          <img src={avatarImg(index)} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        ) : (
+          <div style={{ width: "100%", height: "100%", background: "#333", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: size * 0.32, fontWeight: 700, color: "#fff" }}>{initials}</span>
+          </div>
+        )}
+      </div>
+      {badge}
+      {speaking && (
+        <div style={{
+          position: "absolute", bottom: -3, right: -3,
+          width: 20, height: 20, borderRadius: "50%", background: "#111",
+          border: "2px solid #111",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <AudioBarsLoader height="11" width="11" color="#2ecc71" ariaLabel="parle" visible={true} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, muted, onToggleMute, onClose }) {
+  const [requestSent, setRequestSent] = useState(false);
+  const baseSeed = Math.abs(hashStr(comp.id));
+  const listenerCount = 40 + (baseSeed % 900);
+  const listenerFaces = Array.from({ length: 6 }, (_, i) => (baseSeed + i * 13) % 60);
+  const speakers = [
+    { name: commentator.name, role: "Hôte", index: baseSeed % 40, speaking: true },
+    ...coSpeakers.map((s, i) => ({ name: s.name, role: "Intervenant", index: (baseSeed + (i + 1) * 9) % 40, speaking: i === 0 })),
+  ];
 
   return (
     <div
@@ -1567,24 +1605,24 @@ function CommentaryStreamSheet({ commentator, accent, muted, onToggleMute, onClo
           width: "100%", maxWidth: 480,
           background: "#111",
           borderTop: "1px solid #2a2a2a",
-          maxHeight: "80vh",
+          maxHeight: "85vh",
           display: "flex", flexDirection: "column",
         }}
       >
         {/* Drag handle */}
-        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px", flexShrink: 0 }}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: "#333" }} />
         </div>
 
         {/* Header */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "6px 18px 14px",
+          padding: "6px 18px 12px", flexShrink: 0,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 800, color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-              En direct
+              Salle audio en direct
             </span>
           </div>
           <button
@@ -1600,69 +1638,86 @@ function CommentaryStreamSheet({ commentator, accent, muted, onToggleMute, onClo
         </div>
 
         <div style={{ padding: "0 18px 22px", overflowY: "auto" }}>
-          {/* Host */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: "50%",
-              background: accent, display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
-            }}>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#111" }}>
-                {initials}
-              </span>
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 700, color: "#fff" }}>
-                {commentator.name}
+          {/* Speakers grid */}
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+            À l'antenne · {speakers.length}
+          </div>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {speakers.map((s, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 64 }}>
+                <RoomAvatar index={s.index} name={s.name} size={56} speaking={s.speaking} ring={accent} />
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#fff", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>
+                  {s.name.split(" ")[0]}
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#777" }}>{s.role}</div>
               </div>
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", marginTop: 2 }}>
-                Chroniqueur sportif
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* Big animated bars */}
+          {/* Listeners */}
           <div style={{
-            marginTop: 20, display: "flex", alignItems: "center", justifyContent: "center",
-            background: "#1a1a1a", borderRadius: 12, padding: "22px 0",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginTop: 22, paddingTop: 16, borderTop: "1px solid #222",
           }}>
-            <AudioBarsLoader height="40" width="40" color={accent} ariaLabel="commentaire-audio-en-cours" visible={true} />
-          </div>
-
-          {/* Listener count */}
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", marginTop: 14, textAlign: "center" }}>
-            {listenerCount} auditeurs à l'écoute
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {listenerFaces.map((idx, i) => (
+                <div key={i} style={{ marginLeft: i === 0 ? 0 : -8, border: "2px solid #111", borderRadius: "50%" }}>
+                  <RoomAvatar index={idx} name="" size={26} />
+                </div>
+              ))}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888" }}>
+              {listenerCount} auditeurs
+            </div>
           </div>
 
           {/* Description */}
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#bbb", lineHeight: 1.5, marginTop: 14 }}>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#bbb", lineHeight: 1.5, marginTop: 16 }}>
             Suivez le commentaire audio en direct de cette compétition — analyses, moments forts et ambiance, commentés en temps réel.
           </div>
 
           {/* Controls */}
           <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
             <button
-              onClick={onToggleMute}
+              onClick={() => setRequestSent(true)}
+              disabled={requestSent}
               style={{
                 flex: 1, height: 44, borderRadius: 22, border: "1px solid #333",
-                background: muted ? "#1c1c1c" : "#fff",
+                background: requestSent ? "#1c1c1c" : accent,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                cursor: "pointer",
+                cursor: requestSent ? "default" : "pointer",
               }}
             >
-              {muted ? (
-                <>
-                  <VolumeX size={16} color="#fff" strokeWidth={2.2} />
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#fff" }}>Activer le son</span>
-                </>
-              ) : (
-                <>
-                  <Volume2 size={16} color="#111" strokeWidth={2.2} />
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>Couper le son</span>
-                </>
-              )}
+              <Hand size={16} color={requestSent ? "#888" : "#111"} strokeWidth={2.2} />
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: requestSent ? "#888" : "#111" }}>
+                {requestSent ? "Demande envoyée" : "Demander à parler"}
+              </span>
+            </button>
+            <button
+              onClick={onToggleMute}
+              aria-label={muted ? "Activer le son" : "Couper le son"}
+              style={{
+                width: 44, height: 44, borderRadius: 22, border: "1px solid #333",
+                background: muted ? "#1c1c1c" : "#fff",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", flexShrink: 0,
+              }}
+            >
+              {muted ? <VolumeX size={16} color="#fff" strokeWidth={2.2} /> : <Volume2 size={16} color="#111" strokeWidth={2.2} />}
             </button>
           </div>
+
+          {/* Leave */}
+          <button
+            onClick={onClose}
+            style={{
+              width: "100%", background: "none", border: "none", cursor: "pointer",
+              marginTop: 14, padding: "8px 0",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#e74c3c",
+            }}
+          >
+            Quitter la salle
+          </button>
         </div>
       </div>
     </div>
@@ -1769,6 +1824,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   // real HLS/Icecast URL on the <audio> element below once a stream source
   // exists.
   const commentator = COMMENTATORS[Math.abs(hashStr(comp.id)) % COMMENTATORS.length];
+  const coSpeakers = [1, 2].map((offset) => ({
+    name: fakeName(Math.abs(hashStr(comp.id + "_speaker_" + offset))),
+  }));
   const [commentaryMuted, setCommentaryMuted] = useState(true);
   const [commentarySheetOpen, setCommentarySheetOpen] = useState(false);
   const [commentaryReady, setCommentaryReady] = useState(false); // true once audio starts actually playing
@@ -4299,7 +4357,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
           {commentarySheetOpen && (
             <CommentaryStreamSheet
+              comp={comp}
               commentator={commentator}
+              coSpeakers={coSpeakers}
               accent={accent}
               muted={commentaryMuted}
               onToggleMute={toggleCommentaryMute}
