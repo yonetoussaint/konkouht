@@ -1819,10 +1819,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   // Floating, permanent audio player for a "chroniqueur sportif" narrating
   // the competition live — always visible while a competition is open (like
   // X's persistent Spaces mini-player). Tapping it opens a detailed bottom
-  // sheet with stream info; muting only happens from inside that sheet. No
-  // real stream is wired up yet — src is left empty on purpose; swap in a
-  // real HLS/Icecast URL on the <audio> element below once a stream source
-  // exists.
+  // sheet with stream info; muting only happens from inside that sheet.
+  // Currently wired to SomaFM's free "Groove Salad" stream for testing —
+  // swap the <audio> src below for your real commentary stream when ready.
   const commentator = COMMENTATORS[Math.abs(hashStr(comp.id)) % COMMENTATORS.length];
   const coSpeakers = [1, 2].map((offset) => ({
     name: fakeName(Math.abs(hashStr(comp.id + "_speaker_" + offset))),
@@ -4339,10 +4338,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       )}
 
       {/* ── FLOATING LIVE COMMENTARY BUTTON ── */}
-      {/* No real stream wired up yet — src is left empty on purpose; swap in a
-          real HLS/Icecast URL on the <audio> element below once a stream
-          source exists. Mute state, autoplay attempt, and the equalizer
-          animation are fully functional already. */}
+      {/* TEST STREAM: using SomaFM's free, freely-streamable "Groove Salad"
+          Icecast/MP3 feed as a stand-in so playback can actually be tested.
+          Swap the src for your real commentary stream when one exists. */}
       {showCommentaryBand && (
         <div
           style={{
@@ -4353,7 +4351,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6,
           }}
         >
-          <audio ref={commentaryAudioRef} src="" loop style={{ display: "none" }} />
+          <audio ref={commentaryAudioRef} src="https://ice1.somafm.com/groovesalad-128-mp3" loop style={{ display: "none" }} />
 
           {commentarySheetOpen && (
             <CommentaryStreamSheet
