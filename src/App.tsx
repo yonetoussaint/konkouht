@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -1886,6 +1886,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [bannerFullscreen, setBannerFullscreen] = useState(false);
   const [tickFlash, setTickFlash] = useState(false);
   const [prizeBump, setPrizeBump] = useState(false);
+  const [pointsBump, setPointsBump] = useState(false);
+  const prevVoteCountRef = useRef(voteCount);
+  useEffect(() => {
+    if (voteCount !== prevVoteCountRef.current) {
+      prevVoteCountRef.current = voteCount;
+      setPointsBump(true);
+      const t = setTimeout(() => setPointsBump(false), 380);
+      return () => clearTimeout(t);
+    }
+  }, [voteCount]);
 
   // If the organizer set a real deadline (comp.endsAt), the countdown is
   // computed from actual elapsed time each tick — so it survives reloads,
@@ -2699,36 +2709,61 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           background: "#fff", borderBottom: "1px solid #e0e0e0",
         }}>
           {(isRegistration ? [
-            { value: liveRegistered, label: "Inscrits" },
-            { value: comp.contestants, label: "Places", accent: true },
-            { value: `${registrationFee} G`, label: "Frais insc." },
+            { value: liveRegistered, label: "Inscrits", icon: Users },
+            { value: comp.contestants, label: "Places", accent: true, icon: Trophy },
+            { value: `${registrationFee} G`, label: "Frais insc.", icon: Wallet },
           ] : [
-            { value: liveRegistered, label: "Candidats" },
-            { value: fmtVotes(voteCount), label: "Votes", accent: true },
-            { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true },
-          ]).map((s, i) => (
-            <div key={i} style={{
-              borderLeft: i > 0 ? "1px solid #f0f0f0" : "none",
-              padding: "8px 2px",
-              display: "flex", flexDirection: "column", alignItems: "center",
-            }}>
-              <div style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: s.timer ? 18 : 26, fontWeight: 800,
-                color: s.hot ? "#c0392b" : s.accent ? accent : "#111",
-                lineHeight: 1,
-                transition: s.timer ? "opacity 0.12s" : "none",
-                opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
-                fontVariantNumeric: "tabular-nums",
-                letterSpacing: s.timer ? "-0.02em" : "normal",
-              }}>{s.value}</div>
-              <div style={{
-                fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa",
-                textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 4,
-                fontWeight: 600,
-              }}>{s.label}</div>
-            </div>
-          ))}
+            { value: liveRegistered, label: "Candidats", icon: Users },
+            { value: fmtVotes(voteCount), label: "Points", accent: true, icon: Flame, live: true, bump: pointsBump },
+            { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true, icon: Clock, live: true },
+          ]).map((s, i) => {
+            const Icon = s.icon;
+            const hotTimer = s.timer && s.hot;
+            return (
+              <div key={i} style={{
+                borderLeft: i > 0 ? "1px solid #f0f0f0" : "none",
+                padding: "8px 2px",
+                display: "flex", flexDirection: "column", alignItems: "center",
+                position: "relative",
+                background: hotTimer ? "rgba(192,57,43,0.06)" : "transparent",
+                transition: "background 0.3s",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
+                  {Icon && (
+                    <Icon
+                      size={11}
+                      strokeWidth={2.4}
+                      color={hotTimer ? "#c0392b" : s.accent ? accent : "#bbb"}
+                    />
+                  )}
+                  {s.live && (
+                    <span style={{
+                      width: 4, height: 4, borderRadius: "50%",
+                      background: hotTimer ? "#c0392b" : "#e74c3c",
+                      display: "inline-block",
+                      animation: "pulse-dot 1s infinite",
+                    }} />
+                  )}
+                </div>
+                <div style={{
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: s.timer ? 18 : 26, fontWeight: 800,
+                  color: hotTimer ? "#c0392b" : s.accent ? accent : "#111",
+                  lineHeight: 1,
+                  transition: s.timer ? "opacity 0.12s, transform 0.28s cubic-bezier(0.34,1.56,0.64,1)" : "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
+                  opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
+                  transform: s.bump ? "scale(1.14)" : "scale(1)",
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: s.timer ? "-0.02em" : "normal",
+                }}>{s.value}</div>
+                <div style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa",
+                  textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 4,
+                  fontWeight: 600,
+                }}>{s.label}</div>
+              </div>
+            );
+          })}
         </div>
 
         {isRegistration && (
