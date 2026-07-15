@@ -1934,6 +1934,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     if (h > 0) return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
     return `${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
   };
+  // Stats-row timer: "2 Days" → when days hit 0, "X Hours" → when hours hit 0, "X Minutes"
+  const fmtCountdownStats = (s) => {
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (d > 0) return `${d} Day${d > 1 ? "s" : ""}`;
+    if (h > 0) return `${h} Hour${h > 1 ? "s" : ""}`;
+    return `${m} Minute${m !== 1 ? "s" : ""}`;
+  };
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [showGiftBar, setShowGiftBar] = useState(false);
   const [activeGift, setActiveGift] = useState(null);
@@ -2549,13 +2558,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
             {/* Hero cagnotte card — combined total instead of two competing boxes */}
             <div style={{
-              position: "relative", overflow: "hidden", borderRadius: 14,
-              background: "linear-gradient(135deg, #16161d 0%, #201f29 100%)",
+              position: "relative", overflow: "hidden", borderRadius: 0,
+              background: "#fff", border: "1px solid #e0e0e0",
               padding: "13px 14px 12px",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                <Trophy size={14} color="#F5C24C" strokeWidth={2.3} />
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#F5C24C", textTransform: "uppercase", letterSpacing: "0.09em" }}>
+                <Trophy size={14} color="#C99A2E" strokeWidth={2.3} />
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#C99A2E", textTransform: "uppercase", letterSpacing: "0.09em" }}>
                   {isRegistration ? "Prix à gagner" : "Cagnotte à gagner"}
                 </span>
                 {!isRegistration && (
@@ -2575,22 +2584,22 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 transition: "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
               }}>
                 <span style={{
-                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 30, fontWeight: 800, color: "#fff",
+                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 30, fontWeight: 800, color: "#111",
                   fontVariantNumeric: "tabular-nums",
                 }}>
                   {heroPrizeValue.toLocaleString("fr-FR")}
                 </span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#8a8a94" }}>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#999" }}>
                   HTG
                 </span>
               </div>
 
               {isRegistration ? (
-                <div style={{ marginTop: 4, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9a9aa4" }}>
+                <div style={{ marginTop: 4, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888" }}>
                   + un bonus basé sur les cadeaux reçus par le gagnant
                 </div>
               ) : (
-                <div style={{ marginTop: 4, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9a9aa4", display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ marginTop: 4, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", display: "flex", alignItems: "center", gap: 5 }}>
                   <Gift size={11} color={accent} strokeWidth={2.3} />
                   Dont{" "}
                   <span style={{ color: accent, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
@@ -2673,7 +2682,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             ] : [
               { value: liveRegistered, label: "Candidats", icon: Users },
               { value: fmtVotes(voteCount), label: "Points", accent: true, icon: Flame, bump: pointsBump },
-              { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true, icon: Clock },
+              { value: fmtCountdownStats(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true, icon: Clock },
             ]).map((s, i) => {
               const Icon = s.icon;
               const hotTimer = s.timer && s.hot;
