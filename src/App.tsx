@@ -2612,7 +2612,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               <button
                 onClick={() => setActiveTab("participants")}
                 style={{
-                  width: "100%", marginTop: 8, border: "1px solid #eee", borderRadius: 12,
+                  width: "100%", marginTop: 8, border: "1px solid #eee", borderRadius: 14,
                   background: "#fff", padding: "8px 10px", cursor: "pointer",
                   display: "flex", alignItems: "center", gap: 10, textAlign: "left",
                 }}
@@ -2656,51 +2656,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
             {isRegistration && (
               <div style={{
-                border: "1px solid #eee", padding: "6px 8px", marginTop: 8, borderRadius: 10,
+                border: "1px solid #eee", padding: "6px 8px", marginTop: 8, borderRadius: 14,
                 fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999",
               }}>
                 Le 1er du classement final remporte le prix à gagner + un bonus basé sur les cadeaux qu'il a reçus.
               </div>
             )}
           </div>
-
-          {rulesInfo.rules.length > 0 && (
-            <>
-              {/* Rules toggle */}
-              <button
-                onClick={() => setRulesExpanded((v) => !v)}
-                style={{
-                  width: "100%", border: "none", borderRadius: 14, background: "#f5f5f5",
-                  padding: "6px 8px", cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
-                  color: "#333", textTransform: "uppercase", letterSpacing: "0.06em",
-                }}
-              >
-                Règlement complet
-                <ChevronRight
-                  size={14}
-                  style={{ transform: rulesExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
-                />
-              </button>
-
-              {rulesExpanded && (
-                <ol style={{
-                  margin: "10px 0 0", padding: "0 0 0 12px",
-                  display: "flex", flexDirection: "column", gap: 8,
-                }}>
-                  {rulesInfo.rules.map((rule, i) => (
-                    <li key={i} style={{
-                      fontFamily: "Inter, sans-serif", fontSize: 12.5, color: "#555",
-                      lineHeight: 1.5,
-                    }}>
-                      {rule}
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </>
-          )}
         </div>
 
         {/* ── STAT TILES ── */}
@@ -2714,8 +2676,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             { value: `${registrationFee} G`, label: "Frais insc.", icon: Wallet },
           ] : [
             { value: liveRegistered, label: "Candidats", icon: Users },
-            { value: fmtVotes(voteCount), label: "Points", accent: true, icon: Flame, live: true, bump: pointsBump },
-            { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true, icon: Clock, live: true },
+            { value: fmtVotes(voteCount), label: "Points", accent: true, icon: Flame, bump: pointsBump },
+            { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true, icon: Clock },
           ]).map((s, i) => {
             const Icon = s.icon;
             const hotTimer = s.timer && s.hot;
@@ -2728,23 +2690,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 background: hotTimer ? "rgba(192,57,43,0.06)" : "transparent",
                 transition: "background 0.3s",
               }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
-                  {Icon && (
-                    <Icon
-                      size={11}
-                      strokeWidth={2.4}
-                      color={hotTimer ? "#c0392b" : s.accent ? accent : "#bbb"}
-                    />
-                  )}
-                  {s.live && (
-                    <span style={{
-                      width: 4, height: 4, borderRadius: "50%",
-                      background: hotTimer ? "#c0392b" : "#e74c3c",
-                      display: "inline-block",
-                      animation: "pulse-dot 1s infinite",
-                    }} />
-                  )}
-                </div>
+                {Icon && (
+                  <Icon
+                    size={11}
+                    strokeWidth={2.4}
+                    color={hotTimer ? "#c0392b" : s.accent ? accent : "#bbb"}
+                    style={{ marginBottom: 3 }}
+                  />
+                )}
                 <div style={{
                   fontFamily: "'Space Grotesk', sans-serif",
                   fontSize: s.timer ? 18 : 26, fontWeight: 800,
@@ -2765,6 +2718,44 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             );
           })}
         </div>
+
+        {/* ── RULES (lower-priority disclosure, separate from the vitals above) ── */}
+        {rulesInfo.rules.length > 0 && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 10px" }}>
+            <button
+              onClick={() => setRulesExpanded((v) => !v)}
+              style={{
+                width: "100%", border: "none", borderRadius: 14, background: "#f5f5f5",
+                padding: "6px 8px", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+                color: "#333", textTransform: "uppercase", letterSpacing: "0.06em",
+              }}
+            >
+              Règlement complet
+              <ChevronRight
+                size={14}
+                style={{ transform: rulesExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+              />
+            </button>
+
+            {rulesExpanded && (
+              <ol style={{
+                margin: "10px 0 0", padding: "0 0 0 12px",
+                display: "flex", flexDirection: "column", gap: 8,
+              }}>
+                {rulesInfo.rules.map((rule, i) => (
+                  <li key={i} style={{
+                    fontFamily: "Inter, sans-serif", fontSize: 12.5, color: "#555",
+                    lineHeight: 1.5,
+                  }}>
+                    {rule}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
 
         {isRegistration && (
           <div style={{
