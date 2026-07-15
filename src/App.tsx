@@ -2607,14 +2607,21 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               </div>
             )}
 
-            {/* Leader mini-card — tappable, jumps to the full ranking */}
-            {!isRegistration && leader && (
+          </div>
+        </div>
+
+        {/* ── LEADER + STATS — one unified vitals card ── */}
+        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "10px" }}>
+          <div style={{
+            border: "1px solid #eee", borderRadius: 16, overflow: "hidden",
+          }}>
+            {!isRegistration && leader ? (
               <button
                 onClick={() => setActiveTab("participants")}
                 style={{
-                  width: "100%", marginTop: 8, border: "1px solid #eee", borderRadius: 14,
-                  background: "#fff", padding: "8px 10px", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 10, textAlign: "left",
+                  width: "100%", border: "none", background: "none", cursor: "pointer",
+                  padding: "10px 12px", display: "flex", alignItems: "center", gap: 10,
+                  textAlign: "left", borderBottom: "1px solid #f2f2f2",
                 }}
               >
                 <div style={{ position: "relative", width: 34, height: 34, flexShrink: 0 }}>
@@ -2652,70 +2659,63 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
                 <ChevronRight size={16} color="#ccc" strokeWidth={2.3} />
               </button>
-            )}
-
-            {isRegistration && (
+            ) : (
               <div style={{
-                border: "1px solid #eee", padding: "6px 8px", marginTop: 8, borderRadius: 14,
+                padding: "10px 12px", borderBottom: "1px solid #f2f2f2",
                 fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999",
               }}>
                 Le 1er du classement final remporte le prix à gagner + un bonus basé sur les cadeaux qu'il a reçus.
               </div>
             )}
-          </div>
-        </div>
 
-        {/* ── STAT TILES ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "10px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-            {(isRegistration ? [
-              { value: liveRegistered, label: "Inscrits", icon: Users },
-              { value: comp.contestants, label: "Places", accent: true, icon: Trophy },
-              { value: `${registrationFee} G`, label: "Frais insc.", icon: Wallet },
-            ] : [
-              { value: liveRegistered, label: "Candidats", icon: Users },
-              { value: fmtVotes(voteCount), label: "Points", accent: true, icon: Flame, bump: pointsBump },
-              { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true, icon: Clock },
-            ]).map((s, i) => {
-              const Icon = s.icon;
-              const hotTimer = s.timer && s.hot;
-              return (
-                <div key={i} style={{
-                  borderRadius: 14,
-                  border: `1px solid ${hotTimer ? "rgba(192,57,43,0.25)" : s.accent ? `${accent}33` : "#eee"}`,
-                  padding: "10px 4px",
-                  display: "flex", flexDirection: "column", alignItems: "center",
-                  position: "relative",
-                  background: hotTimer ? "rgba(192,57,43,0.06)" : s.accent ? `${accent}0d` : "#fafafa",
-                  transition: "background 0.3s",
-                }}>
-                  {Icon && (
-                    <Icon
-                      size={12}
-                      strokeWidth={2.4}
-                      color={hotTimer ? "#c0392b" : s.accent ? accent : "#bbb"}
-                      style={{ marginBottom: 4 }}
-                    />
-                  )}
-                  <div style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: s.timer ? 18 : 24, fontWeight: 800,
-                    color: hotTimer ? "#c0392b" : s.accent ? accent : "#111",
-                    lineHeight: 1,
-                    transition: s.timer ? "opacity 0.12s, transform 0.28s cubic-bezier(0.34,1.56,0.64,1)" : "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
-                    opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
-                    transform: s.bump ? "scale(1.14)" : "scale(1)",
-                    fontVariantNumeric: "tabular-nums",
-                    letterSpacing: s.timer ? "-0.02em" : "normal",
-                  }}>{s.value}</div>
-                  <div style={{
-                    fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#999",
-                    textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4,
-                    fontWeight: 600, textAlign: "center",
-                  }}>{s.label}</div>
-                </div>
-              );
-            })}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr" }}>
+              {(isRegistration ? [
+                { value: liveRegistered, label: "Inscrits", icon: Users },
+                { value: comp.contestants, label: "Places", accent: true, icon: Trophy },
+                { value: `${registrationFee} G`, label: "Frais insc.", icon: Wallet },
+              ] : [
+                { value: liveRegistered, label: "Candidats", icon: Users },
+                { value: fmtVotes(voteCount), label: "Points", accent: true, icon: Flame, bump: pointsBump },
+                { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true, icon: Clock },
+              ]).map((s, i) => {
+                const Icon = s.icon;
+                const hotTimer = s.timer && s.hot;
+                return (
+                  <div key={i} style={{
+                    borderLeft: i > 0 ? "1px solid #f2f2f2" : "none",
+                    padding: "10px 4px",
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    background: hotTimer ? "rgba(192,57,43,0.06)" : "transparent",
+                    transition: "background 0.3s",
+                  }}>
+                    {Icon && (
+                      <Icon
+                        size={12}
+                        strokeWidth={2.4}
+                        color={hotTimer ? "#c0392b" : s.accent ? accent : "#bbb"}
+                        style={{ marginBottom: 4 }}
+                      />
+                    )}
+                    <div style={{
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontSize: s.timer ? 18 : 24, fontWeight: 800,
+                      color: hotTimer ? "#c0392b" : s.accent ? accent : "#111",
+                      lineHeight: 1,
+                      transition: s.timer ? "opacity 0.12s, transform 0.28s cubic-bezier(0.34,1.56,0.64,1)" : "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
+                      opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
+                      transform: s.bump ? "scale(1.14)" : "scale(1)",
+                      fontVariantNumeric: "tabular-nums",
+                      letterSpacing: s.timer ? "-0.02em" : "normal",
+                    }}>{s.value}</div>
+                    <div style={{
+                      fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#999",
+                      textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4,
+                      fontWeight: 600, textAlign: "center",
+                    }}>{s.label}</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
