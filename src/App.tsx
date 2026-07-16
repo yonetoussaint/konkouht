@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame, ArrowUp, ArrowDown } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
@@ -1897,6 +1897,17 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     }
   }, [voteCount]);
 
+  // ── Leader row live signals: momentum flash, margin trend, time-in-lead ──
+  const leaderSinceRef = useRef(Date.now());
+  const [leaderFlash, setLeaderFlash] = useState(null); // small "+X" burst near leader's points
+  const [leaderHot, setLeaderHot] = useState(false); // recent-gain momentum dot
+  const prevLeaderVotesRef = useRef(null);
+  const leaderHotTimeoutRef = useRef(null);
+  const leaderFlashTimeoutRef = useRef(null);
+  const [marginTrend, setMarginTrend] = useState(null); // 'up' | 'down' | null
+  const prevMarginRef = useRef(null);
+  const marginTrendTimeoutRef = useRef(null);
+
   // If the organizer set a real deadline (comp.endsAt), the countdown is
   // computed from actual elapsed time each tick — so it survives reloads,
   // background tabs, etc. Competitions without one fall back to the legacy
@@ -2083,7 +2094,57 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const topPoints = Math.max(...ranked.map((p) => p.points), 1);
   const leader = ranked[0];
   const secondPlace = ranked[1];
+  const thirdPlace = ranked[2];
   const leaderMargin = leader && secondPlace ? leader.points - secondPlace.points : null;
+  // Live-recomputed margin (points scale, tracks liveVotes ticks) used for the trend arrow / delta chip
+  const leaderLivePoints = leader ? Math.round(leader.votes / 10) : 0;
+  const secondLivePoints = secondPlace ? Math.round(secondPlace.votes / 10) : 0;
+  const liveMargin = leader && secondPlace ? leaderLivePoints - secondLivePoints : null;
+  const marginSafe = liveMargin != null && leaderLivePoints > 0 ? liveMargin / leaderLivePoints >= 0.15 : true;
+
+  // Momentum flash: leader just gained votes → brief "+X" burst + "hot" dot for a few seconds
+  useEffect(() => {
+    if (!leader) return;
+    if (prevLeaderVotesRef.current == null) {
+      prevLeaderVotesRef.current = leader.votes;
+      return;
+    }
+    const delta = leader.votes - prevLeaderVotesRef.current;
+    prevLeaderVotesRef.current = leader.votes;
+    if (delta > 0) {
+      setLeaderFlash(delta);
+      setLeaderHot(true);
+      clearTimeout(leaderFlashTimeoutRef.current);
+      leaderFlashTimeoutRef.current = setTimeout(() => setLeaderFlash(null), 1200);
+      clearTimeout(leaderHotTimeoutRef.current);
+      leaderHotTimeoutRef.current = setTimeout(() => setLeaderHot(false), 4000);
+    }
+  }, [leader?.votes]);
+
+  // Margin trend: compare live margin tick-to-tick, flash an arrow for a few seconds
+  useEffect(() => {
+    if (liveMargin == null) return;
+    if (prevMarginRef.current == null) {
+      prevMarginRef.current = liveMargin;
+      return;
+    }
+    if (liveMargin !== prevMarginRef.current) {
+      setMarginTrend(liveMargin > prevMarginRef.current ? "up" : "down");
+      prevMarginRef.current = liveMargin;
+      clearTimeout(marginTrendTimeoutRef.current);
+      marginTrendTimeoutRef.current = setTimeout(() => setMarginTrend(null), 4000);
+    }
+  }, [liveMargin]);
+
+  // Time in lead — ticks with the existing 1s countdown heartbeat (tickFlash)
+  const leaderElapsedSec = Math.max(0, Math.floor((Date.now() - leaderSinceRef.current) / 1000));
+  const fmtLeadTime = (s) => {
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m} min`;
+    const h = Math.floor(m / 60);
+    return `${h}h${String(m % 60).padStart(2, "0")}`;
+  };
   const leaderGiftCredits = leader ? (liveGiftCredits[leader.index] ?? 0) : 0;
   const winnerPrize = basePrizePool + Math.round(leaderGiftCredits * WINNER_GIFT_SHARE);
   const heroPrizeValue = isRegistration ? basePrizePool : winnerPrize;
@@ -2616,6 +2677,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         </div>
 
         {/* ── LEADER + STATS — one unified vitals block, flat with separators ── */}
+        <style>{`@keyframes float-up-fade { 0%{opacity:0; transform:translateY(3px)} 20%{opacity:1; transform:translateY(0)} 80%{opacity:1} 100%{opacity:0; transform:translateY(-6px)} }`}</style>
         <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0" }}>
           {!isRegistration && leader ? (
             <button
@@ -2634,6 +2696,34 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   <img src={avatarImg(leader.index)} alt={leader.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 </div>
                 <span style={{ position: "absolute", bottom: -3, right: -3, fontSize: 13 }}>🥇</span>
+                {leaderHot && (
+                  <span style={{
+                    position: "absolute", top: -2, left: -2, width: 9, height: 9, borderRadius: "50%",
+                    background: "#e74c3c", border: "1.5px solid #fff",
+                    animation: "pulse-dot 1s infinite",
+                  }} />
+                )}
+                {/* Chase pack — #2 and #3 avatars overlapping bottom-left */}
+                {(secondPlace || thirdPlace) && (
+                  <div style={{ position: "absolute", left: -6, bottom: -8, display: "flex" }}>
+                    {thirdPlace && (
+                      <div style={{
+                        width: 15, height: 15, borderRadius: "50%", overflow: "hidden",
+                        border: "1.5px solid #fff", marginRight: -6, boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                      }}>
+                        <img src={avatarImg(thirdPlace.index)} alt={thirdPlace.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      </div>
+                    )}
+                    {secondPlace && (
+                      <div style={{
+                        width: 17, height: 17, borderRadius: "50%", overflow: "hidden",
+                        border: "1.5px solid #fff", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                      }}>
+                        <img src={avatarImg(secondPlace.index)} alt={secondPlace.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -2651,11 +2741,51 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   }}>
                     En tête
                   </span>
+                  {leaderHot && (
+                    <span style={{
+                      fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 800, color: "#e74c3c",
+                      flexShrink: 0, display: "flex", alignItems: "center", gap: 2,
+                    }}>
+                      🔥 En feu
+                    </span>
+                  )}
+                  <span style={{ position: "relative", flexShrink: 0, marginLeft: "auto" }}>
+                    {leaderFlash != null && (
+                      <span style={{
+                        position: "absolute", right: 0, bottom: "100%", marginBottom: 1,
+                        fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#27ae60",
+                        whiteSpace: "nowrap", animation: "float-up-fade 1.2s ease-out forwards",
+                      }}>
+                        +{leaderFlash}
+                      </span>
+                    )}
+                  </span>
                 </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", marginTop: 1 }}>
-                  {leaderMargin != null
-                    ? `+${leaderMargin.toLocaleString("fr-FR")} pts d'avance sur ${secondPlace.name}`
-                    : "Seul en tête pour l'instant"}
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2, flexWrap: "wrap" }}>
+                  {leaderMargin != null ? (
+                    <span style={{
+                      fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+                      color: marginSafe ? "#27ae60" : "#e08a1e",
+                      background: marginSafe ? "rgba(39,174,96,0.1)" : "rgba(224,138,30,0.12)",
+                      padding: "1px 6px", borderRadius: 8, display: "flex", alignItems: "center", gap: 3,
+                    }}>
+                      {marginTrend === "up" && <ArrowUp size={9} strokeWidth={3} />}
+                      {marginTrend === "down" && <ArrowDown size={9} strokeWidth={3} />}
+                      +{leaderMargin.toLocaleString("fr-FR")} pts
+                    </span>
+                  ) : (
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999" }}>
+                      Seul en tête
+                    </span>
+                  )}
+                  {secondPlace && (
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10.5, color: "#999" }}>
+                      devant {secondPlace.name}
+                    </span>
+                  )}
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb" }}>
+                    · En tête depuis {fmtLeadTime(leaderElapsedSec)}
+                  </span>
                 </div>
               </div>
 
