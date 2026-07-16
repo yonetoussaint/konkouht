@@ -1887,6 +1887,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [tickFlash, setTickFlash] = useState(false);
   const [prizeBump, setPrizeBump] = useState(false);
   const [pointsBump, setPointsBump] = useState(false);
+  // Cagnotte punch-up: "+X" flash badge when the pot ticks up from a gift
+  const [cagnotteFlash, setCagnotteFlash] = useState(null); // { id, amount } | null
+  const cagnotteFlashTimeoutRef = useRef(null);
+  // Rotating "🎁 X a ajouté Y HTG" shoutout ticker, fed by real + simulated gifts
+  const [giftShoutoutFeed, setGiftShoutoutFeed] = useState([]); // [{ id, name, amount }], newest first
+  const [shoutoutIdx, setShoutoutIdx] = useState(0);
+  function pushGiftShoutout(name, amount) {
+    setGiftShoutoutFeed((prev) => [{ id: `shout-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, name, amount }, ...prev].slice(0, 6));
+    setShoutoutIdx(0);
+  }
   const prevVoteCountRef = useRef(voteCount);
   useEffect(() => {
     if (voteCount !== prevVoteCountRef.current) {
@@ -2151,12 +2161,38 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const prevHeroPrizeRef = useRef(heroPrizeValue);
   useEffect(() => {
     if (heroPrizeValue !== prevHeroPrizeRef.current) {
+      const delta = heroPrizeValue - prevHeroPrizeRef.current;
       prevHeroPrizeRef.current = heroPrizeValue;
       setPrizeBump(true);
       const t = setTimeout(() => setPrizeBump(false), 380);
+      if (delta > 0) {
+        setCagnotteFlash({ id: Date.now(), amount: delta });
+        clearTimeout(cagnotteFlashTimeoutRef.current);
+        cagnotteFlashTimeoutRef.current = setTimeout(() => setCagnotteFlash(null), 1400);
+      }
       return () => clearTimeout(t);
     }
   }, [heroPrizeValue]);
+  // Rotate through the last few gift shoutouts every ~3.2s so the ticker feels alive
+  useEffect(() => {
+    if (giftShoutoutFeed.length < 2) return;
+    const iv = setInterval(() => {
+      setShoutoutIdx((i) => (i + 1) % giftShoutoutFeed.length);
+    }, 3200);
+    return () => clearInterval(iv);
+  }, [giftShoutoutFeed.length]);
+  // Contribution breakdown — how much of the pot is base vs. gift bonus
+  const giftBonusValue = Math.max(0, heroPrizeValue - basePrizePool);
+  const giftBonusPct = heroPrizeValue > 0 ? Math.min(100, Math.round((giftBonusValue / heroPrizeValue) * 100)) : 0;
+  // Next round milestone, to create a little anticipation
+  const nextMilestone = (() => {
+    const v = heroPrizeValue;
+    const step = v < 5000 ? 1000 : v < 20000 ? 5000 : v < 100000 ? 10000 : 50000;
+    return Math.ceil((v + 1) / step) * step;
+  })();
+  const milestoneProgressPct = nextMilestone > 0 ? Math.min(100, Math.round((heroPrizeValue / nextMilestone) * 100)) : 0;
+  // Last-hour urgency tie-in for the countdown
+  const cagnotteUrgent = !isRegistration && secondsLeft > 0 && secondsLeft <= 3600;
   function mapCommentRow(row) {
     const minutesAgo = Math.max(0, Math.round((Date.now() - new Date(row.created_at).getTime()) / 60000));
     return {
@@ -2248,7 +2284,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         const keys = Object.keys(prev);
         const key = keys[Math.floor(Math.random() * keys.length)];
         const delta = 1 + Math.floor(Math.random() * 4);
-        addGiftToParticipant(Number(key), delta * AVG_GIFT_VALUE);
+        const giftAmount = delta * AVG_GIFT_VALUE;
+        addGiftToParticipant(Number(key), giftAmount);
+        pushGiftShoutout(fakeName(100 + Math.floor(Math.random() * 60)), giftAmount);
         setVoteCount((c) => c + delta);
         return { ...prev, [key]: prev[key] + delta };
       });
@@ -2620,35 +2658,49 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             {/* Hero cagnotte — full-width section, no card wrapper */}
             <div style={{ position: "relative", padding: "2px 2px 0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                <Trophy size={14} color="#C99A2E" strokeWidth={2.3} />
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#C99A2E", textTransform: "uppercase", letterSpacing: "0.09em" }}>
+                <Trophy size={14} color={cagnotteUrgent ? "#e74c3c" : "#C99A2E"} strokeWidth={2.3} />
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: cagnotteUrgent ? "#e74c3c" : "#C99A2E", textTransform: "uppercase", letterSpacing: "0.09em" }}>
                   {isRegistration ? "Prix à gagner" : "Cagnotte à gagner"}
                 </span>
                 {!isRegistration && (
                   <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                      Live
+                      {cagnotteUrgent ? "Dernière heure" : "Live"}
                     </span>
                   </span>
                 )}
               </div>
 
-              <div style={{
-                display: "flex", alignItems: "baseline", gap: 6,
-                transform: prizeBump ? "scale(1.05)" : "scale(1)",
-                transformOrigin: "left center",
-                transition: "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
-              }}>
-                <span style={{
-                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 30, fontWeight: 800, color: "#111",
-                  fontVariantNumeric: "tabular-nums",
+              <div style={{ position: "relative", display: "inline-flex" }}>
+                <div style={{
+                  display: "flex", alignItems: "baseline", gap: 6,
+                  transform: prizeBump ? "scale(1.05)" : "scale(1)",
+                  transformOrigin: "left center",
+                  transition: "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
                 }}>
-                  {heroPrizeValue.toLocaleString("fr-FR")}
-                </span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#999" }}>
-                  HTG
-                </span>
+                  <span style={{
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 30, fontWeight: 800,
+                    color: cagnotteUrgent ? "#e74c3c" : "#111",
+                    fontVariantNumeric: "tabular-nums",
+                    transition: "color 0.3s",
+                  }}>
+                    {heroPrizeValue.toLocaleString("fr-FR")}
+                  </span>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#999" }}>
+                    HTG
+                  </span>
+                </div>
+                {/* Live increment ticker — brief "+X" burst each time a gift pushes the pot up */}
+                {cagnotteFlash != null && (
+                  <span key={cagnotteFlash.id} style={{
+                    position: "absolute", left: "100%", top: 0, marginLeft: 8,
+                    fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 800, color: "#27ae60",
+                    whiteSpace: "nowrap", animation: "float-up-fade 1.4s ease-out forwards",
+                  }}>
+                    +{cagnotteFlash.amount.toLocaleString("fr-FR")}
+                  </span>
+                )}
               </div>
 
               {isRegistration ? (
@@ -2656,15 +2708,61 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   + un bonus basé sur les cadeaux reçus par le gagnant
                 </div>
               ) : (
-                <div style={{ marginTop: 4, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", display: "flex", alignItems: "center", gap: 5 }}>
-                  <Gift size={11} color={accent} strokeWidth={2.3} />
-                  Dont{" "}
-                  <span style={{ color: accent, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                    +{Math.round(leaderGiftCredits * WINNER_GIFT_SHARE).toLocaleString("fr-FR")} HTG
-                  </span>{" "}
-                  de bonus cadeaux
-                </div>
+                <>
+                  <div style={{ marginTop: 4, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", display: "flex", alignItems: "center", gap: 5 }}>
+                    <Gift size={11} color={accent} strokeWidth={2.3} />
+                    Dont{" "}
+                    <span style={{ color: accent, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                      +{Math.round(leaderGiftCredits * WINNER_GIFT_SHARE).toLocaleString("fr-FR")} HTG
+                    </span>{" "}
+                    de bonus cadeaux
+                  </div>
+
+                  {/* Contribution breakdown — base prize vs. gift bonus, as a thin segmented bar */}
+                  {heroPrizeValue > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ display: "flex", width: "100%", height: 5, borderRadius: 3, overflow: "hidden", background: "#eee" }}>
+                        <div style={{ width: `${100 - giftBonusPct}%`, background: "#ccc", transition: "width 0.4s ease" }} />
+                        <div style={{ width: `${giftBonusPct}%`, background: accent, transition: "width 0.4s ease" }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa" }}>
+                        <span>Mise de base {(100 - giftBonusPct)}%</span>
+                        <span>Cadeaux {giftBonusPct}%</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top gifter shoutout — rotates through recent gifts */}
+                  {giftShoutoutFeed.length > 0 && (
+                    <div key={giftShoutoutFeed[shoutoutIdx % giftShoutoutFeed.length].id} style={{
+                      marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#555",
+                      display: "flex", alignItems: "center", gap: 5,
+                      animation: "float-up-fade 3.1s ease-out forwards",
+                    }}>
+                      🎁 <strong style={{ color: "#111" }}>{giftShoutoutFeed[shoutoutIdx % giftShoutoutFeed.length].name}</strong> a ajouté{" "}
+                      {giftShoutoutFeed[shoutoutIdx % giftShoutoutFeed.length].amount.toLocaleString("fr-FR")} HTG
+                    </div>
+                  )}
+
+                  {/* Milestone marker — a little anticipation for the next round number */}
+                  <div style={{ marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>
+                    Prochain palier : {nextMilestone.toLocaleString("fr-FR")} HTG
+                    <span style={{ marginLeft: 6, color: "#ccc" }}>({milestoneProgressPct}%)</span>
+                  </div>
+
+                  {/* Countdown urgency nudge — last hour of the countdown */}
+                  {cagnotteUrgent && (
+                    <div style={{ marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#e74c3c" }}>
+                      ⚡ Dernière chance de faire grimper la cagnotte !
+                    </div>
+                  )}
+                </>
               )}
+
+              {/* Payout clarity — how the winner's payout is actually calculated */}
+              <div style={{ marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb", lineHeight: 1.4 }}>
+                Le/la gagnant·e reçoit la mise de base + {Math.round(WINNER_GIFT_SHARE * 100)}% des cadeaux reçus.
+              </div>
             </div>
 
             {rulesInfo.rewardExtra && (
@@ -4190,6 +4288,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         setVoteCount((v) => v + 1);
                         if (selectedParticipant) {
                           addGiftToParticipant(selectedParticipant.index, gift.cost);
+                          pushGiftShoutout(currentUser?.fullName || currentUser?.name || "Vous", gift.cost);
                           setLiveVotes((prev) => ({
                             ...prev,
                             [selectedParticipant.index]: (prev[selectedParticipant.index] ?? selectedParticipant.votes) + 1,
