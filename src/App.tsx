@@ -2556,12 +2556,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           {/* Prize — single winner: registration fees (base) + 30% of their personal gifts */}
           <div style={{ marginBottom: 12 }}>
 
-            {/* Hero cagnotte card — combined total instead of two competing boxes */}
-            <div style={{
-              position: "relative", overflow: "hidden", borderRadius: 0,
-              background: "#fff", border: "1px solid #e0e0e0",
-              padding: "13px 14px 12px",
-            }}>
+            {/* Hero cagnotte — full-width section, no card wrapper */}
+            <div style={{ position: "relative", padding: "2px 2px 0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                 <Trophy size={14} color="#C99A2E" strokeWidth={2.3} />
                 <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#C99A2E", textTransform: "uppercase", letterSpacing: "0.09em" }}>
@@ -2676,15 +2672,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr" }}>
             {(isRegistration ? [
-              { value: liveRegistered, label: "Inscrits", icon: Users },
-              { value: comp.contestants, label: "Places", accent: true, icon: Trophy },
-              { value: `${registrationFee} G`, label: "Frais insc.", icon: Wallet },
+              { value: liveRegistered, label: "Inscrits" },
+              { value: comp.contestants, label: "Places", accent: true },
+              { value: `${registrationFee} G`, label: "Frais insc." },
             ] : [
-              { value: liveRegistered, label: "Candidats", icon: Users },
-              { value: fmtVotes(voteCount), label: "Points", accent: true, icon: Flame, bump: pointsBump },
-              { value: fmtCountdownStats(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true, icon: Clock },
+              { value: liveRegistered, label: "Candidats" },
+              { value: fmtVotes(voteCount), label: "Points", accent: true, bump: pointsBump },
+              { value: fmtCountdownStats(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true },
             ]).map((s, i) => {
-              const Icon = s.icon;
               const hotTimer = s.timer && s.hot;
               return (
                 <div key={i} style={{
@@ -2694,14 +2689,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   background: hotTimer ? "rgba(192,57,43,0.06)" : "transparent",
                   transition: "background 0.3s",
                 }}>
-                  {Icon && (
-                    <Icon
-                      size={12}
-                      strokeWidth={2.4}
-                      color={hotTimer ? "#c0392b" : s.accent ? accent : "#bbb"}
-                      style={{ marginBottom: 4 }}
-                    />
-                  )}
                   <div style={{
                     fontFamily: "'Space Grotesk', sans-serif",
                     fontSize: s.timer ? 18 : 24, fontWeight: 800,
