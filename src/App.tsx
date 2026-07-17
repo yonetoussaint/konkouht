@@ -4634,79 +4634,101 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             // Voting footer — comment input with sticker + gift embedded, swapping to a send icon while typing
             (() => {
               const isTyping = commentDraft.trim().length > 0;
+              // Admins/organizers manage their own competition, they don't send themselves gifts —
+              // so the gift button is swapped out for an edit entry point instead.
+              const showGiftOption = !isOwnCompetition;
               return (
-                <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
-                  <input
-                    type="text"
-                    value={commentDraft}
-                    onChange={(e) => setCommentDraft(e.target.value)}
-                    onFocus={() => { if (!currentUser) onRequestAuth?.(); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
-                    placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
-                    style={{
-                      width: "100%", minWidth: 0, border: "1px solid #ececec", borderRadius: 999,
-                      background: "#f5f5f5",
-                      padding: isTyping ? "11px 52px 11px 16px" : "11px 90px 11px 16px",
-                      fontFamily: "Inter, sans-serif", fontSize: 13,
-                      color: "#111", outline: "none",
-                      transition: "padding 0.15s",
-                    }}
-                  />
-
-                  {isTyping ? (
-                    /* Send button — replaces sticker + gift while typing */
-                    <button
-                      onClick={handlePostComment}
+                <>
+                  <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
+                    <input
+                      type="text"
+                      value={commentDraft}
+                      onChange={(e) => setCommentDraft(e.target.value)}
+                      onFocus={() => { if (!currentUser) onRequestAuth?.(); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
+                      placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
                       style={{
-                        position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
-                        width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
-                        border: "none", background: accent,
-                        boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+                        width: "100%", minWidth: 0, border: "1px solid #ececec", borderRadius: 999,
+                        background: "#f5f5f5",
+                        padding: isTyping ? "11px 52px 11px 16px" : (showGiftOption ? "11px 90px 11px 16px" : "11px 52px 11px 16px"),
+                        fontFamily: "Inter, sans-serif", fontSize: 13,
+                        color: "#111", outline: "none",
+                        transition: "padding 0.15s",
+                      }}
+                    />
+
+                    {isTyping ? (
+                      /* Send button — replaces sticker + gift while typing */
+                      <button
+                        onClick={handlePostComment}
+                        style={{
+                          position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+                          width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
+                          border: "none", background: accent,
+                          boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+                          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        <Send size={15} color="#fff" strokeWidth={2.2} />
+                      </button>
+                    ) : (
+                      <div style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 6 }}>
+                        {/* Sticker button */}
+                        <button
+                          title="Autocollants"
+                          style={{
+                            width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
+                            border: "none", background: "transparent",
+                            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                          }}
+                        >
+                          <Sticker size={17} color="#888" strokeWidth={2} />
+                        </button>
+
+                        {/* Gift button — hidden for the organizer/admin of this competition */}
+                        {showGiftOption && (
+                          <button
+                            onClick={() => {
+                              setShowGiftBar((v) => {
+                                if (v) {
+                                  setGiftStep("participant");
+                                  setSelectedParticipant(null);
+                                  setSelectedGift(null);
+                                  setGiftConfirmPhase("summary");
+                                  setGiftPin("");
+                                  setGiftPinError(false);
+                                }
+                                return !v;
+                              });
+                            }}
+                            style={{
+                              width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
+                              border: "none", background: showGiftBar ? `${accent}18` : "transparent",
+                              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                            }}
+                          >
+                            <Gift size={17} color={accent} strokeWidth={2.2} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Edit button — lives outside the input, replacing the gift entry point for the organizer/admin */}
+                  {isOwnCompetition && (
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      title="Modifier la compétition"
+                      style={{
+                        width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
+                        border: "none", background: `${accent}18`,
                         cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                       }}
                     >
-                      <Send size={15} color="#fff" strokeWidth={2.2} />
+                      <BadgeCheck size={18} color={accent} strokeWidth={2.3} />
                     </button>
-                  ) : (
-                    <div style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 6 }}>
-                      {/* Sticker button */}
-                      <button
-                        title="Autocollants"
-                        style={{
-                          width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
-                          border: "none", background: "transparent",
-                          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                        }}
-                      >
-                        <Sticker size={17} color="#888" strokeWidth={2} />
-                      </button>
-
-                      {/* Gift button */}
-                      <button
-                        onClick={() => {
-                          setShowGiftBar((v) => {
-                            if (v) {
-                              setGiftStep("participant");
-                              setSelectedParticipant(null);
-                              setSelectedGift(null);
-                              setGiftConfirmPhase("summary");
-                              setGiftPin("");
-                              setGiftPinError(false);
-                            }
-                            return !v;
-                          });
-                        }}
-                        style={{
-                          width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
-                          border: "none", background: showGiftBar ? `${accent}18` : "transparent",
-                          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                        }}
-                      >
-                        <Gift size={17} color={accent} strokeWidth={2.2} />
-                      </button>
-                    </div>
                   )}
-                </div>
+                </>
               );
             })()
           )}
