@@ -878,123 +878,6 @@ function getWhyStory(index) {
   return WHY_STORIES[index % WHY_STORIES.length];
 }
 
-function ParticipantCard({ index, mediaType, accent, votes }) {
-  const name = fakeName(index);
-  const imgSeed = `part_${index}`;
-
-  if (mediaType === "photo") {
-    const photoCount = 3 + (index * 7 + 11) % 10; // 3–12 photos per participant
-    return (
-      <div style={{ position: "relative", overflow: "hidden", aspectRatio: "1 / 1", background: "#111" }}>
-        {/* Square photo */}
-        <img
-          src={picsumImg(`beauty_${index}`, 300, 300)}
-          alt={name}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        />
-        {/* Gradient overlay */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 40%, rgba(0,0,0,0.65) 100%)",
-        }} />
-        {/* Photo count badge — top right */}
-        <div style={{
-          position: "absolute", top: 7, right: 7,
-          background: "rgba(0,0,0,0.55)",
-          backdropFilter: "blur(4px)",
-          color: "#fff",
-          fontFamily: "Inter, sans-serif",
-          fontSize: 10, fontWeight: 700,
-          padding: "3px 7px",
-          display: "flex", alignItems: "center", gap: 4,
-        }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/><path d="M21 15l-5-5L5 21"/></svg>
-          {photoCount}
-        </div>
-        {/* Participant avatar — bottom left above name */}
-        <div style={{
-          position: "absolute", bottom: 28, left: 9,
-          width: 28, height: 28, borderRadius: "50%",
-          overflow: "hidden",
-          border: "2px solid #fff",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
-        }}>
-          <img src={avatarImg(index)} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-        </div>
-        {/* Name + chevron at bottom */}
-        <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0,
-          padding: "5px 9px",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {name}
-          </div>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.5" strokeLinecap="square"><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></svg>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ border: "1px solid #e0e0e0", background: "#fff", display: "flex", flexDirection: "column" }}>
-      {mediaType === "video" && (
-        <div style={{ aspectRatio: "1 / 1", overflow: "hidden", position: "relative" }}>
-          <img
-            src={picsumImg(`vid_${index}`, 240, 240)}
-            alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.6)" }}
-          />
-          <div style={{
-            position: "absolute", inset: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.4)" }}>
-              <Play size={14} color="#fff" fill="#fff" />
-            </div>
-          </div>
-        </div>
-      )}
-      {mediaType === "text" && (
-        <div style={{ aspectRatio: "1 / 1", overflow: "hidden", position: "relative" }}>
-          <img
-            src={picsumImg(`txt_${index}`, 240, 240)}
-            alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.4)" }}
-          />
-          <div style={{
-            position: "absolute", inset: 0, padding: 10,
-            display: "flex", alignItems: "center",
-          }}>
-            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "rgba(255,255,255,0.85)", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", margin: 0 }}>
-              {TEXT_SNIPPETS[index % TEXT_SNIPPETS.length]}
-            </p>
-          </div>
-        </div>
-      )}
-      {mediaType === "pdf" && (
-        <div style={{ aspectRatio: "1 / 1", overflow: "hidden", position: "relative" }}>
-          <img
-            src={picsumImg(`doc_${index}`, 240, 240)}
-            alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.3) saturate(0.4)" }}
-          />
-          <div style={{
-            position: "absolute", inset: 0,
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
-          }}>
-            <File size={28} color="#fff" strokeWidth={1.5} />
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>Dossier.pdf</span>
-          </div>
-        </div>
-      )}
-      <div style={{ padding: "8px 10px" }}>
-        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#333", fontWeight: 600 }}>{name}</span>
-      </div>
-    </div>
-  );
-}
-
 /* ─── FAKE NAME POOL ────────────────────────────────────────────────────── */
 
 const FAKE_FIRST = [
@@ -1221,13 +1104,11 @@ function ParticipantListOverlay({ comp, participants, onClose }) {
 }
 
 /* ─── ALBUM GRID OVERLAY ─────────────────────────────────────────────────
-   Full grid of every participant's album — this is what "Voir tout" opens
+   Full grid of approved participant media — this is what "Voir tout" opens
    from the Médias tab. Kept separate from ParticipantListOverlay, which is
    the votes/ranking table used by the Classement tab's own "Voir tout". */
 
-function AlbumGridOverlay({ comp, onClose, onOpenAlbum }) {
-  const count = comp.contestants || 0;
-
+function AlbumGridOverlay({ items, onClose, onOpenItem }) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
       <div
@@ -1244,7 +1125,7 @@ function AlbumGridOverlay({ comp, onClose, onOpenAlbum }) {
           <ArrowLeft size={18} />
         </button>
         <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#111" }}>
-          Albums
+          Médias des participants
         </span>
       </div>
 
@@ -1252,14 +1133,20 @@ function AlbumGridOverlay({ comp, onClose, onOpenAlbum }) {
         maxWidth: 800, margin: "0 auto", padding: 12,
         display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8,
       }}>
-        {Array.from({ length: count }, (_, i) => {
-          const p = buildParticipants(comp)[i];
-          return (
-            <div key={i} onClick={() => onOpenAlbum(i)} style={{ cursor: "pointer" }}>
-              <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
+        {items.map((item) => (
+          <div key={item.id} onClick={() => onOpenItem(item)} style={{ position: "relative", cursor: "pointer", aspectRatio: "1 / 1", overflow: "hidden", background: "#111" }}>
+            {item.media_type === "video" ? (
+              <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+            ) : (
+              <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            )}
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "5px 9px", background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {item.uploader_name}
+              </span>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1413,23 +1300,13 @@ function OrgBar({ comp, accent }) {
   );
 }
 
-/* ─── ALBUM SHEET ───────────────────────────────────────────────────────── */
+/* ─── ALBUM SHEET (Mon album) ────────────────────────────────────────────
+   Lets the current user manage their own uploaded participant media. Only
+   ever opened in "own" mode now — browsing other participants' media goes
+   through the real approved-media gallery + MediaLightbox instead. */
 
-function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", own = false, uploads = [], onUpload, onClose }) {
-  const photoCount = 3 + (participantIndex * 7 + 11) % 10;
-  const photos = Array.from({ length: photoCount }, (_, i) => ({
-    id: i,
-    src: `https://picsum.photos/seed/album_${participantIndex}_${i}/600/600`,
-  }));
-  const story = own ? null : getWhyStory(participantIndex);
-
-  const subtitle = own
-    ? `${uploads.length} média${uploads.length > 1 ? "s" : ""} envoyé${uploads.length > 1 ? "s" : ""}`
-    : mediaType === "photo" ? `${photoCount} photo${photoCount > 1 ? "s" : ""}` :
-    mediaType === "video" ? "Message vidéo" :
-    mediaType === "pdf" ? "Dossier de candidature" :
-    "Pourquoi je participe";
-
+function AlbumSheet({ accent, uploads = [], uploading = false, onUpload, onClose }) {
+  const subtitle = `${uploads.length} média${uploads.length > 1 ? "s" : ""} envoyé${uploads.length > 1 ? "s" : ""}`;
   const statusLabel = { pending: "En attente", approved: "Approuvé", rejected: "Rejeté" };
   const statusColor = { pending: "#e74c3c", approved: "#27ae60", rejected: "#999" };
 
@@ -1461,7 +1338,7 @@ function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", own =
         }}>
           <div>
             <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
-              {own ? "Mon album" : name}
+              Mon album
             </div>
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 2 }}>
               {subtitle}
@@ -1478,130 +1355,90 @@ function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", own =
           padding: "16px 16px 24px",
           display: "flex", flexDirection: "column", gap: 12,
         }}>
-          {own ? (
-            <>
-              <div style={{
-                background: "#faf9f7", border: "1px solid #eee",
-                padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12,
-                color: "#777", lineHeight: 1.6,
-              }}>
-                Ajoutez vos propres photos ou vidéos — elles seront visibles publiquement une fois approuvées par l'organisateur.
-              </div>
+          <div style={{
+            background: "#faf9f7", border: "1px solid #eee",
+            padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12,
+            color: "#777", lineHeight: 1.6,
+          }}>
+            Ajoutez vos propres photos ou vidéos — elles seront visibles publiquement une fois approuvées par l'organisateur.
+          </div>
 
-              <label style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                border: `1.5px dashed ${accent}`, background: `${accent}0a`,
-                padding: "14px 0", cursor: "pointer",
-              }}>
-                <input
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload?.(f); e.target.value = ""; }}
-                  style={{ display: "none" }}
-                />
-                <Plus size={16} color={accent} strokeWidth={2.5} />
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: accent }}>
-                  Ajouter un média
-                </span>
-              </label>
+          <label style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            border: `1.5px dashed ${accent}`, background: `${accent}0a`,
+            padding: "14px 0", cursor: uploading ? "default" : "pointer",
+            opacity: uploading ? 0.6 : 1,
+          }}>
+            <input
+              type="file"
+              accept="image/*,video/*"
+              disabled={uploading}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload?.(f); e.target.value = ""; }}
+              style={{ display: "none" }}
+            />
+            <Plus size={16} color={accent} strokeWidth={2.5} />
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: accent }}>
+              {uploading ? "Envoi en cours…" : "Ajouter un média"}
+            </span>
+          </label>
 
-              {uploads.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
-                  Aucun média envoyé pour l'instant.
-                </div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-                  {uploads.map((u) => (
-                    <div key={u.id} style={{ position: "relative", aspectRatio: "1 / 1", overflow: "hidden", background: "#111" }}>
-                      {u.type === "video" ? (
-                        <video src={u.url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
-                      ) : (
-                        <img src={u.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                      )}
-                      <span style={{
-                        position: "absolute", top: 6, right: 6,
-                        background: statusColor[u.status], color: "#fff",
-                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-                        padding: "2px 6px",
-                      }}>
-                        {statusLabel[u.status]}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
+          {uploads.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+              Aucun média envoyé pour l'instant.
+            </div>
           ) : (
-            <>
-              {/* "Why I'm competing" — shown for every media type so a donor
-                  knows who they're gifting before seeing the rest of the content. */}
-              <div style={{
-                background: "#faf9f7", border: "1px solid #eee",
-                padding: "12px 14px", marginBottom: 4,
-              }}>
-                <div style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-                  color: accent, textTransform: "uppercase", letterSpacing: "0.08em",
-                  marginBottom: 6,
-                }}>
-                  Pourquoi je participe
-                </div>
-                <p style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 13, lineHeight: 1.6,
-                  color: "#333", margin: 0,
-                }}>
-                  {story}
-                </p>
-              </div>
-
-              {mediaType === "photo" && photos.map((photo) => (
-                <div key={photo.id} style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", background: "#f0f0f0", flexShrink: 0 }}>
-                  <img
-                    src={photo.src}
-                    alt={`Photo ${photo.id + 1}`}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                  />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+              {uploads.map((u) => (
+                <div key={u.id} style={{ position: "relative", aspectRatio: "1 / 1", overflow: "hidden", background: "#111" }}>
+                  {u.media_type === "video" ? (
+                    <video src={u.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+                  ) : (
+                    <img src={u.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  )}
+                  <span style={{
+                    position: "absolute", top: 6, right: 6,
+                    background: statusColor[u.status], color: "#fff",
+                    fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                    padding: "2px 6px",
+                  }}>
+                    {statusLabel[u.status]}
+                  </span>
                 </div>
               ))}
-
-              {mediaType === "video" && (
-                <div style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", position: "relative", background: "#111" }}>
-                  <img
-                    src={picsumImg(`vid_${participantIndex}`, 480, 480)}
-                    alt={name}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.55)" }}
-                  />
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.4)" }}>
-                      <Play size={22} color="#fff" fill="#fff" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {mediaType === "text" && (
-                <p style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 13, lineHeight: 1.7,
-                  color: "#444", margin: 0, padding: "0 2px",
-                }}>
-                  {TEXT_SNIPPETS[participantIndex % TEXT_SNIPPETS.length]}
-                </p>
-              )}
-
-              {mediaType === "pdf" && (
-                <div style={{
-                  border: "1px solid #e0e0e0", background: "#fafafa",
-                  padding: "20px 14px",
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-                }}>
-                  <File size={30} color="#888" strokeWidth={1.5} />
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555" }}>Dossier.pdf</span>
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>Candidature complète — 1.2 Mo</span>
-                </div>
-              )}
-            </>
+            </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── MEDIA LIGHTBOX ─────────────────────────────────────────────────────
+   Full-screen viewer for a single approved participant_media row, opened
+   from the real "Médias des participants" gallery. */
+
+function MediaLightbox({ item, onClose }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1150,
+        background: "rgba(0,0,0,0.9)",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, border: "none", background: "rgba(255,255,255,0.15)", borderRadius: "50%", width: 34, height: 34, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <X size={18} />
+      </button>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {item.media_type === "video" ? (
+          <video src={item.media_url} controls autoPlay style={{ width: "100%", maxHeight: "80vh", objectFit: "contain", display: "block" }} />
+        ) : (
+          <img src={item.media_url} alt="" style={{ width: "100%", maxHeight: "80vh", objectFit: "contain", display: "block" }} />
+        )}
+      </div>
+      <div style={{ marginTop: 12, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#fff" }}>
+        {item.uploader_name}
       </div>
     </div>
   );
@@ -2019,6 +1856,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     return `${m} Minute${m !== 1 ? "s" : ""}`;
   };
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
+  const [mediaLightbox, setMediaLightbox] = useState(null); // approved participant_media row
   const [showGiftBar, setShowGiftBar] = useState(false);
   const [activeGift, setActiveGift] = useState(null);
   const [giftStep, setGiftStep] = useState("participant"); // "participant" | "gift" | "confirm"
@@ -2077,31 +1915,101 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const liveRegistered = registrantsLoading ? comp.registeredCount : registrants.length;
 
   // Participant-submitted media (their own photos/videos), pending organizer
-  // approval before it shows up publicly. Client-side only for now — there's
-  // no participant_media table/storage bucket yet, so this doesn't persist
-  // or sync across users. Wire it up the same way `registrations` and
-  // `compImages` are (fetch + realtime channel + a storage upload call) once
-  // that table exists; the shape here is deliberately already close to it.
-  const [participantUploads, setParticipantUploads] = useState({}); // { [uploaderId]: [{id,url,type,status,uploadedAt}] }
-  const myUploads = currentUser ? (participantUploads[currentUser.id] || []) : [];
-  const pendingUploads = Object.entries(participantUploads).flatMap(([uploaderId, items]) =>
-    items
-      .filter((it) => it.status === "pending")
-      .map((it) => ({ ...it, uploaderId, uploaderName: uploaderId === currentUser?.id ? currentUser.fullName : "Participant" }))
-  );
-  function addOwnUpload(file) {
+  // approval before it shows up publicly. Backed by Supabase directly so it
+  // actually syncs between the uploader's device and the organizer's device —
+  // create these in Supabase if they don't exist yet:
+  //   table "participant_media": id uuid pk default gen_random_uuid(),
+  //     competition_id, uploader_id text, uploader_name text,
+  //     media_url text, media_type text, status text default 'pending',
+  //     created_at timestamptz default now()
+  //   storage bucket "participant-media" (public read)
+  const [participantUploads, setParticipantUploads] = useState([]); // flat rows for this competition
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("participant_media")
+      .select("*")
+      .eq("competition_id", comp.id)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) { console.error("fetch participant_media error:", error); return; }
+        setParticipantUploads(data || []);
+      });
+    return () => { cancelled = true; };
+  }, [comp.id]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`participant-media-${comp.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "participant_media", filter: `competition_id=eq.${comp.id}` },
+        (payload) => {
+          setParticipantUploads((prev) => (prev.some((r) => r.id === payload.new.id) ? prev : [payload.new, ...prev]));
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "participant_media", filter: `competition_id=eq.${comp.id}` },
+        (payload) => {
+          setParticipantUploads((prev) => prev.map((r) => (r.id === payload.new.id ? payload.new : r)));
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [comp.id]);
+
+  const myUploads = currentUser ? participantUploads.filter((u) => u.uploader_id === currentUser.id) : [];
+  const approvedUploads = participantUploads.filter((u) => u.status === "approved");
+  const pendingUploads = participantUploads.filter((u) => u.status === "pending");
+
+  async function addOwnUpload(file) {
     if (!currentUser || !file) return;
-    const url = URL.createObjectURL(file);
+    setUploadingMedia(true);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${comp.id}/${currentUser.id}-${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from("participant-media").upload(path, file);
+    if (uploadError) {
+      console.error("participant media upload error:", uploadError);
+      showToast?.("Échec de l'envoi du média.");
+      setUploadingMedia(false);
+      return;
+    }
+    const { data: pub } = supabase.storage.from("participant-media").getPublicUrl(path);
     const type = file.type.startsWith("video") ? "video" : "photo";
-    const entry = { id: `up-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, url, type, status: "pending", uploadedAt: Date.now() };
-    setParticipantUploads((prev) => ({ ...prev, [currentUser.id]: [entry, ...(prev[currentUser.id] || [])] }));
+    const { data: inserted, error: insertError } = await supabase
+      .from("participant_media")
+      .insert({
+        competition_id: comp.id,
+        uploader_id: currentUser.id,
+        uploader_name: currentUser.fullName,
+        media_url: pub.publicUrl,
+        media_type: type,
+        status: "pending",
+      })
+      .select()
+      .single();
+    setUploadingMedia(false);
+    if (insertError) {
+      console.error("participant media insert error:", insertError);
+      showToast?.("Échec de l'envoi du média.");
+      return;
+    }
+    setParticipantUploads((prev) => (prev.some((r) => r.id === inserted.id) ? prev : [inserted, ...prev]));
     showToast?.("Média envoyé — en attente d'approbation.");
   }
-  function reviewUpload(uploaderId, uploadId, status) {
-    setParticipantUploads((prev) => ({
-      ...prev,
-      [uploaderId]: (prev[uploaderId] || []).map((u) => (u.id === uploadId ? { ...u, status } : u)),
-    }));
+
+  async function reviewUpload(id, status) {
+    setParticipantUploads((prev) => prev.map((u) => (u.id === id ? { ...u, status } : u))); // optimistic
+    const { error } = await supabase.from("participant_media").update({ status }).eq("id", id);
+    if (error) {
+      console.error("participant media review error:", error);
+      showToast?.("Échec de la mise à jour.");
+      return;
+    }
     showToast?.(status === "approved" ? "Média approuvé." : "Média rejeté.");
   }
 
@@ -3203,7 +3111,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         </div>
 
         {/* ── MÉDIAS PREVIEW ── */}
-        {!isRegistration && (
+        {!isRegistration && approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).length > 0 && (
           <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 0" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -3232,18 +3140,24 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </div>
 
             <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 10, paddingRight: 10, scrollbarWidth: "none" }}>
-              {Array.from({ length: Math.min(comp.contestants, 10) }, (_, i) => {
-                const p = buildParticipants(comp)[i];
-                return (
-                  <div
-                    key={i}
-                    onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })}
-                    style={{ flexShrink: 0, width: 110, cursor: "pointer" }}
-                  >
-                    <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
+              {approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).slice(0, 10).map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => setMediaLightbox(item)}
+                  style={{ position: "relative", flexShrink: 0, width: 110, aspectRatio: "1 / 1", overflow: "hidden", background: "#111", cursor: "pointer" }}
+                >
+                  {item.media_type === "video" ? (
+                    <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+                  ) : (
+                    <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  )}
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "5px 9px", background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {item.uploader_name}
+                    </span>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -3724,54 +3638,62 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {/* ── PARTICIPANTS STRIP (only for voting phase) ── */}
         {activeTab === "medias" && !isRegistration && (
           <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", paddingTop: 14, paddingBottom: 14 }}>
-            {/* Organizer-only: media submitted by participants, awaiting approval */}
-            {currentUser?.isOrganizer && isOwnCompetition && pendingUploads.length > 0 && (
+            {/* Organizer-only: media submitted by participants, awaiting approval.
+                Always visible to the organizer (not just when something's
+                pending) so there's a stable, discoverable place to check. */}
+            {currentUser?.isOrganizer && (
               <div style={{ marginBottom: 16, paddingLeft: 8, paddingRight: 8 }}>
                 <div style={{
                   display: "flex", alignItems: "center", gap: 6,
                   fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.1em",
+                  color: pendingUploads.length > 0 ? "#e74c3c" : "#888", textTransform: "uppercase", letterSpacing: "0.1em",
                   marginBottom: 10,
                 }}>
                   <Clock size={13} strokeWidth={2.5} />
-                  Médias à approuver ({pendingUploads.length})
+                  Médias à approuver{pendingUploads.length > 0 ? ` (${pendingUploads.length})` : ""}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {pendingUploads.map((item) => (
-                    <div key={item.id} style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      border: "1px solid #eee", padding: 8,
-                    }}>
-                      <div style={{ width: 46, height: 46, flexShrink: 0, overflow: "hidden", background: "#111" }}>
-                        {item.type === "video" ? (
-                          <video src={item.url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
-                        ) : (
-                          <img src={item.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                        )}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {item.uploaderName}
+                {pendingUploads.length === 0 ? (
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb", padding: "4px 0 2px" }}>
+                    Rien à approuver pour l'instant.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {pendingUploads.map((item) => (
+                      <div key={item.id} style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        border: "1px solid #eee", padding: 8,
+                      }}>
+                        <div style={{ width: 46, height: 46, flexShrink: 0, overflow: "hidden", background: "#111" }}>
+                          {item.media_type === "video" ? (
+                            <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+                          ) : (
+                            <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          )}
                         </div>
-                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>
-                          {item.type === "video" ? "Vidéo" : "Photo"} envoyée
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {item.uploader_name}
+                          </div>
+                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>
+                            {item.media_type === "video" ? "Vidéo" : "Photo"} envoyée
+                          </div>
                         </div>
+                        <button
+                          onClick={() => reviewUpload(item.id, "rejected")}
+                          style={{ border: "1px solid #eee", background: "#fff", color: "#999", width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                        >
+                          <X size={14} />
+                        </button>
+                        <button
+                          onClick={() => reviewUpload(item.id, "approved")}
+                          style={{ border: "none", background: accent, color: "#fff", width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                        >
+                          <Check size={14} />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => reviewUpload(item.uploaderId, item.id, "rejected")}
-                        style={{ border: "1px solid #eee", background: "#fff", color: "#999", width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                      >
-                        <X size={14} />
-                      </button>
-                      <button
-                        onClick={() => reviewUpload(item.uploaderId, item.id, "approved")}
-                        style={{ border: "none", background: accent, color: "#fff", width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                      >
-                        <Check size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -3782,13 +3704,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               marginBottom: 12, paddingLeft: 8, paddingRight: 8,
             }}>
               <ImageIcon size={13} strokeWidth={2.5} />
-              Albums
+              Médias des participants
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, paddingLeft: 8, paddingRight: 8 }}>
               {/* "Mon album" — lets a registered participant manage their own uploads */}
               {isRegistered && currentUser && (
                 <div
-                  onClick={() => setAlbumSheet({ own: true, name: currentUser.fullName, mediaType: comp.mediaType })}
+                  onClick={() => setAlbumSheet(true)}
                   style={{
                     position: "relative", cursor: "pointer", aspectRatio: "1 / 1",
                     border: `1.5px dashed ${accent}`, background: `${accent}0a`,
@@ -3811,15 +3733,24 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   </span>
                 </div>
               )}
-              {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => {
-                const p = buildParticipants(comp)[i];
-                return (
-                  <div key={i} onClick={() => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })} style={{ cursor: "pointer" }}>
-                    <ParticipantCard index={i} mediaType={comp.mediaType} accent={comp.accent} votes={p?.votes} />
+              {approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).slice(0, 11).map((item) => (
+                <div key={item.id} onClick={() => setMediaLightbox(item)} style={{ position: "relative", cursor: "pointer", aspectRatio: "1 / 1", overflow: "hidden", background: "#111" }}>
+                  {item.media_type === "video" ? (
+                    <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+                  ) : (
+                    <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  )}
+                  <div style={{
+                    position: "absolute", bottom: 0, left: 0, right: 0,
+                    padding: "5px 9px", background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)",
+                  }}>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {item.uploader_name}
+                    </span>
                   </div>
-                );
-              })}
-              {comp.contestants > 12 && (
+                </div>
+              ))}
+              {approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).length > 11 && (
                 <div
                   onClick={() => setShowAllAlbums(true)}
                   style={{
@@ -3831,11 +3762,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   }}
                 >
                   <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#bbb" }}>
-                    +{comp.contestants - 12}
+                    +{approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).length - 11}
                   </span>
                   <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                     Voir tout
                   </span>
+                </div>
+              )}
+              {approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).length === 0 && !(isRegistered && currentUser) && (
+                <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "24px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+                  Aucun média approuvé pour l'instant.
                 </div>
               )}
             </div>
@@ -4841,9 +4777,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
       {showAllAlbums && (
         <AlbumGridOverlay
-          comp={comp}
+          items={approvedUploads.filter((u) => u.uploader_id !== currentUser?.id)}
           onClose={() => setShowAllAlbums(false)}
-          onOpenAlbum={(i) => setAlbumSheet({ participantIndex: i, name: fakeName(i), mediaType: comp.mediaType })}
+          onOpenItem={(item) => setMediaLightbox(item)}
         />
       )}
 
@@ -4853,15 +4789,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
       {albumSheet && (
         <AlbumSheet
-          participantIndex={albumSheet.participantIndex}
-          name={albumSheet.name}
-          mediaType={albumSheet.mediaType}
           accent={accent}
-          own={albumSheet.own}
           uploads={myUploads}
+          uploading={uploadingMedia}
           onUpload={addOwnUpload}
           onClose={() => setAlbumSheet(null)}
         />
+      )}
+
+      {mediaLightbox && (
+        <MediaLightbox item={mediaLightbox} onClose={() => setMediaLightbox(null)} />
       )}
 
       {showEditModal && (
