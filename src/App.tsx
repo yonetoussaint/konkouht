@@ -1415,19 +1415,23 @@ function OrgBar({ comp, accent }) {
 
 /* ─── ALBUM SHEET ───────────────────────────────────────────────────────── */
 
-function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", onClose }) {
+function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", own = false, uploads = [], onUpload, onClose }) {
   const photoCount = 3 + (participantIndex * 7 + 11) % 10;
   const photos = Array.from({ length: photoCount }, (_, i) => ({
     id: i,
     src: `https://picsum.photos/seed/album_${participantIndex}_${i}/600/600`,
   }));
-  const story = getWhyStory(participantIndex);
+  const story = own ? null : getWhyStory(participantIndex);
 
-  const subtitle =
-    mediaType === "photo" ? `${photoCount} photo${photoCount > 1 ? "s" : ""}` :
+  const subtitle = own
+    ? `${uploads.length} média${uploads.length > 1 ? "s" : ""} envoyé${uploads.length > 1 ? "s" : ""}`
+    : mediaType === "photo" ? `${photoCount} photo${photoCount > 1 ? "s" : ""}` :
     mediaType === "video" ? "Message vidéo" :
     mediaType === "pdf" ? "Dossier de candidature" :
     "Pourquoi je participe";
+
+  const statusLabel = { pending: "En attente", approved: "Approuvé", rejected: "Rejeté" };
+  const statusColor = { pending: "#e74c3c", approved: "#27ae60", rejected: "#999" };
 
   return (
     <div
@@ -1457,7 +1461,7 @@ function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", onClo
         }}>
           <div>
             <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
-              {name}
+              {own ? "Mon album" : name}
             </div>
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 2 }}>
               {subtitle}
@@ -1474,71 +1478,128 @@ function AlbumSheet({ participantIndex, name, accent, mediaType = "photo", onClo
           padding: "16px 16px 24px",
           display: "flex", flexDirection: "column", gap: 12,
         }}>
-          {/* "Why I'm competing" — shown for every media type so a donor
-              knows who they're gifting before seeing the rest of the content. */}
-          <div style={{
-            background: "#faf9f7", border: "1px solid #eee",
-            padding: "12px 14px", marginBottom: 4,
-          }}>
-            <div style={{
-              fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-              color: accent, textTransform: "uppercase", letterSpacing: "0.08em",
-              marginBottom: 6,
-            }}>
-              Pourquoi je participe
-            </div>
-            <p style={{
-              fontFamily: "Inter, sans-serif", fontSize: 13, lineHeight: 1.6,
-              color: "#333", margin: 0,
-            }}>
-              {story}
-            </p>
-          </div>
-
-          {mediaType === "photo" && photos.map((photo) => (
-            <div key={photo.id} style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", background: "#f0f0f0", flexShrink: 0 }}>
-              <img
-                src={photo.src}
-                alt={`Photo ${photo.id + 1}`}
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-              />
-            </div>
-          ))}
-
-          {mediaType === "video" && (
-            <div style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", position: "relative", background: "#111" }}>
-              <img
-                src={picsumImg(`vid_${participantIndex}`, 480, 480)}
-                alt={name}
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.55)" }}
-              />
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.4)" }}>
-                  <Play size={22} color="#fff" fill="#fff" />
-                </div>
+          {own ? (
+            <>
+              <div style={{
+                background: "#faf9f7", border: "1px solid #eee",
+                padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12,
+                color: "#777", lineHeight: 1.6,
+              }}>
+                Ajoutez vos propres photos ou vidéos — elles seront visibles publiquement une fois approuvées par l'organisateur.
               </div>
-            </div>
-          )}
 
-          {mediaType === "text" && (
-            <p style={{
-              fontFamily: "Inter, sans-serif", fontSize: 13, lineHeight: 1.7,
-              color: "#444", margin: 0, padding: "0 2px",
-            }}>
-              {TEXT_SNIPPETS[participantIndex % TEXT_SNIPPETS.length]}
-            </p>
-          )}
+              <label style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                border: `1.5px dashed ${accent}`, background: `${accent}0a`,
+                padding: "14px 0", cursor: "pointer",
+              }}>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload?.(f); e.target.value = ""; }}
+                  style={{ display: "none" }}
+                />
+                <Plus size={16} color={accent} strokeWidth={2.5} />
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: accent }}>
+                  Ajouter un média
+                </span>
+              </label>
 
-          {mediaType === "pdf" && (
-            <div style={{
-              border: "1px solid #e0e0e0", background: "#fafafa",
-              padding: "20px 14px",
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-            }}>
-              <File size={30} color="#888" strokeWidth={1.5} />
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555" }}>Dossier.pdf</span>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>Candidature complète — 1.2 Mo</span>
-            </div>
+              {uploads.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+                  Aucun média envoyé pour l'instant.
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                  {uploads.map((u) => (
+                    <div key={u.id} style={{ position: "relative", aspectRatio: "1 / 1", overflow: "hidden", background: "#111" }}>
+                      {u.type === "video" ? (
+                        <video src={u.url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+                      ) : (
+                        <img src={u.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      )}
+                      <span style={{
+                        position: "absolute", top: 6, right: 6,
+                        background: statusColor[u.status], color: "#fff",
+                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                        padding: "2px 6px",
+                      }}>
+                        {statusLabel[u.status]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* "Why I'm competing" — shown for every media type so a donor
+                  knows who they're gifting before seeing the rest of the content. */}
+              <div style={{
+                background: "#faf9f7", border: "1px solid #eee",
+                padding: "12px 14px", marginBottom: 4,
+              }}>
+                <div style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+                  color: accent, textTransform: "uppercase", letterSpacing: "0.08em",
+                  marginBottom: 6,
+                }}>
+                  Pourquoi je participe
+                </div>
+                <p style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 13, lineHeight: 1.6,
+                  color: "#333", margin: 0,
+                }}>
+                  {story}
+                </p>
+              </div>
+
+              {mediaType === "photo" && photos.map((photo) => (
+                <div key={photo.id} style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", background: "#f0f0f0", flexShrink: 0 }}>
+                  <img
+                    src={photo.src}
+                    alt={`Photo ${photo.id + 1}`}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                </div>
+              ))}
+
+              {mediaType === "video" && (
+                <div style={{ width: "100%", aspectRatio: "1 / 1", overflow: "hidden", position: "relative", background: "#111" }}>
+                  <img
+                    src={picsumImg(`vid_${participantIndex}`, 480, 480)}
+                    alt={name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.55)" }}
+                  />
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.4)" }}>
+                      <Play size={22} color="#fff" fill="#fff" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {mediaType === "text" && (
+                <p style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 13, lineHeight: 1.7,
+                  color: "#444", margin: 0, padding: "0 2px",
+                }}>
+                  {TEXT_SNIPPETS[participantIndex % TEXT_SNIPPETS.length]}
+                </p>
+              )}
+
+              {mediaType === "pdf" && (
+                <div style={{
+                  border: "1px solid #e0e0e0", background: "#fafafa",
+                  padding: "20px 14px",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+                }}>
+                  <File size={30} color="#888" strokeWidth={1.5} />
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#555" }}>Dossier.pdf</span>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>Candidature complète — 1.2 Mo</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -2014,6 +2075,35 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [registrants, setRegistrants] = useState([]);
   const [registrantsLoading, setRegistrantsLoading] = useState(true);
   const liveRegistered = registrantsLoading ? comp.registeredCount : registrants.length;
+
+  // Participant-submitted media (their own photos/videos), pending organizer
+  // approval before it shows up publicly. Client-side only for now — there's
+  // no participant_media table/storage bucket yet, so this doesn't persist
+  // or sync across users. Wire it up the same way `registrations` and
+  // `compImages` are (fetch + realtime channel + a storage upload call) once
+  // that table exists; the shape here is deliberately already close to it.
+  const [participantUploads, setParticipantUploads] = useState({}); // { [uploaderId]: [{id,url,type,status,uploadedAt}] }
+  const myUploads = currentUser ? (participantUploads[currentUser.id] || []) : [];
+  const pendingUploads = Object.entries(participantUploads).flatMap(([uploaderId, items]) =>
+    items
+      .filter((it) => it.status === "pending")
+      .map((it) => ({ ...it, uploaderId, uploaderName: uploaderId === currentUser?.id ? currentUser.fullName : "Participant" }))
+  );
+  function addOwnUpload(file) {
+    if (!currentUser || !file) return;
+    const url = URL.createObjectURL(file);
+    const type = file.type.startsWith("video") ? "video" : "photo";
+    const entry = { id: `up-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, url, type, status: "pending", uploadedAt: Date.now() };
+    setParticipantUploads((prev) => ({ ...prev, [currentUser.id]: [entry, ...(prev[currentUser.id] || [])] }));
+    showToast?.("Média envoyé — en attente d'approbation.");
+  }
+  function reviewUpload(uploaderId, uploadId, status) {
+    setParticipantUploads((prev) => ({
+      ...prev,
+      [uploaderId]: (prev[uploaderId] || []).map((u) => (u.id === uploadId ? { ...u, status } : u)),
+    }));
+    showToast?.(status === "approved" ? "Média approuvé." : "Média rejeté.");
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -3634,6 +3724,57 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         {/* ── PARTICIPANTS STRIP (only for voting phase) ── */}
         {activeTab === "medias" && !isRegistration && (
           <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", paddingTop: 14, paddingBottom: 14 }}>
+            {/* Organizer-only: media submitted by participants, awaiting approval */}
+            {currentUser?.isOrganizer && isOwnCompetition && pendingUploads.length > 0 && (
+              <div style={{ marginBottom: 16, paddingLeft: 8, paddingRight: 8 }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.1em",
+                  marginBottom: 10,
+                }}>
+                  <Clock size={13} strokeWidth={2.5} />
+                  Médias à approuver ({pendingUploads.length})
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {pendingUploads.map((item) => (
+                    <div key={item.id} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      border: "1px solid #eee", padding: 8,
+                    }}>
+                      <div style={{ width: 46, height: 46, flexShrink: 0, overflow: "hidden", background: "#111" }}>
+                        {item.type === "video" ? (
+                          <video src={item.url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+                        ) : (
+                          <img src={item.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {item.uploaderName}
+                        </div>
+                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>
+                          {item.type === "video" ? "Vidéo" : "Photo"} envoyée
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => reviewUpload(item.uploaderId, item.id, "rejected")}
+                        style={{ border: "1px solid #eee", background: "#fff", color: "#999", width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                      >
+                        <X size={14} />
+                      </button>
+                      <button
+                        onClick={() => reviewUpload(item.uploaderId, item.id, "approved")}
+                        style={{ border: "none", background: accent, color: "#fff", width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                      >
+                        <Check size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
@@ -3644,6 +3785,32 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               Albums
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, paddingLeft: 8, paddingRight: 8 }}>
+              {/* "Mon album" — lets a registered participant manage their own uploads */}
+              {isRegistered && currentUser && (
+                <div
+                  onClick={() => setAlbumSheet({ own: true, name: currentUser.fullName, mediaType: comp.mediaType })}
+                  style={{
+                    position: "relative", cursor: "pointer", aspectRatio: "1 / 1",
+                    border: `1.5px dashed ${accent}`, background: `${accent}0a`,
+                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
+                  }}
+                >
+                  {myUploads.some((u) => u.status === "pending") && (
+                    <span style={{
+                      position: "absolute", top: 7, right: 7,
+                      background: "#e74c3c", color: "#fff",
+                      fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                      padding: "2px 6px",
+                    }}>
+                      En attente
+                    </span>
+                  )}
+                  <Plus size={20} color={accent} strokeWidth={2.5} />
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: accent }}>
+                    Mon album
+                  </span>
+                </div>
+              )}
               {Array.from({ length: Math.min(comp.contestants, 12) }, (_, i) => {
                 const p = buildParticipants(comp)[i];
                 return (
@@ -3674,6 +3841,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </div>
           </div>
         )}
+
 
         {/* ── TOP DONATEURS ── */}
         {activeTab === "donateurs" && !isRegistration && (
@@ -4689,6 +4857,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           name={albumSheet.name}
           mediaType={albumSheet.mediaType}
           accent={accent}
+          own={albumSheet.own}
+          uploads={myUploads}
+          onUpload={addOwnUpload}
           onClose={() => setAlbumSheet(null)}
         />
       )}
