@@ -3076,12 +3076,21 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     </div>
 
-                    {/* Name + progress bar */}
+                    {/* Name + points/coin above, full-width progress bar below */}
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
-                      <span style={{
-                        fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                        color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}>{p.name}</span>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                        <span style={{
+                          fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                          color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>{p.name}</span>
+                        <span style={{
+                          display: "flex", alignItems: "center", gap: 4,
+                          fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                          color: rank === 0 ? accent : "#555", flexShrink: 0,
+                        }}>
+                          🪙 {p.points.toLocaleString("fr-FR")}
+                        </span>
+                      </div>
                       <div style={{ height: 4, background: "#f0f0f0", borderRadius: 2, overflow: "hidden" }}>
                         <div
                           className="bar-shimmer"
@@ -3096,15 +3105,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         />
                       </div>
                     </div>
-
-                    {/* Coins */}
-                    <span style={{
-                      display: "flex", alignItems: "center", gap: 4,
-                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                      color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 4,
-                    }}>
-                      🪙 {p.points.toLocaleString("fr-FR")}
-                    </span>
                   </div>
                 );
               })
@@ -3593,12 +3593,22 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   </div>
 
-                  {/* Name + progress bar */}
+                  {/* Name + points/coin above, full-width progress bar below */}
                   <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
-                    <span style={{
-                      fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                      color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    }}>{p.name}</span>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                      <span style={{
+                        fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                        color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      }}>{p.name}</span>
+                      <span style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                        color: rank === 0 ? accent : "#555", flexShrink: 0,
+                        transition: "color 0.3s",
+                      }}>
+                        🪙 {p.points.toLocaleString("fr-FR")}
+                      </span>
+                    </div>
                     <div style={{ height: 4, background: "#f0f0f0", borderRadius: 2, overflow: "hidden" }}>
                       <div
                         className="bar-shimmer"
@@ -3613,16 +3623,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       />
                     </div>
                   </div>
-
-                  {/* Coins */}
-                  <span style={{
-                    display: "flex", alignItems: "center", gap: 4,
-                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                    color: rank === 0 ? accent : "#555", flexShrink: 0, marginLeft: 4,
-                    transition: "color 0.3s",
-                  }}>
-                    🪙 {p.points.toLocaleString("fr-FR")}
-                  </span>
                 </div>
               );
             })}
