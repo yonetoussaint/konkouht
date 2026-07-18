@@ -8284,15 +8284,21 @@ export default function App() {
   async function handleAuthenticated(user) {
     const rawName = user.user_metadata?.full_name;
     const isPlatformOrganizer = user.email?.toLowerCase() === PLATFORM_ORGANIZER_EMAIL.toLowerCase();
-    const fullName = isPlatformOrganizer
-      ? PLATFORM_ORGANIZER_SIGLE
-      : rawName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
     const { data: profileRow } = await supabase
       .from("profiles")
-      .select("moncash_verified, natcash_verified")
+      .select("full_name, moncash_verified, natcash_verified")
       .eq("id", user.id)
       .maybeSingle();
+
+    // A custom name set via the in-app editor lives in `profiles.full_name`,
+    // not in the OAuth provider's metadata — Google (and other providers)
+    // re-sync `user_metadata.full_name` from the provider's own profile on
+    // every sign-in, which would silently clobber a custom name if we read
+    // from there first. `profiles.full_name` always wins when present.
+    const fullName = isPlatformOrganizer
+      ? PLATFORM_ORGANIZER_SIGLE
+      : profileRow?.full_name || rawName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
     setIsAuthenticated(true);
     setCurrentUser({
@@ -8426,6 +8432,15 @@ export default function App() {
       console.error("supabase.auth.updateUser error:", error);
       throw error;
     }
+
+    // Source of truth for display purposes going forward — this is what
+    // survives the next Google (or other OAuth) login, since that flow
+    // re-syncs user_metadata.full_name from the provider and would
+    // otherwise overwrite a custom name.
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert({ id: userId, full_name: trimmed, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    if (profileError) console.error("profiles full_name upsert error:", profileError);
 
     // The name is also copied (denormalized) onto the user's own existing
     // rows in a few tables — backfill those too so the new name is visible
