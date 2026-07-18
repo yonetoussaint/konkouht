@@ -8439,8 +8439,11 @@ export default function App() {
     // otherwise overwrite a custom name.
     const { error: profileError } = await supabase
       .from("profiles")
-      .upsert({ id: userId, full_name: trimmed, updated_at: new Date().toISOString() }, { onConflict: "id" });
-    if (profileError) console.error("profiles full_name upsert error:", profileError);
+      .upsert({ id: userId, user_id: userId, full_name: trimmed, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    if (profileError) {
+      console.error("profiles full_name upsert error:", profileError);
+      throw new Error("Le nom a été mis à jour, mais n'a pas pu être enregistré pour la prochaine connexion.");
+    }
 
     // The name is also copied (denormalized) onto the user's own existing
     // rows in a few tables — backfill those too so the new name is visible
