@@ -1914,6 +1914,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [registrantsLoading, setRegistrantsLoading] = useState(true);
   const liveRegistered = registrantsLoading ? comp.registeredCount : registrants.length;
 
+
   // Participant-submitted media (their own photos/videos), pending organizer
   // approval before it shows up publicly. Backed by Supabase directly so it
   // actually syncs between the uploader's device and the organizer's device —
@@ -2021,6 +2022,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       setRegistrants(
         rows.map((r) => ({
           id: r.id,
+          userId: r.user_id,
           name: r.full_name,
           fee: r.fee_paid,
           date: new Date(r.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
@@ -2047,6 +2049,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             return [
               {
                 id: r.id,
+                userId: r.user_id,
                 name: r.full_name,
                 fee: r.fee_paid,
                 date: new Date(r.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
@@ -2199,6 +2202,33 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [replyDraft, setReplyDraft] = useState("");
   const scrollRef = useRef(null);
   const [scrollY, setScrollY] = useState(0);
+
+  // If the user renames themselves mid-session, immediately reflect the new
+  // name on anything of theirs already loaded into this board (their own
+  // registration entry, their own media uploads, their own comments) instead
+  // of leaving the old name stuck until a hard refresh re-fetches from the
+  // database. Historical rows in the database keep the name as it was at
+  // creation time — this just keeps what's on screen in sync for the
+  // person currently renaming themselves.
+  useEffect(() => {
+    if (!currentUser) return;
+    setRegistrants((prev) =>
+      prev.map((r) => (r.userId === currentUser.id && r.name !== currentUser.fullName ? { ...r, name: currentUser.fullName } : r))
+    );
+    setParticipantUploads((prev) =>
+      prev.map((u) => (u.uploader_id === currentUser.id && u.uploader_name !== currentUser.fullName ? { ...u, uploader_name: currentUser.fullName } : u))
+    );
+    setComments((prev) =>
+      prev.map((c) => ({
+        ...c,
+        name: c.isMine ? currentUser.fullName : c.name,
+        replies: (c.replies || []).map((r) => (r.isMine ? { ...r, name: currentUser.fullName } : r)),
+      }))
+    );
+    setGiftLeaderboard((prev) =>
+      prev.map((d) => (d.isMe && d.name !== currentUser.fullName ? { ...d, name: currentUser.fullName } : d))
+    );
+  }, [currentUser?.fullName, currentUser?.id]);
 
   // Load comments (and their replies) for this competition from the database.
   useEffect(() => {
