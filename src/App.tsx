@@ -8419,11 +8419,26 @@ export default function App() {
     if (!sessionData?.session) {
       throw new Error("Votre session a expiré. Reconnectez-vous et réessayez.");
     }
+    const userId = sessionData.session.user.id;
+
     const { error } = await supabase.auth.updateUser({ data: { full_name: trimmed } });
     if (error) {
       console.error("supabase.auth.updateUser error:", error);
       throw error;
     }
+
+    // The name is also copied (denormalized) onto the user's own existing
+    // rows in a few tables — backfill those too so the new name is visible
+    // to every user, not just reflected locally in this session.
+    const [regResult, comResult, mediaResult] = await Promise.all([
+      supabase.from("registrations").update({ full_name: trimmed }).eq("user_id", userId),
+      supabase.from("comments").update({ full_name: trimmed }).eq("user_id", userId),
+      supabase.from("participant_media").update({ uploader_name: trimmed }).eq("uploader_id", userId),
+    ]);
+    if (regResult.error) console.error("registrations name backfill error:", regResult.error);
+    if (comResult.error) console.error("comments name backfill error:", comResult.error);
+    if (mediaResult.error) console.error("participant_media name backfill error:", mediaResult.error);
+
     setCurrentUser((prev) => (prev ? { ...prev, fullName: trimmed } : prev));
   }
 
