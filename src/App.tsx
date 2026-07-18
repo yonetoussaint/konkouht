@@ -6558,7 +6558,34 @@ function MyCompetitionsPage({ registeredCompIds, followedCompIds, onOpen }) {
   );
 }
 
-function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLogout, onOpenAdmin }) {
+function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLogout, onOpenAdmin, onUpdateFullName, showToast }) {
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
+  function startEditingName() {
+    setNameDraft(currentUser?.fullName || "");
+    setEditingName(true);
+  }
+
+  async function saveName() {
+    const trimmed = nameDraft.trim();
+    if (!trimmed || trimmed === currentUser?.fullName) {
+      setEditingName(false);
+      return;
+    }
+    setSavingName(true);
+    try {
+      await onUpdateFullName?.(trimmed);
+      showToast?.("Nom mis à jour");
+      setEditingName(false);
+    } catch (err) {
+      showToast?.(err?.message || "Échec de la mise à jour du nom.");
+    } finally {
+      setSavingName(false);
+    }
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
       <header
@@ -6587,10 +6614,53 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
           }}>
             {currentUser ? currentUser.fullName.charAt(0).toUpperCase() : <User size={24} />}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3, minWidth: 0 }}>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#333" }}>
-              {currentUser ? currentUser.fullName : "Non connecté"}
-            </span>
+          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3, minWidth: 0, flex: 1 }}>
+            {currentUser && editingName ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  autoFocus
+                  type="text"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }}
+                  disabled={savingName}
+                  style={{
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#333",
+                    border: "none", borderBottom: "2px solid #111", outline: "none",
+                    padding: "0 0 2px", minWidth: 0, flex: 1, background: "transparent",
+                  }}
+                />
+                <button
+                  onClick={saveName}
+                  disabled={savingName}
+                  style={{ border: "none", background: "none", padding: 4, cursor: "pointer", color: "#27ae60", flexShrink: 0 }}
+                >
+                  <Check size={18} strokeWidth={2.5} />
+                </button>
+                <button
+                  onClick={() => setEditingName(false)}
+                  disabled={savingName}
+                  style={{ border: "none", background: "none", padding: 4, cursor: "pointer", color: "#999", flexShrink: 0 }}
+                >
+                  <X size={18} strokeWidth={2.5} />
+                </button>
+              </div>
+            ) : (
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {currentUser ? currentUser.fullName : "Non connecté"}
+                </span>
+                {currentUser && (
+                  <button
+                    onClick={startEditingName}
+                    title="Modifier le nom"
+                    style={{ border: "none", background: "none", padding: 2, cursor: "pointer", color: "#aaa", flexShrink: 0, display: "flex", alignItems: "center" }}
+                  >
+                    <Pencil size={14} strokeWidth={2.3} />
+                  </button>
+                )}
+              </span>
+            )}
             {currentUser ? (
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {currentUser.email}
@@ -8310,6 +8380,23 @@ export default function App() {
     );
   }
 
+  async function handleUpdateFullName(newName) {
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      throw new Error("Le nom ne peut pas être vide.");
+    }
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      throw new Error("Votre session a expiré. Reconnectez-vous et réessayez.");
+    }
+    const { error } = await supabase.auth.updateUser({ data: { full_name: trimmed } });
+    if (error) {
+      console.error("supabase.auth.updateUser error:", error);
+      throw error;
+    }
+    setCurrentUser((prev) => (prev ? { ...prev, fullName: trimmed } : prev));
+  }
+
   return (
     <>
       <style>{`
@@ -8394,6 +8481,8 @@ export default function App() {
           onLoginRequest={() => setShowAuthOverlay(true)}
           onLogout={handleLogout}
           onOpenAdmin={() => setActiveTab("admin")}
+          onUpdateFullName={handleUpdateFullName}
+          showToast={showToast}
         />
       ) : activeTab === "admin" && currentUser?.isOrganizer ? (
         <AdminPage
