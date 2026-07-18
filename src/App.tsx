@@ -3110,8 +3110,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </div>
         </div>
 
-        {/* ── MÉDIAS PREVIEW ── */}
-        {!isRegistration && approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).length > 0 && (
+        {/* ── MÉDIAS PREVIEW ──
+             Approved media from everyone, plus the current user's own
+             uploads even while still pending (tagged "En attente") so they
+             can see their submission sitting in the row while it's reviewed. */}
+        {!isRegistration && (() => {
+          const homeMediaItems = participantUploads.filter(
+            (u) => u.status === "approved" || (currentUser && u.uploader_id === currentUser.id && u.status === "pending")
+          );
+          return homeMediaItems.length > 0 && (
           <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 0" }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -3140,16 +3147,26 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </div>
 
             <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 10, paddingRight: 10, scrollbarWidth: "none" }}>
-              {approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).slice(0, 10).map((item) => (
+              {homeMediaItems.slice(0, 10).map((item) => (
                 <div
                   key={item.id}
-                  onClick={() => setMediaLightbox(item)}
-                  style={{ position: "relative", flexShrink: 0, width: 110, aspectRatio: "1 / 1", overflow: "hidden", background: "#111", cursor: "pointer" }}
+                  onClick={() => { if (item.status === "approved") setMediaLightbox(item); }}
+                  style={{ position: "relative", flexShrink: 0, width: 110, aspectRatio: "1 / 1", overflow: "hidden", background: "#111", cursor: item.status === "approved" ? "pointer" : "default" }}
                 >
                   {item.media_type === "video" ? (
-                    <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+                    <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: item.status === "pending" ? 0.55 : 1 }} muted />
                   ) : (
-                    <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: item.status === "pending" ? 0.55 : 1 }} />
+                  )}
+                  {item.status === "pending" && (
+                    <span style={{
+                      position: "absolute", top: 6, left: 6,
+                      background: "#e74c3c", color: "#fff",
+                      fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                      padding: "2px 6px", letterSpacing: "0.02em",
+                    }}>
+                      En attente
+                    </span>
                   )}
                   <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "5px 9px", background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -3160,7 +3177,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               ))}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── DONATEURS PREVIEW ── */}
         {!isRegistration && (
