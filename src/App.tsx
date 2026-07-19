@@ -1912,7 +1912,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [giftPin, setGiftPin] = useState("");
   const [giftPinError, setGiftPinError] = useState(false);
   const [giftSubmitting, setGiftSubmitting] = useState(false);
-  const [liveLog, setLiveLog] = useState([]);
 
   // Real donateurs, backed by Supabase — every gift ever sent in this
   // competition, by real, authenticated users. Create this table in
@@ -2533,12 +2532,25 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   }
 
   // Interleave live gift entries and comments into one chronological feed, TikTok-style.
+  // Derived straight from giftRows (Supabase-backed + realtime-synced) so the
+  // live feed survives a refresh, instead of the old local-only liveLog state
+  // which reset to [] on every reload and lost every gift already sent.
   const feedItems = useMemo(() => {
-    const giftItems = liveLog.map((entry, i) => ({
+    const sortedGiftRows = [...giftRows].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    const giftItems = sortedGiftRows.map((row, i) => ({
       type: "gift",
-      key: `gift-${entry.id}`,
+      key: `gift-${row.id}`,
       minutesAgo: i * 2,
-      entry,
+      entry: {
+        id: row.id,
+        pIndex: row.recipient_index ?? 0,
+        pName: row.recipient_name,
+        gift: { icon: row.gift_icon, name: row.gift_name, cost: row.gift_cost },
+        senderName: row.sender_name,
+        ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
+      },
     }));
     const commentItems = comments.map((c) => ({
       type: "comment",
@@ -2547,7 +2559,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       comment: c,
     }));
     return [...giftItems, ...commentItems].sort((a, b) => a.minutesAgo - b.minutesAgo);
-  }, [liveLog, comments]);
+  }, [giftRows, comments]);
 
   const heroBannerSlides = useMemo(() => {
     const images = comp.images || [];
@@ -4497,14 +4509,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
                         onSendGift(gift, { ...comp, recipientName: selectedParticipant?.name, priceHTG: giftPriceHTG(gift) });
                         setVoted(true);
-                        // Inject gift into live log
-                        setLiveLog((prev) => {
-                          const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, pName: selectedParticipant?.name, pAvatarUrl: selectedParticipant?.avatarUrl, ago: "À l'instant", gift, senderName: currentUser.fullName };
-                          return [entry, ...prev.slice(0, 4)].map((e, i) => ({
-                            ...e,
-                            ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
-                          }));
-                        });
                         // Optimistically add the real row to local state — the
                         // realtime subscription will also deliver it (and skip
                         // it as a dupe by id), keeping donateurs consistent
