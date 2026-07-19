@@ -965,9 +965,11 @@ function buildParticipantsFromRegistrants(registrants, comp) {
     const seed = (i * 53 + 17) % 97;
     const votes = Math.round((comp.votes / registrants.length) * (0.4 + (seed % 60) / 40));
     return {
-      index: i,
+      index: Math.abs(hashStr(r.userId || r.id)) % 40,
       id: r.id,
-      name: r.name || r.full_name || fakeName(i),
+      userId: r.userId,
+      name: r.name || r.full_name || "Participant",
+      avatarUrl: r.avatarUrl,
       votes,
       points: Math.round(votes / 10),
     };
@@ -1066,9 +1068,8 @@ function buildRulesInfo(comp) {
 function ParticipantListOverlay({ comp, participants, onClose }) {
   const accent = comp.accent;
   // `participants` is passed down from CompetitionBoard, already synced with
-  // the real `registrations` table; buildParticipants(comp) is only a
-  // placeholder fallback for the brief window before that data has loaded.
-  const ranked = participants && participants.length > 0 ? participants : buildParticipants(comp);
+  // the real `registrations` table — real registrants only, never invented.
+  const ranked = participants || [];
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
@@ -1102,9 +1103,13 @@ function ParticipantListOverlay({ comp, participants, onClose }) {
           <span style={{ width: 70, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Points</span>
         </div>
 
-        {ranked.map((p, rank) => (
+        {ranked.length === 0 ? (
+          <div style={{ padding: "40px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
+            Aucun participant pour le moment.
+          </div>
+        ) : ranked.map((p, rank) => (
           <div
-            key={p.index}
+            key={p.id ?? p.index}
             style={{
               display: "flex",
               alignItems: "center",
@@ -2178,17 +2183,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     return () => { supabase.removeChannel(channel); };
   }, [comp.id]);
 
-  // Database-backed participant list. Falls back to the old fake generator
-  // only while the real fetch is in flight (or genuinely returns nothing),
-  // so the classement, albums strip, and gift picker always reflect actual
-  // registrations instead of invented names.
+  // Database-backed participant list — real registrants only. Never falls
+  // back to invented names; if there are no real registrations yet (or the
+  // fetch is still in flight), the classement, albums strip, and gift picker
+  // simply show nothing, same as donateurs.
   const dbParticipants = useMemo(
     () => buildParticipantsFromRegistrants(registrants, comp),
     [registrants, comp]
   );
-  const participantsFull = (registrantsLoading || dbParticipants.length === 0)
-    ? buildParticipants(comp)
-    : dbParticipants;
+  const participantsFull = registrantsLoading ? [] : dbParticipants;
 
   // Seed ranked once; liveVotes tracks per-participant live vote deltas, liveGiftCredits tracks per-participant gift credits
   const seedRanked = participantsFull.slice(0, 5);
@@ -3196,7 +3199,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               ranked.slice(0, 3).map((p, rank, arr) => {
                 const pct = Math.max(8, Math.round((p.points / topPoints) * 100));
                 return (
-                  <div key={p.index} style={{
+                  <div key={p.id ?? p.index} style={{
                     display: "flex", alignItems: "center", gap: 10,
                     padding: "5px 0",
                     borderBottom: rank < arr.length - 1 ? "1px solid #f0f0f0" : "none",
@@ -3734,10 +3737,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               </button>
             </div>
 
-            {ranked.map((p, rank) => {
+            {ranked.length === 0 ? (
+              <div style={{ padding: "24px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
+                Aucun participant pour le moment.
+              </div>
+            ) : ranked.map((p, rank) => {
               const pct = Math.max(8, Math.round((p.points / topPoints) * 100));
               return (
-                <div key={p.index} style={{
+                <div key={p.id ?? p.index} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "11px 0",
                   borderBottom: rank < ranked.length - 1 ? "1px solid #f0f0f0" : "none",
@@ -4335,9 +4342,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             {/* Step 1 — pick participant */}
             {giftStep === "participant" && (
               <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
-                {participantsFull.slice(0, Math.min(comp.contestants, 15)).map((p) => (
+                {participantsFull.length === 0 ? (
+                  <div style={{ padding: "12px 4px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
+                    Aucun participant à qui envoyer un cadeau pour le moment.
+                  </div>
+                ) : participantsFull.slice(0, Math.min(comp.contestants, 15)).map((p) => (
                   <button
-                    key={p.index}
+                    key={p.id ?? p.index}
                     onClick={() => { setSelectedParticipant(p); setGiftStep("gift"); }}
                     style={{
                       flexShrink: 0, width: 72,
@@ -4351,7 +4362,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     }}
                   >
                     <img
-                      src={avatarImg(p.index)}
+                      src={resolveAvatar(p)}
                       alt={p.name}
                       style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: `2px solid ${accent}22` }}
                     />
