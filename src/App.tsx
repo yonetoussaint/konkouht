@@ -349,7 +349,7 @@ const TABS = [
   { id: "account", label: "Compte", icon: User },
 ];
 
-function BottomTabBar({ active, onChange, unreadCount }) {
+function BottomTabBar({ active, onChange, unreadCount, currentUser }) {
   return (
     <nav
       style={{
@@ -367,6 +367,7 @@ function BottomTabBar({ active, onChange, unreadCount }) {
         const Icon = tab.icon;
         const isActive = active === tab.id;
         const showBadge = tab.id === "notifications" && unreadCount > 0;
+        const showAvatar = tab.id === "account" && currentUser?.avatarUrl;
         return (
           <button
             key={tab.id}
@@ -386,7 +387,18 @@ function BottomTabBar({ active, onChange, unreadCount }) {
             }}
           >
             <div style={{ position: "relative" }}>
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              {showAvatar ? (
+                <img
+                  src={currentUser.avatarUrl}
+                  alt=""
+                  style={{
+                    width: 20, height: 20, borderRadius: "50%", objectFit: "cover", display: "block",
+                    border: isActive ? "1.5px solid #111" : "1.5px solid transparent",
+                  }}
+                />
+              ) : (
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              )}
               {showBadge && (
                 <div style={{
                   position: "absolute", top: -4, right: -6,
@@ -834,6 +846,37 @@ const picsumImg = (seed, w = 300, h = 300) =>
   `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
 const avatarImg = (index) => picsumImg(`person${index}`, 80, 80);
+
+// Prefer a real, user-uploaded profile picture wherever one is known for an
+// entity (comment, registrant, donateur...). Falls back to the existing
+// placeholder photo so nothing breaks for people who haven't set one yet.
+function resolveAvatar(entity) {
+  return entity?.avatarUrl || avatarImg(entity?.index ?? 0);
+}
+
+// Renders the *current* signed-in user's own avatar — a real photo once
+// they've set one, otherwise the initials circle used throughout the app.
+function MyAvatar({ user, size = 34, fontSize = 13, iconSize = 14, loggedBg = "#111", guestBg = "#e0e0e0" }) {
+  if (user?.avatarUrl) {
+    return (
+      <img
+        src={user.avatarUrl}
+        alt={user.fullName || "Profil"}
+        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, display: "block" }}
+      />
+    );
+  }
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: user ? loggedBg : guestBg, color: "#fff",
+      fontFamily: "'Space Grotesk', sans-serif", fontSize, fontWeight: 700,
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      {user ? user.fullName.charAt(0).toUpperCase() : <User size={iconSize} color="#999" />}
+    </div>
+  );
+}
 
 function getUnsplashId(compId) {
   const ids = {
@@ -1873,7 +1916,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   // Supabase if it doesn't exist yet:
   //   table "gifts": id uuid pk default gen_random_uuid(),
   //     competition_id text, sender_id text, sender_name text,
-  //     recipient_name text, recipient_index int,
+  //     sender_avatar_url text, recipient_name text, recipient_index int,
   //     gift_icon text, gift_name text, gift_cost int, price_htg int,
   //     created_at timestamptz default now()
   const [giftRows, setGiftRows] = useState([]); // raw rows for this competition
@@ -1943,6 +1986,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           senderId: key,
           index: Math.abs(hashStr(key)) % 40,
           name: row.sender_name || "Utilisateur",
+          avatarUrl: (currentUser && key === currentUser.id) ? currentUser.avatarUrl : row.sender_avatar_url,
           totalSpent: row.gift_cost,
           giftCount: 1,
           topGift: row.gift_icon,
@@ -1955,7 +1999,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     return Array.from(bySender.values())
       .map((d) => (d.isMe && currentUser?.fullName ? { ...d, name: currentUser.fullName } : d))
       .sort((a, b) => b.totalSpent - a.totalSpent);
-  }, [giftRows, currentUser?.id, currentUser?.fullName]);
+  }, [giftRows, currentUser?.id, currentUser?.fullName, currentUser?.avatarUrl]);
 
   const [selectedDonor, setSelectedDonor] = useState(null);
   useEffect(() => {
@@ -2092,6 +2136,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           id: r.id,
           userId: r.user_id,
           name: r.full_name,
+          avatarUrl: (currentUser && r.user_id === currentUser.id) ? currentUser.avatarUrl : r.avatar_url,
           fee: r.fee_paid,
           date: new Date(r.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
           time: new Date(r.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
@@ -2119,6 +2164,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 id: r.id,
                 userId: r.user_id,
                 name: r.full_name,
+                avatarUrl: (currentUser && r.user_id === currentUser.id) ? currentUser.avatarUrl : r.avatar_url,
                 fee: r.fee_paid,
                 date: new Date(r.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
                 time: new Date(r.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
@@ -2249,14 +2295,18 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const milestoneProgressPct = nextMilestone > 0 ? Math.min(100, Math.round((heroPrizeValue / nextMilestone) * 100)) : 0;
   function mapCommentRow(row) {
     const minutesAgo = Math.max(0, Math.round((Date.now() - new Date(row.created_at).getTime()) / 60000));
+    const isMine = currentUser && row.user_id === currentUser.id;
     return {
       id: row.id,
       index: Math.abs(hashStr(row.user_id || row.id)) % 40,
       name: row.full_name,
+      // Prefer the live avatar for the viewer's own comments (so a picture
+      // change shows up immediately), otherwise whatever the row has.
+      avatarUrl: isMine ? currentUser.avatarUrl : row.avatar_url,
       text: row.text,
       minutesAgo,
       likes: 0,
-      isMine: currentUser && row.user_id === currentUser.id,
+      isMine,
     };
   }
 
@@ -2386,6 +2436,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       competitionId: comp.id,
       userId: currentUser.id,
       fullName: currentUser.fullName,
+      avatarUrl: currentUser.avatarUrl,
       text,
     });
     setPosting(false);
@@ -2407,6 +2458,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       competitionId: comp.id,
       userId: currentUser.id,
       fullName: currentUser.fullName,
+      avatarUrl: currentUser.avatarUrl,
       text,
       parentId,
     });
@@ -3321,7 +3373,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       {donor.isMe ? (
                         <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700 }}>{donor.name.charAt(0)}</span>
                       ) : (
-                        <img src={avatarImg(donor.index)} alt={donor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <img src={resolveAvatar(donor)} alt={donor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                       )}
                       {i === 0 && (
                         <span style={{ position: "absolute", bottom: -2, right: -2, fontSize: 14 }}>👑</span>
@@ -3480,7 +3532,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             {c.isMine ? (
                               <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{c.name.charAt(0)}</span>
                             ) : (
-                              <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              <img src={resolveAvatar(c)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                             )}
                           </div>
                           <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -3946,7 +3998,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         {donor.isMe ? (
                           <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700 }}>{donor.name.charAt(0)}</span>
                         ) : (
-                          <img src={avatarImg(donor.index)} alt={donor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          <img src={resolveAvatar(donor)} alt={donor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                         )}
                       </div>
                       {/* Info */}
@@ -3999,14 +4051,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           {/* Composer — only shown during registration; voting phase types from the sticky bottom bar */}
           {isRegistration && (
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
-              <div style={{
-                width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-                background: currentUser ? "#111" : "#e0e0e0", color: "#fff",
-                fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                {currentUser ? currentUser.fullName.charAt(0).toUpperCase() : <User size={14} color="#999" />}
-              </div>
+              <MyAvatar user={currentUser} size={30} fontSize={12} iconSize={14} />
               <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
                 <input
                   type="text"
@@ -4105,7 +4150,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                           {c.name.charAt(0).toUpperCase()}
                         </span>
                       ) : (
-                        <img src={avatarImg(c.index)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <img src={resolveAvatar(c)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -4172,7 +4217,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                               {r.isMine ? (
                                 <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{r.name.charAt(0)}</span>
                               ) : (
-                                <img src={avatarImg(r.index)} alt={r.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                                <img src={resolveAvatar(r)} alt={r.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                               )}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -4480,6 +4525,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                           competition_id: comp.id,
                           sender_id: currentUser.id,
                           sender_name: currentUser.fullName,
+                          sender_avatar_url: currentUser.avatarUrl || null,
                           recipient_name: selectedParticipant?.name || null,
                           recipient_index: selectedParticipant?.index ?? null,
                           gift_icon: gift.icon,
@@ -4523,6 +4569,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             competition_id: comp.id,
                             sender_id: currentUser.id,
                             sender_name: currentUser.fullName,
+                            sender_avatar_url: currentUser.avatarUrl || null,
                             recipient_name: selectedParticipant?.name || null,
                             recipient_index: selectedParticipant?.index ?? null,
                             gift_icon: gift.icon,
@@ -4575,7 +4622,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               {selectedDonor.isMe ? (
                 <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700 }}>{selectedDonor.name.charAt(0)}</span>
               ) : (
-                <img src={avatarImg(selectedDonor.index)} alt={selectedDonor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <img src={resolveAvatar(selectedDonor)} alt={selectedDonor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -6245,14 +6292,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
           {currentUser && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, background: "#fafafa" }}>
-              <div style={{
-                width: 34, height: 34, borderRadius: "50%",
-                background: "#6C63FF", color: "#fff",
-                fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
-                {currentUser.fullName.charAt(0).toUpperCase()}
-              </div>
+              <MyAvatar user={currentUser} size={34} fontSize={13} iconSize={16} loggedBg="#6C63FF" />
               <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3, minWidth: 0 }}>
                 <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#333" }}>{currentUser.fullName}</span>
                 <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentUser.email}</span>
@@ -6683,10 +6723,12 @@ function MyCompetitionsPage({ registeredCompIds, followedCompIds, onOpen }) {
   );
 }
 
-function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLogout, onOpenAdmin, onUpdateFullName, showToast }) {
+function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLogout, onOpenAdmin, onUpdateFullName, onUpdateAvatar, showToast }) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
 
   function startEditingName() {
     setNameDraft(currentUser?.fullName || "");
@@ -6711,6 +6753,21 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
     }
   }
 
+  async function handleAvatarFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      await onUpdateAvatar?.(file);
+      showToast?.("Photo de profil mise à jour");
+    } catch (err) {
+      showToast?.(err?.message || "Échec de la mise à jour de la photo.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
       <header
@@ -6731,13 +6788,42 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
         {/* Identity block */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 4px", marginBottom: 16 }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: "50%",
-            background: "#111", color: "#fff",
-            fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 700,
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-          }}>
-            {currentUser ? currentUser.fullName.charAt(0).toUpperCase() : <User size={24} />}
+          <div style={{ position: "relative", width: 56, height: 56, flexShrink: 0 }}>
+            <button
+              onClick={() => { if (!currentUser) { onLoginRequest?.(); return; } avatarInputRef.current?.click(); }}
+              disabled={uploadingAvatar}
+              title={currentUser ? "Changer la photo de profil" : "Se connecter"}
+              style={{
+                border: "none", padding: 0, cursor: "pointer", background: "none",
+                width: 56, height: 56, borderRadius: "50%", display: "block",
+                opacity: uploadingAvatar ? 0.5 : 1,
+              }}
+            >
+              <MyAvatar user={currentUser} size={56} fontSize={22} iconSize={24} />
+            </button>
+            {currentUser && (
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute", bottom: -2, right: -2,
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: "#6C63FF", border: "2px solid #F2F2F0",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  pointerEvents: "none",
+                }}
+              >
+                <Pencil size={10} strokeWidth={2.5} color="#fff" />
+              </div>
+            )}
+            {currentUser && (
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarFileChange}
+                style={{ display: "none" }}
+              />
+            )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3, minWidth: 0, flex: 1 }}>
             {currentUser && editingName ? (
@@ -8316,6 +8402,7 @@ export default function App() {
       competitionId: comp.id,
       userId: currentUser.id,
       fullName: currentUser.fullName,
+      avatarUrl: currentUser.avatarUrl,
       fee: fee || 0,
     });
 
@@ -8386,7 +8473,7 @@ export default function App() {
 
     const { data: profileRow } = await supabase
       .from("profiles")
-      .select("full_name, moncash_verified, natcash_verified")
+      .select("full_name, avatar_url, moncash_verified, natcash_verified")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -8399,11 +8486,17 @@ export default function App() {
       ? PLATFORM_ORGANIZER_SIGLE
       : profileRow?.full_name || rawName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+    // Same reasoning for the picture: a photo the person uploaded themselves
+    // (profiles.avatar_url) always wins over the OAuth provider's photo, so
+    // it survives future Google/Facebook sign-ins instead of being clobbered.
+    const avatarUrl = profileRow?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+
     setIsAuthenticated(true);
     setCurrentUser({
       id: user.id,
       email: user.email,
       fullName,
+      avatarUrl,
       isOrganizer: isPlatformOrganizer,
       organizerStatus: isPlatformOrganizer ? "approved" : null,
       moncashNumber: user.user_metadata?.moncash_number || null,
@@ -8559,6 +8652,68 @@ export default function App() {
     setCurrentUser((prev) => (prev ? { ...prev, fullName: trimmed } : prev));
   }
 
+  // Lets a signed-in user change their profile picture. Uploads to a public
+  // "avatars" Storage bucket (create it in the Supabase dashboard if it
+  // doesn't exist yet, with public read access), then persists the URL to
+  // `profiles.avatar_url` and backfills it onto the user's own existing rows
+  // so the new picture shows up everywhere in the app — comments they've
+  // posted, their registration entries, and their donateur history — not
+  // just in their account page.
+  async function handleUpdateAvatar(file) {
+    if (!file) return;
+    if (!file.type?.startsWith("image/")) {
+      throw new Error("Choisissez un fichier image (JPG, PNG, etc.).");
+    }
+    const MAX_BYTES = 5 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      throw new Error("L'image est trop grande (5 Mo maximum).");
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      throw new Error("Votre session a expiré. Reconnectez-vous et réessayez.");
+    }
+    const userId = sessionData.session.user.id;
+
+    // Always the same path per user (upsert) so we don't accumulate orphaned
+    // files on every change — just overwrite the one avatar they have.
+    const path = `${userId}/avatar`;
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (uploadError) {
+      console.error("avatar upload error:", uploadError);
+      throw new Error("Échec de l'envoi de l'image. Réessayez.");
+    }
+
+    const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(path);
+    // Cache-bust so the new photo shows immediately instead of a stale CDN
+    // copy at the same URL.
+    const avatarUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`;
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert({ id: userId, user_id: userId, avatar_url: avatarUrl, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    if (profileError) {
+      console.error("profiles avatar_url upsert error:", profileError);
+      throw new Error("La photo a été envoyée, mais n'a pas pu être enregistrée pour la prochaine connexion.");
+    }
+
+    // Denormalized copies elsewhere, same pattern as the name backfill above.
+    const [regResult, comResult, mediaResult, giftResult] = await Promise.all([
+      supabase.from("registrations").update({ avatar_url: avatarUrl }).eq("user_id", userId),
+      supabase.from("comments").update({ avatar_url: avatarUrl }).eq("user_id", userId),
+      supabase.from("participant_media").update({ uploader_avatar_url: avatarUrl }).eq("uploader_id", userId),
+      supabase.from("gifts").update({ sender_avatar_url: avatarUrl }).eq("sender_id", userId),
+    ]);
+    if (regResult.error) console.error("registrations avatar backfill error:", regResult.error);
+    if (comResult.error) console.error("comments avatar backfill error:", comResult.error);
+    if (mediaResult.error) console.error("participant_media avatar backfill error:", mediaResult.error);
+    if (giftResult.error) console.error("gifts avatar backfill error:", giftResult.error);
+
+    setCurrentUser((prev) => (prev ? { ...prev, avatarUrl } : prev));
+  }
+
   return (
     <>
       <style>{`
@@ -8644,6 +8799,7 @@ export default function App() {
           onLogout={handleLogout}
           onOpenAdmin={() => setActiveTab("admin")}
           onUpdateFullName={handleUpdateFullName}
+          onUpdateAvatar={handleUpdateAvatar}
           showToast={showToast}
         />
       ) : activeTab === "admin" && currentUser?.isOrganizer ? (
@@ -8896,7 +9052,7 @@ export default function App() {
         />
       )}
 
-      <BottomTabBar active={activeTab} onChange={setActiveTab} unreadCount={unreadCount} />
+      <BottomTabBar active={activeTab} onChange={setActiveTab} unreadCount={unreadCount} currentUser={currentUser} />
 
       {selectedComp && (
         <CompetitionBoard
