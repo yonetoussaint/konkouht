@@ -1765,7 +1765,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       title: editTitle.trim() || comp.title,
       edition: editEdition.trim() || comp.edition,
       ends: editEnds.trim() || comp.ends,
-      phase: editPhase,
+      phase: isCompleted ? "completed" : editPhase,
       contestants: trimmedContestants === "" ? null : Math.max(0, parseInt(trimmedContestants, 10) || 0),
       endsAt: editEndsAt ? new Date(editEndsAt).toISOString() : null,
       description: editDescription.trim(),
@@ -5105,37 +5105,45 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             />
 
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>État</label>
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              {[
-                { value: "registration", label: "Inscriptions" },
-                { value: "live", label: "En direct" },
-              ].map((opt) => {
-                const isActive = editPhase === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setEditPhase(opt.value)}
-                    style={{
-                      flex: 1,
-                      border: isActive ? "1px solid #111" : "1px solid #e0e0e0",
-                      background: isActive ? "#111" : "#fff",
-                      color: isActive ? "#fff" : "#555",
-                      borderRadius: 10,
-                      padding: "10px 12px",
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {opt.value === "live" && <span style={{ marginRight: 5 }}>●</span>}
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
+            {isCompleted ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #eee", background: "#f7f7f7", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#999" }}>
+                🏆 Terminée — archivée dans l'historique, l'état ne peut plus être modifié
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                {[
+                  { value: "registration", label: "Inscriptions" },
+                  { value: "live", label: "En direct" },
+                ].map((opt) => {
+                  const isActive = editPhase === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setEditPhase(opt.value)}
+                      style={{
+                        flex: 1,
+                        border: isActive ? "1px solid #111" : "1px solid #e0e0e0",
+                        background: isActive ? "#111" : "#fff",
+                        color: isActive ? "#fff" : "#555",
+                        borderRadius: 10,
+                        padding: "10px 12px",
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {opt.value === "live" && <span style={{ marginRight: 5 }}>●</span>}
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
+            {!isCompleted && (
+            <>
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Durée de la compétition</label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
               {DURATION_PRESETS.map((p) => (
@@ -5183,6 +5191,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 </div>
               </div>
             </details>
+            </>
+            )}
 
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Places disponibles</label>
             <input
