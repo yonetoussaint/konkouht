@@ -1857,32 +1857,37 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
   // If the organizer set a real deadline (comp.endsAt), the countdown is
   // computed from actual elapsed time each tick — so it survives reloads,
-  // background tabs, etc. Competitions without one fall back to the legacy
-  // static "2j 14h"-style text, decremented client-side as before.
-  function secondsUntilEndsAt() {
-    const diff = Math.floor((new Date(comp.endsAt).getTime() - Date.now()) / 1000);
+  // background tabs, etc. Competitions still on the legacy mock "2j 14h"-style
+  // `ends` string no longer just decrement a local counter (which snapped back
+  // to the full mock duration on every refresh) — instead we compute a real
+  // deadline once and persist it, so the countdown keeps counting down against
+  // an actual fixed point in time across reloads, same as a real comp.endsAt.
+  function secondsUntilEndsAt(target) {
+    const diff = Math.floor((new Date(target).getTime() - Date.now()) / 1000);
     return Math.max(0, diff);
   }
-  const [secondsLeft, setSecondsLeft] = useState(() => {
-    if (comp.endsAt) return secondsUntilEndsAt();
+  function resolveEndsAt() {
+    if (comp.endsAt) return comp.endsAt;
+    const storageKey = `comp-endsAt-${comp.id}`;
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null;
+    if (stored) return stored;
     const str = comp.ends || "";
     let total = 0;
     const d = str.match(/(\d+)j/); if (d) total += parseInt(d[1]) * 86400;
     const h = str.match(/(\d+)h/); if (h) total += parseInt(h[1]) * 3600;
     const m = str.match(/(\d+)m/); if (m) total += parseInt(m[1]) * 60;
-    return total || 3600;
-  });
+    const deadline = new Date(Date.now() + (total || 3600) * 1000).toISOString();
+    if (typeof window !== "undefined") window.localStorage.setItem(storageKey, deadline);
+    return deadline;
+  }
+  const [secondsLeft, setSecondsLeft] = useState(() => secondsUntilEndsAt(resolveEndsAt()));
   useEffect(() => {
     const iv = setInterval(() => {
-      if (comp.endsAt) {
-        setSecondsLeft(secondsUntilEndsAt());
-      } else {
-        setSecondsLeft((s) => Math.max(0, s - 1));
-      }
+      setSecondsLeft(secondsUntilEndsAt(resolveEndsAt()));
       setTickFlash((f) => !f);
     }, 1000);
     return () => clearInterval(iv);
-  }, [comp.endsAt]);
+  }, [comp.endsAt, comp.id]);
   const fmtCountdown = (s) => {
     const d = Math.floor(s / 86400);
     const h = Math.floor((s % 86400) / 3600);
@@ -1892,14 +1897,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     if (h > 0) return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
     return `${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
   };
-  // Stats-row timer: "2 Days" → when days hit 0, "X Hours" → when hours hit 0, "X Minutes"
+  // Stats-row timer: "2 Days" → when days hit 0, "X Hours" → when hours hit 0, "X Min"
   const fmtCountdownStats = (s) => {
     const d = Math.floor(s / 86400);
     const h = Math.floor((s % 86400) / 3600);
     const m = Math.floor((s % 3600) / 60);
     if (d > 0) return `${d} Day${d > 1 ? "s" : ""}`;
     if (h > 0) return `${h} Hour${h > 1 ? "s" : ""}`;
-    return `${m} Minute${m !== 1 ? "s" : ""}`;
+    return `${m} Min`;
   };
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [mediaLightbox, setMediaLightbox] = useState(null); // approved participant_media row
@@ -2962,14 +2967,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 }}>
                   <div style={{
                     fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: s.timer ? 18 : 24, fontWeight: 800,
+                    fontSize: 24, fontWeight: 800,
                     color: hotTimer ? "#c0392b" : s.accent ? accent : "#111",
                     lineHeight: 1,
                     transition: s.timer ? "opacity 0.12s, transform 0.28s cubic-bezier(0.34,1.56,0.64,1)" : "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
                     opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
                     transform: s.bump ? "scale(1.14)" : "scale(1)",
                     fontVariantNumeric: "tabular-nums",
-                    letterSpacing: s.timer ? "-0.02em" : "normal",
                   }}>{s.value}</div>
                   <div style={{
                     fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#999",
