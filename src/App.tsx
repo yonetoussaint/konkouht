@@ -842,16 +842,29 @@ function SkeletonCard() {
   );
 }
 
-const picsumImg = (seed, w = 300, h = 300) =>
-  `https://picsum.photos/seed/${seed}/${w}/${h}`;
-
-const avatarImg = (index) => picsumImg(`person${index}`, 80, 80);
-
-// Prefer a real, user-uploaded profile picture wherever one is known for an
-// entity (comment, registrant, donateur...). Falls back to the existing
-// placeholder photo so nothing breaks for people who haven't set one yet.
-function resolveAvatar(entity) {
-  return entity?.avatarUrl || avatarImg(entity?.index ?? 0);
+// Fills the parent circle (which sets width/height/overflow/border) with
+// either the person's real photo, or — when none is on file — a flat
+// initials circle built from their name. Never a stock/mock photo.
+function EntityAvatar({ url, name, bg = "#ddd", color = "#666" }) {
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={name || ""}
+        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+      />
+    );
+  }
+  return (
+    <div style={{
+      width: "100%", height: "100%",
+      background: bg, color,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
+    }}>
+      {(name || "?").trim().charAt(0).toUpperCase()}
+    </div>
+  );
 }
 
 // Renders the *current* signed-in user's own avatar — a real photo once
@@ -1134,7 +1147,7 @@ function ParticipantListOverlay({ comp, participants, onClose }) {
                   flexShrink: 0, overflow: "hidden",
                   border: "1px solid #e0e0e0",
                 }}>
-                <img src={resolveAvatar(p)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <EntityAvatar url={p.avatarUrl} name={p.name} />
               </div>
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 600 }}>{p.name}</span>
             </div>
@@ -1494,8 +1507,8 @@ function MediaLightbox({ item, onClose }) {
 
 /* ─── LIVE COMMENTARY STREAM SHEET (X Spaces / podcast style) ─────────── */
 
-function RoomAvatar({ index, name, size = 56, speaking = false, ring, badge }) {
-  const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+function RoomAvatar({ name, size = 56, speaking = false, ring, badge }) {
+  const initials = (name || "").trim() ? name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "?";
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <div style={{
@@ -1503,13 +1516,9 @@ function RoomAvatar({ index, name, size = 56, speaking = false, ring, badge }) {
         border: speaking ? `2px solid ${ring || "#2ecc71"}` : "2px solid transparent",
         boxSizing: "border-box",
       }}>
-        {index != null ? (
-          <img src={avatarImg(index)} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-        ) : (
-          <div style={{ width: "100%", height: "100%", background: "#333", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: size * 0.32, fontWeight: 700, color: "#fff" }}>{initials}</span>
-          </div>
-        )}
+        <div style={{ width: "100%", height: "100%", background: "#333", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: size * 0.32, fontWeight: 700, color: "#fff" }}>{initials}</span>
+        </div>
       </div>
       {badge}
       {speaking && (
@@ -1591,7 +1600,7 @@ function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, muted, o
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             {speakers.map((s, i) => (
               <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 64 }}>
-                <RoomAvatar index={s.index} name={s.name} size={56} speaking={s.speaking} ring={accent} />
+                <RoomAvatar name={s.name} size={56} speaking={s.speaking} ring={accent} />
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#fff", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>
                   {s.name.split(" ")[0]}
                 </div>
@@ -1608,7 +1617,7 @@ function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, muted, o
             <div style={{ display: "flex", alignItems: "center" }}>
               {listenerFaces.map((idx, i) => (
                 <div key={i} style={{ marginLeft: i === 0 ? 0 : -8, border: "2px solid #111", borderRadius: "50%" }}>
-                  <RoomAvatar index={idx} name="" size={26} />
+                  <RoomAvatar name="" size={26} />
                 </div>
               ))}
             </div>
@@ -2900,7 +2909,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   width: 34, height: 34, borderRadius: "50%", overflow: "hidden",
                   border: `2px solid ${accent}`, boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
                 }}>
-                  <img src={resolveAvatar(leader)} alt={leader.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  <EntityAvatar url={leader.avatarUrl} name={leader.name} />
                 </div>
                 <span style={{ position: "absolute", bottom: -3, right: -3, fontSize: 13 }}>🥇</span>
                 {leaderHot && (
@@ -2918,7 +2927,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         width: 15, height: 15, borderRadius: "50%", overflow: "hidden",
                         border: "1.5px solid #fff", marginRight: -6, boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                       }}>
-                        <img src={resolveAvatar(thirdPlace)} alt={thirdPlace.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <EntityAvatar url={thirdPlace.avatarUrl} name={thirdPlace.name} />
                       </div>
                     )}
                     {secondPlace && (
@@ -2926,7 +2935,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         width: 17, height: 17, borderRadius: "50%", overflow: "hidden",
                         border: "1.5px solid #fff", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                       }}>
-                        <img src={resolveAvatar(secondPlace)} alt={secondPlace.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <EntityAvatar url={secondPlace.avatarUrl} name={secondPlace.name} />
                       </div>
                     )}
                   </div>
@@ -3221,7 +3230,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
                       boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
                     }}>
-                      <img src={resolveAvatar(p)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <EntityAvatar url={p.avatarUrl} name={p.name} />
                     </div>
 
                     {/* Name + points/coin above, full-width progress bar below */}
@@ -3370,14 +3379,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     <div style={{
                       width: 52, height: 52, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
                       border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                      background: donor.isMe ? "#111" : "transparent",
-                      display: "flex", alignItems: "center", justifyContent: "center", position: "relative",
+                      position: "relative",
                     }}>
-                      {donor.isMe ? (
-                        <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700 }}>{donor.name.charAt(0)}</span>
-                      ) : (
-                        <img src={resolveAvatar(donor)} alt={donor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                      )}
+                      <EntityAvatar url={donor.avatarUrl} name={donor.name} bg={donor.isMe ? "#111" : "#ddd"} color={donor.isMe ? "#fff" : "#666"} />
                       {i === 0 && (
                         <span style={{ position: "absolute", bottom: -2, right: -2, fontSize: 14 }}>👑</span>
                       )}
@@ -3488,7 +3492,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             paddingTop: 4, borderTop: "1px solid #f0f0f0",
                           }}>
                             <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #eee" }}>
-                              <img src={entry.pAvatarUrl || avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              <EntityAvatar url={entry.pAvatarUrl} name={entry.pName || fakeName(entry.pIndex)} />
                             </div>
                             <span style={{
                               fontFamily: "Inter, sans-serif", fontSize: 10, color: "#888",
@@ -3535,7 +3539,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             {c.isMine ? (
                               <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{c.name.charAt(0)}</span>
                             ) : (
-                              <img src={resolveAvatar(c)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              <EntityAvatar url={c.avatarUrl} name={c.name} />
                             )}
                           </div>
                           <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -3766,7 +3770,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
                     boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
                   }}>
-                    <img src={resolveAvatar(p)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <EntityAvatar url={p.avatarUrl} name={p.name} />
                   </div>
 
                   {/* Name + points/coin above, full-width progress bar below */}
@@ -4001,12 +4005,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         )}
                       </div>
                       {/* Avatar */}
-                      <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: isFirst ? `2px solid ${accent}` : "2px solid #eee", background: donor.isMe ? "#111" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        {donor.isMe ? (
-                          <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700 }}>{donor.name.charAt(0)}</span>
-                        ) : (
-                          <img src={resolveAvatar(donor)} alt={donor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                        )}
+                      <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: isFirst ? `2px solid ${accent}` : "2px solid #eee" }}>
+                        <EntityAvatar url={donor.avatarUrl} name={donor.name} bg={donor.isMe ? "#111" : "#ddd"} color={donor.isMe ? "#fff" : "#666"} />
                       </div>
                       {/* Info */}
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -4118,7 +4118,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         flexShrink: 0, overflow: "hidden",
                         border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
                       }}>
-                        <img src={entry.pAvatarUrl || avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <EntityAvatar url={entry.pAvatarUrl} name={entry.pName || fakeName(entry.pIndex)} />
                       </div>
                       <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 500 }}>
                         <span style={{ fontSize: 14 }}>{entry.gift.icon}</span>{" "}
@@ -4157,7 +4157,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                           {c.name.charAt(0).toUpperCase()}
                         </span>
                       ) : (
-                        <img src={resolveAvatar(c)} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <EntityAvatar url={c.avatarUrl} name={c.name} />
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -4224,7 +4224,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                               {r.isMine ? (
                                 <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{r.name.charAt(0)}</span>
                               ) : (
-                                <img src={resolveAvatar(r)} alt={r.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                                <EntityAvatar url={r.avatarUrl} name={r.name} />
                               )}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -4361,11 +4361,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       transition: "border-color 0.15s, background 0.15s",
                     }}
                   >
-                    <img
-                      src={resolveAvatar(p)}
-                      alt={p.name}
-                      style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: `2px solid ${accent}22` }}
-                    />
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", overflow: "hidden", border: `2px solid ${accent}22` }}>
+                      <EntityAvatar url={p.avatarUrl} name={p.name} />
+                    </div>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#333", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 64 }}>
                       {p.name.split(" ")[0]}
                     </span>
@@ -4629,12 +4627,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             >
               <ArrowLeft size={17} strokeWidth={2.5} />
             </button>
-            <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "2px solid #eee", background: selectedDonor.isMe ? "#111" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {selectedDonor.isMe ? (
-                <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700 }}>{selectedDonor.name.charAt(0)}</span>
-              ) : (
-                <img src={resolveAvatar(selectedDonor)} alt={selectedDonor.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              )}
+            <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "2px solid #eee" }}>
+              <EntityAvatar url={selectedDonor.avatarUrl} name={selectedDonor.name} bg={selectedDonor.isMe ? "#111" : "#ddd"} color={selectedDonor.isMe ? "#fff" : "#666"} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
