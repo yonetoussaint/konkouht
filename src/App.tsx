@@ -1915,8 +1915,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   //   table "gifts": id uuid pk default gen_random_uuid(),
   //     competition_id text, sender_id text, sender_name text,
   //     sender_avatar_url text, recipient_name text, recipient_index int,
-  //     gift_icon text, gift_name text, gift_cost int, price_htg int,
-  //     created_at timestamptz default now()
+  //     recipient_user_id text, gift_icon text, gift_name text, gift_cost int,
+  //     price_htg int, created_at timestamptz default now()
+  //   recipient_user_id (added) is the real Supabase user id of the gift's
+  //   recipient — recipient_index is just a display-hash and isn't safe to
+  //   use for anything that pays out real money (collisions possible).
   const [giftRows, setGiftRows] = useState([]); // raw rows for this competition
   const [giftRowsLoading, setGiftRowsLoading] = useState(true);
 
@@ -4498,6 +4501,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                           sender_avatar_url: currentUser.avatarUrl || null,
                           recipient_name: selectedParticipant?.name || null,
                           recipient_index: selectedParticipant?.index ?? null,
+                          recipient_user_id: selectedParticipant?.userId || null,
                           gift_icon: gift.icon,
                           gift_name: gift.name,
                           gift_cost: gift.cost,
@@ -4526,6 +4530,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             sender_avatar_url: currentUser.avatarUrl || null,
                             recipient_name: selectedParticipant?.name || null,
                             recipient_index: selectedParticipant?.index ?? null,
+                            recipient_user_id: selectedParticipant?.userId || null,
                             gift_icon: gift.icon,
                             gift_name: gift.name,
                             gift_cost: gift.cost,
