@@ -1897,15 +1897,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     if (h > 0) return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
     return `${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
   };
-  // Stats-row timer: "2 Days" → when days hit 0, "X Hours" → when hours hit 0, "X Min"
-  const fmtCountdownStats = (s) => {
-    const d = Math.floor(s / 86400);
-    const h = Math.floor((s % 86400) / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    if (d > 0) return `${d} Day${d > 1 ? "s" : ""}`;
-    if (h > 0) return `${h} Hour${h > 1 ? "s" : ""}`;
-    return `${m} Min`;
-  };
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [mediaLightbox, setMediaLightbox] = useState(null); // approved participant_media row
   const [showGiftBar, setShowGiftBar] = useState(false);
@@ -2954,7 +2945,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             ] : [
               { value: liveRegistered, label: "Candidats" },
               { value: fmtVotes(totalGiftCount), label: "Cadeaux", accent: true, bump: pointsBump },
-              { value: fmtCountdownStats(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true },
+              { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true },
             ]).map((s, i) => {
               const hotTimer = s.timer && s.hot;
               return (
