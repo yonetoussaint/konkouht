@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
-import { supabase, fetchRegistrations, insertRegistration, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
+import { supabase, fetchRegistrations, insertRegistration, deleteRegistration, refundRegistrationFee, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame, ArrowUp, ArrowDown, Pencil } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
@@ -1197,7 +1197,7 @@ function AlbumGridOverlay({ items, onClose, onOpenItem }) {
 
 /* ─── REGISTRANT LIST OVERLAY ───────────────────────────────────────────── */
 
-function RegistrantListOverlay({ comp, registrants, accent, onClose }) {
+function RegistrantListOverlay({ comp, registrants, accent, onClose, canRemove, onRemove, removingRegistrantId }) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
       <div
@@ -1277,6 +1277,24 @@ function RegistrantListOverlay({ comp, registrants, accent, onClose }) {
             <span style={{ width: 80, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: accent }}>
               {r.fee} gdes
             </span>
+            {canRemove && (
+              <button
+                onClick={() => onRemove?.(r)}
+                disabled={removingRegistrantId === r.id}
+                title="Retirer ce participant"
+                style={{
+                  width: 26, height: 26, flexShrink: 0, marginLeft: 10,
+                  border: "1px solid #f3d0cd", borderRadius: "50%",
+                  background: "#fdf1f0", color: "#e74c3c",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: removingRegistrantId === r.id ? "default" : "pointer",
+                  opacity: removingRegistrantId === r.id ? 0.5 : 1,
+                  padding: 0,
+                }}
+              >
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -2020,7 +2038,46 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [showAllRegistrants, setShowAllRegistrants] = useState(false);
   const [registrants, setRegistrants] = useState([]);
   const [registrantsLoading, setRegistrantsLoading] = useState(true);
+  const [removingRegistrantId, setRemovingRegistrantId] = useState(null);
   const liveRegistered = registrantsLoading ? comp.registeredCount : registrants.length;
+  // Admin-only: pull a participant out of a competition, but only while it's
+  // still in the registration phase (once it's live, votes/gifts may already
+  // reference them). Always refunds the registration fee they paid, if any.
+  const canRemoveParticipants = isOwnCompetition && isRegistration;
+  async function handleRemoveParticipant(r) {
+    if (!canRemoveParticipants || removingRegistrantId) return;
+    const confirmMsg = r.fee > 0
+      ? `Retirer ${r.name} de la compétition ? ${r.fee} gourdes lui seront remboursées.`
+      : `Retirer ${r.name} de la compétition ?`;
+    if (!window.confirm(confirmMsg)) return;
+    setRemovingRegistrantId(r.id);
+    const { error } = await deleteRegistration(r.id);
+    if (error) {
+      console.error("remove participant error:", error);
+      showToast?.("Échec du retrait du participant.");
+      setRemovingRegistrantId(null);
+      return;
+    }
+    if (r.fee > 0) {
+      const { error: refundError } = await refundRegistrationFee({
+        userId: r.userId,
+        amount: r.fee,
+        competitionTitle: comp.title,
+      });
+      if (refundError) {
+        console.error("refund error:", refundError);
+        showToast?.(`${r.name} retiré, mais le remboursement a échoué.`);
+        setRegistrants((prev) => prev.filter((x) => x.id !== r.id));
+        setRemovingRegistrantId(null);
+        return;
+      }
+    }
+    setRegistrants((prev) => prev.filter((x) => x.id !== r.id));
+    showToast?.(
+      r.fee > 0 ? `${r.name} retiré — ${r.fee} gourdes remboursées.` : `${r.name} retiré.`
+    );
+    setRemovingRegistrantId(null);
+  }
 
 
   // Participant-submitted media (their own photos/videos), pending organizer
@@ -3551,6 +3608,24 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   }}>
                     {r.fee} gourdes
                   </span>
+                  {canRemoveParticipants && (
+                    <button
+                      onClick={() => handleRemoveParticipant(r)}
+                      disabled={removingRegistrantId === r.id}
+                      title="Retirer ce participant"
+                      style={{
+                        width: 24, height: 24, flexShrink: 0, marginLeft: 4,
+                        border: "1px solid #f3d0cd", borderRadius: "50%",
+                        background: "#fdf1f0", color: "#e74c3c",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: removingRegistrantId === r.id ? "default" : "pointer",
+                        opacity: removingRegistrantId === r.id ? 0.5 : 1,
+                        padding: 0,
+                      }}
+                    >
+                      <X size={13} strokeWidth={2.5} />
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -4843,7 +4918,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       )}
 
       {showAllRegistrants && (
-        <RegistrantListOverlay comp={comp} registrants={registrants} accent={accent} onClose={() => setShowAllRegistrants(false)} />
+        <RegistrantListOverlay
+          comp={comp}
+          registrants={registrants}
+          accent={accent}
+          onClose={() => setShowAllRegistrants(false)}
+          canRemove={canRemoveParticipants}
+          onRemove={handleRemoveParticipant}
+          removingRegistrantId={removingRegistrantId}
+        />
       )}
 
       {albumSheet && (
