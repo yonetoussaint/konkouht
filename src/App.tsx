@@ -1902,6 +1902,42 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     }, 1000);
     return () => clearInterval(iv);
   }, [comp.endsAt, comp.id]);
+
+  // ── Auto-complete when the countdown hits 0 ──────────────────────────────
+  // Nothing was watching `secondsLeft` before: the number would tick down to
+  // 00:00 and just sit there — comp.phase never changed, so the winner
+  // banner below (which only renders when isCompleted) never showed up.
+  // As soon as a "live" competition's real deadline (comp.endsAt) passes,
+  // whoever has the board open flips phase → "completed" and persists it via
+  // onEditComp, so the leader is declared the winner automatically.
+  // Note: this only fires for clients that currently have the board open —
+  // it's a client-side fallback. For a guarantee that stays correct even if
+  // no one is viewing the page when the clock runs out, this same
+  // phase-flip should also run on a schedule server-side (e.g. a Supabase
+  // Edge Function on pg_cron) that checks endsAt < now() and phase = 'live'.
+  const autoCompletedRef = useRef(false);
+  useEffect(() => {
+    if (comp.phase !== "live") return;
+    if (secondsLeft > 0) return;
+    if (autoCompletedRef.current) return;
+    autoCompletedRef.current = true;
+    onEditComp?.({
+      competitionId: comp.id,
+      title: editTitle,
+      edition: editEdition,
+      ends: editEnds,
+      phase: "completed",
+      endsAt: comp.endsAt || null,
+      contestants: editContestants.trim() === "" ? null : Math.max(0, parseInt(editContestants, 10) || 0),
+      description: editDescription,
+      prizeAmount: editPrizeAmount.trim() === "" ? null : Number(editPrizeAmount),
+      fee: editFee.trim() === "" ? null : Math.max(0, parseInt(editFee, 10) || 0),
+      rewardExtra: editRewardExtra,
+      rules: editRules.split("\n").map((r) => r.trim()).filter(Boolean),
+      bannerUrl: editBannerUrl,
+    });
+  }, [secondsLeft, comp.phase, comp.id]);
+
   const fmtCountdown = (s) => {
     const d = Math.floor(s / 86400);
     const h = Math.floor((s % 86400) / 3600);
