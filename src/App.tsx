@@ -8986,6 +8986,7 @@ export default function App() {
 
       {selectedComp && (
         <CompetitionBoard
+          key={selectedComp.id}
           comp={selectedComp}
           onClose={() => { setSelectedComp(null); setCompEditIntent(false); }}
           balance={balance}
