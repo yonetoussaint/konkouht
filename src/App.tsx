@@ -2246,7 +2246,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       clearTimeout(marginTrendTimeoutRef.current);
       marginTrendTimeoutRef.current = setTimeout(() => setMarginTrend(null), 4000);
     }
-  }, [liveMargin]);
+  }, [leaderMargin]);
 
   // Time in lead — ticks with the existing 1s countdown heartbeat (tickFlash)
   const leaderElapsedSec = Math.max(0, Math.floor((Date.now() - leaderSinceRef.current) / 1000));
