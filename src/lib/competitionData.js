@@ -114,6 +114,43 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //     bucket_id = 'competition-images'
 //     and (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com'
 //   );
+//
+// -- Let the platform organizer delete a registration (admin removal during
+// -- the registration phase). Without this policy the delete below silently
+// -- matches zero rows under RLS instead of erroring. --
+// create policy "only the platform organizer can delete registrations"
+//   on registrations for delete
+//   to authenticated
+//   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
+//
+// -- wallet_balances / wallet_transactions are assumed to already exist
+// -- (they back the MonCash SMS deposit-crediting pipeline). If they don't
+// -- yet, create them and let the platform organizer credit either table: --
+// create table if not exists wallet_balances (
+//   user_id uuid primary key,
+//   balance numeric not null default 0
+// );
+// create table if not exists wallet_transactions (
+//   id uuid primary key default gen_random_uuid(),
+//   user_id uuid not null,
+//   type text not null,
+//   label text,
+//   amount numeric not null,
+//   created_at timestamptz not null default now()
+// );
+// alter table wallet_balances enable row level security;
+// alter table wallet_transactions enable row level security;
+// create policy "users read their own balance" on wallet_balances
+//   for select to authenticated using (auth.uid() = user_id);
+// create policy "users read their own transactions" on wallet_transactions
+//   for select to authenticated using (auth.uid() = user_id);
+// create policy "only the platform organizer can credit a refund" on wallet_transactions
+//   for insert to authenticated
+//   with check ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
+// create policy "only the platform organizer can adjust balances" on wallet_balances
+//   for all to authenticated
+//   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' )
+//   with check ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
 
 const BUCKET = "competition-images";
 const IMAGES_TABLE = "competition_images";
@@ -400,4 +437,62 @@ export async function insertRegistration({ competitionId, userId, fullName, fee 
     .single();
 
   return { data, error };
+}
+
+// Admin-only removal (enforced both client-side by isOwnCompetition/phase
+// checks in App.jsx, and server-side by the "only the platform organizer
+// can delete registrations" RLS policy above). Deletes the row outright —
+// there's no "removed" status, since a removed registration during the
+// registration phase shouldn't linger anywhere in the participant lists.
+export async function deleteRegistration(registrationId) {
+  const { error } = await supabase.from("registrations").delete().eq("id", registrationId);
+  return { error };
+}
+
+// Refunds a registration fee back into a participant's wallet after an
+// admin removal. Writes a wallet_transactions row first — same shape as a
+// MonCash deposit credit, so it shows up in the participant's transaction
+// history labeled as a refund — then updates wallet_balances directly.
+//
+// Note: the balance update here is read-then-write, not atomic. That
+// matches how the rest of this file already touches wallet_balances (no
+// RPC/stored procedure exists yet), so it carries the same small
+// race-condition risk as a concurrent deposit landing at the same instant.
+// If that ever becomes a real concern, replace this with a Postgres
+// function (e.g. `increment_wallet_balance(user_id, amount)`) called via
+// supabase.rpc(), which resolves it atomically server-side.
+export async function refundRegistrationFee({ userId, amount, competitionTitle }) {
+  if (!amount) return { error: null };
+
+  const { error: txError } = await supabase.from("wallet_transactions").insert({
+    user_id: userId,
+    type: "registration_refund",
+    label: `Remboursement — ${competitionTitle}`,
+    amount, // positive credit
+  });
+  if (txError) {
+    console.error("refundRegistrationFee wallet_transactions error:", txError);
+    return { error: txError };
+  }
+
+  const { data: current, error: fetchError } = await supabase
+    .from("wallet_balances")
+    .select("balance")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (fetchError) {
+    console.error("refundRegistrationFee balance fetch error:", fetchError);
+    return { error: fetchError };
+  }
+
+  const newBalance = (current?.balance || 0) + amount;
+  const { error: balanceError } = await supabase
+    .from("wallet_balances")
+    .upsert({ user_id: userId, balance: newBalance }, { onConflict: "user_id" });
+  if (balanceError) {
+    console.error("refundRegistrationFee wallet_balances error:", balanceError);
+    return { error: balanceError };
+  }
+
+  return { error: null };
 }
