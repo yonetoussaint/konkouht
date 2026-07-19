@@ -953,41 +953,23 @@ function fakeName(index) {
 
 /* ─── PARTICIPANT LIST OVERLAY ──────────────────────────────────────────── */
 
-function buildParticipants(comp) {
-  const list = Array.from({ length: comp.contestants }, (_, i) => {
-    const seed = (i * 53 + 17) % 97;
-    const votes = Math.round((comp.votes / comp.contestants) * (0.4 + (seed % 60) / 40));
-    return {
-      index: i,
-      name: fakeName(i),
-      votes,
-      points: Math.round(votes / 10),
-    };
-  });
-  return list.sort((a, b) => b.votes - a.votes);
-}
-
 // Builds the real, database-backed participant/classement list out of the
 // actual rows in `registrations` for this competition — no fake names, no
-// invented head-count. Vote totals aren't tracked in the DB yet, so they're
-// still distributed deterministically over `comp.votes`, but every entry
-// corresponds to a real registrant (id + name straight from Supabase).
-function buildParticipantsFromRegistrants(registrants, comp) {
+// invented head-count, no invented vote/point totals. Every entry starts at
+// 0 here; the caller merges in each participant's real total (sum of actual
+// gift_cost from the `gifts` table, keyed by this same index) to produce
+// the "votes"/"points" that get displayed.
+function buildParticipantsFromRegistrants(registrants) {
   if (!registrants || registrants.length === 0) return [];
-  const list = registrants.map((r, i) => {
-    const seed = (i * 53 + 17) % 97;
-    const votes = Math.round((comp.votes / registrants.length) * (0.4 + (seed % 60) / 40));
-    return {
-      index: Math.abs(hashStr(r.userId || r.id)) % 40,
-      id: r.id,
-      userId: r.userId,
-      name: r.name || r.full_name || "Participant",
-      avatarUrl: r.avatarUrl,
-      votes,
-      points: Math.round(votes / 10),
-    };
-  });
-  return list.sort((a, b) => b.votes - a.votes);
+  return registrants.map((r) => ({
+    index: Math.abs(hashStr(r.userId || r.id)) % 40,
+    id: r.id,
+    userId: r.userId,
+    name: r.name || r.full_name || "Participant",
+    avatarUrl: r.avatarUrl,
+    votes: 0,
+    points: 0,
+  }));
 }
 
 const COMMENT_SNIPPETS = [
@@ -2192,45 +2174,45 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     return () => { supabase.removeChannel(channel); };
   }, [comp.id]);
 
-  // Database-backed participant list — real registrants only. Never falls
-  // back to invented names; if there are no real registrations yet (or the
-  // fetch is still in flight), the classement, albums strip, and gift picker
+  // Real per-participant total, straight from the same `gifts` rows that
+  // back the donateurs section — sum of actual gift_cost, keyed by the
+  // recipient_index every real gift was recorded against. No mock data.
+  const giftTotalsByIndex = useMemo(() => {
+    const totals = {};
+    for (const row of giftRows) {
+      if (row.recipient_index == null) continue;
+      totals[row.recipient_index] = (totals[row.recipient_index] || 0) + (row.gift_cost || 0);
+    }
+    return totals;
+  }, [giftRows]);
+
+  // Database-backed participant list — real registrants only, ranked by
+  // real donations received. Never falls back to invented names or invented
+  // vote/point totals; if there are no real registrations yet (or the fetch
+  // is still in flight), the classement, albums strip, and gift picker
   // simply show nothing, same as donateurs.
-  const dbParticipants = useMemo(
-    () => buildParticipantsFromRegistrants(registrants, comp),
-    [registrants, comp]
-  );
+  const dbParticipants = useMemo(() => {
+    const base = buildParticipantsFromRegistrants(registrants);
+    return base
+      .map((p) => {
+        const real = giftTotalsByIndex[p.index] || 0;
+        return { ...p, votes: real, points: real };
+      })
+      .sort((a, b) => b.votes - a.votes);
+  }, [registrants, giftTotalsByIndex]);
   const participantsFull = registrantsLoading ? [] : dbParticipants;
 
-  // Seed ranked once; liveVotes tracks per-participant live vote deltas, liveGiftCredits tracks per-participant gift credits
-  const seedRanked = participantsFull.slice(0, 5);
-  const [liveVotes, setLiveVotes] = useState(() => {
-    const m = {};
-    seedRanked.forEach((p) => { m[p.index] = p.votes; });
-    return m;
-  });
-  const [liveGiftCredits, setLiveGiftCredits] = useState(() => {
-    const m = {};
-    seedRanked.forEach((p) => { m[p.index] = 0; });
-    return m;
-  });
-  function addGiftToParticipant(participantIndex, creditValue) {
-    setLiveGiftCredits((prev) => ({
-      ...prev,
-      [participantIndex]: (prev[participantIndex] ?? 0) + creditValue,
-    }));
-  }
-  const ranked = seedRanked.map((p) => ({ ...p, votes: liveVotes[p.index] ?? p.votes }));
+  // Top 5 by real donations received. dbParticipants already recomputes
+  // whenever registrants or real gift rows change (including the realtime
+  // `gifts` subscription above and the optimistic row added right after a
+  // send), so this is always live — no shadow vote state needed.
+  const ranked = participantsFull.slice(0, 5);
   const topPoints = Math.max(...ranked.map((p) => p.points), 1);
   const leader = ranked[0];
   const secondPlace = ranked[1];
   const thirdPlace = ranked[2];
   const leaderMargin = leader && secondPlace ? leader.points - secondPlace.points : null;
-  // Live-recomputed margin (points scale, tracks liveVotes ticks) used for the trend arrow / delta chip
-  const leaderLivePoints = leader ? Math.round(leader.votes / 10) : 0;
-  const secondLivePoints = secondPlace ? Math.round(secondPlace.votes / 10) : 0;
-  const liveMargin = leader && secondPlace ? leaderLivePoints - secondLivePoints : null;
-  const marginSafe = liveMargin != null && leaderLivePoints > 0 ? liveMargin / leaderLivePoints >= 0.15 : true;
+  const marginSafe = leaderMargin != null && leader.points > 0 ? leaderMargin / leader.points >= 0.15 : true;
 
   // Momentum flash: leader just gained votes → brief "+X" burst + "hot" dot for a few seconds
   useEffect(() => {
@@ -2251,16 +2233,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     }
   }, [leader?.votes]);
 
-  // Margin trend: compare live margin tick-to-tick, flash an arrow for a few seconds
+  // Margin trend: compare margin tick-to-tick, flash an arrow for a few seconds
   useEffect(() => {
-    if (liveMargin == null) return;
+    if (leaderMargin == null) return;
     if (prevMarginRef.current == null) {
-      prevMarginRef.current = liveMargin;
+      prevMarginRef.current = leaderMargin;
       return;
     }
-    if (liveMargin !== prevMarginRef.current) {
-      setMarginTrend(liveMargin > prevMarginRef.current ? "up" : "down");
-      prevMarginRef.current = liveMargin;
+    if (leaderMargin !== prevMarginRef.current) {
+      setMarginTrend(leaderMargin > prevMarginRef.current ? "up" : "down");
+      prevMarginRef.current = leaderMargin;
       clearTimeout(marginTrendTimeoutRef.current);
       marginTrendTimeoutRef.current = setTimeout(() => setMarginTrend(null), 4000);
     }
@@ -2275,7 +2257,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     const h = Math.floor(m / 60);
     return `${h}h${String(m % 60).padStart(2, "0")}`;
   };
-  const leaderGiftCredits = leader ? (liveGiftCredits[leader.index] ?? 0) : 0;
+  const leaderGiftCredits = leader ? leader.points : 0;
   const bonusValue = isRegistration ? 0 : Math.round(leaderGiftCredits * WINNER_GIFT_SHARE);
   const winnerPrize = basePrizePool + bonusValue;
   const heroPrizeValue = isRegistration ? basePrizePool : winnerPrize;
@@ -2415,23 +2397,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const headerBg = `rgba(255,255,255,${t})`;
   const borderColor = t > 0.5 ? `rgba(0,0,0,0.1)` : `rgba(255,255,255,0.3)`;
 
-  // Live vote tick — random participant gets +1–4 votes (and matching gift credit) every 1.8s (voting phase only)
-  const AVG_GIFT_VALUE = Math.round(GIFT_CATALOG.reduce((s, g) => s + g.cost, 0) / GIFT_CATALOG.length);
-  useEffect(() => {
-    if (isRegistration) return;
-    const iv = setInterval(() => {
-      setLiveVotes((prev) => {
-        const keys = Object.keys(prev);
-        const key = keys[Math.floor(Math.random() * keys.length)];
-        const delta = 1 + Math.floor(Math.random() * 4);
-        const giftAmount = delta * AVG_GIFT_VALUE;
-        addGiftToParticipant(Number(key), giftAmount);
-        setVoteCount((c) => c + delta);
-        return { ...prev, [key]: prev[key] + delta };
-      });
-    }, 1800);
-    return () => clearInterval(iv);
-  }, [isRegistration]);
 
   // (Removed: fake simulated registration-count timer. liveRegistered is now
   // sourced for real from the database — see the fetch + realtime effects above.)
@@ -4436,13 +4401,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
                         onSendGift(gift, { ...comp, recipientName: selectedParticipant?.name, priceHTG: giftPriceHTG(gift) });
                         setVoteCount((v) => v + 1);
-                        if (selectedParticipant) {
-                          addGiftToParticipant(selectedParticipant.index, gift.cost);
-                          setLiveVotes((prev) => ({
-                            ...prev,
-                            [selectedParticipant.index]: (prev[selectedParticipant.index] ?? selectedParticipant.votes) + 1,
-                          }));
-                        }
                         setVoted(true);
                         // Inject gift into live log
                         setLiveLog((prev) => {
