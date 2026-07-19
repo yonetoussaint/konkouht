@@ -1867,34 +1867,102 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [giftPinError, setGiftPinError] = useState(false);
   const [giftSubmitting, setGiftSubmitting] = useState(false);
   const [liveLog, setLiveLog] = useState([]);
-  const [giftLeaderboard, setGiftLeaderboard] = useState(() =>
-    // Seed a few fake top donors, each with a fake list of individual gifts
-    Array.from({ length: 5 }, (_, i) => {
-      const giftCount = 8 - i;
-      const gifts = Array.from({ length: giftCount }, (_, j) => {
-        const g = GIFT_CATALOG[(i * 3 + j * 7) % GIFT_CATALOG.length];
-        return {
-          id: `donor-${i}-gift-${j}`,
-          icon: g.icon,
-          name: g.name,
-          cost: g.cost,
-          timestamp: Date.now() - j * 3 * 3600 * 1000,
-          ago: j === 0 ? "À l'instant" : `il y a ${(j + 1) * 3}h`,
-        };
+
+  // Real donateurs, backed by Supabase — every gift ever sent in this
+  // competition, by real, authenticated users. Create this table in
+  // Supabase if it doesn't exist yet:
+  //   table "gifts": id uuid pk default gen_random_uuid(),
+  //     competition_id text, sender_id text, sender_name text,
+  //     recipient_name text, recipient_index int,
+  //     gift_icon text, gift_name text, gift_cost int, price_htg int,
+  //     created_at timestamptz default now()
+  const [giftRows, setGiftRows] = useState([]); // raw rows for this competition
+  const [giftRowsLoading, setGiftRowsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setGiftRowsLoading(true);
+    supabase
+      .from("gifts")
+      .select("*")
+      .eq("competition_id", comp.id)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) { console.error("fetch gifts error:", error); setGiftRowsLoading(false); return; }
+        setGiftRows(data || []);
+        setGiftRowsLoading(false);
       });
-      return {
-        id: `donor-${i}`,
-        index: 30 + i,
-        name: fakeName(30 + i),
-        totalSpent: gifts.reduce((sum, g) => sum + g.cost, 0),
-        giftCount,
-        topGift: ["💎", "🔥", "🌟", "🎁", "❤️"][i],
-        isMe: false,
-        gifts,
+    return () => { cancelled = true; };
+  }, [comp.id]);
+
+  // Real-time sync: reflect gifts sent by ANY user, live, while this board
+  // is open — the donateurs list is never fake and never stale.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`gifts-${comp.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "gifts", filter: `competition_id=eq.${comp.id}` },
+        (payload) => {
+          setGiftRows((prev) => (prev.some((r) => r.id === payload.new.id) ? prev : [payload.new, ...prev]));
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [comp.id]);
+
+  // Aggregate raw gift rows into a per-user leaderboard. Grouped by the
+  // real sender_id, so "donateurs" always reflects actual people who
+  // actually sent gifts — never invented names.
+  const giftLeaderboard = useMemo(() => {
+    const bySender = new Map();
+    for (const row of giftRows) {
+      const key = row.sender_id;
+      if (!key) continue; // skip malformed rows defensively
+      const giftEntry = {
+        id: row.id,
+        icon: row.gift_icon,
+        name: row.gift_name,
+        cost: row.gift_cost,
+        recipientName: row.recipient_name,
+        timestamp: new Date(row.created_at).getTime(),
       };
-    })
-  );
+      const existing = bySender.get(key);
+      if (existing) {
+        existing.totalSpent += row.gift_cost;
+        existing.giftCount += 1;
+        existing.gifts.push(giftEntry);
+        if (row.gift_cost > existing._topCost) {
+          existing._topCost = row.gift_cost;
+          existing.topGift = row.gift_icon;
+        }
+      } else {
+        bySender.set(key, {
+          id: key,
+          senderId: key,
+          index: Math.abs(hashStr(key)) % 40,
+          name: row.sender_name || "Utilisateur",
+          totalSpent: row.gift_cost,
+          giftCount: 1,
+          topGift: row.gift_icon,
+          _topCost: row.gift_cost,
+          isMe: currentUser && key === currentUser.id,
+          gifts: [giftEntry],
+        });
+      }
+    }
+    return Array.from(bySender.values())
+      .map((d) => (d.isMe && currentUser?.fullName ? { ...d, name: currentUser.fullName } : d))
+      .sort((a, b) => b.totalSpent - a.totalSpent);
+  }, [giftRows, currentUser?.id, currentUser?.fullName]);
+
   const [selectedDonor, setSelectedDonor] = useState(null);
+  useEffect(() => {
+    if (!selectedDonor) return;
+    const fresh = giftLeaderboard.find((d) => d.id === selectedDonor.id);
+    if (fresh && fresh !== selectedDonor) setSelectedDonor(fresh);
+  }, [giftLeaderboard, selectedDonor]);
   const [donorTab, setDonorTab] = useState("all");
   const accent = isRegistration ? "#6C63FF" : comp.accent;
   const rulesInfo = buildRulesInfo(comp);
@@ -2224,9 +2292,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
         name: c.isMine ? currentUser.fullName : c.name,
         replies: (c.replies || []).map((r) => (r.isMine ? { ...r, name: currentUser.fullName } : r)),
       }))
-    );
-    setGiftLeaderboard((prev) =>
-      prev.map((d) => (d.isMe && d.name !== currentUser.fullName ? { ...d, name: currentUser.fullName } : d))
     );
   }, [currentUser?.fullName, currentUser?.id]);
 
@@ -4389,14 +4454,47 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     )}
                     <button
                       disabled={giftPin.length !== 4 || giftSubmitting}
-                      onClick={() => {
+                      onClick={async () => {
                         if (giftPin.length !== 4) return;
                         if (giftPin !== WALLET_PIN) {
                           setGiftPinError(true);
                           return;
                         }
+                        // Every user must be a real, authenticated account to
+                        // send a gift — donateurs are never anonymous.
+                        if (!currentUser?.id) {
+                          setShowGiftBar(false);
+                          onRequestAuth?.();
+                          return;
+                        }
                         const gift = selectedGift;
                         setGiftSubmitting(true);
+
+                        const giftId = (typeof crypto !== "undefined" && crypto.randomUUID)
+                          ? crypto.randomUUID()
+                          : `g-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                        const nowIso = new Date().toISOString();
+
+                        const { error: giftError } = await supabase.from("gifts").insert({
+                          id: giftId,
+                          competition_id: comp.id,
+                          sender_id: currentUser.id,
+                          sender_name: currentUser.fullName,
+                          recipient_name: selectedParticipant?.name || null,
+                          recipient_index: selectedParticipant?.index ?? null,
+                          gift_icon: gift.icon,
+                          gift_name: gift.name,
+                          gift_cost: gift.cost,
+                          price_htg: giftPriceHTG(gift),
+                          created_at: nowIso,
+                        });
+                        if (giftError) {
+                          console.error("gift insert error:", giftError);
+                          showToast?.("Échec de l'envoi du cadeau. Réessayez.");
+                          setGiftSubmitting(false);
+                          return;
+                        }
+
                         onSendGift(gift, { ...comp, recipientName: selectedParticipant?.name, priceHTG: giftPriceHTG(gift) });
                         setVoteCount((v) => v + 1);
                         if (selectedParticipant) {
@@ -4409,39 +4507,32 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         setVoted(true);
                         // Inject gift into live log
                         setLiveLog((prev) => {
-                          const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, ago: "À l'instant", gift, senderName: currentUser?.name || "Vous" };
+                          const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, ago: "À l'instant", gift, senderName: currentUser.fullName };
                           return [entry, ...prev.slice(0, 4)].map((e, i) => ({
                             ...e,
                             ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
                           }));
                         });
-                        // Update gift leaderboard — bump current user or add them
-                        if (currentUser) {
-                          const giftEntry = {
-                            id: `me-gift-${Date.now()}`,
-                            icon: gift.icon,
-                            name: gift.name,
-                            cost: gift.cost,
-                            recipientName: selectedParticipant?.name,
-                            timestamp: Date.now(),
-                            ago: "À l'instant",
-                          };
-                          setGiftLeaderboard((prev) => {
-                            const exists = prev.find((d) => d.isMe);
-                            let updated;
-                            if (exists) {
-                              updated = prev.map((d) => d.isMe ? { ...d, totalSpent: d.totalSpent + gift.cost, giftCount: d.giftCount + 1, topGift: gift.icon, gifts: [giftEntry, ...(d.gifts || [])] } : d);
-                            } else {
-                              updated = [...prev, { id: "me", index: 0, name: currentUser.fullName, totalSpent: gift.cost, giftCount: 1, topGift: gift.icon, isMe: true, gifts: [giftEntry] }];
-                            }
-                            return updated.sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 10);
-                          });
-                          // Keep the detail screen in sync if it's currently open on "me"
-                          setSelectedDonor((sd) => {
-                            if (!sd?.isMe) return sd;
-                            return { ...sd, totalSpent: sd.totalSpent + gift.cost, giftCount: sd.giftCount + 1, topGift: gift.icon, gifts: [giftEntry, ...(sd.gifts || [])] };
-                          });
-                        }
+                        // Optimistically add the real row to local state — the
+                        // realtime subscription will also deliver it (and skip
+                        // it as a dupe by id), keeping donateurs consistent
+                        // across every device watching this competition.
+                        setGiftRows((prev) => (prev.some((r) => r.id === giftId) ? prev : [
+                          {
+                            id: giftId,
+                            competition_id: comp.id,
+                            sender_id: currentUser.id,
+                            sender_name: currentUser.fullName,
+                            recipient_name: selectedParticipant?.name || null,
+                            recipient_index: selectedParticipant?.index ?? null,
+                            gift_icon: gift.icon,
+                            gift_name: gift.name,
+                            gift_cost: gift.cost,
+                            price_htg: giftPriceHTG(gift),
+                            created_at: nowIso,
+                          },
+                          ...prev,
+                        ]));
                         setGiftSubmitting(false);
                         setShowGiftBar(false);
                         setActiveGift(null);
@@ -4575,7 +4666,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13.5, fontWeight: 600, color: "#1a1a1a" }}>{g.name}</div>
                           <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10.5, color: "#aaa", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            {g.recipientName ? `À ${g.recipientName} · ` : ""}{g.ago}
+                            {g.recipientName ? `À ${g.recipientName} · ` : ""}{fmtAgoFr(Math.max(0, Math.floor((Date.now() - (g.timestamp || Date.now())) / 60000)))}
                           </div>
                         </div>
                         <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#111", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
@@ -4737,6 +4828,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         {showGiftOption && (
                           <button
                             onClick={() => {
+                              if (!currentUser) {
+                                onRequestAuth?.();
+                                return;
+                              }
                               setShowGiftBar((v) => {
                                 if (v) {
                                   setGiftStep("participant");
@@ -8190,6 +8285,10 @@ export default function App() {
 
 
   function handleSendGift(gift, comp) {
+    if (!currentUser?.id) {
+      setShowAuthOverlay(true);
+      return;
+    }
     const price = comp?.priceHTG ?? gift.cost;
     if (balance < price) {
       showToast("Crédits insuffisants");
