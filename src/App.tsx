@@ -1764,7 +1764,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setSavingEdit(false);
     if (result?.success) setShowEditModal(false);
   }
-  const [voteCount, setVoteCount] = useState(comp.votes);
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [showAllAlbums, setShowAllAlbums] = useState(false);
@@ -1840,20 +1839,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   }, [activeBanner]);
   const [bannerFullscreen, setBannerFullscreen] = useState(false);
   const [tickFlash, setTickFlash] = useState(false);
-  const [pointsBump, setPointsBump] = useState(false);
   // Bonus punch-up: only the gift bonus bumps/flashes, the base prize stays static
   const [bonusBump, setBonusBump] = useState(false);
   const [cagnotteFlash, setCagnotteFlash] = useState(null); // { id, amount } | null
   const cagnotteFlashTimeoutRef = useRef(null);
-  const prevVoteCountRef = useRef(voteCount);
-  useEffect(() => {
-    if (voteCount !== prevVoteCountRef.current) {
-      prevVoteCountRef.current = voteCount;
-      setPointsBump(true);
-      const t = setTimeout(() => setPointsBump(false), 380);
-      return () => clearTimeout(t);
-    }
-  }, [voteCount]);
 
   // ── Leader row live signals: momentum flash, margin trend, time-in-lead ──
   const leaderSinceRef = useRef(Date.now());
@@ -1968,6 +1957,23 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [comp.id]);
+
+  // Real total gift *count* for this competition, live-updated by the
+  // subscription above. Replaces the old comp.votes mock stat, which was a
+  // static seed number (e.g. 6240) that never reflected real donations and
+  // only ever moved by a flat +1 per gift sent — it could show a number
+  // wildly unrelated to what donateurs actually gave.
+  const totalGiftCount = giftRows.length;
+  const [pointsBump, setPointsBump] = useState(false);
+  const prevTotalGiftCountRef = useRef(totalGiftCount);
+  useEffect(() => {
+    if (totalGiftCount !== prevTotalGiftCountRef.current) {
+      prevTotalGiftCountRef.current = totalGiftCount;
+      setPointsBump(true);
+      const t = setTimeout(() => setPointsBump(false), 380);
+      return () => clearTimeout(t);
+    }
+  }, [totalGiftCount]);
 
   // Aggregate raw gift rows into a per-user leaderboard. Grouped by the
   // real sender_id, so "donateurs" always reflects actual people who
@@ -2258,6 +2264,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       .sort((a, b) => b.votes - a.votes);
   }, [registrants, giftTotalsByIndex]);
   const participantsFull = registrantsLoading ? [] : dbParticipants;
+  // Never let someone show up as their own selectable gift recipient — this
+  // is what let a self-gift slip through before (the "contestants can't
+  // gift in their own competition" check alone wasn't enough, since it
+  // relies on the isRegistered flag which can be stale/unpopulated).
+  const giftableParticipants = currentUser
+    ? participantsFull.filter((p) => p.userId !== currentUser.id)
+    : participantsFull;
 
   // Top 5 by real donations received. dbParticipants already recomputes
   // whenever registrants or real gift rows change (including the realtime
@@ -2923,7 +2936,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               { value: `${registrationFee} G`, label: "Frais insc." },
             ] : [
               { value: liveRegistered, label: "Candidats" },
-              { value: fmtVotes(voteCount), label: "Points", accent: true, bump: pointsBump },
+              { value: fmtVotes(totalGiftCount), label: "Cadeaux", accent: true, bump: pointsBump },
               { value: fmtCountdownStats(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true },
             ]).map((s, i) => {
               const hotTimer = s.timer && s.hot;
@@ -4260,11 +4273,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             {/* Step 1 — pick participant */}
             {giftStep === "participant" && (
               <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
-                {participantsFull.length === 0 ? (
+                {giftableParticipants.length === 0 ? (
                   <div style={{ padding: "12px 4px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
                     Aucun participant à qui envoyer un cadeau pour le moment.
                   </div>
-                ) : participantsFull.slice(0, Math.min(comp.contestants, 15)).map((p) => (
+                ) : giftableParticipants.slice(0, Math.min(comp.contestants, 15)).map((p) => (
                   <button
                     key={p.id ?? p.index}
                     onClick={() => { setSelectedParticipant(p); setGiftStep("gift"); }}
@@ -4445,6 +4458,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                           showToast?.("Les participants ne peuvent pas envoyer de cadeaux dans leur propre compétition.");
                           return;
                         }
+                        // Belt-and-suspenders: isRegistered can be stale (it's
+                        // client-side Set state), so also block outright if the
+                        // chosen recipient turns out to be the sender themself.
+                        if (selectedParticipant?.userId && selectedParticipant.userId === currentUser.id) {
+                          setShowGiftBar(false);
+                          showToast?.("Vous ne pouvez pas vous envoyer un cadeau à vous-même.");
+                          return;
+                        }
                         const gift = selectedGift;
                         setGiftSubmitting(true);
 
@@ -4475,7 +4496,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         }
 
                         onSendGift(gift, { ...comp, recipientName: selectedParticipant?.name, priceHTG: giftPriceHTG(gift) });
-                        setVoteCount((v) => v + 1);
                         setVoted(true);
                         // Inject gift into live log
                         setLiveLog((prev) => {
