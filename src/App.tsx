@@ -1920,6 +1920,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     if (comp.phase !== "live") return;
     if (secondsLeft > 0) return;
     if (autoCompletedRef.current) return;
+    // Only the organizer's own client is allowed to write competition_edits
+    // (same rule the edit panel itself is gated on, and almost certainly the
+    // same rule enforced server-side by RLS). Any other viewer's browser
+    // attempting this write is what caused "Impossible d'enregistrer les
+    // modifications." — silently skip it here instead.
+    if (!isOwnCompetition) return;
     autoCompletedRef.current = true;
     onEditComp?.({
       competitionId: comp.id,
