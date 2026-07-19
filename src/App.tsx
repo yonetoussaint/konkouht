@@ -1034,6 +1034,19 @@ function toDatetimeLocal(isoString) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// Quick presets for the "natural" duration picker in the competition edit
+// modal. `label` is the compact text stored in comp.ends (matches the
+// "Xj Yh" style already parsed elsewhere as a fallback); `display` is what
+// the admin sees on the button.
+const DURATION_PRESETS = [
+  { label: "1h", display: "1 heure", ms: 60 * 60 * 1000 },
+  { label: "6h", display: "6 heures", ms: 6 * 60 * 60 * 1000 },
+  { label: "12h", display: "12 heures", ms: 12 * 60 * 60 * 1000 },
+  { label: "1j", display: "1 jour", ms: 24 * 60 * 60 * 1000 },
+  { label: "3j", display: "3 jours", ms: 3 * 24 * 60 * 60 * 1000 },
+  { label: "7j", display: "1 semaine", ms: 7 * 24 * 60 * 60 * 1000 },
+];
+
 function fmtCommentTime(minutesAgo) {
   if (minutesAgo < 60) return `${minutesAgo}min`;
   const hours = Math.floor(minutesAgo / 60);
@@ -1683,6 +1696,7 @@ function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, muted, o
 
 function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onAddImage, onRemoveImage, startInEditMode = false }) {
   const isRegistration = comp.phase === "registration";
+  const isCompleted = comp.phase === "completed";
   const registrationFee = getRegistrationFee(comp);
   const isOwnCompetition = currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
   const [showEditModal, setShowEditModal] = useState(startInEditMode);
@@ -2819,6 +2833,36 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
         {activeTab === "home" && (
         <>
+        {isCompleted && (
+          <div style={{
+            background: "linear-gradient(135deg, #2c2c2c, #111)",
+            padding: "18px 16px", textAlign: "center", color: "#fff",
+          }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.1)",
+              display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px",
+            }}>
+              <Trophy size={22} color="#F0C420" strokeWidth={2.2} />
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#F0C420", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
+              Compétition terminée
+            </div>
+            {leader ? (
+              <>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 800, marginBottom: 2 }}>
+                  {leader.name} remporte {winnerPrize.toLocaleString("fr-FR")} HTG
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                  Félicitations au gagnant 🎉
+                </div>
+              </>
+            ) : (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
+                Aucun participant n'a reçu de cadeaux — pas de gagnant à annoncer.
+              </div>
+            )}
+          </div>
+        )}
         {/* ── À PROPOS / RÈGLEMENT ── */}
         <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 10px" }}>
           <div style={{
@@ -2849,7 +2893,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#C99A2E", textTransform: "uppercase", letterSpacing: "0.09em" }}>
                   {isRegistration ? "Prix à gagner" : "Cagnotte à gagner"}
                 </span>
-                {!isRegistration && (
+                {!isRegistration && !isCompleted && (
                   <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -4460,6 +4504,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       disabled={giftPin.length !== 4 || giftSubmitting}
                       onClick={async () => {
                         if (giftPin.length !== 4) return;
+                        if (isCompleted) {
+                          setShowGiftBar(false);
+                          showToast?.("Cette compétition est terminée — les cadeaux ne sont plus acceptés.");
+                          return;
+                        }
                         if (giftPin !== WALLET_PIN) {
                           setGiftPinError(true);
                           return;
@@ -5045,28 +5094,53 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               })}
             </div>
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Fin des inscriptions</label>
-            <input
-              type="text"
-              value={editEnds}
-              onChange={(e) => setEditEnds(e.target.value)}
-              placeholder="ex: 3j 18h"
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
-            />
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14 }}>
-              Texte affiché sur les cartes (ex: "2j 14h"). Réglez la vraie date ci-dessous pour un compte à rebours réel.
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Durée de la compétition</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+              {DURATION_PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => {
+                    const end = new Date(Date.now() + p.ms);
+                    setEditEndsAt(toDatetimeLocal(end.toISOString()));
+                    setEditEnds(p.label);
+                  }}
+                  style={{
+                    border: editEnds === p.label ? "1px solid #111" : "1px solid #e0e0e0",
+                    background: editEnds === p.label ? "#111" : "#fff",
+                    color: editEnds === p.label ? "#fff" : "#555",
+                    borderRadius: 999,
+                    padding: "7px 13px",
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {p.display}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
+              Choisissez une durée à partir de maintenant — le vrai compte à rebours et la date de fin ci-dessous se réglent automatiquement.
             </div>
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Date et heure de fin réelles</label>
-            <input
-              type="datetime-local"
-              value={editEndsAt}
-              onChange={(e) => setEditEndsAt(e.target.value)}
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
-            />
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14 }}>
-              Pilote le vrai compte à rebours affiché sur la page. Laissez vide pour garder le texte ci-dessus.
-            </div>
+            <details style={{ marginBottom: 14 }}>
+              <summary style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#888", cursor: "pointer", marginBottom: 8 }}>
+                Ou choisir une date et heure précises
+              </summary>
+              <div style={{ marginTop: 10 }}>
+                <input
+                  type="datetime-local"
+                  value={editEndsAt}
+                  onChange={(e) => { setEditEndsAt(e.target.value); setEditEnds(""); }}
+                  style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
+                />
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
+                  Pilote le vrai compte à rebours. Laissez vide pour désactiver le compte à rebours réel.
+                </div>
+              </div>
+            </details>
 
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Places disponibles</label>
             <input
@@ -7133,10 +7207,10 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
                       )}
                       <span style={{
                         fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-                        color: comp.phase === "live" ? "#00B894" : "#888",
+                        color: comp.phase === "live" ? "#00B894" : comp.phase === "completed" ? "#999" : "#888",
                         textTransform: "uppercase", letterSpacing: "0.03em",
                       }}>
-                        {comp.phase === "live" ? "● En direct" : "Inscriptions"}
+                        {comp.phase === "live" ? "● En direct" : comp.phase === "completed" ? "Terminé" : "Inscriptions"}
                       </span>
                       <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb" }}>
                         {comp.edition}
