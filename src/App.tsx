@@ -3366,8 +3366,17 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   if (item.type === "gift") {
                     const entry = item.entry;
                     const liked = likedCommentIds.has(entry.id);
-                    const likeCount = (entry.id % 12) + (liked ? 1 : 0);
-                    const replyCount = entry.id % 3;
+                    // entry.id is a UUID string (from Supabase), not the old
+                    // Date.now() number — hash it to a stable int before % so
+                    // this doesn't produce NaN like it did right after the
+                    // liveLog -> giftRows switch.
+                    let idHash = 0;
+                    for (let ci = 0; ci < String(entry.id).length; ci++) {
+                      idHash = (idHash * 31 + String(entry.id).charCodeAt(ci)) | 0;
+                    }
+                    idHash = Math.abs(idHash);
+                    const likeCount = (idHash % 12) + (liked ? 1 : 0);
+                    const replyCount = idHash % 3;
                     return (
                       <div key={item.key} style={{
                         flexShrink: 0, width: 170,
