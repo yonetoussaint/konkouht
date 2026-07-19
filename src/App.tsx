@@ -8280,6 +8280,9 @@ export default function App() {
   }, [compImages, compEdits]);
 
   async function handleEditComp({ competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl }) {
+    // TEMP DEBUG — remove once we've confirmed the session is attached.
+    const { data: debugSession } = await supabase.auth.getSession();
+    console.log("[DEBUG] session email:", debugSession.session?.user?.email, "has token:", !!debugSession.session?.access_token);
     const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl };
     const { data, error } = await saveCompetitionEdit({
       competitionId,
@@ -8288,7 +8291,13 @@ export default function App() {
     });
     if (error) {
       console.error("saveCompetitionEdit error:", error);
-      showToast("Impossible d'enregistrer les modifications.");
+      // TEMPORARY DIAGNOSTIC — remove once the RLS 403 is resolved.
+      // Surfaces the session state on-screen (via the existing toast) since
+      // devtools/console isn't available in this testing environment.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessEmail = sessionData?.session?.user?.email || "none";
+      const hasToken = !!sessionData?.session?.access_token;
+      showToast(`Échec: ${error.message} | session=${sessEmail} | token=${hasToken}`);
       return { success: false };
     }
     setCompEdits((prev) => ({ ...prev, [competitionId]: edits }));
