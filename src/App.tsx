@@ -4521,6 +4521,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                           onRequestAuth?.();
                           return;
                         }
+                        // Contestants can't gift inside their own competition.
+                        if (isRegistered) {
+                          setShowGiftBar(false);
+                          showToast?.("Les participants ne peuvent pas envoyer de cadeaux dans leur propre compétition.");
+                          return;
+                        }
                         const gift = selectedGift;
                         setGiftSubmitting(true);
 
@@ -4827,7 +4833,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               const isTyping = commentDraft.trim().length > 0;
               // Admins/organizers manage their own competition, they don't send themselves gifts —
               // so the gift button is swapped out for an edit entry point instead.
-              const showGiftOption = !isOwnCompetition;
+              const showGiftOption = !isOwnCompetition && !isRegistered;
               return (
                 <>
                   <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
