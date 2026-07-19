@@ -1134,7 +1134,7 @@ function ParticipantListOverlay({ comp, participants, onClose }) {
                   flexShrink: 0, overflow: "hidden",
                   border: "1px solid #e0e0e0",
                 }}>
-                <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <img src={resolveAvatar(p)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </div>
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 600 }}>{p.name}</span>
             </div>
@@ -2900,7 +2900,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   width: 34, height: 34, borderRadius: "50%", overflow: "hidden",
                   border: `2px solid ${accent}`, boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
                 }}>
-                  <img src={avatarImg(leader.index)} alt={leader.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  <img src={resolveAvatar(leader)} alt={leader.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 </div>
                 <span style={{ position: "absolute", bottom: -3, right: -3, fontSize: 13 }}>🥇</span>
                 {leaderHot && (
@@ -2918,7 +2918,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         width: 15, height: 15, borderRadius: "50%", overflow: "hidden",
                         border: "1.5px solid #fff", marginRight: -6, boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                       }}>
-                        <img src={avatarImg(thirdPlace.index)} alt={thirdPlace.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <img src={resolveAvatar(thirdPlace)} alt={thirdPlace.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                       </div>
                     )}
                     {secondPlace && (
@@ -2926,7 +2926,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         width: 17, height: 17, borderRadius: "50%", overflow: "hidden",
                         border: "1.5px solid #fff", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                       }}>
-                        <img src={avatarImg(secondPlace.index)} alt={secondPlace.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <img src={resolveAvatar(secondPlace)} alt={secondPlace.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                       </div>
                     )}
                   </div>
@@ -3221,7 +3221,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
                       boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
                     }}>
-                      <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <img src={resolveAvatar(p)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     </div>
 
                     {/* Name + points/coin above, full-width progress bar below */}
@@ -3488,13 +3488,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                             paddingTop: 4, borderTop: "1px solid #f0f0f0",
                           }}>
                             <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #eee" }}>
-                              <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              <img src={entry.pAvatarUrl || avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                             </div>
                             <span style={{
                               fontFamily: "Inter, sans-serif", fontSize: 10, color: "#888",
                               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                             }}>
-                              pour <span style={{ fontWeight: 700, color: "#666" }}>{fakeName(entry.pIndex)}</span>
+                              pour <span style={{ fontWeight: 700, color: "#666" }}>{entry.pName || fakeName(entry.pIndex)}</span>
                             </span>
                           </div>
                         </div>
@@ -3766,7 +3766,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
                     boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
                   }}>
-                    <img src={avatarImg(p.index)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <img src={resolveAvatar(p)} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   </div>
 
                   {/* Name + points/coin above, full-width progress bar below */}
@@ -4118,13 +4118,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         flexShrink: 0, overflow: "hidden",
                         border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
                       }}>
-                        <img src={avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <img src={entry.pAvatarUrl || avatarImg(entry.pIndex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                       </div>
                       <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 500 }}>
                         <span style={{ fontSize: 14 }}>{entry.gift.icon}</span>{" "}
                         <span style={{ fontWeight: 700, color: accent }}>{entry.gift.name}</span>
                         {" "}envoyé à{" "}
-                        <span style={{ color: accent, fontWeight: 700 }}>{fakeName(entry.pIndex)}</span>
+                        <span style={{ color: accent, fontWeight: 700 }}>{entry.pName || fakeName(entry.pIndex)}</span>
                       </span>
                     </div>
                     <span style={{
@@ -4564,7 +4564,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         setVoted(true);
                         // Inject gift into live log
                         setLiveLog((prev) => {
-                          const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, ago: "À l'instant", gift, senderName: currentUser.fullName };
+                          const entry = { id: Date.now(), pIndex: selectedParticipant?.index ?? 0, pName: selectedParticipant?.name, pAvatarUrl: selectedParticipant?.avatarUrl, ago: "À l'instant", gift, senderName: currentUser.fullName };
                           return [entry, ...prev.slice(0, 4)].map((e, i) => ({
                             ...e,
                             ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
