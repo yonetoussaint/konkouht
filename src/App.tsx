@@ -8558,11 +8558,35 @@ export default function App() {
       .map((e) => editionToCard(comp, e));
   }
 
+  // A row that's never actually been through the create/edit flow — every
+  // overridable field is still null, so editionToCard falls all the way
+  // back and renders nothing but the hardcoded NICHES seed data (its
+  // title, contestant count, votes, etc. straight out of this file). That
+  // only happens for placeholder rows that were never really "created" as
+  // an edition, and it's also why they can't be deleted (they're not
+  // meant to be — they exist purely so the seed has something to show).
+  // A genuine in-progress draft is exempt: it's real, it's just empty so
+  // far, and hiding it here would make it un-findable after the admin
+  // navigates away from the edit form before filling it in.
+  function isUncustomizedMockEdition(e) {
+    if (e.phase === "draft") return false;
+    const fields = [
+      e.title, e.edition, e.ends, e.contestants, e.bannerUrl,
+      e.description, e.prizeAmount, e.fee, e.rewardExtra,
+    ];
+    const rulesEmpty = !e.rules || e.rules.length === 0;
+    return fields.every((f) => f == null) && rulesEmpty;
+  }
+
   // Every edition of this seed competition, drafts included — powers the
   // admin page, which needs to see (and finish) drafts too, not just what's
-  // already live on the homepage.
+  // already live on the homepage. Mock rows that only ever carried the
+  // hardcoded seed data (never actually created/edited through the app)
+  // are left out — they aren't real editions and admins can't delete them
+  // anyway.
   function allEditionsForComp(comp) {
     return (editionsByComp[comp.id] || [])
+      .filter((e) => !isUncustomizedMockEdition(e))
       .slice()
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       .map((e) => editionToCard(comp, e));
