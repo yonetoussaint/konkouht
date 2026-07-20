@@ -5087,41 +5087,37 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             />
 
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>État</label>
+            {/* Phase is never admin-editable — it's derived entirely from the
+                registration countdown + fill rate, the same way "completed" is
+                derived from the live countdown. An organizer picking "En direct"
+                by hand could put a competition live with an empty roster, or
+                stall a full one in "Inscriptions" past its deadline, so the
+                toggle that used to sit here has been replaced with a read-only
+                status. See `open_expired_registrations` (pg_cron, paired with
+                `close_expired_competitions`) for the actual transition logic:
+                once the registration deadline passes, it flips to "live" if
+                every place is taken, otherwise it pushes endsAt out by 24h and
+                leaves the competition open for registration. */}
             {isCompleted ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #eee", background: "#f7f7f7", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#999" }}>
                 🏆 Terminée — archivée dans l'historique, l'état ne peut plus être modifié
               </div>
             ) : (
-              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                {[
-                  { value: "registration", label: "Inscriptions" },
-                  { value: "live", label: "En direct" },
-                ].map((opt) => {
-                  const isActive = editPhase === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setEditPhase(opt.value)}
-                      style={{
-                        flex: 1,
-                        border: isActive ? "1px solid #111" : "1px solid #e0e0e0",
-                        background: isActive ? "#111" : "#fff",
-                        color: isActive ? "#fff" : "#555",
-                        borderRadius: 10,
-                        padding: "10px 12px",
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {opt.value === "live" && <span style={{ marginRight: 5 }}>●</span>}
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
+              <>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8, border: "1px solid #eee",
+                  background: "#f7f7f7", borderRadius: 10, padding: "10px 12px", marginBottom: 6,
+                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                  color: isRegistration ? "#888" : "#00B894",
+                }}>
+                  {isRegistration ? "🕒 Inscriptions" : "● En direct"}
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14, lineHeight: 1.4 }}>
+                  {isRegistration
+                    ? "Passe automatiquement en direct dès que le compte à rebours se termine, si toutes les places sont prises. Sinon, les inscriptions sont prolongées de 24h."
+                    : "Basée sur le minuteur — non modifiable manuellement."}
+                </div>
+              </>
             )}
 
             {!isCompleted && (
