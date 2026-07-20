@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
-import { supabase, fetchRegistrations, insertRegistration, deleteRegistration, refundRegistrationFee, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEdits, saveCompetitionEdit, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
+import { supabase, fetchRegistrations, insertRegistration, deleteRegistration, refundRegistrationFee, fetchUserRegistrations, fetchAllRegistrationCounts, fetchComments, insertComment, fetchCompetitionEditions, createDraftEdition, saveEditionEdit, deleteDraftEdition, fetchAllCompetitionImages, addCompetitionImage, deleteCompetitionImage } from "./lib/competitionData";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame, ArrowUp, ArrowDown, Pencil } from "lucide-react";
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
@@ -232,13 +232,12 @@ function fmtVotes(n) {
   return n.toString();
 }
 
-function findCompWithNiche(compId) {
-  for (const niche of NICHES) {
-    const comp = niche.competitions.find((c) => c.id === compId);
-    if (comp) return { comp, niche };
-  }
-  return null;
-}
+// NOTE: the old module-level findCompWithNiche(compId) — which looked up a
+// competition directly in the static NICHES seed data — was removed here.
+// Every id stored anywhere in the app (notifications, registeredCompIds,
+// followedCompIds) is now a specific edition's id, not a seed id, so the
+// lookup has to search each seed competition's editions and needs access
+// to `editionsByComp` state; see findEditionWithNiche inside App().
 
 function hashStr(str) {
   let h = 0;
@@ -1737,7 +1736,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     e.target.value = "";
     if (!file) return;
     setUploadingImage(true);
-    await onAddImage?.(comp.id, file);
+    // The gallery is still shared across every edition of this series, so
+    // it's keyed by the seed competitionId, not this edition's own id.
+    await onAddImage?.(comp.competitionId, file);
     setUploadingImage(false);
   }
 
@@ -1751,7 +1752,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
   async function handleRemoveImage(imageId) {
     setRemovingImageId(imageId);
-    await onRemoveImage?.(comp.id, imageId);
+    await onRemoveImage?.(comp.competitionId, imageId);
     setRemovingImageId(null);
   }
 
@@ -1761,7 +1762,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     const trimmedContestants = editContestants.trim();
     const trimmedFee = editFee.trim();
     const result = await onEditComp?.({
-      competitionId: comp.id,
+      editionId: comp.id,
+      competitionId: comp.competitionId,
       title: editTitle.trim() || comp.title,
       edition: editEdition.trim() || comp.edition,
       ends: editEnds.trim() || comp.ends,
@@ -1917,7 +1919,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   // server closes a competition out, every client (including this board,
   // if open) hears about it via the `competition_edits` realtime
   // subscription in App() and re-renders with the authoritative result —
-  // see the `compEdits` subscription near the top-level App component.
+  // see the `editionsByComp` subscription near the top-level App component.
 
   const fmtCountdown = (s) => {
     const d = Math.floor(s / 86400);
@@ -1960,7 +1962,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     supabase
       .from("gifts")
       .select("*")
-      .eq("competition_id", comp.id)
+      .eq("edition_id", comp.id)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -1978,7 +1980,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       .channel(`gifts-${comp.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "gifts", filter: `competition_id=eq.${comp.id}` },
+        { event: "INSERT", schema: "public", table: "gifts", filter: `edition_id=eq.${comp.id}` },
         (payload) => {
           setGiftRows((prev) => (prev.some((r) => r.id === payload.new.id) ? prev : [payload.new, ...prev]));
         }
@@ -2132,7 +2134,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     supabase
       .from("participant_media")
       .select("*")
-      .eq("competition_id", comp.id)
+      .eq("edition_id", comp.id)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -2147,14 +2149,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       .channel(`participant-media-${comp.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "participant_media", filter: `competition_id=eq.${comp.id}` },
+        { event: "INSERT", schema: "public", table: "participant_media", filter: `edition_id=eq.${comp.id}` },
         (payload) => {
           setParticipantUploads((prev) => (prev.some((r) => r.id === payload.new.id) ? prev : [payload.new, ...prev]));
         }
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "participant_media", filter: `competition_id=eq.${comp.id}` },
+        { event: "UPDATE", schema: "public", table: "participant_media", filter: `edition_id=eq.${comp.id}` },
         (payload) => {
           setParticipantUploads((prev) => prev.map((r) => (r.id === payload.new.id ? payload.new : r)));
         }
@@ -2184,7 +2186,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     const { data: inserted, error: insertError } = await supabase
       .from("participant_media")
       .insert({
-        competition_id: comp.id,
+        competition_id: comp.competitionId,
+        edition_id: comp.id,
         uploader_id: currentUser.id,
         uploader_name: currentUser.fullName,
         media_url: pub.publicUrl,
@@ -2242,7 +2245,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       .channel(`registrations-${comp.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "registrations", filter: `competition_id=eq.${comp.id}` },
+        { event: "INSERT", schema: "public", table: "registrations", filter: `edition_id=eq.${comp.id}` },
         (payload) => {
           const r = payload.new;
           setRegistrants((prev) => {
@@ -2462,7 +2465,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       .channel(`comments-${comp.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "comments", filter: `competition_id=eq.${comp.id}` },
+        { event: "INSERT", schema: "public", table: "comments", filter: `edition_id=eq.${comp.id}` },
         (payload) => {
           const row = payload.new;
           if (row.parent_id) {
@@ -2509,7 +2512,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     }
     setPosting(true);
     const { data, error } = await insertComment({
-      competitionId: comp.id,
+      editionId: comp.id,
+      competitionId: comp.competitionId,
       userId: currentUser.id,
       fullName: currentUser.fullName,
       avatarUrl: currentUser.avatarUrl,
@@ -2531,7 +2535,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     const text = replyDraft.trim();
     if (!text || !currentUser) return;
     const { data, error } = await insertComment({
-      competitionId: comp.id,
+      editionId: comp.id,
+      competitionId: comp.competitionId,
       userId: currentUser.id,
       fullName: currentUser.fullName,
       avatarUrl: currentUser.avatarUrl,
@@ -4561,7 +4566,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
                         const { error: giftError } = await supabase.from("gifts").insert({
                           id: giftId,
-                          competition_id: comp.id,
+                          competition_id: comp.competitionId,
+                          edition_id: comp.id,
                           sender_id: currentUser.id,
                           sender_name: currentUser.fullName,
                           sender_avatar_url: currentUser.avatarUrl || null,
@@ -4590,7 +4596,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         setGiftRows((prev) => (prev.some((r) => r.id === giftId) ? prev : [
                           {
                             id: giftId,
-                            competition_id: comp.id,
+                            competition_id: comp.competitionId,
+                            edition_id: comp.id,
                             sender_id: currentUser.id,
                             sender_name: currentUser.fullName,
                             sender_avatar_url: currentUser.avatarUrl || null,
@@ -6621,16 +6628,8 @@ function TransactionRow({ tx, isLast, showToast }) {
   );
 }
 
-function MyCompetitionsPage({ registeredCompIds, followedCompIds, onOpen }) {
+function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
   const [activeSection, setActiveSection] = useState("inscrit");
-
-  const registeredEntries = Array.from(registeredCompIds)
-    .map((id) => findCompWithNiche(id))
-    .filter(Boolean);
-
-  const followedEntries = Array.from(followedCompIds)
-    .map((id) => findCompWithNiche(id))
-    .filter(Boolean);
 
   const entries = activeSection === "inscrit" ? registeredEntries : followedEntries;
 
@@ -7038,7 +7037,7 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
    where this is mounted in App()). Lists every competition across every
    niche in one place so nothing needs to be found by browsing the homepage
    first — tapping a row jumps straight into that competition's edit panel. */
-function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
+function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCreateEdition, onBack }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Total");
 
@@ -7062,14 +7061,28 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
     statusFilter === "Total" ? searchedEntries
     : statusFilter === "En direct" ? searchedEntries.filter((e) => e.comp.phase === "live")
     : statusFilter === "Inscriptions" ? searchedEntries.filter((e) => e.comp.phase === "registration")
+    : statusFilter === "Brouillons" ? searchedEntries.filter((e) => e.comp.phase === "draft")
     : statusFilter === "Désactivées" ? searchedEntries.filter((e) => !e.comp.active)
     : searchedEntries;
 
   const totalComps = allEntries.length;
   const liveCount = allEntries.filter((e) => e.comp.phase === "live").length;
   const registrationCount = allEntries.filter((e) => e.comp.phase === "registration").length;
+  const draftCount = allEntries.filter((e) => e.comp.phase === "draft").length;
   const offCount = allEntries.filter((e) => !e.comp.active).length;
   const totalRegistered = allEntries.reduce((sum, e) => sum + (e.comp.registeredCount || 0), 0);
+
+  const [newEditionSeedKey, setNewEditionSeedKey] = useState("");
+  const [creatingEdition, setCreatingEdition] = useState(false);
+
+  async function handleCreateEditionClick() {
+    if (!newEditionSeedKey) return;
+    const found = seedCompetitions.find((s) => s.key === newEditionSeedKey);
+    if (!found) return;
+    setCreatingEdition(true);
+    await onCreateEdition(found.comp, found.niche);
+    setCreatingEdition(false);
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
@@ -7134,6 +7147,7 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
             { label: "Total", value: totalComps },
             { label: "En direct", value: liveCount },
             { label: "Inscriptions", value: registrationCount },
+            { label: "Brouillons", value: draftCount },
             { label: "Inscrits", value: totalRegistered },
             { label: "Désactivées", value: offCount },
           ].map((stat) => {
@@ -7178,7 +7192,39 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
           })}
         </div>
 
-        {/* List */}
+        {/* Start a new edition/season for any competition series — the
+            only way to create the very first edition of a series that has
+            none yet (those don't show up in the list below at all). */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          <select
+            value={newEditionSeedKey}
+            onChange={(e) => setNewEditionSeedKey(e.target.value)}
+            style={{
+              flex: 1, minWidth: 0,
+              border: "1px solid #e0e0e0", borderRadius: 10,
+              padding: "10px 10px", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333",
+              background: "#fff",
+            }}
+          >
+            <option value="">Nouvelle édition pour…</option>
+            {seedCompetitions.map((s) => (
+              <option key={s.key} value={s.key}>{s.niche.label} — {s.comp.title}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleCreateEditionClick}
+            disabled={!newEditionSeedKey || creatingEdition}
+            style={{
+              border: "none", borderRadius: 10, padding: "10px 16px",
+              background: !newEditionSeedKey || creatingEdition ? "#ccc" : "#111", color: "#fff",
+              fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700,
+              cursor: !newEditionSeedKey || creatingEdition ? "default" : "pointer",
+              display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
+            }}
+          >
+            <Plus size={14} /> Créer
+          </button>
+        </div>
         {filteredEntries.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 8px" }}>
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
@@ -7235,10 +7281,10 @@ function AdminPage({ niches, onOpenComp, onToggleActive, onBack }) {
                       )}
                       <span style={{
                         fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-                        color: comp.phase === "live" ? "#00B894" : comp.phase === "completed" ? "#999" : "#888",
+                        color: comp.phase === "live" ? "#00B894" : comp.phase === "completed" ? "#999" : comp.phase === "draft" ? "#c07a00" : "#888",
                         textTransform: "uppercase", letterSpacing: "0.03em",
                       }}>
-                        {comp.phase === "live" ? "● En direct" : comp.phase === "completed" ? "Terminé" : "Inscriptions"}
+                        {comp.phase === "live" ? "● En direct" : comp.phase === "completed" ? "Terminé" : comp.phase === "draft" ? "Brouillon" : "Inscriptions"}
                       </span>
                       <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb" }}>
                         {comp.edition}
@@ -8173,18 +8219,19 @@ export default function App() {
   const [pendingRegistrationComp, setPendingRegistrationComp] = useState(null);
   const [notifications, setNotifications] = useState(INITIAL_NOTIFS);
   const unreadCount = notifications.filter((n) => !n.read).length;
-  const [compEdits, setCompEdits] = useState({});
+  const [editionsByComp, setEditionsByComp] = useState({}); // { [competitionId]: [edition, ...] }
   const [compImages, setCompImages] = useState({});
-  const [compRegCounts, setCompRegCounts] = useState({});
+  const [compRegCounts, setCompRegCounts] = useState({}); // keyed by edition_id now
   const [compEditIntent, setCompEditIntent] = useState(false);
+  const [draftEditionTarget, setDraftEditionTarget] = useState(null); // { competitionId, niche } while creating a new edition
 
   useEffect(() => {
-    fetchCompetitionEdits().then(setCompEdits);
+    fetchCompetitionEditions().then(setEditionsByComp);
     fetchAllCompetitionImages().then(setCompImages);
     fetchAllRegistrationCounts().then(setCompRegCounts);
   }, []);
 
-  // ── Live sync for competition_edits ───────────────────────────────────
+  // ── Live sync for competition_editions ───────────────────────────────────
   // Closing a competition (flipping phase → "completed", picking the
   // winner, paying out the prize) now happens entirely server-side: a
   // Postgres procedure, `close_expired_competitions`, runs on pg_cron and
@@ -8193,23 +8240,28 @@ export default function App() {
   // result everywhere the moment it's committed, instead of the old
   // approach where the one browser that happened to have the board open
   // did the work itself and everyone else waited for a reload.
-  // Keeps both the homepage cards (via `compEdits`, consumed by
-  // `withEdits`/`allNichesWithEdits` below) and any currently-open
+  // Keeps both the homepage cards (via `editionsByComp`, consumed by
+  // `editionsForComp`/`allNichesWithEdits` below) and any currently-open
   // `CompetitionBoard` (via `selectedComp`) in sync from a single channel.
+  // Unlike the old single-row-per-competition subscription, this one has to
+  // handle INSERT too — a brand-new draft (or a freshly published edition)
+  // showing up mid-session, not just an update to a row already in state.
   const notifiedCompletionsRef = useRef(new Set());
   useEffect(() => {
     const channel = supabase
-      .channel("competition-edits-global")
+      .channel("competition-editions-global")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "competition_edits" },
+        { event: "*", schema: "public", table: "competition_editions" },
         (payload) => {
           const row = payload.new;
           if (!row?.competition_id) return;
           // Maps snake_case DB columns to the camelCase shape used
-          // throughout the client (same shape `saveCompetitionEdit` writes
-          // and `fetchCompetitionEdits` returns).
+          // throughout the client (same shape `saveEditionEdit` writes
+          // and `fetchCompetitionEditions` returns).
           const edits = {
+            id: row.id,
+            competitionId: row.competition_id,
             title: row.title,
             edition: row.edition,
             ends: row.ends,
@@ -8228,22 +8280,27 @@ export default function App() {
             winnerPrize: row.winner_prize,
             closedAt: row.closed_at,
           };
-          setCompEdits((prev) => ({
-            ...prev,
-            [row.competition_id]: { ...(prev[row.competition_id] || {}), ...edits },
-          }));
+          setEditionsByComp((prev) => {
+            const existing = prev[row.competition_id] || [];
+            const idx = existing.findIndex((e) => e.id === row.id);
+            const nextList =
+              idx === -1
+                ? [...existing, edits] // brand-new row (a fresh draft, or an edition created directly)
+                : existing.map((e, i) => (i === idx ? { ...e, ...edits } : e));
+            return { ...prev, [row.competition_id]: nextList };
+          });
           setSelectedComp((prev) =>
-            prev && prev.id === row.competition_id ? { ...prev, ...edits } : prev
+            prev && prev.id === row.id ? { ...prev, ...edits } : prev
           );
-          // Announce a fresh payout once per competition per session — a ref
-          // (not compEdits state) so this isn't tied to a stale closure and
-          // doesn't fire again on later, unrelated edits to the same row.
+          // Announce a fresh payout once per edition per session — a ref
+          // (not editionsByComp state) so this isn't tied to a stale closure
+          // and doesn't fire again on later, unrelated edits to the same row.
           if (
             edits.phase === "completed" &&
             edits.winnerUserId &&
-            !notifiedCompletionsRef.current.has(row.competition_id)
+            !notifiedCompletionsRef.current.has(row.id)
           ) {
-            notifiedCompletionsRef.current.add(row.competition_id);
+            notifiedCompletionsRef.current.add(row.id);
             const label = edits.title || "Une compétition";
             const prizeTxt = Number(edits.winnerPrize || 0).toLocaleString("fr-FR");
             showToast(`${label} est terminée — ${edits.winnerName || "le gagnant"} remporte ${prizeTxt} HTG`);
@@ -8260,15 +8317,51 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  function withEdits(comp) {
-    const e = compEdits[comp.id] || {};
+  // Resolves a stored id (a notification's compId, a registeredCompIds /
+  // followedCompIds entry) back to its full card + niche. Ids stored
+  // anywhere in the app are edition ids now, not the static seed id, so
+  // this has to search each seed competition's editions rather than the
+  // static NICHES data directly (the old module-level findCompWithNiche
+  // could get away with that when there was only ever one edition per
+  // competition).
+  function findEditionWithNiche(editionId) {
+    for (const niche of NICHES) {
+      for (const seedComp of niche.competitions) {
+        const ed = (editionsByComp[seedComp.id] || []).find((e) => e.id === editionId);
+        if (ed) return { comp: editionToCard(seedComp, ed), niche };
+      }
+    }
+    return null;
+  }
+
+  const registeredEntries = useMemo(
+    () => Array.from(registeredCompIds).map((id) => findEditionWithNiche(id)).filter(Boolean),
+    [registeredCompIds, editionsByComp, compImages, compRegCounts]
+  );
+  const followedEntries = useMemo(
+    () => Array.from(followedCompIds).map((id) => findEditionWithNiche(id)).filter(Boolean),
+    [followedCompIds, editionsByComp, compImages, compRegCounts]
+  );
+
+  // Merges one competition_editions row into its static seed data (the
+  // NICHES entry, e.g. "m1") to produce a renderable card. Unlike the old
+  // `withEdits`, this takes the edition explicitly rather than looking one
+  // up by competition_id, because a seed competition can now have several.
+  function editionToCard(comp, e) {
     return {
       ...comp,
-      ...e,
-      // A cleared field — or a field never set at all, e.g. because the
-      // only edit ever saved for this competition was the active toggle —
-      // saves/loads as null. Fall back to the seed value in every case
-      // rather than let a blank silently wipe out real data.
+      // `id` becomes this edition's own id — every downstream table
+      // (gifts, registrations, comments, participant_media) and every
+      // realtime subscription in CompetitionBoard is scoped by comp.id,
+      // so this one line is what makes all of that edition-scoped.
+      id: e.id,
+      // The seed id is kept separately — it's still what the shared image
+      // gallery, the niche grouping, and "which series is this a season
+      // of" are keyed by.
+      competitionId: comp.id,
+      // A cleared field — or a field never set at all — saves/loads as
+      // null. Fall back to the seed value in every case rather than let
+      // a blank silently wipe out real data.
       title: e.title != null ? e.title : comp.title,
       edition: e.edition != null ? e.edition : comp.edition,
       ends: e.ends != null ? e.ends : comp.ends,
@@ -8282,35 +8375,72 @@ export default function App() {
       rewardExtra: e.rewardExtra != null ? e.rewardExtra : comp.rewardExtra,
       rules: (e.rules && e.rules.length > 0) ? e.rules : comp.rules,
       // Real count from the registrations table always wins over any
-      // seeded placeholder — 0 until someone actually registers.
-      registeredCount: compRegCounts[comp.id] ?? 0,
+      // seeded placeholder — 0 until someone actually registers for THIS
+      // edition (a new season starts back at 0, it doesn't inherit the
+      // previous season's registrants).
+      registeredCount: compRegCounts[e.id] ?? 0,
+      // The gallery is shared across every edition of a series.
       images: compImages[comp.id] || [],
-      // Competitions are active unless an admin explicitly switched them off.
       active: e.active !== false,
+      winnerUserId: e.winnerUserId,
+      winnerName: e.winnerName,
+      winnerPrize: e.winnerPrize,
+      closedAt: e.closedAt,
+      createdAt: e.createdAt,
     };
   }
 
-  // Quick on/off toggle from the admin list — merges into whatever edits
-  // already exist for this competition so title/description/etc. already
-  // saved aren't clobbered.
+  // One card per PUBLISHED (non-draft) edition of this seed competition —
+  // zero cards if none have been published yet. This is the direct
+  // replacement for the old `withEdits`, which always produced exactly one
+  // card per seed competition (there was only ever one edit row to merge).
+  // Newest edition first, so a freshly-published season surfaces above an
+  // older, wrapping-up one.
+  function publishedEditionsForComp(comp) {
+    return (editionsByComp[comp.id] || [])
+      .filter((e) => e.phase !== "draft")
+      .slice()
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .map((e) => editionToCard(comp, e));
+  }
+
+  // Every edition of this seed competition, drafts included — powers the
+  // admin page, which needs to see (and finish) drafts too, not just what's
+  // already live on the homepage.
+  function allEditionsForComp(comp) {
+    return (editionsByComp[comp.id] || [])
+      .slice()
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .map((e) => editionToCard(comp, e));
+  }
+
+  // Quick on/off toggle from the admin list. `comp` here is one edition
+  // card (from allNichesWithEdits), so this only ever touches the one
+  // edition row the admin clicked — its siblings (other seasons of the
+  // same series) are untouched.
   async function handleToggleCompActive(comp) {
     const nextActive = !comp.active;
-    const edits = { ...(compEdits[comp.id] || {}), active: nextActive };
-    const { error } = await saveCompetitionEdit({
-      competitionId: comp.id,
-      ...edits,
+    const { error } = await saveEditionEdit({
+      editionId: comp.id,
+      active: nextActive,
       updatedBy: currentUser?.id,
     });
     if (error) {
-      console.error("saveCompetitionEdit error:", error);
+      console.error("saveEditionEdit error:", error);
       showToast("Impossible de mettre à jour le statut.");
       return;
     }
-    setCompEdits((prev) => ({ ...prev, [comp.id]: edits }));
+    setEditionsByComp((prev) => {
+      const list = prev[comp.competitionId] || [];
+      return {
+        ...prev,
+        [comp.competitionId]: list.map((e) => (e.id === comp.id ? { ...e, active: nextActive } : e)),
+      };
+    });
     showToast(nextActive ? "Compétition activée." : "Compétition désactivée — masquée de l'accueil.");
   }
 
-  // Admin page → jump straight to a competition's edit panel, regardless of
+  // Admin page → jump straight to an edition's edit panel, regardless of
   // the homepage's current filter/search state. `comp` here already has
   // edits/images applied (it comes from allNichesWithEdits).
   function handleAdminOpenComp(comp, niche) {
@@ -8318,41 +8448,59 @@ export default function App() {
     setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label });
   }
 
-  // Home banner slides: prefer each competition's dedicated banner image
-  // (set from the edit screen's "Bannière" section); fall back to its first
-  // gallery image if no banner was uploaded. A hot competition with neither
-  // simply doesn't get a slide — nothing fake ever shows up here.
-  // Home banner slides: any competition with a dedicated banner (set from the
-  // edit screen's "Bannière" section) is shown on the homepage — that's the
-  // whole point of that control. Competitions without a banner fall back to
-  // their first gallery image, but only if they're flagged "hot"; nothing
-  // fake or unintentional ever shows up here.
+  // Starts a fresh draft edition for a seed competition and immediately
+  // opens it in the edit form (the same form used for ordinary edits) so
+  // the admin can fill in the label/deadline/prize before publishing.
+  async function handleCreateDraftEdition(comp, niche) {
+    const { data, error } = await createDraftEdition(comp.id);
+    if (error || !data) {
+      console.error("createDraftEdition error:", error);
+      showToast("Impossible de créer une nouvelle édition.");
+      return;
+    }
+    setEditionsByComp((prev) => ({
+      ...prev,
+      [comp.id]: [...(prev[comp.id] || []), data],
+    }));
+    setCompEditIntent(true);
+    setSelectedComp(editionToCard({ ...comp, accent: niche.accent, niche: niche.label }, data));
+  }
+
+  // Home banner slides: any published edition with a dedicated banner (set
+  // from the edit screen's "Bannière" section) is shown on the homepage —
+  // that's the whole point of that control. Editions without a banner fall
+  // back to their series' first gallery image, but only if they're flagged
+  // "hot"; nothing fake or unintentional ever shows up here. Drafts never
+  // appear — publishedEditionsForComp already excludes them.
   const homeBannerSlides = useMemo(() => {
     return NICHES.flatMap((niche) =>
-      niche.competitions
-        .filter((c) => compEdits[c.id]?.active !== false)
-        .filter((c) => compEdits[c.id]?.bannerUrl || (c.hot && compImages[c.id]?.length > 0))
-        .map((c) => ({
-          ...c,
-          niche,
-          color: niche.accent,
-          image: compEdits[c.id]?.bannerUrl || compImages[c.id][0].url,
-        }))
+      niche.competitions.flatMap((seed) =>
+        publishedEditionsForComp(seed)
+          .filter((c) => c.active !== false)
+          .filter((c) => c.bannerUrl || (c.hot && compImages[c.competitionId]?.length > 0))
+          .map((c) => ({
+            ...c,
+            niche,
+            color: niche.accent,
+            image: c.bannerUrl || compImages[c.competitionId][0].url,
+          }))
+      )
     ).slice(0, 6);
-  }, [compImages, compEdits]);
+  }, [compImages, editionsByComp, compRegCounts]);
 
-  async function handleEditComp({ competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl }) {
+
+  async function handleEditComp({ editionId, competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl }) {
     // TEMP DEBUG — remove once we've confirmed the session is attached.
     const { data: debugSession } = await supabase.auth.getSession();
     console.log("[DEBUG] session email:", debugSession.session?.user?.email, "has token:", !!debugSession.session?.access_token);
     const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl };
-    const { data, error } = await saveCompetitionEdit({
-      competitionId,
+    const { data, error } = await saveEditionEdit({
+      editionId,
       ...edits,
       updatedBy: currentUser?.id,
     });
     if (error) {
-      console.error("saveCompetitionEdit error:", error);
+      console.error("saveEditionEdit error:", error);
       // TEMPORARY DIAGNOSTIC — remove once the RLS 403 is resolved.
       // Surfaces the session state on-screen (via the existing toast) since
       // devtools/console isn't available in this testing environment.
@@ -8362,15 +8510,20 @@ export default function App() {
       showToast(`Échec: ${error.message} | session=${sessEmail} | token=${hasToken}`);
       return { success: false };
     }
-    setCompEdits((prev) => ({ ...prev, [competitionId]: edits }));
-    setSelectedComp((prev) => (prev && prev.id === competitionId ? {
+    setEditionsByComp((prev) => {
+      const list = prev[competitionId] || [];
+      const idx = list.findIndex((e) => e.id === editionId);
+      const nextList = idx === -1 ? [...list, data] : list.map((e, i) => (i === idx ? { ...e, ...data } : e));
+      return { ...prev, [competitionId]: nextList };
+    });
+    setSelectedComp((prev) => (prev && prev.id === editionId ? {
       ...prev,
       ...edits,
       contestants: edits.contestants != null ? edits.contestants : prev.contestants,
       endsAt: edits.endsAt != null ? edits.endsAt : prev.endsAt,
       fee: edits.fee != null ? edits.fee : prev.fee,
     } : prev));
-    showToast("Compétition mise à jour.");
+    showToast(phase === "draft" ? "Brouillon enregistré." : "Compétition mise à jour.");
     return { success: true, data };
   }
 
@@ -8431,7 +8584,9 @@ export default function App() {
     function scheduleNext() {
       const delay = 40000 + Math.random() * 20000;
       return setTimeout(() => {
-        const hotComps = NICHES.flatMap((n) => n.competitions.filter((c) => c.hot && compEdits[c.id]?.active !== false));
+        const hotComps = NICHES.flatMap((n) =>
+          n.competitions.flatMap((seed) => publishedEditionsForComp(seed).filter((c) => c.hot && c.active !== false))
+        );
         const comp = hotComps[Math.floor(Math.random() * hotComps.length)];
         const template = ACTIVITY_NOTIFS[Math.floor(Math.random() * ACTIVITY_NOTIFS.length)];
         pushNotif(template(comp));
@@ -8456,7 +8611,7 @@ export default function App() {
     fetchUserRegistrations(currentUser.id).then((rows) => {
       if (cancelled) return;
       console.log("Registrations returned:", rows); // debug
-      setRegisteredCompIds(new Set(rows.map((r) => r.competition_id)));
+      setRegisteredCompIds(new Set(rows.map((r) => r.edition_id).filter(Boolean)));
     });
     return () => { cancelled = true; };
   }, [currentUser?.id]);
@@ -8468,20 +8623,30 @@ export default function App() {
   )
     .map((niche) => ({
       ...niche,
-      // Homepage only ever shows competitions the admin has left switched on.
-      competitions: niche.competitions.map(withEdits).filter((c) => c.active),
+      // Homepage only ever shows published editions the admin has left
+      // switched on — one card per non-draft edition, zero if none exist.
+      competitions: niche.competitions.flatMap(publishedEditionsForComp).filter((c) => c.active),
     }))
-    // A niche whose every competition is switched off shouldn't appear
-    // as an empty section on the homepage at all.
+    // A niche with nothing published (or everything switched off)
+    // shouldn't appear as an empty section on the homepage at all.
     .filter((niche) => niche.competitions.length > 0);
 
-  // Full, unfiltered list (every niche, every competition) — powers the
-  // admin page so the platform organizer can find and edit anything
-  // regardless of the homepage's current niche filter or search query.
+  // Full, unfiltered list (every niche, every edition — drafts included) —
+  // powers the admin page so the platform organizer can find, edit, and
+  // finish anything regardless of the homepage's current filter/search
+  // state or publish status.
   const allNichesWithEdits = NICHES.map((niche) => ({
     ...niche,
-    competitions: niche.competitions.map(withEdits),
+    competitions: niche.competitions.flatMap(allEditionsForComp),
   }));
+
+  // Every seed competition, flat — powers the admin "new edition" picker.
+  // Unlike allNichesWithEdits, this always includes a seed competition even
+  // if it has zero editions yet, since that's the only way to create its
+  // very first one.
+  const seedCompetitionsList = NICHES.flatMap((niche) =>
+    niche.competitions.map((comp) => ({ key: comp.id, comp, niche }))
+  );
 
   const visibleNiches = query.trim() === ""
     ? nichesByFilter
@@ -8549,7 +8714,8 @@ export default function App() {
     }
 
     const { error } = await insertRegistration({
-      competitionId: comp.id,
+      editionId: comp.id,
+      competitionId: comp.competitionId,
       userId: currentUser.id,
       fullName: currentUser.fullName,
       avatarUrl: currentUser.avatarUrl,
@@ -8557,7 +8723,7 @@ export default function App() {
     });
 
     if (error) {
-      const alreadyRegistered = error.code === "23505"; // unique(competition_id, user_id) violation
+      const alreadyRegistered = error.code === "23505"; // unique(edition_id, user_id) violation
       return {
         success: false,
         error: alreadyRegistered
@@ -8930,15 +9096,15 @@ export default function App() {
           onMarkAllRead={markAllRead}
           onMarkRead={markRead}
           onOpen={(compId) => {
-            const result = findCompWithNiche(compId);
-            if (result) { setCompEditIntent(false); setSelectedComp(withEdits({ ...result.comp, accent: result.niche.accent, niche: result.niche.label })); }
+            const result = findEditionWithNiche(compId);
+            if (result) { setCompEditIntent(false); setSelectedComp({ ...result.comp, accent: result.niche.accent, niche: result.niche.label }); }
           }}
         />
       ) : activeTab === "mycomps" ? (
         <MyCompetitionsPage
-          registeredCompIds={registeredCompIds}
-          followedCompIds={followedCompIds}
-          onOpen={(comp) => { setCompEditIntent(false); setSelectedComp(withEdits(comp)); }}
+          registeredEntries={registeredEntries}
+          followedEntries={followedEntries}
+          onOpen={(comp) => { setCompEditIntent(false); setSelectedComp(comp); }}
         />
       ) : activeTab === "account" ? (
         <AccountPage
@@ -8955,8 +9121,10 @@ export default function App() {
       ) : activeTab === "admin" && currentUser?.isOrganizer ? (
         <AdminPage
           niches={allNichesWithEdits}
+          seedCompetitions={seedCompetitionsList}
           onOpenComp={handleAdminOpenComp}
           onToggleActive={handleToggleCompActive}
+          onCreateEdition={handleCreateDraftEdition}
           onBack={() => setActiveTab("account")}
         />
       ) : (
