@@ -7083,17 +7083,32 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
   const offCount = allEntries.filter((e) => !e.comp.active).length;
   const totalRegistered = allEntries.reduce((sum, e) => sum + (e.comp.registeredCount || 0), 0);
 
-  const [newEditionSeedKey, setNewEditionSeedKey] = useState("");
-  const [creatingEdition, setCreatingEdition] = useState(false);
+  // Templates (seed competitions) are never edited or deleted from here —
+  // they're just the source list an admin picks from when starting a new
+  // edition. Picking one is handled entirely inside the overlay below.
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [templateQuery, setTemplateQuery] = useState("");
+  const [creatingTemplateKey, setCreatingTemplateKey] = useState(null);
 
-  async function handleCreateEditionClick() {
-    if (!newEditionSeedKey) return;
-    const found = seedCompetitions.find((s) => s.key === newEditionSeedKey);
-    if (!found) return;
-    setCreatingEdition(true);
+  async function handlePickTemplate(found) {
+    if (!found || creatingTemplateKey) return;
+    setCreatingTemplateKey(found.key);
     await onCreateEdition(found.comp, found.niche);
-    setCreatingEdition(false);
+    setCreatingTemplateKey(null);
+    setShowTemplatePicker(false);
+    setTemplateQuery("");
   }
+
+  const templatesByNiche = useMemo(() => {
+    const q = templateQuery.trim().toLowerCase();
+    const groups = new Map();
+    for (const s of seedCompetitions) {
+      if (q && !s.comp.title.toLowerCase().includes(q) && !s.niche.label.toLowerCase().includes(q)) continue;
+      if (!groups.has(s.niche.label)) groups.set(s.niche.label, { niche: s.niche, items: [] });
+      groups.get(s.niche.label).items.push(s);
+    }
+    return Array.from(groups.values());
+  }, [seedCompetitions, templateQuery]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
@@ -7203,39 +7218,23 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
           })}
         </div>
 
-        {/* Start a new edition/season for any competition series — the
-            only way to create the very first edition of a series that has
-            none yet (those don't show up in the list below at all). */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          <select
-            value={newEditionSeedKey}
-            onChange={(e) => setNewEditionSeedKey(e.target.value)}
-            style={{
-              flex: 1, minWidth: 0,
-              border: "1px solid #e0e0e0", borderRadius: 10,
-              padding: "10px 10px", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333",
-              background: "#fff",
-            }}
-          >
-            <option value="">Nouvelle édition pour…</option>
-            {seedCompetitions.map((s) => (
-              <option key={s.key} value={s.key}>{s.niche.label} — {s.comp.title}</option>
-            ))}
-          </select>
-          <button
-            onClick={handleCreateEditionClick}
-            disabled={!newEditionSeedKey || creatingEdition}
-            style={{
-              border: "none", borderRadius: 10, padding: "10px 16px",
-              background: !newEditionSeedKey || creatingEdition ? "#ccc" : "#111", color: "#fff",
-              fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700,
-              cursor: !newEditionSeedKey || creatingEdition ? "default" : "pointer",
-              display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
-            }}
-          >
-            <Plus size={14} /> Créer
-          </button>
-        </div>
+        {/* Start a new edition/season for any competition series. Templates
+            (seed competitions) never appear as rows in the list below —
+            this overlay is the only place they're surfaced, purely as
+            picks for spinning up a new edition. */}
+        <button
+          onClick={() => setShowTemplatePicker(true)}
+          style={{
+            width: "100%", marginBottom: 14,
+            border: "1px dashed #ccc", borderRadius: 10, padding: "12px 16px",
+            background: "#fff", color: "#333",
+            fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700,
+            cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          }}
+        >
+          <Plus size={14} /> Nouvelle édition à partir d'un modèle
+        </button>
         {filteredEntries.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 8px" }}>
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
@@ -7379,6 +7378,130 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
           </div>
         )}
       </div>
+
+      {/* Template picker overlay — the only place seed competitions
+          (templates) are ever shown in the admin experience. Picking a
+          card creates a fresh draft edition of that template and drops
+          straight into its edit form (via onCreateEdition). */}
+      {showTemplatePicker && (
+        <div
+          onClick={() => setShowTemplatePicker(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex", alignItems: "flex-end", justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 560, maxHeight: "82vh",
+              background: "#F2F2F0", borderRadius: "20px 20px 0 0",
+              display: "flex", flexDirection: "column", overflow: "hidden",
+            }}
+          >
+            <div style={{
+              padding: "16px 16px 12px", background: "#fff",
+              borderBottom: "1px solid #e0e0e0",
+              display: "flex", flexDirection: "column", gap: 10,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#222" }}>
+                  Choisir un modèle
+                </span>
+                <button
+                  onClick={() => setShowTemplatePicker(false)}
+                  style={{ border: "none", background: "none", cursor: "pointer", padding: 4, display: "flex" }}
+                  aria-label="Fermer"
+                >
+                  <X size={20} color="#666" />
+                </button>
+              </div>
+              <div style={{ position: "relative" }}>
+                <Search size={14} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "#bbb" }} />
+                <input
+                  type="text"
+                  value={templateQuery}
+                  onChange={(e) => setTemplateQuery(e.target.value)}
+                  placeholder="Rechercher un modèle…"
+                  autoFocus
+                  style={{
+                    width: "100%", boxSizing: "border-box",
+                    border: "1px solid #e0e0e0", borderRadius: 999,
+                    padding: "9px 12px 9px 32px",
+                    fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333",
+                    background: "#fff", outline: "none",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 18 }}>
+              {templatesByNiche.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "30px 8px" }}>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
+                    Aucun modèle ne correspond à « {templateQuery} »
+                  </span>
+                </div>
+              ) : (
+                templatesByNiche.map(({ niche, items }) => (
+                  <div key={niche.label}>
+                    <span style={{
+                      fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                      color: "#999", textTransform: "uppercase", letterSpacing: "0.04em",
+                    }}>
+                      {niche.label}
+                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                      {items.map((s) => {
+                        const isCreating = creatingTemplateKey === s.key;
+                        return (
+                          <button
+                            key={s.key}
+                            onClick={() => handlePickTemplate(s)}
+                            disabled={!!creatingTemplateKey}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 12,
+                              background: "#fff", border: "1px solid #e0e0e0", borderRadius: 14,
+                              padding: 10, cursor: creatingTemplateKey ? "default" : "pointer",
+                              opacity: creatingTemplateKey && !isCreating ? 0.5 : 1,
+                              textAlign: "left", width: "100%", boxSizing: "border-box",
+                            }}
+                          >
+                            <div style={{
+                              width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+                              overflow: "hidden", background: "#f0f0f0",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                            }}>
+                              {s.comp.bannerUrl || s.comp.images?.[0]?.url ? (
+                                <img src={s.comp.bannerUrl || s.comp.images[0].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              ) : (
+                                <ImageIcon size={16} color="#ccc" />
+                              )}
+                            </div>
+                            <span style={{
+                              flex: 1, minWidth: 0,
+                              fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#222",
+                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            }}>
+                              {s.comp.title}
+                            </span>
+                            {isCreating ? (
+                              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", flexShrink: 0 }}>…</span>
+                            ) : (
+                              <ChevronRight size={16} color="#ccc" style={{ flexShrink: 0 }} />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -8563,13 +8686,23 @@ export default function App() {
       showToast("Impossible de supprimer cette édition.");
       return;
     }
-    setEditionsByComp((prev) => {
-      const list = prev[comp.competitionId] || [];
-      return {
-        ...prev,
-        [comp.competitionId]: list.filter((e) => e.id !== comp.id),
-      };
-    });
+    // A Supabase/PostgREST delete can come back with no `error` even when
+    // zero rows were actually removed — most commonly an RLS policy on
+    // `competition_editions` silently filtering the row out of the delete's
+    // WHERE clause. That's exactly what made deletions "stick" locally but
+    // reappear after a refresh: we were trusting the absence of an error
+    // instead of confirming the row was actually gone server-side. So
+    // re-fetch the truth from the DB before touching local state, and
+    // surface an honest failure immediately instead of a false success.
+    const freshEditions = await fetchCompetitionEditions();
+    const stillExists = (freshEditions[comp.competitionId] || []).some((e) => e.id === comp.id);
+    if (stillExists) {
+      console.error("deleteDraftEdition: row still present after delete — likely blocked by an RLS policy.");
+      showToast("Suppression refusée par le serveur (droits insuffisants). Rien n'a été supprimé.");
+      setEditionsByComp(freshEditions);
+      return;
+    }
+    setEditionsByComp(freshEditions);
     showToast(`« ${comp.title} » supprimée.`);
   }
 
