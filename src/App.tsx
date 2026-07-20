@@ -8683,7 +8683,41 @@ export default function App() {
   // Permanently deletes an edition (draft or published) from the admin
   // list. `comp` is an edition card, so competitionId tells us which
   // seed's bucket in editionsByComp to update locally after the delete.
+  //
+  // An edition with real activity (registrations, gifts, comments,
+  // participant media, gallery images) can't just be deleted outright —
+  // `registrations`/`gifts`/`comments`/`participant_media`/
+  // `competition_images` all reference it and the DB rejects an orphaning
+  // delete. So: refund every registrant's fee first (real money, has to
+  // go back before the record of it disappears), then remove the
+  // dependent rows, then the edition itself.
   async function handleDeleteEdition(comp) {
+    const registrants = await fetchRegistrations(comp.id);
+
+    for (const r of registrants) {
+      if (!r.fee_paid || r.fee_paid <= 0) continue;
+      const { error: refundError } = await refundRegistrationFee({
+        userId: r.user_id,
+        amount: r.fee_paid,
+        competitionTitle: comp.title,
+      });
+      if (refundError) {
+        console.error("refundRegistrationFee error:", refundError);
+        showToast(`Remboursement échoué pour ${r.full_name || "un participant"} — suppression annulée.`);
+        return;
+      }
+    }
+
+    const cleanupTables = ["comments", "gifts", "participant_media", "competition_images", "registrations"];
+    for (const table of cleanupTables) {
+      const { error: cleanupError } = await supabase.from(table).delete().eq("edition_id", comp.id);
+      if (cleanupError) {
+        console.error(`cleanup error (${table}):`, cleanupError);
+        showToast(`Échec de la suppression des données liées (${table}). Édition non supprimée.`);
+        return;
+      }
+    }
+
     const { error } = await deleteDraftEdition(comp.id);
     if (error) {
       console.error("deleteDraftEdition error:", error);
@@ -8707,8 +8741,20 @@ export default function App() {
       return;
     }
     setEditionsByComp(freshEditions);
-    showToast(`« ${comp.title} » supprimée.`);
+    // Registration counts and gallery images are cached separately from
+    // editionsByComp — refresh both so the admin list's "inscrits" count
+    // and any shared gallery view don't keep referencing rows we just
+    // wiped out.
+    fetchAllRegistrationCounts().then(setCompRegCounts);
+    fetchAllCompetitionImages().then(setCompImages);
+    const refundedCount = registrants.filter((r) => r.fee_paid > 0).length;
+    showToast(
+      refundedCount > 0
+        ? `« ${comp.title} » supprimée — ${refundedCount} participant${refundedCount > 1 ? "s" : ""} remboursé${refundedCount > 1 ? "s" : ""}.`
+        : `« ${comp.title} » supprimée.`
+    );
   }
+
 
   // Home banner slides: any published edition with a dedicated banner (set
   // from the edit screen's "Bannière" section) is shown on the homepage —
