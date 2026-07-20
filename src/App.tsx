@@ -295,19 +295,55 @@ async function fetchCompetitionEditions() {
   return map;
 }
 
-// Starts a brand-new draft edition for a seed competition. Owner-only via
-// RLS. Everything besides competition_id/phase starts blank — the admin
-// fills the rest in via the normal edit form (saveEditionEdit) before
-// publishing.
-async function createDraftEdition(competitionId) {
+// Creates a brand-new edition for a seed competition, in one shot, with
+// every field the admin already filled in on the create form. Replaces
+// the old createDraftEdition + saveEditionEdit two-step flow: that used
+// to insert a bare empty "draft" row the instant the admin picked a
+// template — before they'd typed anything — so backing out of the form
+// left an orphan row behind that had to be deleted separately. Now
+// nothing touches the database until the admin presses "Enregistrer",
+// and it always lands as phase "registration" — there's no draft state
+// for a freshly created edition, it opens for registration right away.
+async function createEdition({
+  competitionId,
+  title,
+  edition,
+  ends,
+  endsAt,
+  contestants,
+  bannerUrl,
+  description,
+  prizeAmount,
+  fee,
+  rewardExtra,
+  rules,
+  updatedBy,
+}) {
   const { data, error } = await supabase
     .from(EDITIONS_TABLE)
-    .insert({ competition_id: competitionId, phase: "draft", active: true })
+    .insert({
+      competition_id: competitionId,
+      title,
+      edition,
+      ends,
+      ends_at: endsAt,
+      phase: "registration",
+      contestants,
+      banner_url: bannerUrl,
+      description,
+      prize_amount: prizeAmount,
+      fee,
+      reward_extra: rewardExtra,
+      rules,
+      active: true,
+      updated_by: updatedBy,
+      updated_at: new Date().toISOString(),
+    })
     .select()
     .single();
 
   if (error) {
-    console.error("createDraftEdition error:", error);
+    console.error("createEdition error:", error);
     return { data: null, error };
   }
   return { data: mapEditionRow(data), error: null };
@@ -316,7 +352,7 @@ async function createDraftEdition(competitionId) {
 // Updates one existing edition by its own id (owner-only via RLS). Unlike
 // the old single-row-per-competition saveCompetitionEdit, this is always
 // an UPDATE, never an upsert — a new edition is created first via
-// createDraftEdition, so editionId always refers to a real row by the
+// createEdition, so editionId always refers to a real row by the
 // time this is called.
 async function saveEditionEdit({
   editionId,
@@ -2334,7 +2370,7 @@ function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, muted, o
 
 /* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
 
-function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onAddImage, onRemoveImage, startInEditMode = false }) {
+function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onCreateComp, onAddImage, onRemoveImage, startInEditMode = false, isNewEdition = false }) {
   const isRegistration = comp.phase === "registration";
   const isCompleted = comp.phase === "completed";
   const registrationFee = getRegistrationFee(comp);
@@ -2402,13 +2438,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     const trimmedPrize = editPrizeAmount.trim();
     const trimmedContestants = editContestants.trim();
     const trimmedFee = editFee.trim();
-    const result = await onEditComp?.({
-      editionId: comp.id,
-      competitionId: comp.competitionId,
+    const fields = {
       title: editTitle.trim() || comp.title,
       edition: editEdition.trim() || comp.edition,
       ends: editEnds.trim() || comp.ends,
-      phase: isCompleted ? "completed" : editPhase,
       contestants: trimmedContestants === "" ? null : Math.max(0, parseInt(trimmedContestants, 10) || 0),
       endsAt: editEndsAt ? new Date(editEndsAt).toISOString() : null,
       description: editDescription.trim(),
@@ -2417,7 +2450,20 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       rewardExtra: editRewardExtra.trim(),
       rules: editRules.split("\n").map((r) => r.trim()).filter(Boolean),
       bannerUrl: editBannerUrl,
-    });
+    };
+    // A brand-new edition has never been written to the database — this
+    // is its first save, so it's an insert (always phase "registration",
+    // handled inside onCreateComp), not an update to a row that doesn't
+    // exist yet. Everything typed into the form up to this point has
+    // only ever lived in local state.
+    const result = isNewEdition
+      ? await onCreateComp?.({ competitionId: comp.competitionId, ...fields })
+      : await onEditComp?.({
+          editionId: comp.id,
+          competitionId: comp.competitionId,
+          ...fields,
+          phase: isCompleted ? "completed" : editPhase,
+        });
     setSavingEdit(false);
     if (result?.success) setShowEditModal(false);
   }
@@ -9018,6 +9064,11 @@ export default function App() {
   const [compImages, setCompImages] = useState({});
   const [compRegCounts, setCompRegCounts] = useState({}); // keyed by edition_id now
   const [compEditIntent, setCompEditIntent] = useState(false);
+  // True only while the admin is filling in the create-edition form for an
+  // edition that doesn't exist in the database yet — see
+  // handleCreateDraftEdition / handleCreateEditionSave below. Never true
+  // for editing an existing edition.
+  const [pendingNewEdition, setPendingNewEdition] = useState(false);
   const [draftEditionTarget, setDraftEditionTarget] = useState(null); // { competitionId, niche } while creating a new edition
 
   useEffect(() => {
@@ -9261,37 +9312,88 @@ export default function App() {
 
   // Admin page → jump straight to an edition's edit panel, regardless of
   // the homepage's current filter/search state. `comp` here already has
-  // edits/images applied (it comes from allNichesWithEdits).
+  // edits/images applied (it comes from allNichesWithEdits). This is
+  // always an EXISTING edition, never the new-edition form.
   function handleAdminOpenComp(comp, niche) {
+    setPendingNewEdition(false);
     setCompEditIntent(true);
     setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label });
   }
 
-  // Starts a fresh draft edition for a seed competition and immediately
-  // opens it in the edit form (the same form used for ordinary edits) so
-  // the admin can fill in the label/deadline/prize before publishing.
-  async function handleCreateDraftEdition(comp, niche) {
-    try {
-      const { data, error } = await createDraftEdition(comp.id);
-      if (error) {
-        console.error("createDraftEdition error:", error);
-        showToast(`Impossible de créer une nouvelle édition${error.message ? ` : ${error.message}` : "."}`);
-        return;
-      }
-      if (!data) {
-        showToast("Aucune donnée retournée. Veuillez réessayer.");
-        return;
-      }
-      setEditionsByComp((prev) => ({
-        ...prev,
-        [comp.id]: [...(prev[comp.id] || []), data],
-      }));
-      setCompEditIntent(true);
-      setSelectedComp(editionToCard({ ...comp, accent: niche.accent, niche: niche.label }, data));
-    } catch (err) {
-      console.error("createDraftEdition exception:", err);
-      showToast("Une erreur est survenue lors de la création.");
+  // Opens a blank create-edition form for a seed competition, but doesn't
+  // touch the database at all — nothing is written until the admin
+  // actually presses "Enregistrer" (see handleCreateEditionSave). Backing
+  // out of the form at this point leaves nothing behind, unlike the old
+  // flow which inserted a bare empty "draft" row the instant a template
+  // was picked, before the admin had typed anything.
+  //
+  // `id` is a client-only placeholder — never sent to the database, just
+  // enough of a stand-in so the competition screen underneath the form
+  // (registrations/comments/gallery lookups, realtime channels) has
+  // something to key off of instead of `undefined`; it harmlessly finds
+  // nothing until the real row exists.
+  function handleCreateDraftEdition(comp, niche) {
+    const placeholderId =
+      typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `pending-${Date.now()}`;
+    const blankEdition = {
+      id: placeholderId,
+      competitionId: comp.id,
+      title: null,
+      edition: null,
+      ends: null,
+      endsAt: null,
+      phase: "registration", // every edition starts open for registration — no draft state
+      contestants: null,
+      bannerUrl: null,
+      description: null,
+      prizeAmount: null,
+      fee: null,
+      rewardExtra: null,
+      rules: [],
+      active: true,
+      winnerUserId: null,
+      winnerName: null,
+      winnerPrize: null,
+      closedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    setPendingNewEdition(true);
+    setCompEditIntent(true);
+    setSelectedComp(editionToCard({ ...comp, accent: niche.accent, niche: niche.label }, blankEdition));
+  }
+
+  // First real save of a brand-new edition — this is an INSERT (the row
+  // never existed before), always forced to phase "registration" inside
+  // createEdition itself, not an update to an existing row.
+  async function handleCreateEditionSave({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl }) {
+    const { data, error } = await createEdition({
+      competitionId,
+      title,
+      edition,
+      ends,
+      endsAt,
+      contestants,
+      description,
+      prizeAmount,
+      fee,
+      rewardExtra,
+      rules,
+      bannerUrl,
+      updatedBy: currentUser?.id,
+    });
+    if (error) {
+      console.error("createEdition error:", error);
+      showToast(`Impossible de créer cette édition${error.message ? ` : ${error.message}` : "."}`);
+      return { success: false };
     }
+    setEditionsByComp((prev) => ({
+      ...prev,
+      [competitionId]: [...(prev[competitionId] || []), data],
+    }));
+    setPendingNewEdition(false);
+    setSelectedComp((prev) => (prev ? { ...prev, id: data.id, phase: data.phase, active: data.active, createdAt: data.createdAt } : prev));
+    showToast(`« ${data.title || title} » créé et ouvert aux inscriptions.`);
+    return { success: true, data };
   }
 
   // Publishes a draft edition — flips it to "registration" phase and marks
@@ -10336,7 +10438,7 @@ export default function App() {
         <CompetitionBoard
           key={selectedComp.id}
           comp={selectedComp}
-          onClose={() => { setSelectedComp(null); setCompEditIntent(false); }}
+          onClose={() => { setSelectedComp(null); setCompEditIntent(false); setPendingNewEdition(false); }}
           balance={balance}
           onSendGift={handleSendGift}
           onOpenBuy={() => setShowBuyModal(true)}
@@ -10348,9 +10450,11 @@ export default function App() {
           currentUser={currentUser}
           onRequestAuth={() => setShowAuthOverlay(true)}
           onEditComp={handleEditComp}
+          onCreateComp={handleCreateEditionSave}
           onAddImage={handleAddCompImage}
           onRemoveImage={handleRemoveCompImage}
           startInEditMode={compEditIntent}
+          isNewEdition={pendingNewEdition}
         />
       )}
     </>
