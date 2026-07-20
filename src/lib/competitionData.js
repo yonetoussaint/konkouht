@@ -20,51 +20,74 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // ── Required schema (run once in Supabase SQL editor) ──────────────────────
 //
-// create table competition_edits (
-//   competition_id text primary key,
+// Multi-edition model: a single seed competition (e.g. "m1" — "Battle
+// Hip-Hop") can now have many editions ("Saison 4", "Saison 5", a fresh
+// draft being prepared, ...). `id` (uuid) is the real primary key here —
+// NOT competition_id — because competition_id is no longer unique; it's
+// just which seed series this edition belongs to.
+//
+// create table competition_editions (
+//   id uuid primary key default gen_random_uuid(),
+//   competition_id text not null,      -- the static seed id, e.g. "m1"
 //   title text,
 //   edition text,
 //   ends text,
 //   ends_at timestamptz,
-//   phase text,                        -- 'registration' | 'live'  ← NEW
+//   phase text,                        -- 'draft' | 'registration' | 'live' | 'completed'
 //   contestants integer,
 //   banner_url text,
 //   description text,
 //   prize_amount numeric,
+//   fee numeric,
 //   reward_extra text,
 //   rules jsonb,
 //   active boolean not null default true,
+//   winner_user_id uuid,
+//   winner_name text,
+//   winner_prize numeric,
+//   closed_at timestamptz,
 //   updated_by uuid,
-//   updated_at timestamptz not null default now()
+//   updated_at timestamptz not null default now(),
+//   created_at timestamptz not null default now()
 // );
-// alter table competition_edits enable row level security;
-// create policy "competition edits are readable by everyone"
-//   on competition_edits for select
+// create index competition_editions_competition_id_idx on competition_editions (competition_id);
+// alter table competition_editions enable row level security;
+// create policy "competition editions are readable by everyone"
+//   on competition_editions for select
 //   to anon, authenticated
 //   using (true);
-// create policy "only the platform organizer can insert edits"
-//   on competition_edits for insert
+// create policy "only the platform organizer can insert editions"
+//   on competition_editions for insert
 //   to authenticated
 //   with check ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
-// create policy "only the platform organizer can update edits"
-//   on competition_edits for update
+// create policy "only the platform organizer can update editions"
+//   on competition_editions for update
 //   to authenticated
 //   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' )
 //   with check ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
+// create policy "only the platform organizer can delete editions"
+//   on competition_editions for delete
+//   to authenticated
+//   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
 //
-// If competition_edits already exists without the newer columns, run instead:
+// -- If migrating from the old single-edition `competition_edits` table,
+// -- create the new table above, then backfill (each old row becomes one
+// -- edition of its competition_id) and drop the old table once verified:
 //
-// alter table competition_edits
-//   add column if not exists ends_at timestamptz,
-//   add column if not exists phase text,          -- ← NEW, run this if upgrading
-//   add column if not exists contestants integer,
-//   add column if not exists description text,
-//   add column if not exists prize_amount numeric,
-//   add column if not exists reward_extra text,
-//   add column if not exists rules jsonb,
-//   add column if not exists active boolean not null default true;
+// insert into competition_editions
+//   (competition_id, title, edition, ends, ends_at, phase, contestants,
+//    banner_url, description, prize_amount, reward_extra, rules, active,
+//    updated_by, updated_at)
+// select
+//    competition_id, title, edition, ends, ends_at, phase, contestants,
+//    banner_url, description, prize_amount, reward_extra, rules, active,
+//    updated_by, updated_at
+// from competition_edits;
+// -- (then, once the app is confirmed working against competition_editions:)
+// -- drop table competition_edits;
 //
-// -- Multi-row gallery images per competition --
+// -- Multi-row gallery images per competition (unchanged — still shared
+// -- across every edition of a series, keyed by the seed competition_id) --
 // create table competition_images (
 //   id uuid primary key default gen_random_uuid(),
 //   competition_id text not null,
@@ -115,6 +138,35 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //     and (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com'
 //   );
 //
+// -- registrations: now scoped per EDITION, not per seed competition. --
+// create table if not exists registrations (
+//   id uuid primary key default gen_random_uuid(),
+//   edition_id uuid not null,
+//   competition_id text not null,      -- kept alongside edition_id for easy seed-level lookups
+//   user_id uuid not null,
+//   full_name text not null,
+//   avatar_url text,
+//   fee_paid numeric not null default 0,
+//   created_at timestamptz not null default now(),
+//   unique (edition_id, user_id)
+// );
+// -- If upgrading an existing registrations table:
+// alter table registrations
+//   add column if not exists edition_id uuid,
+//   add column if not exists avatar_url text;
+// -- backfill edition_id from competition_edits/competition_editions before
+// -- adding the constraint, then:
+// alter table registrations alter column edition_id set not null;
+// alter table registrations drop constraint if exists registrations_competition_id_user_id_key;
+// alter table registrations add constraint registrations_edition_id_user_id_key unique (edition_id, user_id);
+//
+// alter table registrations enable row level security;
+// create policy "registrations are readable by everyone" on registrations
+//   for select to anon, authenticated using (true);
+// create policy "authenticated users can insert their own registration" on registrations
+//   for insert to authenticated with check (auth.uid() = user_id);
+// create policy "users can update their own registration" on registrations
+//   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 // -- Let the platform organizer delete a registration (admin removal during
 // -- the registration phase). Without this policy the delete below silently
 // -- matches zero rows under RLS instead of erroring. --
@@ -122,6 +174,39 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   on registrations for delete
 //   to authenticated
 //   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
+//
+// -- comments: now scoped per EDITION, not per seed competition. --
+// create table if not exists comments (
+//   id uuid primary key default gen_random_uuid(),
+//   edition_id uuid not null,
+//   competition_id text not null,      -- kept alongside edition_id for easy seed-level lookups
+//   parent_id uuid references comments(id) on delete cascade,
+//   user_id uuid not null,
+//   full_name text not null,
+//   avatar_url text,
+//   text text not null,
+//   created_at timestamptz not null default now()
+// );
+// -- If upgrading an existing comments table:
+// alter table comments
+//   add column if not exists edition_id uuid,
+//   add column if not exists avatar_url text;
+// -- backfill edition_id, then:
+// alter table comments alter column edition_id set not null;
+// create index if not exists comments_edition_id_idx on comments (edition_id);
+// create index if not exists comments_parent_id_idx on comments (parent_id);
+// alter table comments enable row level security;
+// create policy "comments are readable by everyone" on comments for select using (true);
+// create policy "authenticated users can insert their own comments" on comments
+//   for insert with check (auth.uid() = user_id);
+//
+// -- gifts and participant_media are read/written directly via `supabase`
+// -- from App.jsx (not through this lib file), but they're edition-scoped
+// -- too now, so they need the same edition_id column added: --
+// alter table gifts add column if not exists edition_id uuid;
+// alter table participant_media add column if not exists edition_id uuid;
+// create index if not exists gifts_edition_id_idx on gifts (edition_id);
+// create index if not exists participant_media_edition_id_idx on participant_media (edition_id);
 //
 // -- wallet_balances / wallet_transactions are assumed to already exist
 // -- (they back the MonCash SMS deposit-crediting pipeline). If they don't
@@ -154,78 +239,131 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 const BUCKET = "competition-images";
 const IMAGES_TABLE = "competition_images";
+const EDITIONS_TABLE = "competition_editions";
 
-/* ─── competition_edits ──────────────────────────────────────────────── */
+/* ─── competition_editions ───────────────────────────────────────────────
+   Maps a raw DB row to the camelCase shape used throughout App.jsx (this
+   exact shape is also what the "competition-editions-global" realtime
+   subscription in App.jsx builds by hand from payload.new — keep both in
+   sync if either changes). ──────────────────────────────────────────── */
+function mapEditionRow(row) {
+  return {
+    id: row.id,
+    competitionId: row.competition_id,
+    title: row.title,
+    edition: row.edition,
+    ends: row.ends,
+    endsAt: row.ends_at,
+    phase: row.phase,
+    contestants: row.contestants,
+    bannerUrl: row.banner_url,
+    description: row.description,
+    prizeAmount: row.prize_amount,
+    fee: row.fee,
+    rewardExtra: row.reward_extra,
+    rules: row.rules || [],
+    active: row.active !== false,
+    winnerUserId: row.winner_user_id,
+    winnerName: row.winner_name,
+    winnerPrize: row.winner_prize,
+    closedAt: row.closed_at,
+    createdAt: row.created_at,
+  };
+}
 
-// Returns a map of { [competitionId]: { title, edition, ends, phase,
-// bannerUrl, description, prizeAmount, rewardExtra, rules, active } }
-export async function fetchCompetitionEdits() {
-  const { data, error } = await supabase.from("competition_edits").select("*");
+// Returns { [competitionId]: [editionObj, ...] } — every edition (drafts
+// included) of every seed competition, grouped by seed id. App.jsx does
+// its own filtering/sorting (e.g. hiding drafts on the homepage) on top
+// of this.
+export async function fetchCompetitionEditions() {
+  const { data, error } = await supabase.from(EDITIONS_TABLE).select("*");
   if (error) {
-    console.error("fetchCompetitionEdits error:", error);
+    console.error("fetchCompetitionEditions error:", error);
     return {};
   }
   const map = {};
   (data || []).forEach((row) => {
-    map[row.competition_id] = {
-      title: row.title,
-      edition: row.edition,
-      ends: row.ends,
-      endsAt: row.ends_at,
-      phase: row.phase, // ← NEW: read the persisted phase back
-      contestants: row.contestants,
-      bannerUrl: row.banner_url,
-      description: row.description,
-      prizeAmount: row.prize_amount,
-      rewardExtra: row.reward_extra,
-      rules: row.rules || [],
-      active: row.active !== false,
-    };
+    (map[row.competition_id] ||= []).push(mapEditionRow(row));
   });
   return map;
 }
 
-// Create or update the override row for a competition (owner-only via RLS).
-export async function saveCompetitionEdit({
-  competitionId,
+// Starts a brand-new draft edition for a seed competition. Owner-only via
+// RLS. Everything besides competition_id/phase starts blank — the admin
+// fills the rest in via the normal edit form (saveEditionEdit) before
+// publishing.
+export async function createDraftEdition(competitionId) {
+  const { data, error } = await supabase
+    .from(EDITIONS_TABLE)
+    .insert({ competition_id: competitionId, phase: "draft", active: true })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("createDraftEdition error:", error);
+    return { data: null, error };
+  }
+  return { data: mapEditionRow(data), error: null };
+}
+
+// Updates one existing edition by its own id (owner-only via RLS). Unlike
+// the old single-row-per-competition saveCompetitionEdit, this is always
+// an UPDATE, never an upsert — a new edition is created first via
+// createDraftEdition, so editionId always refers to a real row by the
+// time this is called.
+export async function saveEditionEdit({
+  editionId,
   title,
   edition,
   ends,
   endsAt,
-  phase, // ← NEW
+  phase,
   contestants,
   bannerUrl,
   description,
   prizeAmount,
+  fee,
   rewardExtra,
   rules,
   active,
   updatedBy,
 }) {
-  return supabase
-    .from("competition_edits")
-    .upsert(
-      {
-        competition_id: competitionId,
-        title,
-        edition,
-        ends,
-        ends_at: endsAt,
-        phase, // ← NEW: actually persist it
-        contestants,
-        banner_url: bannerUrl,
-        description,
-        prize_amount: prizeAmount,
-        reward_extra: rewardExtra,
-        rules,
-        active,
-        updated_by: updatedBy,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "competition_id" }
-    )
+  const patch = { updated_by: updatedBy, updated_at: new Date().toISOString() };
+  if (title !== undefined) patch.title = title;
+  if (edition !== undefined) patch.edition = edition;
+  if (ends !== undefined) patch.ends = ends;
+  if (endsAt !== undefined) patch.ends_at = endsAt;
+  if (phase !== undefined) patch.phase = phase;
+  if (contestants !== undefined) patch.contestants = contestants;
+  if (bannerUrl !== undefined) patch.banner_url = bannerUrl;
+  if (description !== undefined) patch.description = description;
+  if (prizeAmount !== undefined) patch.prize_amount = prizeAmount;
+  if (fee !== undefined) patch.fee = fee;
+  if (rewardExtra !== undefined) patch.reward_extra = rewardExtra;
+  if (rules !== undefined) patch.rules = rules;
+  if (active !== undefined) patch.active = active;
+
+  const { data, error } = await supabase
+    .from(EDITIONS_TABLE)
+    .update(patch)
+    .eq("id", editionId)
     .select()
     .single();
+
+  if (error) return { data: null, error };
+  return { data: mapEditionRow(data), error: null };
+}
+
+// Deletes a draft edition outright (owner-only via RLS). Scoped to
+// phase = 'draft' as a safety net — this is for abandoning a draft that
+// was never published, not for removing a live/completed edition.
+export async function deleteDraftEdition(editionId) {
+  const { error } = await supabase
+    .from(EDITIONS_TABLE)
+    .delete()
+    .eq("id", editionId)
+    .eq("phase", "draft");
+  return { error };
 }
 
 // Upload a new banner/thumbnail image for a competition and return its
@@ -323,30 +461,16 @@ export async function deleteCompetitionImage(imageId) {
   return { error };
 }
 
-/* ─── comments ───────────────────────────────────────────────────────────
+/* ─── comments (edition-scoped) ──────────────────────────────────────────
 //
-// create table comments (
-//   id uuid primary key default gen_random_uuid(),
-//   competition_id text not null,
-//   parent_id uuid references comments(id) on delete cascade,
-//   user_id uuid not null,
-//   full_name text not null,
-//   text text not null,
-//   created_at timestamptz not null default now()
-// );
-// create index comments_competition_id_idx on comments (competition_id);
-// create index comments_parent_id_idx on comments (parent_id);
-// alter table comments enable row level security;
-// create policy "comments are readable by everyone" on comments for select using (true);
-// create policy "authenticated users can insert their own comments" on comments
-//   for insert with check (auth.uid() = user_id);
+// See the `comments` schema block above (edition_id + avatar_url added).
 */
 
-export async function fetchComments(competitionId) {
+export async function fetchComments(editionId) {
   const { data, error } = await supabase
     .from("comments")
     .select("*")
-    .eq("competition_id", competitionId)
+    .eq("edition_id", editionId)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -368,13 +492,23 @@ export async function fetchComments(competitionId) {
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
-export async function insertComment({ competitionId, userId, fullName, text, parentId = null }) {
+export async function insertComment({
+  editionId,
+  competitionId,
+  userId,
+  fullName,
+  avatarUrl,
+  text,
+  parentId = null,
+}) {
   return supabase
     .from("comments")
     .insert({
+      edition_id: editionId,
       competition_id: competitionId,
       user_id: userId,
       full_name: fullName,
+      avatar_url: avatarUrl,
       text,
       parent_id: parentId,
     })
@@ -382,26 +516,33 @@ export async function insertComment({ competitionId, userId, fullName, text, par
     .single();
 }
 
-/* ─── registrations ──────────────────────────────────────────────────────── */
+/* ─── registrations (edition-scoped) ──────────────────────────────────────
+//
+// See the `registrations` schema block above (edition_id + avatar_url
+// added, unique constraint moved to (edition_id, user_id)).
+*/
 
+// Keyed by edition_id now — a new season/edition starts back at 0
+// registrants, it doesn't inherit a previous edition's count.
 export async function fetchAllRegistrationCounts() {
-  const { data, error } = await supabase.from("registrations").select("competition_id");
+  const { data, error } = await supabase.from("registrations").select("edition_id");
   if (error) {
     console.error("fetchAllRegistrationCounts failed:", error.message);
     return {};
   }
   const counts = {};
   (data || []).forEach((row) => {
-    counts[row.competition_id] = (counts[row.competition_id] || 0) + 1;
+    if (!row.edition_id) return;
+    counts[row.edition_id] = (counts[row.edition_id] || 0) + 1;
   });
   return counts;
 }
 
-export async function fetchRegistrations(competitionId) {
+export async function fetchRegistrations(editionId) {
   const { data, error } = await supabase
     .from("registrations")
-    .select("id, user_id, full_name, fee_paid, created_at")
-    .eq("competition_id", competitionId)
+    .select("id, user_id, full_name, avatar_url, fee_paid, created_at")
+    .eq("edition_id", editionId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -414,7 +555,7 @@ export async function fetchRegistrations(competitionId) {
 export async function fetchUserRegistrations(userId) {
   const { data, error } = await supabase
     .from("registrations")
-    .select("competition_id")
+    .select("edition_id, competition_id")
     .eq("user_id", userId);
 
   if (error) {
@@ -424,13 +565,15 @@ export async function fetchUserRegistrations(userId) {
   return data || [];
 }
 
-export async function insertRegistration({ competitionId, userId, fullName, fee }) {
+export async function insertRegistration({ editionId, competitionId, userId, fullName, avatarUrl, fee }) {
   const { data, error } = await supabase
     .from("registrations")
     .insert({
+      edition_id: editionId,
       competition_id: competitionId,
       user_id: userId,
       full_name: fullName,
+      avatar_url: avatarUrl,
       fee_paid: fee,
     })
     .select()
