@@ -909,6 +909,24 @@ function fmtVotes(n) {
   return n.toString();
 }
 
+// People read a fixed point in time ("Jeu 18, 3:45 PM") far faster than a
+// duration ("2j 12h") — no mental math needed to figure out whether that's
+// tonight or next week. Used for both inscription deadlines and competition
+// end times, wherever we'd otherwise show a countdown-style duration.
+const FR_DAY_ABBR = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+function fmtAbsoluteDate(target) {
+  const d = new Date(target);
+  if (Number.isNaN(d.getTime())) return "";
+  const day = FR_DAY_ABBR[d.getDay()];
+  const date = d.getDate();
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  return `${day} ${date}, ${hours}:${minutes} ${ampm}`;
+}
+
 // NOTE: the old module-level findCompWithNiche(compId) — which looked up a
 // competition directly in the static NICHES seed data — was removed here.
 // Every id stored anywhere in the app (notifications, registeredCompIds,
@@ -1158,6 +1176,22 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
   const [followerCount, setFollowerCount] = useState(comp.followers);
   const isRegistration = comp.phase === "registration";
 
+  // Real editions carry a real comp.endsAt. Competitions still on the
+  // legacy mock "2j 18h"-style `ends` duration string don't have one, so we
+  // derive a stand-in absolute deadline once (relative to now) and hold it
+  // for the life of the card — recomputing it on every render would make
+  // the displayed date creep forward as the feed re-renders.
+  const resolvedEndDate = useMemo(() => {
+    if (comp.endsAt) return comp.endsAt;
+    const str = comp.ends || "";
+    let total = 0;
+    const d = str.match(/(\d+)j/); if (d) total += parseInt(d[1]) * 86400;
+    const h = str.match(/(\d+)h/); if (h) total += parseInt(h[1]) * 3600;
+    const m = str.match(/(\d+)m/); if (m) total += parseInt(m[1]) * 60;
+    return new Date(Date.now() + (total || 3600) * 1000).toISOString();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comp.endsAt, comp.id]);
+
   return (
     <div
       onClick={() => onOpen?.(comp)}
@@ -1341,7 +1375,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
               Fin dans
             </div>
             <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: comp.hot ? "#c0392b" : "#111", marginTop: 1 }}>
-              {comp.ends}
+              {fmtAbsoluteDate(resolvedEndDate)}
             </div>
           </div>
         </div>
@@ -3701,7 +3735,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             ] : [
               { value: liveRegistered, label: "Candidats" },
               { value: fmtVotes(totalGiftCount), label: "Cadeaux", accent: true, bump: pointsBump },
-              { value: fmtCountdown(secondsLeft), label: "Fin dans", hot: comp.hot, timer: true },
+              { value: fmtAbsoluteDate(resolveEndsAt()), label: "Fin dans", hot: comp.hot, timer: true },
             ]).map((s, i) => {
               const hotTimer = s.timer && s.hot;
               return (
@@ -3714,13 +3748,14 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 }}>
                   <div style={{
                     fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: 24, fontWeight: 800,
+                    fontSize: s.timer ? 15 : 24, fontWeight: 800,
                     color: hotTimer ? "#c0392b" : s.accent ? accent : "#111",
-                    lineHeight: 1,
+                    lineHeight: 1.15,
                     transition: s.timer ? "opacity 0.12s, transform 0.28s cubic-bezier(0.34,1.56,0.64,1)" : "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
                     opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
                     transform: s.bump ? "scale(1.14)" : "scale(1)",
-                    fontVariantNumeric: "tabular-nums",
+                    fontVariantNumeric: s.timer ? "normal" : "tabular-nums",
+                    whiteSpace: s.timer ? "nowrap" : "normal",
                   }}>{s.value}</div>
                   <div style={{
                     fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#999",
@@ -3785,14 +3820,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             }}>Fin inscr.</div>
             <div style={{
               fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: 18, fontWeight: 800,
+              fontSize: 15, fontWeight: 800,
               color: comp.hot ? "#c0392b" : "#111",
-              lineHeight: 1,
+              lineHeight: 1.15,
               transition: "opacity 0.12s",
               opacity: tickFlash ? 1 : 0.6,
-              fontVariantNumeric: "tabular-nums",
-              letterSpacing: "-0.02em",
-            }}>{fmtCountdown(secondsLeft)}</div>
+              whiteSpace: "nowrap",
+            }}>{fmtAbsoluteDate(resolveEndsAt())}</div>
           </div>
         )}
 
@@ -3816,7 +3850,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           }}>
             {isRegistration 
               ? `Inscriptions ouvertes — ${comp.contestants - liveRegistered} place${comp.contestants - liveRegistered !== 1 ? 's' : ''} disponible${comp.contestants - liveRegistered !== 1 ? 's' : ''}` 
-              : comp.hot ? `Compétition très active — se termine dans ${fmtCountdown(secondsLeft)}` : `Se termine dans ${fmtCountdown(secondsLeft)}`}
+              : comp.hot ? `Compétition très active — se termine ${fmtAbsoluteDate(resolveEndsAt())}` : `Se termine ${fmtAbsoluteDate(resolveEndsAt())}`}
           </span>
         </div>
 
