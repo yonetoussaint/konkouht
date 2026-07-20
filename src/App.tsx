@@ -909,22 +909,22 @@ function fmtVotes(n) {
   return n.toString();
 }
 
-// People read a fixed point in time ("Jeu 18, 3:45 PM") far faster than a
+// People read a fixed point in time ("20 Juil, 3:45 PM") far faster than a
 // duration ("2j 12h") — no mental math needed to figure out whether that's
 // tonight or next week. Used for both inscription deadlines and competition
 // end times, wherever we'd otherwise show a countdown-style duration.
-const FR_DAY_ABBR = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+const FR_MONTH_ABBR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 function fmtAbsoluteDate(target) {
   const d = new Date(target);
   if (Number.isNaN(d.getTime())) return "";
-  const day = FR_DAY_ABBR[d.getDay()];
   const date = d.getDate();
+  const month = FR_MONTH_ABBR[d.getMonth()];
   let hours = d.getHours();
   const minutes = String(d.getMinutes()).padStart(2, "0");
   const ampm = hours >= 12 ? "PM" : "AM";
   hours = hours % 12;
   if (hours === 0) hours = 12;
-  return `${day} ${date}, ${hours}:${minutes} ${ampm}`;
+  return `${date} ${month}, ${hours}:${minutes} ${ampm}`;
 }
 
 // NOTE: the old module-level findCompWithNiche(compId) — which looked up a
