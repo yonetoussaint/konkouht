@@ -7037,9 +7037,24 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
    where this is mounted in App()). Lists every competition across every
    niche in one place so nothing needs to be found by browsing the homepage
    first — tapping a row jumps straight into that competition's edit panel. */
-function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCreateEdition, onBack }) {
+function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCreateEdition, onPublishEdition, onDeleteEdition, onBack }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Total");
+  const [deletingId, setDeletingId] = useState(null);
+  const [publishingId, setPublishingId] = useState(null);
+
+  async function handlePublishClick(comp) {
+    setPublishingId(comp.id);
+    await onPublishEdition(comp);
+    setPublishingId(null);
+  }
+
+  async function handleDeleteClick(comp) {
+    if (!window.confirm(`Supprimer définitivement « ${comp.title} » (${comp.edition}) ? Cette action est irréversible.`)) return;
+    setDeletingId(comp.id);
+    await onDeleteEdition(comp);
+    setDeletingId(null);
+  }
 
   const allEntries = niches.flatMap((niche) =>
     niche.competitions.map((comp) => ({ comp, niche }))
@@ -7235,6 +7250,9 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {filteredEntries.map(({ comp, niche }) => {
               const thumb = comp.bannerUrl || comp.images?.[0]?.url;
+              const isDraft = comp.phase === "draft";
+              const isDeleting = deletingId === comp.id;
+              const isPublishing = publishingId === comp.id;
               return (
                 <div
                   key={comp.id}
@@ -7301,6 +7319,25 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
                     </span>
                   </div>
 
+                  {/* Publish — only surfaced for drafts, turns them live/open */}
+                  {isDraft && (
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); handlePublishClick(comp); }}
+                      disabled={isPublishing}
+                      style={{
+                        flexShrink: 0,
+                        border: "none", borderRadius: 8, padding: "6px 10px",
+                        background: "#00B894", color: "#fff",
+                        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                        cursor: isPublishing ? "default" : "pointer",
+                        opacity: isPublishing ? 0.5 : 1,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {isPublishing ? "…" : "Publier"}
+                    </button>
+                  )}
+
                   {/* On/off switch — stopPropagation so it doesn't also open the edit panel */}
                   <button
                     onClick={(ev) => { ev.stopPropagation(); onToggleActive(comp); }}
@@ -7319,6 +7356,24 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
                       width: 18, height: 18, borderRadius: "50%",
                       background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
                     }} />
+                  </button>
+
+                  {/* Delete edition — stopPropagation so it doesn't also open the edit panel */}
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); handleDeleteClick(comp); }}
+                    disabled={isDeleting}
+                    aria-label="Supprimer cette édition"
+                    title="Supprimer cette édition"
+                    style={{
+                      flexShrink: 0,
+                      border: "none", borderRadius: 8, padding: 6,
+                      background: "transparent", color: "#e74c3c",
+                      cursor: isDeleting ? "default" : "pointer",
+                      opacity: isDeleting ? 0.5 : 1,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    {isDeleting ? <span style={{ fontSize: 10 }}>…</span> : <X size={14} strokeWidth={2.5} />}
                   </button>
 
                   <ChevronRight size={16} color="#ccc" />
@@ -8452,18 +8507,74 @@ export default function App() {
   // opens it in the edit form (the same form used for ordinary edits) so
   // the admin can fill in the label/deadline/prize before publishing.
   async function handleCreateDraftEdition(comp, niche) {
-    const { data, error } = await createDraftEdition(comp.id);
-    if (error || !data) {
-      console.error("createDraftEdition error:", error);
-      showToast("Impossible de créer une nouvelle édition.");
+    try {
+      const { data, error } = await createDraftEdition(comp.id);
+      if (error) {
+        console.error("createDraftEdition error:", error);
+        showToast(`Impossible de créer une nouvelle édition${error.message ? ` : ${error.message}` : "."}`);
+        return;
+      }
+      if (!data) {
+        showToast("Aucune donnée retournée. Veuillez réessayer.");
+        return;
+      }
+      setEditionsByComp((prev) => ({
+        ...prev,
+        [comp.id]: [...(prev[comp.id] || []), data],
+      }));
+      setCompEditIntent(true);
+      setSelectedComp(editionToCard({ ...comp, accent: niche.accent, niche: niche.label }, data));
+    } catch (err) {
+      console.error("createDraftEdition exception:", err);
+      showToast("Une erreur est survenue lors de la création.");
+    }
+  }
+
+  // Publishes a draft edition — flips it to "registration" phase and marks
+  // it active, so it starts showing up on the homepage/admin list as a
+  // real, open competition instead of a hidden draft.
+  async function handlePublishEdition(comp) {
+    const { error } = await saveEditionEdit({
+      editionId: comp.id,
+      phase: "registration",
+      active: true,
+      updatedBy: currentUser?.id,
+    });
+    if (error) {
+      console.error("saveEditionEdit (publish) error:", error);
+      showToast("Impossible de publier cette édition.");
       return;
     }
-    setEditionsByComp((prev) => ({
-      ...prev,
-      [comp.id]: [...(prev[comp.id] || []), data],
-    }));
-    setCompEditIntent(true);
-    setSelectedComp(editionToCard({ ...comp, accent: niche.accent, niche: niche.label }, data));
+    setEditionsByComp((prev) => {
+      const list = prev[comp.competitionId] || [];
+      return {
+        ...prev,
+        [comp.competitionId]: list.map((e) =>
+          e.id === comp.id ? { ...e, phase: "registration", active: true } : e
+        ),
+      };
+    });
+    showToast(`« ${comp.title} » publié — ouvert aux inscriptions !`);
+  }
+
+  // Permanently deletes an edition (draft or published) from the admin
+  // list. `comp` is an edition card, so competitionId tells us which
+  // seed's bucket in editionsByComp to update locally after the delete.
+  async function handleDeleteEdition(comp) {
+    const { error } = await deleteDraftEdition(comp.id);
+    if (error) {
+      console.error("deleteDraftEdition error:", error);
+      showToast("Impossible de supprimer cette édition.");
+      return;
+    }
+    setEditionsByComp((prev) => {
+      const list = prev[comp.competitionId] || [];
+      return {
+        ...prev,
+        [comp.competitionId]: list.filter((e) => e.id !== comp.id),
+      };
+    });
+    showToast(`« ${comp.title} » supprimée.`);
   }
 
   // Home banner slides: any published edition with a dedicated banner (set
@@ -9125,6 +9236,8 @@ export default function App() {
           onOpenComp={handleAdminOpenComp}
           onToggleActive={handleToggleCompActive}
           onCreateEdition={handleCreateDraftEdition}
+          onPublishEdition={handlePublishEdition}
+          onDeleteEdition={handleDeleteEdition}
           onBack={() => setActiveTab("account")}
         />
       ) : (
