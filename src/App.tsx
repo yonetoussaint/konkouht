@@ -8647,7 +8647,7 @@ export default function App() {
       return null;
     }
     setCompImages((prev) => ({ ...prev, [competitionId]: [...(prev[competitionId] || []), data] }));
-    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, images: [...(prev.images || []), data] } : prev));
+    setSelectedComp((prev) => (prev && prev.competitionId === competitionId ? { ...prev, images: [...(prev.images || []), data] } : prev));
     return data;
   }
 
@@ -8659,7 +8659,7 @@ export default function App() {
       return;
     }
     setCompImages((prev) => ({ ...prev, [competitionId]: (prev[competitionId] || []).filter((i) => i.id !== imageId) }));
-    setSelectedComp((prev) => (prev && prev.id === competitionId ? { ...prev, images: (prev.images || []).filter((i) => i.id !== imageId) } : prev));
+    setSelectedComp((prev) => (prev && prev.competitionId === competitionId ? { ...prev, images: (prev.images || []).filter((i) => i.id !== imageId) } : prev));
   }
 
   function pushNotif(notif) {
