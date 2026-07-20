@@ -7333,26 +7333,6 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
                     </button>
                   )}
 
-                  {/* On/off switch — stopPropagation so it doesn't also open the edit panel */}
-                  <button
-                    onClick={(ev) => { ev.stopPropagation(); onToggleActive(comp); }}
-                    aria-label={comp.active ? "Désactiver la compétition" : "Activer la compétition"}
-                    style={{
-                      flexShrink: 0,
-                      width: 40, height: 24, borderRadius: 999,
-                      border: "none", cursor: "pointer", padding: 3,
-                      background: comp.active ? "#00B894" : "#ddd",
-                      display: "flex", alignItems: "center",
-                      justifyContent: comp.active ? "flex-end" : "flex-start",
-                      transition: "background 0.15s ease",
-                    }}
-                  >
-                    <div style={{
-                      width: 18, height: 18, borderRadius: "50%",
-                      background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
-                    }} />
-                  </button>
-
                   {/* Delete edition — stopPropagation so it doesn't also open the edit panel */}
                   <button
                     onClick={(ev) => { ev.stopPropagation(); handleDeleteClick(comp); }}
