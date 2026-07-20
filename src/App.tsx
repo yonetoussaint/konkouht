@@ -9349,6 +9349,33 @@ export default function App() {
       }
     }
 
+    // participant_media used to rely on a BEFORE DELETE trigger to remove
+    // the matching storage file (trigger_delete_participant_media_storage),
+    // but it called storage.delete(...) — not a real SQL function — so
+    // every delete on this table errored and aborted the whole edition
+    // deletion. That trigger's gone now; storage cleanup happens here
+    // instead, the same fetch-then-remove pattern deleteCompetitionImage
+    // already uses for gallery images. A storage-removal failure is
+    // logged but doesn't block the deletion — an orphaned file in
+    // storage is recoverable later, an edition stuck forever isn't.
+    const { data: mediaRows, error: mediaFetchError } = await supabase
+      .from("participant_media")
+      .select("media_url")
+      .eq("edition_id", comp.id);
+    if (mediaFetchError) {
+      console.error("participant_media fetch error:", mediaFetchError);
+    } else if (mediaRows?.length) {
+      const paths = mediaRows
+        .map((r) => r.media_url?.replace(/^.*\/participant-media\//, ""))
+        .filter(Boolean);
+      if (paths.length) {
+        const { error: mediaStorageError } = await supabase.storage.from("participant-media").remove(paths);
+        if (mediaStorageError) {
+          console.error("participant_media storage cleanup error:", mediaStorageError);
+        }
+      }
+    }
+
     const cleanupTables = ["comments", "gifts", "participant_media", "competition_images", "registrations"];
     for (const table of cleanupTables) {
       const { error: cleanupError } = await supabase.from(table).delete().eq("edition_id", comp.id);
