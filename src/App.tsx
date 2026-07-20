@@ -1903,46 +1903,21 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     return () => clearInterval(iv);
   }, [comp.endsAt, comp.id]);
 
-  // ── Auto-complete when the countdown hits 0 ──────────────────────────────
-  // Nothing was watching `secondsLeft` before: the number would tick down to
-  // 00:00 and just sit there — comp.phase never changed, so the winner
-  // banner below (which only renders when isCompleted) never showed up.
-  // As soon as a "live" competition's real deadline (comp.endsAt) passes,
-  // whoever has the board open flips phase → "completed" and persists it via
-  // onEditComp, so the leader is declared the winner automatically.
-  // Note: this only fires for clients that currently have the board open —
-  // it's a client-side fallback. For a guarantee that stays correct even if
-  // no one is viewing the page when the clock runs out, this same
-  // phase-flip should also run on a schedule server-side (e.g. a Supabase
-  // Edge Function on pg_cron) that checks endsAt < now() and phase = 'live'.
-  const autoCompletedRef = useRef(false);
-  useEffect(() => {
-    if (comp.phase !== "live") return;
-    if (secondsLeft > 0) return;
-    if (autoCompletedRef.current) return;
-    // Only the organizer's own client is allowed to write competition_edits
-    // (same rule the edit panel itself is gated on, and almost certainly the
-    // same rule enforced server-side by RLS). Any other viewer's browser
-    // attempting this write is what caused "Impossible d'enregistrer les
-    // modifications." — silently skip it here instead.
-    if (!isOwnCompetition) return;
-    autoCompletedRef.current = true;
-    onEditComp?.({
-      competitionId: comp.id,
-      title: editTitle,
-      edition: editEdition,
-      ends: editEnds,
-      phase: "completed",
-      endsAt: comp.endsAt || null,
-      contestants: editContestants.trim() === "" ? null : Math.max(0, parseInt(editContestants, 10) || 0),
-      description: editDescription,
-      prizeAmount: editPrizeAmount.trim() === "" ? null : Number(editPrizeAmount),
-      fee: editFee.trim() === "" ? null : Math.max(0, parseInt(editFee, 10) || 0),
-      rewardExtra: editRewardExtra,
-      rules: editRules.split("\n").map((r) => r.trim()).filter(Boolean),
-      bannerUrl: editBannerUrl,
-    });
-  }, [secondsLeft, comp.phase, comp.id]);
+  // ── Closing competitions is now entirely server-side ─────────────────────
+  // A Postgres procedure (`close_expired_competitions`), scheduled via
+  // pg_cron every minute, is what actually flips phase → "completed",
+  // picks the winner (highest total gifts received, from the `gifts`
+  // table), and pays out their prize into wallet_balances — atomically,
+  // in one transaction per competition, regardless of whether anyone has
+  // the board open. The client no longer does this itself: no ref-guarded
+  // effect, no "only the organizer's browser can write this" workaround,
+  // and no race between whichever tab happens to be open first.
+  //
+  // `secondsLeft` above is purely cosmetic countdown UI. The moment the
+  // server closes a competition out, every client (including this board,
+  // if open) hears about it via the `competition_edits` realtime
+  // subscription in App() and re-renders with the authoritative result —
+  // see the `compEdits` subscription near the top-level App component.
 
   const fmtCountdown = (s) => {
     const d = Math.floor(s / 86400);
@@ -6551,9 +6526,10 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
 }
 
 const TX_VISUALS = {
-  deposit:    { icon: ArrowDownLeft, color: "#00B894", bg: "#f0fbf7" },
-  withdrawal: { icon: ArrowUpRight, color: "#E17055", bg: "#fff4f0" },
-  gift_sent:  { icon: Gift, color: "#6C63FF", bg: "#f0ebff" },
+  deposit:            { icon: ArrowDownLeft, color: "#00B894", bg: "#f0fbf7" },
+  withdrawal:         { icon: ArrowUpRight, color: "#E17055", bg: "#fff4f0" },
+  gift_sent:          { icon: Gift, color: "#6C63FF", bg: "#f0ebff" },
+  competition_prize:  { icon: Trophy, color: "#FDCB6E", bg: "#fffaf0" },
 };
 
 function txReference(id) {
@@ -8206,6 +8182,82 @@ export default function App() {
     fetchCompetitionEdits().then(setCompEdits);
     fetchAllCompetitionImages().then(setCompImages);
     fetchAllRegistrationCounts().then(setCompRegCounts);
+  }, []);
+
+  // ── Live sync for competition_edits ───────────────────────────────────
+  // Closing a competition (flipping phase → "completed", picking the
+  // winner, paying out the prize) now happens entirely server-side: a
+  // Postgres procedure, `close_expired_competitions`, runs on pg_cron and
+  // does all three atomically, whether or not anyone has a board open.
+  // This subscription is the client's only remaining job — reflect that
+  // result everywhere the moment it's committed, instead of the old
+  // approach where the one browser that happened to have the board open
+  // did the work itself and everyone else waited for a reload.
+  // Keeps both the homepage cards (via `compEdits`, consumed by
+  // `withEdits`/`allNichesWithEdits` below) and any currently-open
+  // `CompetitionBoard` (via `selectedComp`) in sync from a single channel.
+  const notifiedCompletionsRef = useRef(new Set());
+  useEffect(() => {
+    const channel = supabase
+      .channel("competition-edits-global")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "competition_edits" },
+        (payload) => {
+          const row = payload.new;
+          if (!row?.competition_id) return;
+          // Maps snake_case DB columns to the camelCase shape used
+          // throughout the client (same shape `saveCompetitionEdit` writes
+          // and `fetchCompetitionEdits` returns).
+          const edits = {
+            title: row.title,
+            edition: row.edition,
+            ends: row.ends,
+            phase: row.phase,
+            endsAt: row.ends_at,
+            contestants: row.contestants,
+            description: row.description,
+            prizeAmount: row.prize_amount,
+            fee: row.fee,
+            rewardExtra: row.reward_extra,
+            rules: row.rules,
+            bannerUrl: row.banner_url,
+            active: row.active,
+            winnerUserId: row.winner_user_id,
+            winnerName: row.winner_name,
+            winnerPrize: row.winner_prize,
+            closedAt: row.closed_at,
+          };
+          setCompEdits((prev) => ({
+            ...prev,
+            [row.competition_id]: { ...(prev[row.competition_id] || {}), ...edits },
+          }));
+          setSelectedComp((prev) =>
+            prev && prev.id === row.competition_id ? { ...prev, ...edits } : prev
+          );
+          // Announce a fresh payout once per competition per session — a ref
+          // (not compEdits state) so this isn't tied to a stale closure and
+          // doesn't fire again on later, unrelated edits to the same row.
+          if (
+            edits.phase === "completed" &&
+            edits.winnerUserId &&
+            !notifiedCompletionsRef.current.has(row.competition_id)
+          ) {
+            notifiedCompletionsRef.current.add(row.competition_id);
+            const label = edits.title || "Une compétition";
+            const prizeTxt = Number(edits.winnerPrize || 0).toLocaleString("fr-FR");
+            showToast(`${label} est terminée — ${edits.winnerName || "le gagnant"} remporte ${prizeTxt} HTG`);
+            pushNotif({
+              type: "action",
+              icon: "🏆",
+              title: "Compétition terminée",
+              body: `${edits.winnerName || "Le gagnant"} remporte ${prizeTxt} HTG dans ${label}`,
+            });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   function withEdits(comp) {
