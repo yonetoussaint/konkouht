@@ -5851,14 +5851,16 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14, lineHeight: 1.4 }}>
                   {isRegistration
                     ? "Passe automatiquement en direct dès que le compte à rebours se termine, si toutes les places sont prises. Sinon, les inscriptions sont prolongées de 24h."
-                    : "Basée sur le minuteur — non modifiable manuellement."}
+                    : "L'étiquette \"En direct\" elle-même n'est pas modifiable à la main — mais la date de fin ci-dessous pilote le vrai compte à rebours et peut être changée à tout moment."}
                 </div>
               </>
             )}
 
             {!isCompleted && (
             <>
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Durée de la compétition</label>
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+              {isRegistration ? "Durée des inscriptions" : "Durée de la phase en direct"}
+            </label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
               {DURATION_PRESETS.map((p) => (
                 <button
