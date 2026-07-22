@@ -3839,10 +3839,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   )}
 
                   {/* Milestone marker — a little anticipation for the next round number */}
-                  <div style={{ marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>
-                    Prochain palier : {nextMilestone.toLocaleString("fr-FR")} HTG
-                    <span style={{ marginLeft: 6, color: "#ccc" }}>({milestoneProgressPct}%)</span>
-                  </div>
+                  {!isCompleted && (
+                    <div style={{ marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>
+                      Prochain palier : {nextMilestone.toLocaleString("fr-FR")} HTG
+                      <span style={{ marginLeft: 6, color: "#ccc" }}>({milestoneProgressPct}%)</span>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -3856,58 +3858,175 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           </div>
         </div>
 
-        {/* ── STATS ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr" }}>
-            {(isRegistration ? [
-              { value: liveRegistered, label: "Inscrits" },
-              { value: comp.contestants, label: "Places", accent: true },
-              { value: `${registrationFee} G`, label: "Frais insc." },
-            ] : isCompleted ? [
-              { value: liveRegistered, label: "Candidats" },
-              { value: fmtVotes(totalGiftCount), label: "Cadeaux", accent: true },
-              { value: comp.closedAt ? fmtAbsoluteDate(comp.closedAt) : fmtAbsoluteDate(resolveEndsAt()), label: "Terminée le" },
-            ] : [
-              { value: liveRegistered, label: "Candidats" },
-              { value: fmtVotes(totalGiftCount), label: "Cadeaux", accent: true, bump: pointsBump },
-              { value: fmtAbsoluteDate(resolveEndsAt()), label: "Fin dans", hot: comp.hot, timer: true },
-            ]).map((s, i) => {
-              const hotTimer = s.timer && s.hot;
-              return (
-                <div key={i} style={{
-                  borderLeft: i > 0 ? "1px solid #f0f0f0" : "none",
-                  padding: "10px 4px",
-                  display: "flex", flexDirection: "column", alignItems: "center",
-                  background: hotTimer ? "rgba(192,57,43,0.06)" : "transparent",
-                  transition: "background 0.3s",
-                }}>
-                  <div style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: s.timer ? 15 : 24, fontWeight: 800,
-                    color: hotTimer ? "#c0392b" : s.accent ? accent : "#111",
-                    lineHeight: 1.15,
-                    transition: s.timer ? "opacity 0.12s, transform 0.28s cubic-bezier(0.34,1.56,0.64,1)" : "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
-                    opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
-                    transform: s.bump ? "scale(1.14)" : "scale(1)",
-                    fontVariantNumeric: s.timer ? "normal" : "tabular-nums",
-                    whiteSpace: s.timer ? "nowrap" : "normal",
-                  }}>{s.timer ? fmtCountdown(secondsLeft) : s.value}</div>
-                  {s.timer && (
+        {/* ── STATS / RÉSUMÉ FINAL ── */}
+        {isCompleted ? (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "16px 12px 4px" }}>
+
+            {/* Section label */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              marginBottom: 10,
+            }}>
+              <Trophy size={13} strokeWidth={2.5} />
+              Résumé final
+            </div>
+
+            {/* Quick stats — 2x2 grid, mobile-friendly tiles instead of a
+                single cramped 3-column row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
+              {[
+                { label: "Candidats", value: liveRegistered, icon: Users },
+                { label: "Cadeaux envoyés", value: fmtVotes(totalGiftCount), icon: Gift },
+                { label: "Cagnotte finale", value: `${heroPrizeValue.toLocaleString("fr-FR")} G`, icon: Trophy, highlight: true },
+                { label: "Terminée le", value: comp.closedAt ? fmtAbsoluteDate(comp.closedAt) : fmtAbsoluteDate(resolveEndsAt()), icon: Clock },
+              ].map((s, i) => {
+                const Icon = s.icon;
+                return (
+                  <div key={i} style={{
+                    border: `1px solid ${s.highlight ? `${accent}33` : "#eee"}`,
+                    borderRadius: 14, padding: "11px 12px",
+                    background: s.highlight ? `${accent}0d` : "#fafafa",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                      <Icon size={13} color={s.highlight ? accent : "#999"} strokeWidth={2.3} />
+                      <span style={{
+                        fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+                        color: "#999", textTransform: "uppercase", letterSpacing: "0.06em",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>{s.label}</span>
+                    </div>
                     <div style={{
-                      fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb",
-                      marginTop: 2, whiteSpace: "nowrap",
-                    }}>{fmtAbsoluteDate(resolveEndsAt())}</div>
-                  )}
-                  <div style={{
-                    fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#999",
-                    textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4,
-                    fontWeight: 600, textAlign: "center",
-                  }}>{s.label}</div>
+                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 800,
+                      color: s.highlight ? accent : "#111",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>{s.value}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Final podium — top 3 by real gifts received, same ranking
+                the winner banner above was computed from */}
+            {ranked.length > 0 && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+                  marginBottom: 10,
+                }}>
+                  Classement final
                 </div>
-              );
-            })}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {ranked.slice(0, 3).map((p, i) => (
+                    <div key={p.id ?? p.index} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "9px 10px", borderRadius: 12,
+                      background: i === 0 ? `${accent}0d` : "#fafafa",
+                      border: `1px solid ${i === 0 ? `${accent}33` : "#eee"}`,
+                    }}>
+                      <span style={{ fontSize: 16, width: 22, textAlign: "center", flexShrink: 0 }}>
+                        {["🥇", "🥈", "🥉"][i]}
+                      </span>
+                      <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "1px solid #e0e0e0" }}>
+                        <EntityAvatar url={p.avatarUrl} name={p.name} />
+                      </div>
+                      <span style={{
+                        flex: 1, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                        color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>{p.name}</span>
+                      <span style={{
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 800,
+                        color: i === 0 ? accent : "#666", flexShrink: 0,
+                      }}>{fmtVotes(p.points)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Top donors */}
+            {giftLeaderboard.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+                  marginBottom: 10,
+                }}>
+                  Top donateurs
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {giftLeaderboard.slice(0, 3).map((d, i) => (
+                    <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: "#bbb", width: 16, flexShrink: 0 }}>
+                        {i + 1}
+                      </span>
+                      <div style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "1px solid #e0e0e0" }}>
+                        <EntityAvatar url={d.avatarUrl} name={d.name} />
+                      </div>
+                      <span style={{
+                        flex: 1, fontFamily: "Inter, sans-serif", fontSize: 12.5, fontWeight: 600,
+                        color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>{d.name}</span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#999", flexShrink: 0 }}>
+                        {d.totalSpent.toLocaleString("fr-FR")} G
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        ) : (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr" }}>
+              {(isRegistration ? [
+                { value: liveRegistered, label: "Inscrits" },
+                { value: comp.contestants, label: "Places", accent: true },
+                { value: `${registrationFee} G`, label: "Frais insc." },
+              ] : [
+                { value: liveRegistered, label: "Candidats" },
+                { value: fmtVotes(totalGiftCount), label: "Cadeaux", accent: true, bump: pointsBump },
+                { value: fmtAbsoluteDate(resolveEndsAt()), label: "Fin dans", hot: comp.hot, timer: true },
+              ]).map((s, i) => {
+                const hotTimer = s.timer && s.hot;
+                return (
+                  <div key={i} style={{
+                    borderLeft: i > 0 ? "1px solid #f0f0f0" : "none",
+                    padding: "10px 4px",
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    background: hotTimer ? "rgba(192,57,43,0.06)" : "transparent",
+                    transition: "background 0.3s",
+                  }}>
+                    <div style={{
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontSize: s.timer ? 15 : 24, fontWeight: 800,
+                      color: hotTimer ? "#c0392b" : s.accent ? accent : "#111",
+                      lineHeight: 1.15,
+                      transition: s.timer ? "opacity 0.12s, transform 0.28s cubic-bezier(0.34,1.56,0.64,1)" : "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
+                      opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
+                      transform: s.bump ? "scale(1.14)" : "scale(1)",
+                      fontVariantNumeric: s.timer ? "normal" : "tabular-nums",
+                      whiteSpace: s.timer ? "nowrap" : "normal",
+                    }}>{s.timer ? fmtCountdown(secondsLeft) : s.value}</div>
+                    {s.timer && (
+                      <div style={{
+                        fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb",
+                        marginTop: 2, whiteSpace: "nowrap",
+                      }}>{fmtAbsoluteDate(resolveEndsAt())}</div>
+                    )}
+                    <div style={{
+                      fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#999",
+                      textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4,
+                      fontWeight: 600, textAlign: "center",
+                    }}>{s.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── RULES (lower-priority disclosure, separate from the vitals above) ── */}
         {rulesInfo.rules.length > 0 && (
