@@ -3516,7 +3516,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                           loop
                           playsInline
                           onError={() => setVideoErrors((e) => ({ ...e, [i]: true }))}
-                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: isCompleted ? "grayscale(0.85)" : "none" }}
                         />
                         {videoErrors[i] && (
                           <div style={{
@@ -3538,9 +3538,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                         <ImageIcon size={40} color="#bbb" />
                       </div>
                     ) : (
-                      <img src={slide.src} alt={`${comp.title} ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <img src={slide.src} alt={`${comp.title} ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: isCompleted ? "grayscale(0.85)" : "none" }} />
                     )}
                     <div style={{ position: "absolute", inset: 0, background: `${accent}44`, mixBlendMode: "multiply" }} />
+                    {isCompleted && (
+                      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)" }} />
+                    )}
                   </div>
                 ))}
                 {/* Gradient */}
@@ -3551,7 +3554,32 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 }} />
                 {/* Hero content */}
                 <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 5, padding: "0 8px 16px", opacity: bannerFullscreen ? 0 : 1, transition: "opacity 0.3s", pointerEvents: bannerFullscreen ? "none" : "all" }}>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>{comp.niche}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)" }}>{comp.niche}</div>
+                    {isLive && (
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+                        textTransform: "uppercase", color: "#fff",
+                        background: "#00B894", padding: "2px 7px", borderRadius: 7,
+                        fontFamily: "Inter, sans-serif",
+                      }}>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#fff", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+                        En direct
+                      </div>
+                    )}
+                    {isCompleted && (
+                      <div style={{
+                        fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+                        textTransform: "uppercase", color: "#fff",
+                        background: "rgba(255,255,255,0.2)", padding: "2px 7px", borderRadius: 7,
+                        fontFamily: "Inter, sans-serif",
+                        backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+                      }}>
+                        🏆 Terminé
+                      </div>
+                    )}
+                  </div>
                   <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(22px, 5vw, 34px)", fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.05, textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>{comp.title}</div>
                 </div>
                 {/* Focus icon — bottom right */}
@@ -3835,6 +3863,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               { value: liveRegistered, label: "Inscrits" },
               { value: comp.contestants, label: "Places", accent: true },
               { value: `${registrationFee} G`, label: "Frais insc." },
+            ] : isCompleted ? [
+              { value: liveRegistered, label: "Candidats" },
+              { value: fmtVotes(totalGiftCount), label: "Cadeaux", accent: true },
+              { value: comp.closedAt ? fmtAbsoluteDate(comp.closedAt) : fmtAbsoluteDate(resolveEndsAt()), label: "Terminée le" },
             ] : [
               { value: liveRegistered, label: "Candidats" },
               { value: fmtVotes(totalGiftCount), label: "Cadeaux", accent: true, bump: pointsBump },
@@ -5687,8 +5719,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             (() => {
               const isTyping = commentDraft.trim().length > 0;
               // Admins/organizers manage their own competition, they don't send themselves gifts —
-              // so the gift button is swapped out for an edit entry point instead.
-              const showGiftOption = !isOwnCompetition && !isRegistered;
+              // so the gift button is swapped out for an edit entry point instead. Once the
+              // competition is completed there's no one left to vote for, so the gift option
+              // disappears entirely rather than opening a flow with nothing to send to.
+              const showGiftOption = !isOwnCompetition && !isRegistered && !isCompleted;
               return (
                 <>
                   <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
