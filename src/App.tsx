@@ -2423,6 +2423,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [editRules, setEditRules] = useState((comp.rules || []).join("\n"));
   const [editBannerUrl, setEditBannerUrl] = useState(comp.bannerUrl || null);
   const [savingEdit, setSavingEdit] = useState(false);
+  // Both duration fields — the quick preset label (editEnds) AND the real
+  // deadline (editEndsAt) — must be set together before the edition can be
+  // saved/published. Picking a preset sets both at once; picking a custom
+  // date used to blank out the label instead, leaving the edition half-set.
+  // Completed competitions hide the whole duration section, so they're
+  // exempt from this check.
+  const durationIncomplete = !isCompleted && (!editEnds.trim() || !editEndsAt);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removingImageId, setRemovingImageId] = useState(null);
   const images = comp.images || [];
@@ -5890,6 +5897,11 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
               Choisissez une durée à partir de maintenant — le vrai compte à rebours et la date de fin ci-dessous se réglent automatiquement.
             </div>
+            {durationIncomplete && (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, fontWeight: 700, color: "#D35400", background: "#FDEDE3", border: "1px solid #F5C9A5", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
+                Choisissez une durée ou une date de fin précise avant de pouvoir enregistrer — les deux doivent être définis.
+              </div>
+            )}
 
             <details style={{ marginBottom: 14 }}>
               <summary style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#888", cursor: "pointer", marginBottom: 8 }}>
@@ -5899,11 +5911,18 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 <input
                   type="datetime-local"
                   value={editEndsAt}
-                  onChange={(e) => { setEditEndsAt(e.target.value); setEditEnds(""); }}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setEditEndsAt(next);
+                    // Keep the compact label in sync with the precise date
+                    // instead of blanking it out — both fields are required
+                    // together before the edition can be saved/published.
+                    setEditEnds(next ? fmtCountdown(new Date(next).toISOString()) : "");
+                  }}
                   style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
                 />
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
-                  Pilote le vrai compte à rebours. Laissez vide pour désactiver le compte à rebours réel.
+                  Pilote le vrai compte à rebours.
                 </div>
               </div>
             </details>
@@ -6053,7 +6072,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             </button>
             <button
               onClick={handleSaveEdit}
-              disabled={savingEdit || !editTitle.trim()}
+              disabled={savingEdit || !editTitle.trim() || durationIncomplete}
               style={{ flex: 1, border: "none", background: accent, color: "#fff", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: savingEdit ? "default" : "pointer", opacity: savingEdit ? 0.7 : 1 }}
             >
               {savingEdit ? "Enregistrement…" : "Enregistrer"}
