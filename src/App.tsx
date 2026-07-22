@@ -377,6 +377,7 @@ async function saveEditionEdit({
   rewardExtra,
   rules,
   active,
+  liveDurationSeconds,
   updatedBy,
 }) {
   const patch = { updated_by: updatedBy, updated_at: new Date().toISOString() };
@@ -393,6 +394,11 @@ async function saveEditionEdit({
   if (rewardExtra !== undefined) patch.reward_extra = rewardExtra;
   if (rules !== undefined) patch.rules = rules;
   if (active !== undefined) patch.active = active;
+  // Only ever sent from the edit form while the edition is still in
+  // "registration" — the UI never offers this field once phase is "live",
+  // so a caller passing it through at that point would be a bug upstream,
+  // not something to silently allow here.
+  if (liveDurationSeconds !== undefined) patch.live_duration_seconds = liveDurationSeconds;
 
   const { data, error } = await supabase
     .from(EDITIONS_TABLE)
@@ -2431,13 +2437,24 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   const [editRules, setEditRules] = useState((comp.rules || []).join("\n"));
   const [editBannerUrl, setEditBannerUrl] = useState(comp.bannerUrl || null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const isLive = !isRegistration && !isCompleted;
+  // How long the LIVE phase itself will last, once this edition gets there.
+  // This has to be locked in during registration (or at creation) because
+  // `open_expired_registrations` reads it only at the registration→live
+  // transition to compute the real `ends_at` for the live phase — it can't
+  // be changed by hand after the fact, so the edit form stops offering it
+  // the moment phase flips to "live".
+  const [editLiveDurationSeconds, setEditLiveDurationSeconds] = useState(comp.liveDurationSeconds ?? null);
   // Both duration fields — the quick preset label (editEnds) AND the real
   // deadline (editEndsAt) — must be set together before the edition can be
   // saved/published. Picking a preset sets both at once; picking a custom
   // date used to blank out the label instead, leaving the edition half-set.
-  // Completed competitions hide the whole duration section, so they're
-  // exempt from this check.
-  const durationIncomplete = !isCompleted && (!editEnds.trim() || !editEndsAt);
+  // While still in registration, the live-phase duration above must also be
+  // set, since there's no later opportunity to fill it in once live. Live
+  // and completed editions skip this check entirely — a live edition's
+  // duration was already locked in, and a completed one hides the whole
+  // duration section.
+  const durationIncomplete = !isCompleted && (!editEnds.trim() || !editEndsAt || (isRegistration && !editLiveDurationSeconds));
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removingImageId, setRemovingImageId] = useState(null);
   const images = comp.images || [];
@@ -2455,7 +2472,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     setEditRewardExtra(comp.rewardExtra || "");
     setEditRules((comp.rules || []).join("\n"));
     setEditBannerUrl(comp.bannerUrl || null);
-  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.endsAt, comp.description, comp.prizeAmount, comp.fee, comp.rewardExtra, comp.rules, comp.bannerUrl]);
+    setEditLiveDurationSeconds(comp.liveDurationSeconds ?? null);
+  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.endsAt, comp.description, comp.prizeAmount, comp.fee, comp.rewardExtra, comp.rules, comp.bannerUrl, comp.liveDurationSeconds]);
 
   async function handleAddImageFile(e) {
     const file = e.target.files?.[0];
@@ -2499,6 +2517,10 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
       rewardExtra: editRewardExtra.trim(),
       rules: editRules.split("\n").map((r) => r.trim()).filter(Boolean),
       bannerUrl: editBannerUrl,
+      // Left undefined once live (or completed) so neither saveEditionEdit
+      // nor onCreateComp ever touches live_duration_seconds past the point
+      // it's allowed to change — it was locked in back in registration.
+      liveDurationSeconds: isLive ? undefined : editLiveDurationSeconds,
     };
     // A brand-new edition has never been written to the database — this
     // is its first save, so it's an insert (always phase "registration",
@@ -5866,15 +5888,15 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14, lineHeight: 1.4 }}>
                   {isRegistration
                     ? "Passe automatiquement en direct dès que le compte à rebours se termine, si toutes les places sont prises. Sinon, les inscriptions sont prolongées de 24h."
-                    : "L'étiquette \"En direct\" elle-même n'est pas modifiable à la main — mais la date de fin ci-dessous pilote le vrai compte à rebours et peut être changée à tout moment."}
+                    : "La durée de cette phase en direct a été fixée pendant les inscriptions et ne peut plus être modifiée à la main — voir la date de fin ci-dessous."}
                 </div>
               </>
             )}
 
-            {!isCompleted && (
+            {isRegistration && (
             <>
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-              {isRegistration ? "Durée des inscriptions" : "Durée de la phase en direct"}
+              Durée des inscriptions
             </label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
               {DURATION_PRESETS.map((p) => (
@@ -5905,11 +5927,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
               Choisissez une durée à partir de maintenant — le vrai compte à rebours et la date de fin ci-dessous se réglent automatiquement.
             </div>
-            {durationIncomplete && (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, fontWeight: 700, color: "#D35400", background: "#FDEDE3", border: "1px solid #F5C9A5", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
-                Choisissez une durée ou une date de fin précise avant de pouvoir enregistrer — les deux doivent être définis.
-              </div>
-            )}
 
             <details style={{ marginBottom: 14 }}>
               <summary style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#888", cursor: "pointer", marginBottom: 8 }}>
@@ -5934,7 +5951,62 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                 </div>
               </div>
             </details>
+
+            {/* Set once now, while the edition is still in registration —
+                NOT editable once phase flips to "live". Stored as
+                live_duration_seconds and read by open_expired_registrations
+                only at the moment registration ends, to compute the real
+                ends_at for the live phase. There's no picker for this once
+                live starts; that's the whole point of locking it in here. */}
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+              Durée de la phase en direct
+            </label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+              {DURATION_PRESETS.map((p) => {
+                const seconds = p.ms / 1000;
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => setEditLiveDurationSeconds(seconds)}
+                    style={{
+                      border: editLiveDurationSeconds === seconds ? "1px solid #111" : "1px solid #e0e0e0",
+                      background: editLiveDurationSeconds === seconds ? "#111" : "#fff",
+                      color: editLiveDurationSeconds === seconds ? "#fff" : "#555",
+                      borderRadius: 999,
+                      padding: "7px 13px",
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {p.display}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
+              Combien de temps durera la phase en direct une fois les inscriptions closes — à définir maintenant, ce ne sera plus modifiable ensuite.
+            </div>
+
+            {durationIncomplete && (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, fontWeight: 700, color: "#D35400", background: "#FDEDE3", border: "1px solid #F5C9A5", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
+                Choisissez une durée d'inscription (ou une date de fin précise) et une durée pour la phase en direct avant de pouvoir enregistrer.
+              </div>
+            )}
             </>
+            )}
+
+            {isLive && (
+              <div style={{ border: "1px solid #eee", background: "#f7f7f7", borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#333", marginBottom: 4 }}>
+                  Se termine dans {editEnds || "—"}
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", lineHeight: 1.4 }}>
+                  Durée verrouillée depuis les inscriptions — non modifiable à la main.
+                </div>
+              </div>
             )}
 
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Places disponibles</label>
@@ -9505,7 +9577,7 @@ export default function App() {
   // First real save of a brand-new edition — this is an INSERT (the row
   // never existed before), always forced to phase "registration" inside
   // createEdition itself, not an update to an existing row.
-  async function handleCreateEditionSave({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl }) {
+  async function handleCreateEditionSave({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
     const { data, error } = await createEdition({
       competitionId,
       title,
@@ -9519,6 +9591,7 @@ export default function App() {
       rewardExtra,
       rules,
       bannerUrl,
+      liveDurationSeconds,
       updatedBy: currentUser?.id,
     });
     if (error) {
@@ -9689,11 +9762,11 @@ export default function App() {
   }, [compImages, editionsByComp, compRegCounts]);
 
 
-  async function handleEditComp({ editionId, competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl }) {
+  async function handleEditComp({ editionId, competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
     // TEMP DEBUG — remove once we've confirmed the session is attached.
     const { data: debugSession } = await supabase.auth.getSession();
     console.log("[DEBUG] session email:", debugSession.session?.user?.email, "has token:", !!debugSession.session?.access_token);
-    const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl };
+    const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds };
     const { data, error } = await saveEditionEdit({
       editionId,
       ...edits,
