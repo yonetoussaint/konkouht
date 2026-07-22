@@ -3756,7 +3756,13 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     transform: s.bump ? "scale(1.14)" : "scale(1)",
                     fontVariantNumeric: s.timer ? "normal" : "tabular-nums",
                     whiteSpace: s.timer ? "nowrap" : "normal",
-                  }}>{s.value}</div>
+                  }}>{s.timer ? fmtCountdown(secondsLeft) : s.value}</div>
+                  {s.timer && (
+                    <div style={{
+                      fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb",
+                      marginTop: 2, whiteSpace: "nowrap",
+                    }}>{fmtAbsoluteDate(resolveEndsAt())}</div>
+                  )}
                   <div style={{
                     fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#999",
                     textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4,
@@ -3818,15 +3824,23 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               textTransform: "uppercase", letterSpacing: "0.1em",
               fontWeight: 600,
             }}>Fin inscr.</div>
-            <div style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: 15, fontWeight: 800,
-              color: comp.hot ? "#c0392b" : "#111",
-              lineHeight: 1.15,
-              transition: "opacity 0.12s",
-              opacity: tickFlash ? 1 : 0.6,
-              whiteSpace: "nowrap",
-            }}>{fmtAbsoluteDate(resolveEndsAt())}</div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
+              <span style={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontSize: 13, fontWeight: 800,
+                color: comp.hot ? "#c0392b" : "#6C63FF",
+                lineHeight: 1.1,
+                fontVariantNumeric: "tabular-nums",
+                whiteSpace: "nowrap",
+              }}>{fmtCountdown(secondsLeft)}</span>
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa",
+                lineHeight: 1.1,
+                transition: "opacity 0.12s",
+                opacity: tickFlash ? 1 : 0.6,
+                whiteSpace: "nowrap",
+              }}>{fmtAbsoluteDate(resolveEndsAt())}</span>
+            </div>
           </div>
         )}
 
@@ -3849,8 +3863,8 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             color: isRegistration ? "#6C63FF" : comp.hot ? "#c0392b" : "#888",
           }}>
             {isRegistration 
-              ? `Inscriptions ouvertes — ${comp.contestants - liveRegistered} place${comp.contestants - liveRegistered !== 1 ? 's' : ''} disponible${comp.contestants - liveRegistered !== 1 ? 's' : ''}` 
-              : comp.hot ? `Compétition très active — se termine ${fmtAbsoluteDate(resolveEndsAt())}` : `Se termine ${fmtAbsoluteDate(resolveEndsAt())}`}
+              ? `Inscriptions ouvertes — ${comp.contestants - liveRegistered} place${comp.contestants - liveRegistered !== 1 ? 's' : ''} disponible${comp.contestants - liveRegistered !== 1 ? 's' : ''} · ${fmtCountdown(secondsLeft)}` 
+              : comp.hot ? `Compétition très active — ${fmtCountdown(secondsLeft)}` : `Se termine dans ${fmtCountdown(secondsLeft)}`}
           </span>
         </div>
 
