@@ -927,6 +927,22 @@ function fmtAbsoluteDate(target) {
   return `${date} ${month}, ${hours}:${minutes} ${ampm}`;
 }
 
+// Compact duration for the card overlay chip ("2j 14h", "6h 22m") — the
+// stats row below already shows the absolute deadline, so this is just a
+// quick-glance urgency cue, not meant to be precise to the minute.
+function fmtCountdown(target) {
+  const diff = new Date(target).getTime() - Date.now();
+  if (Number.isNaN(diff)) return "";
+  if (diff <= 0) return "Terminé";
+  const totalMin = Math.floor(diff / 60000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const minutes = totalMin % 60;
+  if (days > 0) return `${days}j ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 // NOTE: the old module-level findCompWithNiche(compId) — which looked up a
 // competition directly in the static NICHES seed data — was removed here.
 // Every id stored anywhere in the app (notifications, registeredCompIds,
@@ -1323,10 +1339,12 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
             </span>
             <span style={{
               marginLeft: "auto", flexShrink: 0,
-              fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 500,
-              color: "rgba(255,255,255,0.65)",
+              display: "flex", alignItems: "center", gap: 3,
+              fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+              color: "rgba(255,255,255,0.85)",
             }}>
-              {fmtVotes(followerCount)} ab.
+              <Clock size={10} strokeWidth={2.5} />
+              {fmtCountdown(resolvedEndDate)}
             </span>
           </div>
         </div>
