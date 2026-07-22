@@ -5961,31 +5961,67 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
               Durée de la phase en direct
             </label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-              {DURATION_PRESETS.map((p) => {
-                const seconds = p.ms / 1000;
-                return (
-                  <button
-                    key={p.label}
-                    type="button"
-                    onClick={() => setEditLiveDurationSeconds(seconds)}
-                    style={{
-                      border: editLiveDurationSeconds === seconds ? "1px solid #111" : "1px solid #e0e0e0",
-                      background: editLiveDurationSeconds === seconds ? "#111" : "#fff",
-                      color: editLiveDurationSeconds === seconds ? "#fff" : "#555",
-                      borderRadius: 999,
-                      padding: "7px 13px",
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: 12.5,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {p.display}
-                  </button>
-                );
-              })}
-            </div>
+            {(() => {
+              const totalSecs = editLiveDurationSeconds || 0;
+              const durDays = Math.floor(totalSecs / 86400);
+              const durHours = Math.floor((totalSecs % 86400) / 3600);
+              const durMinutes = Math.floor((totalSecs % 3600) / 60);
+              const numFieldStyle = {
+                width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0",
+                borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif",
+                fontSize: 14, color: "#333", outline: "none",
+              };
+              const numLabelStyle = {
+                display: "block", fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                fontWeight: 700, color: "#aaa", textTransform: "uppercase",
+                letterSpacing: "0.04em", marginBottom: 4,
+              };
+              return (
+                <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={numLabelStyle}>Jours</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={durDays}
+                      onChange={(e) => {
+                        const d = Math.max(0, Number(e.target.value) || 0);
+                        setEditLiveDurationSeconds(d * 86400 + durHours * 3600 + durMinutes * 60);
+                      }}
+                      style={numFieldStyle}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={numLabelStyle}>Heures</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="23"
+                      value={durHours}
+                      onChange={(e) => {
+                        const h = Math.min(23, Math.max(0, Number(e.target.value) || 0));
+                        setEditLiveDurationSeconds(durDays * 86400 + h * 3600 + durMinutes * 60);
+                      }}
+                      style={numFieldStyle}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={numLabelStyle}>Minutes</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={durMinutes}
+                      onChange={(e) => {
+                        const m = Math.min(59, Math.max(0, Number(e.target.value) || 0));
+                        setEditLiveDurationSeconds(durDays * 86400 + durHours * 3600 + m * 60);
+                      }}
+                      style={numFieldStyle}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
               Combien de temps durera la phase en direct une fois les inscriptions closes — à définir maintenant, ce ne sera plus modifiable ensuite.
             </div>
