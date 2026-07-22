@@ -1197,19 +1197,21 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
       onClick={() => onOpen?.(comp)}
       style={{
         flexShrink: 0,
-        width: 220,
-        border: `1px solid #eee`,
-        borderRadius: 16,
+        width: 272,
+        border: "1px solid #ececec",
+        borderRadius: 18,
         overflow: "hidden",
         background: "#fff",
         display: "flex",
         flexDirection: "column",
         cursor: "pointer",
         userSelect: "none",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
       }}
     >
-      {/* Banner */}
-      <div style={{ height: 110, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
+      {/* Banner — title, organizer, and badges all live on the image now,
+          so the card doesn't need a separate bordered title block below it. */}
+      <div style={{ height: 132, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
         {(comp.bannerUrl || comp.images?.[0]?.url) ? (
           <img
             src={comp.bannerUrl || comp.images[0].url}
@@ -1223,95 +1225,42 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
         )}
         <div style={{
           position: "absolute", inset: 0,
-          background: `${accent}66`,
+          background: `${accent}55`,
           mixBlendMode: "multiply",
         }} />
         <div style={{
           position: "absolute", inset: 0,
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 100%)",
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.78) 100%)",
         }} />
-        {comp.hot && (
-          <div style={{
-            position: "absolute", top: 10, left: 10,
-            fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
-            textTransform: "uppercase", color: "#fff",
-            background: "rgba(0,0,0,0.45)", padding: "2px 8px",
-            fontFamily: "Inter, sans-serif",
-            borderRadius: 8,
-          }}>
-            EN VUE
-          </div>
-        )}
-        {isRegistration && (
-          <div style={{
-            position: "absolute", top: 10, right: 10,
-            fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
-            textTransform: "uppercase", color: "#fff",
-            background: "#6C63FF", padding: "3px 8px",
-            fontFamily: "Inter, sans-serif",
-            borderRadius: 8,
-          }}>
-            Inscriptions
-          </div>
-        )}
-      </div>
 
-      {/* Card body */}
-      <div style={{ padding: "14px 14px 10px", flexGrow: 1 }}>
-
-        <div
-          style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 16,
-            fontWeight: 700,
-            color: "#333",
-            lineHeight: 1.2,
-            marginBottom: 10,
-            marginLeft: -14,
-            marginRight: -14,
-            paddingLeft: 14,
-            paddingRight: 14,
-            paddingBottom: 10,
-            borderBottom: "1px solid #e8e8e8",
-          }}
-        >
-          {comp.title}
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: 12,
-          }}
-        >
-          <div
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: "50%",
-              background: accent,
-              color: "#fff",
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: 11,
-              fontWeight: 700,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            {comp.organisateur.charAt(0)}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2, flex: 1, minWidth: 0 }}>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#666", fontWeight: 600, display: "flex", alignItems: "center", gap: 3, overflow: "hidden" }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{comp.organisateur}</span>
-              <BadgeCheck size={12} strokeWidth={2.5} color={accent} style={{ flexShrink: 0 }} />
-            </span>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa", fontWeight: 500 }}>
-              {fmtVotes(followerCount)} abonnés
-            </span>
+        {/* Top row — status badges on the left, follow toggle on the right */}
+        <div style={{
+          position: "absolute", top: 8, left: 8, right: 8,
+          display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6,
+        }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+            {comp.hot && (
+              <div style={{
+                fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em",
+                textTransform: "uppercase", color: "#fff",
+                background: "rgba(0,0,0,0.45)", padding: "2px 7px",
+                fontFamily: "Inter, sans-serif",
+                borderRadius: 7,
+              }}>
+                EN VUE
+              </div>
+            )}
+            {isRegistration && (
+              <div style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+                textTransform: "uppercase", color: "#fff",
+                background: "#6C63FF", padding: "2px 7px",
+                fontFamily: "Inter, sans-serif",
+                borderRadius: 7,
+              }}>
+                Inscriptions
+              </div>
+            )}
           </div>
           <button
             onClick={(e) => {
@@ -1319,68 +1268,110 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
               setFollowed((f) => !f);
               setFollowerCount((c) => followed ? c - 1 : c + 1);
             }}
+            title={followed ? "Ne plus suivre" : "Suivre"}
             style={{
               flexShrink: 0,
-              border: followed ? `1px solid ${accent}` : "1px solid #ddd",
-              background: followed ? accent : "transparent",
-              color: followed ? "#fff" : "#666",
-              fontFamily: "Inter, sans-serif",
-              fontSize: 9,
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              padding: "3px 7px",
+              width: 25, height: 25, borderRadius: "50%",
+              border: followed ? "none" : "1px solid rgba(255,255,255,0.55)",
+              background: followed ? accent : "rgba(0,0,0,0.35)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+              color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer",
-              transition: "background 0.15s, color 0.15s, border-color 0.15s",
-              display: "flex",
-              alignItems: "center",
-              gap: 3,
-              lineHeight: 1.4,
+              transition: "background 0.15s",
+              padding: 0,
             }}
           >
-            {followed ? (
-              <>
-                <Check size={9} strokeWidth={3} />
-                Abonné
-              </>
-            ) : (
-              "+ Suivre"
-            )}
+            {followed ? <Check size={11} strokeWidth={3} /> : <Plus size={13} strokeWidth={2.5} />}
           </button>
         </div>
 
-        {/* Meta row */}
-        <div
-          style={{
-            display: "flex",
-            gap: 0,
-            borderTop: "1px solid #e8e8e8",
-            marginLeft: -14,
-            marginRight: -14,
-            paddingLeft: 14,
-            paddingRight: 14,
-            paddingTop: 10,
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", lineHeight: 1 }}>
-              {isRegistration ? comp.registeredCount : comp.contestants}
-            </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
-              {isRegistration ? "inscrits" : "candidats"}
-            </div>
+        {/* Bottom overlay — title + organizer, replaces the old separate title block */}
+        <div style={{
+          position: "absolute", left: 0, right: 0, bottom: 0,
+          padding: "8px 12px 9px",
+          display: "flex", flexDirection: "column", gap: 5,
+        }}>
+          <div style={{
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontSize: 15, fontWeight: 800,
+            color: "#fff",
+            lineHeight: 1.2,
+            textShadow: "0 1px 6px rgba(0,0,0,0.4)",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {comp.title}
           </div>
-          <div style={{ flex: 1, borderLeft: "1px solid #e8e8e8", paddingLeft: 10 }}>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 500 }}>
-              Fin dans
+          <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
+            <div style={{
+              width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+              background: accent, color: "#fff",
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 8.5, fontWeight: 700,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {comp.organisateur.charAt(0)}
             </div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: comp.hot ? "#c0392b" : "#111", marginTop: 1 }}>
-              {fmtAbsoluteDate(resolvedEndDate)}
-            </div>
+            <span style={{
+              fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 600,
+              color: "rgba(255,255,255,0.92)",
+              display: "flex", alignItems: "center", gap: 2,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0,
+            }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{comp.organisateur}</span>
+              <BadgeCheck size={10} strokeWidth={2.5} color="#fff" style={{ flexShrink: 0, opacity: 0.9 }} />
+            </span>
+            <span style={{
+              marginLeft: "auto", flexShrink: 0,
+              fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 500,
+              color: "rgba(255,255,255,0.65)",
+            }}>
+              {fmtVotes(followerCount)} ab.
+            </span>
           </div>
         </div>
+      </div>
 
-        <PhaseRow edition={comp.edition} accent={accent} />
+      {/* Compact stats row — replaces the old meta-row + PhaseRow pair,
+          same three facts (count, deadline, phase) in a single line. */}
+      <div style={{
+        display: "flex", alignItems: "center",
+        padding: "9px 12px",
+        borderBottom: "1px solid #f0f0f0",
+      }}>
+        <div style={{ flex: 0.8, display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: "#222", lineHeight: 1 }}>
+            {isRegistration ? comp.registeredCount : comp.contestants}
+          </span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+            {isRegistration ? "Inscrits" : "Candidats"}
+          </span>
+        </div>
+        <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
+        <div style={{ flex: 1.3, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
+          <span style={{
+            fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+            color: comp.hot ? "#c0392b" : "#333",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {fmtAbsoluteDate(resolvedEndDate)}
+          </span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+            {isRegistration ? "Fin inscr." : "Fin dans"}
+          </span>
+        </div>
+        <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
+        <div style={{ flex: 0.9, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
+          <span style={{
+            fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: accent,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {comp.edition}
+          </span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+            Phase
+          </span>
+        </div>
       </div>
 
       {/* Footer — voting or registration */}
@@ -1389,14 +1380,14 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           <div
             style={{
               border: "none",
-              background: "#f2f2f2",
+              background: "#f7f7f7",
               color: "#999",
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: 12.5,
               letterSpacing: "0.06em",
               textTransform: "uppercase",
-              padding: "11px 14px",
+              padding: "10px 14px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -1404,22 +1395,21 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
               flexShrink: 0,
             }}
           >
-            <BadgeCheck size={14} strokeWidth={2.5} />
+            <BadgeCheck size={13} strokeWidth={2.5} />
             Votre compétition
           </div>
         ) : isRegistered ? (
           <div
             style={{
               border: "none",
-              borderTop: `2px solid #00B894`,
               background: "#e8f8f3",
               color: "#00875A",
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: 12.5,
               letterSpacing: "0.06em",
               textTransform: "uppercase",
-              padding: "11px 14px",
+              padding: "10px 14px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -1427,13 +1417,13 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
             }}
           >
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Check size={14} strokeWidth={2.5} />
+              <Check size={13} strokeWidth={2.5} />
               Inscrit
             </span>
             <span
               style={{
                 fontFamily: "Inter, sans-serif",
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: 600,
                 opacity: 0.75,
               }}
@@ -1446,15 +1436,14 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           onClick={(e) => { e.stopPropagation(); onRegister?.(comp); }}
           style={{
             border: "none",
-            borderTop: `2px solid #6C63FF`,
             background: "#6C63FF",
             color: "#fff",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
-            fontSize: 13,
+            fontSize: 12.5,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            padding: "11px 14px",
+            padding: "10px 14px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -1464,13 +1453,13 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           }}
         >
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Plus size={14} strokeWidth={2.5} />
+            <Plus size={13} strokeWidth={2.5} />
             S'inscrire
           </span>
           <span
             style={{
               fontFamily: "Inter, sans-serif",
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: 600,
               opacity: 0.75,
             }}
@@ -1484,15 +1473,14 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
           style={{
             border: "none",
-            borderTop: `2px solid #111`,
             background: "#111",
             color: "#fff",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
-            fontSize: 13,
+            fontSize: 12.5,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            padding: "11px 14px",
+            padding: "10px 14px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -1502,13 +1490,13 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           }}
         >
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Gift size={14} strokeWidth={2.5} />
+            <Gift size={13} strokeWidth={2.5} />
             Cadeau
           </span>
           <span
             style={{
               fontFamily: "Inter, sans-serif",
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: 600,
               opacity: 0.75,
             }}
@@ -1524,7 +1512,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
 /* ─── SKELETON CARD (feature 1) ─────────────────────────────────────────── */
 function SkeletonCard() {
   return (
-    <div style={{ flexShrink: 0, width: 220, border: "1px solid #ddd", background: "#fff" }}>
+    <div style={{ flexShrink: 0, width: 272, border: "1px solid #ececec", borderRadius: 18, overflow: "hidden", background: "#fff" }}>
       <style>{`
         @keyframes shimmer {
           0% { background-position: -400px 0; }
@@ -1532,20 +1520,11 @@ function SkeletonCard() {
         }
         .sk { background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite; }
       `}</style>
-      <div className="sk" style={{ height: 110 }} />
-      <div style={{ padding: "14px 14px 10px" }}>
-        <div className="sk" style={{ height: 16, marginBottom: 10 }} />
-        <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
-          <div className="sk" style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0 }} />
-          <div style={{ flex: 1 }}>
-            <div className="sk" style={{ height: 10, marginBottom: 4 }} />
-            <div className="sk" style={{ height: 9, width: "60%" }} />
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, borderTop: "1px solid #e8e8e8", paddingTop: 10 }}>
-          <div style={{ flex: 1 }}><div className="sk" style={{ height: 18, marginBottom: 4 }} /><div className="sk" style={{ height: 9 }} /></div>
-          <div style={{ flex: 1, borderLeft: "1px solid #e8e8e8", paddingLeft: 10 }}><div className="sk" style={{ height: 11, marginBottom: 4 }} /><div className="sk" style={{ height: 13 }} /></div>
-        </div>
+      <div className="sk" style={{ height: 132 }} />
+      <div style={{ display: "flex", gap: 8, padding: "9px 12px" }}>
+        <div style={{ flex: 1 }}><div className="sk" style={{ height: 15, marginBottom: 4 }} /><div className="sk" style={{ height: 9, width: "60%" }} /></div>
+        <div style={{ flex: 1 }}><div className="sk" style={{ height: 15, marginBottom: 4 }} /><div className="sk" style={{ height: 9, width: "70%" }} /></div>
+        <div style={{ flex: 1 }}><div className="sk" style={{ height: 15, marginBottom: 4 }} /><div className="sk" style={{ height: 9, width: "50%" }} /></div>
       </div>
       <div className="sk" style={{ height: 40 }} />
     </div>
