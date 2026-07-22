@@ -1758,19 +1758,6 @@ function toDatetimeLocal(isoString) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// Quick presets for the "natural" duration picker in the competition edit
-// modal. `label` is the compact text stored in comp.ends (matches the
-// "Xj Yh" style already parsed elsewhere as a fallback); `display` is what
-// the admin sees on the button.
-const DURATION_PRESETS = [
-  { label: "1h", display: "1 heure", ms: 60 * 60 * 1000 },
-  { label: "6h", display: "6 heures", ms: 6 * 60 * 60 * 1000 },
-  { label: "12h", display: "12 heures", ms: 12 * 60 * 60 * 1000 },
-  { label: "1j", display: "1 jour", ms: 24 * 60 * 60 * 1000 },
-  { label: "3j", display: "3 jours", ms: 3 * 24 * 60 * 60 * 1000 },
-  { label: "7j", display: "1 semaine", ms: 7 * 24 * 60 * 60 * 1000 },
-];
-
 function fmtCommentTime(minutesAgo) {
   if (minutesAgo < 60) return `${minutesAgo}min`;
   const hours = Math.floor(minutesAgo / 60);
@@ -5898,59 +5885,22 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
               Durée des inscriptions
             </label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-              {DURATION_PRESETS.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  onClick={() => {
-                    const end = new Date(Date.now() + p.ms);
-                    setEditEndsAt(toDatetimeLocal(end.toISOString()));
-                    setEditEnds(p.label);
-                  }}
-                  style={{
-                    border: editEnds === p.label ? "1px solid #111" : "1px solid #e0e0e0",
-                    background: editEnds === p.label ? "#111" : "#fff",
-                    color: editEnds === p.label ? "#fff" : "#555",
-                    borderRadius: 999,
-                    padding: "7px 13px",
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  {p.display}
-                </button>
-              ))}
+            <input
+              type="datetime-local"
+              value={editEndsAt}
+              onChange={(e) => {
+                const next = e.target.value;
+                setEditEndsAt(next);
+                // Keep the compact label in sync with the precise date
+                // instead of blanking it out — both fields are required
+                // together before the edition can be saved/published.
+                setEditEnds(next ? fmtCountdown(new Date(next).toISOString()) : "");
+              }}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
+            />
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14 }}>
+              Pilote le vrai compte à rebours.
             </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
-              Choisissez une durée à partir de maintenant — le vrai compte à rebours et la date de fin ci-dessous se réglent automatiquement.
-            </div>
-
-            <details style={{ marginBottom: 14 }}>
-              <summary style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#888", cursor: "pointer", marginBottom: 8 }}>
-                Ou choisir une date et heure précises
-              </summary>
-              <div style={{ marginTop: 10 }}>
-                <input
-                  type="datetime-local"
-                  value={editEndsAt}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setEditEndsAt(next);
-                    // Keep the compact label in sync with the precise date
-                    // instead of blanking it out — both fields are required
-                    // together before the edition can be saved/published.
-                    setEditEnds(next ? fmtCountdown(new Date(next).toISOString()) : "");
-                  }}
-                  style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
-                />
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
-                  Pilote le vrai compte à rebours.
-                </div>
-              </div>
-            </details>
 
             {/* Set once now, while the edition is still in registration —
                 NOT editable once phase flips to "live". Stored as
@@ -5962,64 +5912,25 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               Durée de la phase en direct
             </label>
             {(() => {
-              const totalSecs = editLiveDurationSeconds || 0;
-              const durDays = Math.floor(totalSecs / 86400);
-              const durHours = Math.floor((totalSecs % 86400) / 3600);
-              const durMinutes = Math.floor((totalSecs % 3600) / 60);
-              const numFieldStyle = {
-                width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0",
-                borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif",
-                fontSize: 14, color: "#333", outline: "none",
-              };
-              const numLabelStyle = {
-                display: "block", fontFamily: "Inter, sans-serif", fontSize: 10.5,
-                fontWeight: 700, color: "#aaa", textTransform: "uppercase",
-                letterSpacing: "0.04em", marginBottom: 4,
-              };
+              const regEndMs = editEndsAt ? new Date(editEndsAt).getTime() : Date.now();
+              const liveEndValue = editLiveDurationSeconds
+                ? toDatetimeLocal(new Date(regEndMs + editLiveDurationSeconds * 1000).toISOString())
+                : "";
               return (
-                <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={numLabelStyle}>Jours</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={durDays}
-                      onChange={(e) => {
-                        const d = Math.max(0, Number(e.target.value) || 0);
-                        setEditLiveDurationSeconds(d * 86400 + durHours * 3600 + durMinutes * 60);
-                      }}
-                      style={numFieldStyle}
-                    />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={numLabelStyle}>Heures</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="23"
-                      value={durHours}
-                      onChange={(e) => {
-                        const h = Math.min(23, Math.max(0, Number(e.target.value) || 0));
-                        setEditLiveDurationSeconds(durDays * 86400 + h * 3600 + durMinutes * 60);
-                      }}
-                      style={numFieldStyle}
-                    />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={numLabelStyle}>Minutes</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="59"
-                      value={durMinutes}
-                      onChange={(e) => {
-                        const m = Math.min(59, Math.max(0, Number(e.target.value) || 0));
-                        setEditLiveDurationSeconds(durDays * 86400 + durHours * 3600 + m * 60);
-                      }}
-                      style={numFieldStyle}
-                    />
-                  </div>
-                </div>
+                <input
+                  type="datetime-local"
+                  value={liveEndValue}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (!next) {
+                      setEditLiveDurationSeconds(null);
+                      return;
+                    }
+                    const diffSecs = Math.max(0, Math.round((new Date(next).getTime() - regEndMs) / 1000));
+                    setEditLiveDurationSeconds(diffSecs);
+                  }}
+                  style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
+                />
               );
             })()}
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
