@@ -1255,17 +1255,6 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6,
         }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
-            {comp.hot && (
-              <div style={{
-                fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em",
-                textTransform: "uppercase", color: "#fff",
-                background: "rgba(0,0,0,0.45)", padding: "2px 7px",
-                fontFamily: "Inter, sans-serif",
-                borderRadius: 7,
-              }}>
-                EN VUE
-              </div>
-            )}
             {isRegistration && (
               <div style={{
                 fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
