@@ -3590,18 +3590,19 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#F0C420", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
               Compétition terminée
             </div>
-            {leader ? (
+            {comp.winnerUserId ? (
               <>
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 800, marginBottom: 2 }}>
-                  {leader.name} remporte {winnerPrize.toLocaleString("fr-FR")} HTG
+                  {comp.winnerName} remporte {Number(comp.winnerPrize || 0).toLocaleString("fr-FR")} HTG
                 </div>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
                   Félicitations au gagnant 🎉
                 </div>
               </>
             ) : (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-                Aucun participant n'a reçu de cadeaux — pas de gagnant à annoncer.
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>
+                Aucun participant n'a reçu de cadeaux — pas de gagnant à annoncer.<br />
+                Les frais d'inscription ont été remboursés à tous les participants.
               </div>
             )}
           </div>
@@ -9186,24 +9187,30 @@ export default function App() {
           setSelectedComp((prev) =>
             prev && prev.id === row.id ? { ...prev, ...edits } : prev
           );
-          // Announce a fresh payout once per edition per session — a ref
+          // Announce a fresh result once per edition per session — a ref
           // (not editionsByComp state) so this isn't tied to a stale closure
           // and doesn't fire again on later, unrelated edits to the same row.
-          if (
-            edits.phase === "completed" &&
-            edits.winnerUserId &&
-            !notifiedCompletionsRef.current.has(row.id)
-          ) {
+          if (edits.phase === "completed" && !notifiedCompletionsRef.current.has(row.id)) {
             notifiedCompletionsRef.current.add(row.id);
             const label = edits.title || "Une compétition";
-            const prizeTxt = Number(edits.winnerPrize || 0).toLocaleString("fr-FR");
-            showToast(`${label} est terminée — ${edits.winnerName || "le gagnant"} remporte ${prizeTxt} HTG`);
-            pushNotif({
-              type: "action",
-              icon: "🏆",
-              title: "Compétition terminée",
-              body: `${edits.winnerName || "Le gagnant"} remporte ${prizeTxt} HTG dans ${label}`,
-            });
+            if (edits.winnerUserId) {
+              const prizeTxt = Number(edits.winnerPrize || 0).toLocaleString("fr-FR");
+              showToast(`${label} est terminée — ${edits.winnerName || "le gagnant"} remporte ${prizeTxt} HTG`);
+              pushNotif({
+                type: "action",
+                icon: "🏆",
+                title: "Compétition terminée",
+                body: `${edits.winnerName || "Le gagnant"} remporte ${prizeTxt} HTG dans ${label}`,
+              });
+            } else {
+              showToast(`${label} est terminée — aucun gagnant, frais d'inscription remboursés`);
+              pushNotif({
+                type: "action",
+                icon: "↩️",
+                title: "Compétition terminée sans gagnant",
+                body: `${label} s'est terminée sans qu'aucun participant ne reçoive de cadeaux. Les frais d'inscription ont été remboursés.`,
+              });
+            }
           }
         }
       )
