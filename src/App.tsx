@@ -53,6 +53,11 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   winner_name text,
 //   winner_prize numeric,
 //   closed_at timestamptz,
+//   live_duration_seconds numeric,     -- set once at creation (or while still
+//                                       -- in registration); read by
+//                                       -- open_expired_registrations to compute
+//                                       -- the live-phase ends_at at transition
+//                                       -- time. Not editable once phase='live'.
 //   updated_by uuid,
 //   updated_at timestamptz not null default now(),
 //   created_at timestamptz not null default now()
@@ -274,6 +279,7 @@ function mapEditionRow(row) {
     winnerName: row.winner_name,
     winnerPrize: row.winner_prize,
     closedAt: row.closed_at,
+    liveDurationSeconds: row.live_duration_seconds,
     createdAt: row.created_at,
   };
 }
@@ -317,6 +323,7 @@ async function createEdition({
   fee,
   rewardExtra,
   rules,
+  liveDurationSeconds,
   updatedBy,
 }) {
   const { data, error } = await supabase
@@ -335,6 +342,7 @@ async function createEdition({
       fee,
       reward_extra: rewardExtra,
       rules,
+      live_duration_seconds: liveDurationSeconds,
       active: true,
       updated_by: updatedBy,
       updated_at: new Date().toISOString(),
