@@ -930,6 +930,20 @@ function fmtAbsoluteDate(target) {
 // Compact duration for the card overlay chip ("2j 14h", "6h 22m") — the
 // stats row below already shows the absolute deadline, so this is just a
 // quick-glance urgency cue, not meant to be precise to the minute.
+// Shared with fmtCountdown's parsing logic, but returns a raw timestamp for
+// sorting purposes (e.g. "Se termine bientôt" section) rather than a
+// display string. Mirrors CompCard's own resolvedEndDate derivation so the
+// homepage's notion of "soonest" matches what each card individually shows.
+function estimateEndTimestamp(comp) {
+  if (comp.endsAt) return new Date(comp.endsAt).getTime();
+  const str = comp.ends || "";
+  let total = 0;
+  const d = str.match(/(\d+)j/); if (d) total += parseInt(d[1]) * 86400;
+  const h = str.match(/(\d+)h/); if (h) total += parseInt(h[1]) * 3600;
+  const m = str.match(/(\d+)m/); if (m) total += parseInt(m[1]) * 60;
+  return Date.now() + (total || 3600) * 1000;
+}
+
 function fmtCountdown(target) {
   const diff = new Date(target).getTime() - Date.now();
   if (Number.isNaN(diff)) return "";
@@ -6155,6 +6169,62 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser })
   );
 }
 
+/* ─── TYPE ROW (homepage sections by type, not niche) ────────────────────
+   Same rail/skeleton as NicheRow, but the header icon/label/accent are
+   passed in directly and each item already carries its own originating
+   niche's accent/label (set once in App(), where the items are built),
+   since a single row here can mix competitions from every niche — e.g.
+   "Top compétitions" or "En direct" pull from all of them at once. */
+
+function TypeRow({ icon: Icon, label, accent, items, onOpen, onRegister, registeredCompIds, currentUser }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <section style={{ marginBottom: 0, borderBottom: "2px solid #e0e0e0", paddingBottom: 8, paddingTop: 8 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          paddingLeft: 8,
+          paddingRight: 8,
+          marginBottom: 2,
+        }}
+      >
+        {Icon && <Icon size={16} strokeWidth={2.5} color={accent} style={{ flexShrink: 0 }} />}
+        <span
+          style={{
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontSize: 15,
+            fontWeight: 700,
+            color: "#333",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {label}
+        </span>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          overflowX: "auto",
+          paddingLeft: 8,
+          paddingRight: 8,
+          paddingBottom: 0,
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
+        <style>{`div::-webkit-scrollbar{display:none}`}</style>
+        {items.map((comp) => (
+          <CompCard key={comp.id} comp={comp} accent={comp.accent} onOpen={onOpen} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* ─── WALLET PAGE ───────────────────────────────────────────────────────── */
 
 const DEPOSIT_METHODS = PAYMENT_METHODS.filter((m) => m.id === "moncash" || m.id === "natcash");
@@ -9761,6 +9831,81 @@ export default function App() {
         }))
         .filter((niche) => niche.competitions.length > 0);
 
+  // ── TYPE-BASED HOMEPAGE SECTIONS ────────────────────────────────────────
+  // The homepage groups by type (Top, En direct, ...) rather than by niche.
+  // Every visible (category-filter + search matched) competition is
+  // flattened once, with its originating niche's accent/label baked
+  // directly onto it, so a single row can mix competitions from every
+  // niche while each card still renders in its own brand color.
+  const visibleCompsFlat = useMemo(
+    () => visibleNiches.flatMap((niche) =>
+      niche.competitions.map((comp) => ({ ...comp, accent: niche.accent, niche: niche.label }))
+    ),
+    [visibleNiches]
+  );
+
+  const topComps = useMemo(
+    () => [...visibleCompsFlat].sort((a, b) => b.votes - a.votes).slice(0, 10),
+    [visibleCompsFlat]
+  );
+  const liveComps = useMemo(
+    () => visibleCompsFlat.filter((c) => c.phase === "live").sort((a, b) => b.votes - a.votes).slice(0, 10),
+    [visibleCompsFlat]
+  );
+  const registrationComps = useMemo(
+    () => visibleCompsFlat.filter((c) => c.phase === "registration").sort((a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)).slice(0, 10),
+    [visibleCompsFlat]
+  );
+  const endingSoonComps = useMemo(
+    () => visibleCompsFlat.filter((c) => c.phase !== "completed").sort((a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)).slice(0, 10),
+    [visibleCompsFlat]
+  );
+  // "Rising" reuses the old EN VUE flag (comp.hot) — competitions the
+  // platform has marked as gaining momentum — now as its own discovery
+  // row instead of a badge stamped on every card.
+  const risingComps = useMemo(
+    () => visibleCompsFlat.filter((c) => c.hot).sort((a, b) => b.votes - a.votes).slice(0, 10),
+    [visibleCompsFlat]
+  );
+  // No real "createdAt" field exists in the mock data, so freshly-opened
+  // registration competitions (few signups so far) stand in for "new".
+  const newComps = useMemo(
+    () => visibleCompsFlat.filter((c) => c.phase === "registration").sort((a, b) => a.registeredCount - b.registeredCount).slice(0, 10),
+    [visibleCompsFlat]
+  );
+  const followedTypeItems = useMemo(
+    () => followedEntries.map(({ comp, niche }) => ({ ...comp, accent: niche.accent, niche: niche.label })),
+    [followedEntries]
+  );
+  const registeredTypeItems = useMemo(
+    () => registeredEntries.map(({ comp, niche }) => ({ ...comp, accent: niche.accent, niche: niche.label })),
+    [registeredEntries]
+  );
+  // Spotlight rows per organizer — only surfaces organizers with enough of
+  // a presence (3+ visible competitions) so it doesn't create a near-empty
+  // row for a one-off organizer.
+  const organizerGroups = useMemo(() => {
+    const byOrg = new Map();
+    visibleCompsFlat.forEach((c) => {
+      if (!byOrg.has(c.organisateur)) byOrg.set(c.organisateur, []);
+      byOrg.get(c.organisateur).push(c);
+    });
+    return Array.from(byOrg.entries())
+      .filter(([, comps]) => comps.length >= 3)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 2)
+      .map(([organisateur, comps]) => ({
+        organisateur,
+        comps: [...comps].sort((a, b) => b.votes - a.votes).slice(0, 10),
+      }));
+  }, [visibleCompsFlat]);
+
+  // Shared open/register handlers for type rows — items already carry
+  // their own accent/niche (baked in above), so unlike NicheRow's per-row
+  // closure these don't need to re-attach anything.
+  const handleOpenTypeComp = (comp) => { setCompEditIntent(false); setSelectedComp(comp); };
+  const handleRegisterTypeComp = (comp) => requestRegistration(comp);
+
   function showToast(msg) {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
@@ -10418,22 +10563,27 @@ export default function App() {
             gap: 0,
           }}
         >
-          {visibleNiches.length === 0 ? (
+          {visibleCompsFlat.length === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 8px", borderTop: "1px solid #ddd", background: "#fff" }}>
               <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#333", letterSpacing: "-0.02em" }}>Aucun résultat</div>
               <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", marginTop: 8 }}>Aucune compétition ne correspond à « {query} »</div>
               <button onClick={() => setQuery("")} style={{ marginTop: 20, border: "1px solid #ddd", background: "#444", color: "#fff", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
             </div>
-          ) : visibleNiches.map((niche) => (
-            <NicheRow
-              key={niche.id}
-              niche={niche}
-              onOpen={(comp) => { setCompEditIntent(false); setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label }); }}
-              onRegister={(comp) => requestRegistration({ ...comp, accent: niche.accent, niche: niche.label })}
-              registeredCompIds={registeredCompIds}
-              currentUser={currentUser}
-            />
-          ))}
+          ) : (
+            <>
+              <TypeRow icon={Flame} label="Top compétitions" accent="#E8A33D" items={topComps} onOpen={handleOpenTypeComp} onRegister={handleRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
+              <TypeRow icon={Radio} label="En direct" accent="#E74C3C" items={liveComps} onOpen={handleOpenTypeComp} onRegister={handleRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
+              <TypeRow icon={Pencil} label="Inscriptions ouvertes" accent="#6C63FF" items={registrationComps} onOpen={handleOpenTypeComp} onRegister={handleRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
+              <TypeRow icon={Clock} label="Se termine bientôt" accent="#D35400" items={endingSoonComps} onOpen={handleOpenTypeComp} onRegister={handleRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
+              <TypeRow icon={ArrowUp} label="En hausse" accent="#27AE60" items={risingComps} onOpen={handleOpenTypeComp} onRegister={handleRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
+              <TypeRow icon={Sparkles} label="Nouveautés" accent="#00B8A9" items={newComps} onOpen={handleOpenTypeComp} onRegister={handleRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
+              {currentUser && <TypeRow icon={Bell} label="Suivies" accent="#3498DB" items={followedTypeItems} onOpen={handleOpenTypeComp} onRegister={handleRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />}
+              {currentUser && <TypeRow icon={Check} label="Vos inscriptions" accent="#34495E" items={registeredTypeItems} onOpen={handleOpenTypeComp} onRegister={handleRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />}
+              {organizerGroups.map(({ organisateur, comps }) => (
+                <TypeRow key={organisateur} icon={Users} label={`Compétitions de ${organisateur}`} accent="#7F8C8D" items={comps} onOpen={handleOpenTypeComp} onRegister={handleRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
+              ))}
+            </>
+          )}
         </main>
 
 
