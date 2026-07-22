@@ -1219,6 +1219,8 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
   const [followed, setFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(comp.followers);
   const isRegistration = comp.phase === "registration";
+  const isCompleted = comp.phase === "completed";
+  const isLive = comp.phase === "live";
 
   // Real editions carry a real comp.endsAt. Competitions still on the
   // legacy mock "2j 18h"-style `ends` duration string don't have one, so we
@@ -1260,7 +1262,10 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           <img
             src={comp.bannerUrl || comp.images[0].url}
             alt={comp.title}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            style={{
+              width: "100%", height: "100%", objectFit: "cover", display: "block",
+              filter: isCompleted ? "grayscale(0.85)" : "none",
+            }}
           />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1292,6 +1297,34 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
                 borderRadius: 7,
               }}>
                 Inscriptions
+              </div>
+            )}
+            {isLive && (
+              <div style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+                textTransform: "uppercase", color: "#fff",
+                background: "#00B894", padding: "2px 7px",
+                fontFamily: "Inter, sans-serif",
+                borderRadius: 7,
+                display: "flex", alignItems: "center", gap: 3,
+              }}>
+                <span style={{
+                  width: 5, height: 5, borderRadius: "50%", background: "#fff",
+                  boxShadow: "0 0 0 2px rgba(255,255,255,0.35)",
+                }} />
+                En direct
+              </div>
+            )}
+            {isCompleted && (
+              <div style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+                textTransform: "uppercase", color: "#fff",
+                background: "rgba(0,0,0,0.55)", padding: "2px 7px",
+                fontFamily: "Inter, sans-serif",
+                borderRadius: 7,
+                backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+              }}>
+                Terminé
               </div>
             )}
           </div>
@@ -1360,8 +1393,17 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
               fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
               color: "rgba(255,255,255,0.85)",
             }}>
-              <Clock size={10} strokeWidth={2.5} />
-              {fmtCountdown(resolvedEndDate)}
+              {isCompleted ? (
+                <>
+                  <Trophy size={10} strokeWidth={2.5} />
+                  {comp.winnerName ? comp.winnerName : "Terminé"}
+                </>
+              ) : (
+                <>
+                  <Clock size={10} strokeWidth={2.5} />
+                  {fmtCountdown(resolvedEndDate)}
+                </>
+              )}
             </span>
           </div>
         </div>
@@ -1503,6 +1545,42 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           </span>
         </button>
         )
+      ) : isCompleted ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
+          style={{
+            border: "none",
+            background: "#f7f7f7",
+            color: "#666",
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: 12.5,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            padding: "10px 14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+            transition: "background 0.15s",
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Trophy size={13} strokeWidth={2.5} />
+            Résultat
+          </span>
+          <span
+            style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: 11.5,
+              fontWeight: 600,
+              opacity: 0.75,
+            }}
+          >
+            {fmtVotes(voteCount)}
+          </span>
+        </button>
       ) : (
         <button
           onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
