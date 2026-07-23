@@ -794,7 +794,21 @@ const NICHES = [
   },
 ];
 
-const ALL_NICHES = ["Tous", "Favoris", ...NICHES.map((n) => n.label)];
+// Home screen tabs — TYPE-based (what state/kind a competition is in)
+// rather than CATEGORY-based (which niche it belongs to). "Tous" and
+// "Favoris" stay as general-purpose tabs; everything else now narrows by
+// phase/trend instead of by niche label, and every niche can contribute
+// to any tab. "Live" gets a pulsating red dot to signal it's happening
+// right now.
+const HOME_TABS = [
+  { key: "Tous", label: "Tous", icon: LayoutGrid },
+  { key: "Favoris", label: "Favoris", icon: Heart },
+  { key: "Live", label: "Live", icon: Radio, live: true },
+  { key: "Inscriptions", label: "Inscriptions", icon: Pencil },
+  { key: "Bientôt", label: "Bientôt", icon: Clock },
+  { key: "En hausse", label: "En hausse", icon: ArrowUp },
+  { key: "Nouveautés", label: "Nouveautés", icon: Sparkles },
+];
 
 /* ─── WALLET DATA ───────────────────────────────────────────────────────── */
 
@@ -10070,26 +10084,32 @@ export default function App() {
     return () => { cancelled = true; };
   }, [currentUser?.id]);
 
-  const nichesByFilter = (
-    activeFilter === "Tous"
-      ? NICHES
-      : activeFilter === "Favoris"
-      ? NICHES
-      : NICHES.filter((n) => n.label === activeFilter)
-  )
+  const nichesByFilter = NICHES
     .map((niche) => ({
       ...niche,
       // Homepage only ever shows published editions the admin has left
-      // switched on — one card per non-draft edition, zero if none exist.
-      // The Favoris chip narrows this further to competitions the user is
-      // actually following, across every niche.
+      // switched on — one card per non-draft edition, zero if none exist —
+      // and NEVER a terminated/completed one; once an edition closes it
+      // belongs in the archive, not the homepage. The active tab is now
+      // TYPE-based rather than category-based: every niche can contribute
+      // to every tab, and the tab just narrows which competitions (by
+      // phase/trend) make it into the flattened list below.
       competitions: niche.competitions
         .flatMap(publishedEditionsForComp)
         .filter((c) => c.active)
-        .filter((c) => activeFilter !== "Favoris" || followedCompIds.has(c.id)),
+        .filter((c) => c.phase !== "completed")
+        .filter((c) => {
+          if (activeFilter === "Favoris") return followedCompIds.has(c.id);
+          if (activeFilter === "Live") return c.phase === "live";
+          if (activeFilter === "Inscriptions") return c.phase === "registration";
+          if (activeFilter === "Bientôt") return estimateEndTimestamp(c) - Date.now() <= 48 * 3600 * 1000;
+          if (activeFilter === "En hausse") return c.hot;
+          if (activeFilter === "Nouveautés") return c.phase === "registration";
+          return true; // "Tous"
+        }),
     }))
-    // A niche with nothing published (or everything switched off)
-    // shouldn't appear as an empty section on the homepage at all.
+    // A niche with nothing matching the active tab (or everything switched
+    // off) shouldn't appear as an empty section on the homepage at all.
     .filter((niche) => niche.competitions.length > 0);
 
   // Full, unfiltered list (every niche, every edition — drafts included) —
@@ -10720,13 +10740,12 @@ export default function App() {
 
           {/* Chips row — edge to edge */}
           <div style={{ display: "flex", gap: 8, padding: "0 8px 8px", overflowX: "auto", scrollbarWidth: "none" }}>
-            {ALL_NICHES.map((label) => {
-              const active = activeFilter === label;
-              const niche = NICHES.find((n) => n.label === label);
+            {HOME_TABS.map(({ key, label, icon: Icon, live }) => {
+              const active = activeFilter === key;
               return (
                 <button
-                  key={label}
-                  onClick={() => setActiveFilter(label)}
+                  key={key}
+                  onClick={() => setActiveFilter(key)}
                   style={{
                     fontFamily: "Inter, sans-serif",
                     fontSize: 11,
@@ -10747,12 +10766,25 @@ export default function App() {
                     flexShrink: 0,
                   }}
                 >
-                  {(() => { const Icon = NICHE_ICONS[label]; return Icon ? <Icon size={12} strokeWidth={2.5} style={{ flexShrink: 0 }} /> : null; })()}
+                  {Icon && <Icon size={12} strokeWidth={2.5} style={{ flexShrink: 0 }} />}
                   {label}
+                  {live && (
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: active ? "#fff" : "#E74C3C",
+                        display: "inline-block",
+                        animation: "pulse-dot 1s infinite",
+                      }}
+                    />
+                  )}
                 </button>
               );
             })}
           </div>
+          <style>{`@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
         </header>
 
         {/* ── BANNER SLIDER (2:1, real uploaded images only) ── */}
