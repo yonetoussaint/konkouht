@@ -794,7 +794,7 @@ const NICHES = [
   },
 ];
 
-const ALL_NICHES = ["Tous", ...NICHES.map((n) => n.label)];
+const ALL_NICHES = ["Tous", "Favoris", ...NICHES.map((n) => n.label)];
 
 /* ─── WALLET DATA ───────────────────────────────────────────────────────── */
 
@@ -907,6 +907,7 @@ const INITIAL_TRANSACTIONS = [
 
 const NICHE_ICONS = {
   "Tous": LayoutGrid,
+  "Favoris": Heart,
   "Musique": Music,
   "Danse": PersonStanding,
   "Sports": Trophy,
@@ -2882,19 +2883,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     if (fresh && fresh !== selectedDonor) setSelectedDonor(fresh);
   }, [giftLeaderboard, selectedDonor]);
   const [donorTab, setDonorTab] = useState("all");
-  // Favorited participants — lets the viewer star candidates they're
-  // rooting for and pull them up quickly in the Favoris tab. Session-local
-  // for now (no dedicated Supabase table yet); wire to a real table keyed
-  // by (user_id, competition_id, participant user_id) if this needs to
-  // survive across visits/devices.
-  const [favoriteIds, setFavoriteIds] = useState(() => new Set());
-  const toggleFavorite = (id) => {
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
   const accent = isRegistration ? "#6C63FF" : comp.accent;
   const rulesInfo = buildRulesInfo(comp);
   const [rulesExpanded, setRulesExpanded] = useState(false);
@@ -3691,7 +3679,6 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           { key: "participants", label: "Participants" },
           { key: "medias", label: "Médias" },
           { key: "donateurs", label: "Donateurs" },
-          { key: "favoris", label: "Favoris" },
           { key: "live", label: "Live" },
         ].map((tab) => (
           <button
@@ -4824,83 +4811,12 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       />
                     </div>
                   </div>
-
-                  {/* Favorite toggle */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id ?? p.index); }}
-                    style={{
-                      border: "none", background: "none", cursor: "pointer",
-                      padding: 4, flexShrink: 0, lineHeight: 0,
-                    }}
-                  >
-                    <Heart
-                      size={16}
-                      strokeWidth={2}
-                      fill={favoriteIds.has(p.id ?? p.index) ? "#e74c3c" : "none"}
-                      color={favoriteIds.has(p.id ?? p.index) ? "#e74c3c" : "#ccc"}
-                    />
-                  </button>
                 </div>
               );
             })}
             <div style={{ height: 12 }} />
           </div>
         )
-        )}
-
-        {/* ── FAVORIS ── */}
-        {activeTab === "favoris" && !isRegistration && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              marginBottom: 14,
-            }}>
-              <Heart size={13} strokeWidth={2.5} />
-              Favoris
-            </div>
-
-            {(() => {
-              const favorites = participantsFull.filter((p) => favoriteIds.has(p.id ?? p.index));
-              if (favorites.length === 0) {
-                return (
-                  <div style={{ padding: "24px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
-                    Aucun favori pour le moment.<br />
-                    Touchez le cœur d'un participant dans l'onglet Participants pour le suivre ici.
-                  </div>
-                );
-              }
-              return favorites.map((p, idx) => (
-                <div key={p.id ?? p.index} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "11px 0",
-                  borderBottom: idx < favorites.length - 1 ? "1px solid #f0f0f0" : "none",
-                }}>
-                  <div style={{
-                    width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                    overflow: "hidden", border: "2px solid #eee",
-                  }}>
-                    <EntityAvatar url={p.avatarUrl} name={p.name} />
-                  </div>
-                  <span style={{
-                    flex: 1, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
-                    color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>{p.name}</span>
-                  <span style={{
-                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: "#555",
-                    flexShrink: 0,
-                  }}>🪙 {p.points.toLocaleString("fr-FR")}</span>
-                  <button
-                    onClick={() => toggleFavorite(p.id ?? p.index)}
-                    style={{ border: "none", background: "none", cursor: "pointer", padding: 4, flexShrink: 0, lineHeight: 0 }}
-                  >
-                    <Heart size={16} strokeWidth={2} fill="#e74c3c" color="#e74c3c" />
-                  </button>
-                </div>
-              ));
-            })()}
-          </div>
         )}
 
         {/* ── PARTICIPANTS STRIP (only for voting phase) ── */}
@@ -10157,13 +10073,20 @@ export default function App() {
   const nichesByFilter = (
     activeFilter === "Tous"
       ? NICHES
+      : activeFilter === "Favoris"
+      ? NICHES
       : NICHES.filter((n) => n.label === activeFilter)
   )
     .map((niche) => ({
       ...niche,
       // Homepage only ever shows published editions the admin has left
       // switched on — one card per non-draft edition, zero if none exist.
-      competitions: niche.competitions.flatMap(publishedEditionsForComp).filter((c) => c.active),
+      // The Favoris chip narrows this further to competitions the user is
+      // actually following, across every niche.
+      competitions: niche.competitions
+        .flatMap(publishedEditionsForComp)
+        .filter((c) => c.active)
+        .filter((c) => activeFilter !== "Favoris" || followedCompIds.has(c.id)),
     }))
     // A niche with nothing published (or everything switched off)
     // shouldn't appear as an empty section on the homepage at all.
@@ -10932,9 +10855,18 @@ export default function App() {
         >
           {visibleCompsFlat.length === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 8px", borderTop: "1px solid #ddd", background: "#fff" }}>
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#333", letterSpacing: "-0.02em" }}>Aucun résultat</div>
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", marginTop: 8 }}>Aucune compétition ne correspond à « {query} »</div>
-              <button onClick={() => setQuery("")} style={{ marginTop: 20, border: "1px solid #ddd", background: "#444", color: "#fff", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
+              {activeFilter === "Favoris" && query.trim() === "" ? (
+                <>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#333", letterSpacing: "-0.02em" }}>Aucun favori</div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", marginTop: 8 }}>Suivez une compétition depuis sa fiche pour la retrouver ici.</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#333", letterSpacing: "-0.02em" }}>Aucun résultat</div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", marginTop: 8 }}>Aucune compétition ne correspond à « {query} »</div>
+                  <button onClick={() => setQuery("")} style={{ marginTop: 20, border: "1px solid #ddd", background: "#444", color: "#fff", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
+                </>
+              )}
             </div>
           ) : (
             <>
