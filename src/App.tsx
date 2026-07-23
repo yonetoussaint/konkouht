@@ -10158,61 +10158,70 @@ export default function App() {
     [visibleNiches]
   );
 
-  const topComps = useMemo(
-    () => [...visibleCompsFlat].sort((a, b) => b.votes - a.votes).slice(0, 10),
-    [visibleCompsFlat]
-  );
-  const liveComps = useMemo(
-    () => visibleCompsFlat.filter((c) => c.phase === "live").sort((a, b) => b.votes - a.votes).slice(0, 10),
-    [visibleCompsFlat]
-  );
-  const registrationComps = useMemo(
-    () => visibleCompsFlat.filter((c) => c.phase === "registration").sort((a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)).slice(0, 10),
-    [visibleCompsFlat]
-  );
-  const endingSoonComps = useMemo(
-    () => visibleCompsFlat.filter((c) => c.phase !== "completed").sort((a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)).slice(0, 10),
-    [visibleCompsFlat]
-  );
-  // "Rising" reuses the old EN VUE flag (comp.hot) — competitions the
-  // platform has marked as gaining momentum — now as its own discovery
-  // row instead of a badge stamped on every card.
-  const risingComps = useMemo(
-    () => visibleCompsFlat.filter((c) => c.hot).sort((a, b) => b.votes - a.votes).slice(0, 10),
-    [visibleCompsFlat]
-  );
-  // No real "createdAt" field exists in the mock data, so freshly-opened
-  // registration competitions (few signups so far) stand in for "new".
-  const newComps = useMemo(
-    () => visibleCompsFlat.filter((c) => c.phase === "registration").sort((a, b) => a.registeredCount - b.registeredCount).slice(0, 10),
-    [visibleCompsFlat]
-  );
-  const followedTypeItems = useMemo(
-    () => followedEntries.map(({ comp, niche }) => ({ ...comp, accent: niche.accent, niche: niche.label })),
-    [followedEntries]
-  );
-  const registeredTypeItems = useMemo(
-    () => registeredEntries.map(({ comp, niche }) => ({ ...comp, accent: niche.accent, niche: niche.label })),
-    [registeredEntries]
-  );
-  // Spotlight rows per organizer — only surfaces organizers with enough of
-  // a presence (3+ visible competitions) so it doesn't create a near-empty
-  // row for a one-off organizer.
-  const organizerGroups = useMemo(() => {
+  // ── HOMEPAGE SECTIONS, DEDUPED ──────────────────────────────────────────
+  // Every section used to be filtered independently, so the same edition
+  // could easily land in "Top compétitions" AND "En direct" AND "Se termine
+  // bientôt" at once. Instead, sections now claim competitions in priority
+  // order (top to bottom, matching render order below) — once an edition
+  // is placed in an earlier section it's removed from the pool for every
+  // section after it, so it shows up exactly once on the page.
+  const homeSections = useMemo(() => {
+    const usedIds = new Set();
+    const takeUnique = (list, limit = 10) => {
+      const picked = [];
+      for (const c of list) {
+        if (usedIds.has(c.id)) continue;
+        picked.push(c);
+        usedIds.add(c.id);
+        if (picked.length >= limit) break;
+      }
+      return picked;
+    };
+
+    const top = takeUnique([...visibleCompsFlat].sort((a, b) => b.votes - a.votes));
+    const live = takeUnique(visibleCompsFlat.filter((c) => c.phase === "live").sort((a, b) => b.votes - a.votes));
+    const registration = takeUnique(visibleCompsFlat.filter((c) => c.phase === "registration").sort((a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)));
+    const endingSoon = takeUnique(visibleCompsFlat.filter((c) => c.phase !== "completed").sort((a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)));
+    // "Rising" reuses the old EN VUE flag (comp.hot) — competitions the
+    // platform has marked as gaining momentum — now as its own discovery
+    // row instead of a badge stamped on every card.
+    const rising = takeUnique(visibleCompsFlat.filter((c) => c.hot).sort((a, b) => b.votes - a.votes));
+    // No real "createdAt" field exists in the mock data, so freshly-opened
+    // registration competitions (few signups so far) stand in for "new".
+    const fresh = takeUnique(visibleCompsFlat.filter((c) => c.phase === "registration").sort((a, b) => a.registeredCount - b.registeredCount));
+    const followed = takeUnique(followedEntries.map(({ comp, niche }) => ({ ...comp, accent: niche.accent, niche: niche.label })));
+    const registered = takeUnique(registeredEntries.map(({ comp, niche }) => ({ ...comp, accent: niche.accent, niche: niche.label })));
+
+    // Spotlight rows per organizer — only surfaces organizers with enough
+    // of a presence (3+ still-unclaimed competitions) so it doesn't create
+    // a near-empty row for a one-off organizer.
     const byOrg = new Map();
     visibleCompsFlat.forEach((c) => {
+      if (usedIds.has(c.id)) return;
       if (!byOrg.has(c.organisateur)) byOrg.set(c.organisateur, []);
       byOrg.get(c.organisateur).push(c);
     });
-    return Array.from(byOrg.entries())
+    const organizers = Array.from(byOrg.entries())
       .filter(([, comps]) => comps.length >= 3)
       .sort((a, b) => b[1].length - a[1].length)
       .slice(0, 2)
       .map(([organisateur, comps]) => ({
         organisateur,
-        comps: [...comps].sort((a, b) => b.votes - a.votes).slice(0, 10),
+        comps: takeUnique([...comps].sort((a, b) => b.votes - a.votes)),
       }));
-  }, [visibleCompsFlat]);
+
+    return { top, live, registration, endingSoon, rising, fresh, followed, registered, organizers };
+  }, [visibleCompsFlat, followedEntries, registeredEntries]);
+
+  const topComps = homeSections.top;
+  const liveComps = homeSections.live;
+  const registrationComps = homeSections.registration;
+  const endingSoonComps = homeSections.endingSoon;
+  const risingComps = homeSections.rising;
+  const newComps = homeSections.fresh;
+  const followedTypeItems = homeSections.followed;
+  const registeredTypeItems = homeSections.registered;
+  const organizerGroups = homeSections.organizers;
 
   // Shared open/register handlers for type rows — items already carry
   // their own accent/niche (baked in above), so unlike NicheRow's per-row
