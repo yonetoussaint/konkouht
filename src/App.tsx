@@ -3860,121 +3860,128 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
 
         {/* ── STATS / RÉSUMÉ FINAL ── */}
         {isCompleted ? (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "16px 12px 4px" }}>
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0" }}>
 
             {/* Section label */}
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
               color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              marginBottom: 10,
+              padding: "14px 16px 0",
             }}>
               <Trophy size={13} strokeWidth={2.5} />
               Résumé final
             </div>
 
-            {/* Quick stats — 2x2 grid, mobile-friendly tiles instead of a
-                single cramped 3-column row */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
+            {/* Quick stats — 2x2 flat grid, hairline dividers like the
+                live/registration stat row, no card backgrounds */}
+            <div style={{
+              display: "grid", gridTemplateColumns: "1fr 1fr",
+              marginTop: 12, borderTop: "1px solid #f0f0f0",
+            }}>
               {[
-                { label: "Candidats", value: liveRegistered, icon: Users },
-                { label: "Cadeaux envoyés", value: fmtVotes(totalGiftCount), icon: Gift },
-                { label: "Cagnotte finale", value: `${heroPrizeValue.toLocaleString("fr-FR")} G`, icon: Trophy, highlight: true },
-                { label: "Terminée le", value: comp.closedAt ? fmtAbsoluteDate(comp.closedAt) : fmtAbsoluteDate(resolveEndsAt()), icon: Clock },
-              ].map((s, i) => {
-                const Icon = s.icon;
-                return (
-                  <div key={i} style={{
-                    border: `1px solid ${s.highlight ? `${accent}33` : "#eee"}`,
-                    borderRadius: 14, padding: "11px 12px",
-                    background: s.highlight ? `${accent}0d` : "#fafafa",
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                      <Icon size={13} color={s.highlight ? accent : "#999"} strokeWidth={2.3} />
-                      <span style={{
-                        fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
-                        color: "#999", textTransform: "uppercase", letterSpacing: "0.06em",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>{s.label}</span>
-                    </div>
-                    <div style={{
-                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 800,
-                      color: s.highlight ? accent : "#111",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>{s.value}</div>
-                  </div>
-                );
-              })}
+                { label: "Candidats", value: liveRegistered },
+                { label: "Cadeaux envoyés", value: fmtVotes(totalGiftCount) },
+                { label: "Cagnotte finale", value: `${heroPrizeValue.toLocaleString("fr-FR")} G`, accent: true },
+                { label: "Terminée le", value: comp.closedAt ? fmtAbsoluteDate(comp.closedAt) : fmtAbsoluteDate(resolveEndsAt()) },
+              ].map((s, i) => (
+                <div key={i} style={{
+                  padding: "12px 4px",
+                  borderRight: i % 2 === 0 ? "1px solid #f0f0f0" : "none",
+                  borderBottom: i < 2 ? "1px solid #f0f0f0" : "none",
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                }}>
+                  <div style={{
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 800,
+                    color: s.accent ? accent : "#111", lineHeight: 1.15,
+                    fontVariantNumeric: "tabular-nums",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%",
+                  }}>{s.value}</div>
+                  <div style={{
+                    fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#999",
+                    textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4,
+                    fontWeight: 600, textAlign: "center",
+                  }}>{s.label}</div>
+                </div>
+              ))}
             </div>
 
             {/* Final podium — top 3 by real gifts received, same ranking
-                the winner banner above was computed from */}
+                the winner banner above was computed from. Flat rows with
+                hairline dividers, matching the Classement tab's own style. */}
             {ranked.length > 0 && (
-              <div style={{ marginBottom: 18 }}>
+              <div style={{ padding: "14px 16px 4px" }}>
                 <div style={{
                   fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
                   color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-                  marginBottom: 10,
+                  marginBottom: 4,
                 }}>
                   Classement final
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {ranked.slice(0, 3).map((p, i) => (
-                    <div key={p.id ?? p.index} style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "9px 10px", borderRadius: 12,
-                      background: i === 0 ? `${accent}0d` : "#fafafa",
-                      border: `1px solid ${i === 0 ? `${accent}33` : "#eee"}`,
+                {ranked.slice(0, 3).map((p, i) => (
+                  <div key={p.id ?? p.index} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "11px 0",
+                    borderBottom: i < Math.min(ranked.length, 3) - 1 ? "1px solid #f0f0f0" : "none",
+                  }}>
+                    <span style={{
+                      width: 20, flexShrink: 0, textAlign: "center",
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontSize: i === 0 ? 16 : 12, fontWeight: 700,
+                      color: i === 0 ? accent : "#ccc",
                     }}>
-                      <span style={{ fontSize: 16, width: 22, textAlign: "center", flexShrink: 0 }}>
-                        {["🥇", "🥈", "🥉"][i]}
-                      </span>
-                      <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "1px solid #e0e0e0" }}>
-                        <EntityAvatar url={p.avatarUrl} name={p.name} />
-                      </div>
-                      <span style={{
-                        flex: 1, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
-                        color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>{p.name}</span>
-                      <span style={{
-                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 800,
-                        color: i === 0 ? accent : "#666", flexShrink: 0,
-                      }}>{fmtVotes(p.points)}</span>
+                      {i === 0 ? "🥇" : i + 1}
+                    </span>
+                    <div style={{
+                      width: 30, height: 30, borderRadius: "50%", overflow: "hidden", flexShrink: 0,
+                      border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                    }}>
+                      <EntityAvatar url={p.avatarUrl} name={p.name} />
                     </div>
-                  ))}
-                </div>
+                    <span style={{
+                      flex: 1, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                      color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>{p.name}</span>
+                    <span style={{
+                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700,
+                      color: i === 0 ? accent : "#555", flexShrink: 0,
+                    }}>🪙 {p.points.toLocaleString("fr-FR")}</span>
+                  </div>
+                ))}
               </div>
             )}
 
-            {/* Top donors */}
+            {/* Top donors — same flat row treatment */}
             {giftLeaderboard.length > 0 && (
-              <div style={{ marginBottom: 14 }}>
+              <div style={{ padding: "10px 16px 14px" }}>
                 <div style={{
                   fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
                   color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-                  marginBottom: 10,
+                  marginBottom: 4,
                 }}>
                   Top donateurs
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {giftLeaderboard.slice(0, 3).map((d, i) => (
-                    <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: "#bbb", width: 16, flexShrink: 0 }}>
-                        {i + 1}
-                      </span>
-                      <div style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "1px solid #e0e0e0" }}>
-                        <EntityAvatar url={d.avatarUrl} name={d.name} />
-                      </div>
-                      <span style={{
-                        flex: 1, fontFamily: "Inter, sans-serif", fontSize: 12.5, fontWeight: 600,
-                        color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>{d.name}</span>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#999", flexShrink: 0 }}>
-                        {d.totalSpent.toLocaleString("fr-FR")} G
-                      </span>
+                {giftLeaderboard.slice(0, 3).map((d, i) => (
+                  <div key={d.id} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "9px 0",
+                    borderBottom: i < Math.min(giftLeaderboard.length, 3) - 1 ? "1px solid #f0f0f0" : "none",
+                  }}>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: "#ccc", width: 16, flexShrink: 0, textAlign: "center" }}>
+                      {i + 1}
+                    </span>
+                    <div style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "2px solid #eee" }}>
+                      <EntityAvatar url={d.avatarUrl} name={d.name} />
                     </div>
-                  ))}
-                </div>
+                    <span style={{
+                      flex: 1, fontFamily: "Inter, sans-serif", fontSize: 12.5, fontWeight: 600,
+                      color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>{d.name}</span>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#999", flexShrink: 0 }}>
+                      {d.totalSpent.toLocaleString("fr-FR")} G
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
