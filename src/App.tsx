@@ -2882,6 +2882,19 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
     if (fresh && fresh !== selectedDonor) setSelectedDonor(fresh);
   }, [giftLeaderboard, selectedDonor]);
   const [donorTab, setDonorTab] = useState("all");
+  // Favorited participants — lets the viewer star candidates they're
+  // rooting for and pull them up quickly in the Favoris tab. Session-local
+  // for now (no dedicated Supabase table yet); wire to a real table keyed
+  // by (user_id, competition_id, participant user_id) if this needs to
+  // survive across visits/devices.
+  const [favoriteIds, setFavoriteIds] = useState(() => new Set());
+  const toggleFavorite = (id) => {
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
   const accent = isRegistration ? "#6C63FF" : comp.accent;
   const rulesInfo = buildRulesInfo(comp);
   const [rulesExpanded, setRulesExpanded] = useState(false);
@@ -3678,6 +3691,7 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
           { key: "participants", label: "Participants" },
           { key: "medias", label: "Médias" },
           { key: "donateurs", label: "Donateurs" },
+          { key: "favoris", label: "Favoris" },
           { key: "live", label: "Live" },
         ].map((tab) => (
           <button
@@ -3906,9 +3920,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
               ))}
             </div>
 
-            {/* Final podium — top 3 by real gifts received, same ranking
-                the winner banner above was computed from. Flat rows with
-                hairline dividers, matching the Classement tab's own style. */}
+            {/* Winner — this platform has one winner per competition (the
+                real, DB-persisted comp.winnerName), not a ranked podium.
+                Flat row, matching the Classement tab's own style. */}
             {ranked.length > 0 && (
               <div style={{ padding: "14px 16px 4px" }}>
                 <div style={{
@@ -3916,38 +3930,33 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                   color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
                   marginBottom: 4,
                 }}>
-                  Classement final
+                  Gagnant
                 </div>
-                {ranked.slice(0, 3).map((p, i) => (
-                  <div key={p.id ?? p.index} style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "11px 0",
-                    borderBottom: i < Math.min(ranked.length, 3) - 1 ? "1px solid #f0f0f0" : "none",
-                  }}>
-                    <span style={{
-                      width: 20, flexShrink: 0, textAlign: "center",
-                      fontFamily: "'Space Grotesk', sans-serif",
-                      fontSize: i === 0 ? 16 : 12, fontWeight: 700,
-                      color: i === 0 ? accent : "#ccc",
-                    }}>
-                      {i === 0 ? "🥇" : i + 1}
-                    </span>
-                    <div style={{
-                      width: 30, height: 30, borderRadius: "50%", overflow: "hidden", flexShrink: 0,
-                      border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                    }}>
-                      <EntityAvatar url={p.avatarUrl} name={p.name} />
+                {(() => {
+                  const p = ranked[0];
+                  return (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0" }}>
+                      <span style={{
+                        width: 20, flexShrink: 0, textAlign: "center",
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700,
+                        color: accent,
+                      }}>
+                        🥇
+                      </span>
+                      <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: `2px solid ${accent}` }}>
+                        <EntityAvatar url={p.avatarUrl} name={p.name} />
+                      </div>
+                      <span style={{
+                        flex: 1, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                        color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>{comp.winnerName || p.name}</span>
+                      <span style={{
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700,
+                        color: accent, flexShrink: 0,
+                      }}>🪙 {p.points.toLocaleString("fr-FR")}</span>
                     </div>
-                    <span style={{
-                      flex: 1, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
-                      color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>{p.name}</span>
-                    <span style={{
-                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700,
-                      color: i === 0 ? accent : "#555", flexShrink: 0,
-                    }}>🪙 {p.points.toLocaleString("fr-FR")}</span>
-                  </div>
-                ))}
+                  );
+                })()}
               </div>
             )}
 
@@ -4815,12 +4824,83 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                       />
                     </div>
                   </div>
+
+                  {/* Favorite toggle */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id ?? p.index); }}
+                    style={{
+                      border: "none", background: "none", cursor: "pointer",
+                      padding: 4, flexShrink: 0, lineHeight: 0,
+                    }}
+                  >
+                    <Heart
+                      size={16}
+                      strokeWidth={2}
+                      fill={favoriteIds.has(p.id ?? p.index) ? "#e74c3c" : "none"}
+                      color={favoriteIds.has(p.id ?? p.index) ? "#e74c3c" : "#ccc"}
+                    />
+                  </button>
                 </div>
               );
             })}
             <div style={{ height: 12 }} />
           </div>
         )
+        )}
+
+        {/* ── FAVORIS ── */}
+        {activeTab === "favoris" && !isRegistration && (
+          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              marginBottom: 14,
+            }}>
+              <Heart size={13} strokeWidth={2.5} />
+              Favoris
+            </div>
+
+            {(() => {
+              const favorites = participantsFull.filter((p) => favoriteIds.has(p.id ?? p.index));
+              if (favorites.length === 0) {
+                return (
+                  <div style={{ padding: "24px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
+                    Aucun favori pour le moment.<br />
+                    Touchez le cœur d'un participant dans l'onglet Participants pour le suivre ici.
+                  </div>
+                );
+              }
+              return favorites.map((p, idx) => (
+                <div key={p.id ?? p.index} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "11px 0",
+                  borderBottom: idx < favorites.length - 1 ? "1px solid #f0f0f0" : "none",
+                }}>
+                  <div style={{
+                    width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                    overflow: "hidden", border: "2px solid #eee",
+                  }}>
+                    <EntityAvatar url={p.avatarUrl} name={p.name} />
+                  </div>
+                  <span style={{
+                    flex: 1, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                    color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>{p.name}</span>
+                  <span style={{
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: "#555",
+                    flexShrink: 0,
+                  }}>🪙 {p.points.toLocaleString("fr-FR")}</span>
+                  <button
+                    onClick={() => toggleFavorite(p.id ?? p.index)}
+                    style={{ border: "none", background: "none", cursor: "pointer", padding: 4, flexShrink: 0, lineHeight: 0 }}
+                  >
+                    <Heart size={16} strokeWidth={2} fill="#e74c3c" color="#e74c3c" />
+                  </button>
+                </div>
+              ));
+            })()}
+          </div>
         )}
 
         {/* ── PARTICIPANTS STRIP (only for voting phase) ── */}
