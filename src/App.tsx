@@ -808,6 +808,7 @@ const HOME_TABS = [
   { key: "Bientôt", label: "Bientôt", icon: Clock },
   { key: "En hausse", label: "En hausse", icon: ArrowUp },
   { key: "Nouveautés", label: "Nouveautés", icon: Sparkles },
+  { key: "Terminé", label: "Terminé", icon: Check },
 ];
 
 /* ─── WALLET DATA ───────────────────────────────────────────────────────── */
