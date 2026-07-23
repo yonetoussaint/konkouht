@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { createClient } from "@supabase/supabase-js";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame, ArrowUp, ArrowDown, Pencil } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame, ArrowUp, ArrowDown, Pencil, CalendarDays } from "lucide-react";
 
 /* ─── Supabase client ─────────────────────────────────────────────────────
    Previously lived in lib/competitionData.js — moved in here along with
@@ -355,6 +355,97 @@ async function createEdition({
     return { data: null, error };
   }
   return { data: mapEditionRow(data), error: null };
+}
+
+// ISO-8601 week number (Monday-start, week 1 = the week containing the
+// year's first Thursday) for a given date. Used only to label auto-
+// generated weekly editions ("Semaine 32"), never sent to the database
+// as-is.
+function isoWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7; // Monday=1 .. Sunday=7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// Monday 00:00:00 (local time) of the week containing `date`.
+function startOfWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay() || 7; // Monday=1 .. Sunday=7
+  d.setDate(d.getDate() - (day - 1));
+  return d;
+}
+
+// Builds the label/deadline plan for the next `weeksCount` editions,
+// starting from the calendar week that contains `fromDate` (today, by
+// default) — so the first edition in the plan is always the current
+// week's, and the rest run one per week straight through the following
+// 12 months. Each week's deadline (endsAt) is Sunday 23:59:59 of that
+// week, i.e. registration/voting for "Semaine N" stays open all week.
+function buildWeeklyEditionsPlan(weeksCount = 52, fromDate = new Date()) {
+  const plan = [];
+  const firstWeekStart = startOfWeek(fromDate);
+  for (let i = 0; i < weeksCount; i++) {
+    const weekStart = new Date(firstWeekStart);
+    weekStart.setDate(weekStart.getDate() + i * 7);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    plan.push({ edition: `Semaine ${isoWeekNumber(weekStart)}`, endsAt: weekEnd.toISOString() });
+  }
+  return plan;
+}
+
+// Auto-generates a full year of weekly editions (52 by default) for a
+// seed competition in one shot, so people can register up to 12 months
+// ahead instead of an admin creating "Semaine N" by hand every week.
+// Every field besides the label (edition) and deadline (ends_at) is
+// copied straight from `template` (normally the competition's most
+// recent edition, or blank defaults). Re-running this later only fills
+// in whatever weeks are still missing going forward — it looks up which
+// "Semaine N" labels already exist for this competition first and skips
+// them, so it never creates duplicate weeks.
+async function createWeeklyEditions({ competitionId, template = {}, weeksCount = 52, updatedBy }) {
+  const { data: existingRows, error: fetchError } = await supabase
+    .from(EDITIONS_TABLE)
+    .select("edition")
+    .eq("competition_id", competitionId);
+  if (fetchError) {
+    console.error("createWeeklyEditions fetch existing error:", fetchError);
+    return { data: [], error: fetchError };
+  }
+  const existingLabels = new Set((existingRows || []).map((r) => r.edition));
+  const plan = buildWeeklyEditionsPlan(weeksCount).filter((p) => !existingLabels.has(p.edition));
+  if (plan.length === 0) return { data: [], error: null };
+
+  const rows = plan.map((p) => ({
+    competition_id: competitionId,
+    title: template.title ?? null,
+    edition: p.edition,
+    ends: null,
+    ends_at: p.endsAt,
+    phase: "registration",
+    contestants: template.contestants ?? null,
+    banner_url: template.bannerUrl ?? null,
+    description: template.description ?? null,
+    prize_amount: template.prizeAmount ?? null,
+    fee: template.fee ?? null,
+    reward_extra: template.rewardExtra ?? null,
+    rules: template.rules || [],
+    live_duration_seconds: template.liveDurationSeconds ?? null,
+    active: true,
+    updated_by: updatedBy,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { data, error } = await supabase.from(EDITIONS_TABLE).insert(rows).select();
+  if (error) {
+    console.error("createWeeklyEditions insert error:", error);
+    return { data: [], error };
+  }
+  return { data: (data || []).map(mapEditionRow), error: null };
 }
 
 // Updates one existing edition by its own id (owner-only via RLS). Unlike
@@ -8122,7 +8213,7 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
    where this is mounted in App()). Lists every competition across every
    niche in one place so nothing needs to be found by browsing the homepage
    first — tapping a row jumps straight into that competition's edit panel. */
-function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCreateEdition, onPublishEdition, onDeleteEdition, onBack }) {
+function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCreateEdition, onGenerateWeeklyEditions, onPublishEdition, onDeleteEdition, onBack }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Total");
   const [deletingId, setDeletingId] = useState(null);
@@ -8176,13 +8267,20 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
   // they're just the source list an admin picks from when starting a new
   // edition. Picking one is handled entirely inside the overlay below.
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  // "single" opens the normal blank create-edition form; "weekly" instead
+  // auto-generates the next 52 "Semaine N" editions straight away, no form.
+  const [templatePickerMode, setTemplatePickerMode] = useState("single");
   const [templateQuery, setTemplateQuery] = useState("");
   const [creatingTemplateKey, setCreatingTemplateKey] = useState(null);
 
   async function handlePickTemplate(found) {
     if (!found || creatingTemplateKey) return;
     setCreatingTemplateKey(found.key);
-    await onCreateEdition(found.comp, found.niche);
+    if (templatePickerMode === "weekly") {
+      await onGenerateWeeklyEditions?.(found.comp, found.niche);
+    } else {
+      await onCreateEdition(found.comp, found.niche);
+    }
     setCreatingTemplateKey(null);
     setShowTemplatePicker(false);
     setTemplateQuery("");
@@ -8312,7 +8410,27 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
             this overlay is the only place they're surfaced, purely as
             picks for spinning up a new edition. */}
         <button
-          onClick={() => setShowTemplatePicker(true)}
+          onClick={() => { setTemplatePickerMode("single"); setShowTemplatePicker(true); }}
+          style={{
+            width: "100%", marginBottom: 8,
+            border: "1px dashed #ccc", borderRadius: 10, padding: "12px 16px",
+            background: "#fff", color: "#333",
+            fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700,
+            cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          }}
+        >
+          <Plus size={14} /> Nouvelle édition à partir d'un modèle
+        </button>
+
+        {/* Auto-generates the next 52 weekly editions ("Semaine 32",
+            "Semaine 33", ...) for a chosen template in one shot — one
+            edition per calendar week for the next 12 months, each open
+            for registration right away so people can sign up early.
+            Re-running this later only fills in whatever weeks are still
+            missing going forward. */}
+        <button
+          onClick={() => { setTemplatePickerMode("weekly"); setShowTemplatePicker(true); }}
           style={{
             width: "100%", marginBottom: 14,
             border: "1px dashed #ccc", borderRadius: 10, padding: "12px 16px",
@@ -8322,7 +8440,7 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
           }}
         >
-          <Plus size={14} /> Nouvelle édition à partir d'un modèle
+          <CalendarDays size={14} /> Générer les 52 prochaines semaines
         </button>
         {filteredEntries.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 8px" }}>
@@ -8476,7 +8594,7 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#222" }}>
-                  Choisir un modèle
+                  {templatePickerMode === "weekly" ? "Choisir un modèle — 52 semaines" : "Choisir un modèle"}
                 </span>
                 <button
                   onClick={() => setShowTemplatePicker(false)}
@@ -9805,6 +9923,61 @@ export default function App() {
     return { success: true, data };
   }
 
+  // True only while a bulk weekly-generation request for a given seed
+  // competition id is in flight — lets the picker disable/gray out rows
+  // the same way `creatingTemplateKey` does for a single new edition.
+  const [generatingWeeklyForId, setGeneratingWeeklyForId] = useState(null);
+
+  // Auto-generates the next 52 "Semaine N" editions for a seed competition
+  // in one shot (one per calendar week, starting this week, running 12
+  // months out — see createWeeklyEditions). Every field besides the week
+  // label/deadline is copied from that competition's most recently
+  // created edition (description, prize, fee, rules, banner, etc.), so
+  // the organizer only needs to have set those up once; if the
+  // competition has no edition at all yet, it falls back to just the
+  // seed's title and contestant count. Weeks that already exist are
+  // skipped, so running this again later only tops up further weeks.
+  async function handleGenerateWeeklyEditions(comp, niche) {
+    setGeneratingWeeklyForId(comp.id);
+    const existing = editionsByComp[comp.id] || [];
+    const latest = existing.length
+      ? [...existing].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]
+      : null;
+    const template = {
+      title: latest?.title || comp.title,
+      contestants: latest?.contestants ?? comp.contestants ?? null,
+      bannerUrl: latest?.bannerUrl ?? null,
+      description: latest?.description ?? null,
+      prizeAmount: latest?.prizeAmount ?? null,
+      fee: latest?.fee ?? null,
+      rewardExtra: latest?.rewardExtra ?? null,
+      rules: latest?.rules ?? [],
+      liveDurationSeconds: latest?.liveDurationSeconds ?? null,
+    };
+    const { data, error } = await createWeeklyEditions({
+      competitionId: comp.id,
+      template,
+      weeksCount: 52,
+      updatedBy: currentUser?.id,
+    });
+    setGeneratingWeeklyForId(null);
+    if (error) {
+      console.error("createWeeklyEditions error:", error);
+      showToast(`Impossible de générer les éditions hebdomadaires${error.message ? ` : ${error.message}` : "."}`);
+      return { success: false };
+    }
+    if (data.length === 0) {
+      showToast("Les 52 prochaines semaines existent déjà pour cette compétition.");
+      return { success: true, data };
+    }
+    setEditionsByComp((prev) => ({
+      ...prev,
+      [comp.id]: [...(prev[comp.id] || []), ...data],
+    }));
+    showToast(`${data.length} éditions créées, de « ${data[0].edition} » à « ${data[data.length - 1].edition} ».`);
+    return { success: true, data };
+  }
+
   // Publishes a draft edition — flips it to "registration" phase and marks
   // it active, so it starts showing up on the homepage/admin list as a
   // real, open competition instead of a hidden draft.
@@ -10694,6 +10867,7 @@ export default function App() {
           onOpenComp={handleAdminOpenComp}
           onToggleActive={handleToggleCompActive}
           onCreateEdition={handleCreateDraftEdition}
+          onGenerateWeeklyEditions={handleGenerateWeeklyEditions}
           onPublishEdition={handlePublishEdition}
           onDeleteEdition={handleDeleteEdition}
           onBack={() => setActiveTab("account")}
