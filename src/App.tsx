@@ -1230,7 +1230,7 @@ function PhaseRow({ edition, accent }) {
 
 /* ─── COMPETITION CARD ──────────────────────────────────────────────────── */
 
-function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompetition }) {
+function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompetition, fullWidth }) {
   const [voteCount] = useState(comp.votes);
   const [followed, setFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(comp.followers);
@@ -1258,8 +1258,8 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
     <div
       onClick={() => onOpen?.(comp)}
       style={{
-        flexShrink: 0,
-        width: 272,
+        flexShrink: fullWidth ? 1 : 0,
+        width: fullWidth ? "100%" : 272,
         border: "1px solid #ececec",
         borderRadius: 18,
         overflow: "hidden",
@@ -1273,7 +1273,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
     >
       {/* Banner — title, organizer, and badges all live on the image now,
           so the card doesn't need a separate bordered title block below it. */}
-      <div style={{ height: 132, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
+      <div style={{ height: fullWidth ? 200 : 132, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
         {(comp.bannerUrl || comp.images?.[0]?.url) ? (
           <img
             src={comp.bannerUrl || comp.images[0].url}
@@ -10098,7 +10098,10 @@ export default function App() {
       competitions: niche.competitions
         .flatMap(publishedEditionsForComp)
         .filter((c) => c.active)
-        .filter((c) => c.phase !== "completed")
+        // "Terminé" is the one tab that specifically wants completed
+        // editions — every other tab keeps excluding them, since a closed
+        // edition belongs in the archive, not the rest of the homepage.
+        .filter((c) => activeFilter === "Terminé" ? c.phase === "completed" : c.phase !== "completed")
         .filter((c) => {
           if (activeFilter === "Favoris") return followedCompIds.has(c.id);
           if (activeFilter === "Live") return c.phase === "live";
@@ -10106,7 +10109,7 @@ export default function App() {
           if (activeFilter === "Bientôt") return estimateEndTimestamp(c) - Date.now() <= 48 * 3600 * 1000;
           if (activeFilter === "En hausse") return c.hot;
           if (activeFilter === "Nouveautés") return c.phase === "registration";
-          return true; // "Tous"
+          return true; // "Tous" and "Terminé" (already narrowed above)
         }),
     }))
     // A niche with nothing matching the active tab (or everything switched
@@ -10900,6 +10903,27 @@ export default function App() {
                   <button onClick={() => setQuery("")} style={{ marginTop: 20, border: "1px solid #ddd", background: "#444", color: "#fff", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
                 </>
               )}
+            </div>
+          ) : activeFilter === "Terminé" ? (
+            // Archive view — one wide card per row instead of the usual
+            // horizontally-scrollable rails, since there's nothing to
+            // discover-browse here: it's a straightforward past-results list.
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingLeft: 8, paddingRight: 8, paddingTop: 6 }}>
+              {[...visibleCompsFlat]
+                .sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0))
+                .map((comp) => (
+                <CompCard
+                  key={comp.id}
+                  comp={comp}
+                  accent={comp.accent}
+                  onOpen={handleOpenTypeComp}
+                  onRegister={handleRegisterTypeComp}
+                  registeredCompIds={registeredCompIds}
+                  isRegistered={registeredCompIds?.has(comp.id)}
+                  isOwnCompetition={currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE}
+                  fullWidth
+                />
+              ))}
             </div>
           ) : (
             <>
