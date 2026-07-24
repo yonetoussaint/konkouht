@@ -1574,29 +1574,45 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
             </span>
             <span style={{
               marginLeft: "auto", flexShrink: 0,
-              display: "flex", alignItems: "center", gap: 3,
-              fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
-              color: "rgba(255,255,255,0.85)",
+              display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3,
             }}>
-              {isCompleted ? (
-                <>
-                  <Trophy size={10} strokeWidth={2.5} />
-                  {comp.winnerName ? comp.winnerName : "Terminé"}
-                </>
-              ) : (
-                <span style={{
-                  display: "flex", alignItems: "center", gap: 3,
-                  padding: "3px 7px",
-                  borderRadius: 999,
-                  background: comp.hot ? "rgba(192,57,43,0.55)" : "rgba(0,0,0,0.4)",
-                  backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
-                  color: "#fff",
-                  whiteSpace: "nowrap",
-                }}>
-                  <Clock size={10} strokeWidth={2.5} />
-                  {fmtCountdown(resolvedEndDate)}
-                </span>
-              )}
+              <span style={{
+                display: "flex", alignItems: "center",
+                padding: "2px 7px",
+                borderRadius: 999,
+                background: "rgba(0,0,0,0.4)",
+                backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+                fontFamily: "Inter, sans-serif", fontSize: 8.5, fontWeight: 700,
+                color: "#fff",
+                whiteSpace: "nowrap",
+              }}>
+                {comp.edition}
+              </span>
+              <span style={{
+                display: "flex", alignItems: "center", gap: 3,
+                fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+                color: "rgba(255,255,255,0.85)",
+              }}>
+                {isCompleted ? (
+                  <>
+                    <Trophy size={10} strokeWidth={2.5} />
+                    {comp.winnerName ? comp.winnerName : "Terminé"}
+                  </>
+                ) : (
+                  <span style={{
+                    display: "flex", alignItems: "center", gap: 3,
+                    padding: "3px 7px",
+                    borderRadius: 999,
+                    background: comp.hot ? "rgba(192,57,43,0.55)" : "rgba(0,0,0,0.4)",
+                    backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+                    color: "#fff",
+                    whiteSpace: "nowrap",
+                  }}>
+                    <Clock size={10} strokeWidth={2.5} />
+                    {fmtCountdown(resolvedEndDate)}
+                  </span>
+                )}
+              </span>
             </span>
           </div>
         </div>
@@ -1638,10 +1654,10 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
             fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: accent,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           }}>
-            {comp.edition}
+            {getRegistrationFee(comp)} HTG
           </span>
           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
-            Phase
+            Frais
           </span>
         </div>
       </div>
