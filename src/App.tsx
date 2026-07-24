@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { createClient } from "@supabase/supabase-js";
-import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame, ArrowUp, ArrowDown, Pencil, CalendarDays } from "lucide-react";
+import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame, ArrowUp, ArrowDown, Pencil, CalendarDays, Star } from "lucide-react";
+import { SlActionRedo } from "react-icons/sl";
 
 /* ─── Supabase client ─────────────────────────────────────────────────────
    Previously lived in lib/competitionData.js — moved in here along with
@@ -1448,29 +1449,57 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
               </div>
             )}
           </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setFollowed((f) => !f);
-              setFollowerCount((c) => followed ? c - 1 : c + 1);
-            }}
-            title={followed ? "Ne plus suivre" : "Suivre"}
-            style={{
-              flexShrink: 0,
-              width: 25, height: 25, borderRadius: "50%",
-              border: followed ? "none" : "1px solid rgba(255,255,255,0.55)",
-              background: followed ? accent : "rgba(0,0,0,0.35)",
-              backdropFilter: "blur(6px)",
-              WebkitBackdropFilter: "blur(6px)",
-              color: "#fff",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer",
-              transition: "background 0.15s",
-              padding: 0,
-            }}
-          >
-            {followed ? <Check size={11} strokeWidth={3} /> : <Plus size={13} strokeWidth={2.5} />}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const shareData = { title: comp.title, text: `${comp.title} — ${comp.edition}` };
+                if (navigator.share) {
+                  navigator.share(shareData).catch(() => {});
+                } else if (navigator.clipboard) {
+                  navigator.clipboard.writeText(shareData.text).catch(() => {});
+                }
+              }}
+              title="Partager"
+              style={{
+                flexShrink: 0,
+                width: 25, height: 25, borderRadius: "50%",
+                border: "1px solid rgba(255,255,255,0.55)",
+                background: "rgba(0,0,0,0.35)",
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+                color: "#fff",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              <SlActionRedo size={12} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setFollowed((f) => !f);
+                setFollowerCount((c) => followed ? c - 1 : c + 1);
+              }}
+              title={followed ? "Retirer des favoris" : "Ajouter aux favoris"}
+              style={{
+                flexShrink: 0,
+                width: 25, height: 25, borderRadius: "50%",
+                border: followed ? "none" : "1px solid rgba(255,255,255,0.55)",
+                background: followed ? accent : "rgba(0,0,0,0.35)",
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+                color: "#fff",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer",
+                transition: "background 0.15s",
+                padding: 0,
+              }}
+            >
+              <Star size={12} strokeWidth={2.5} fill={followed ? "#fff" : "none"} />
+            </button>
+          </div>
         </div>
 
         {/* Bottom overlay — title + organizer, replaces the old separate title block */}
