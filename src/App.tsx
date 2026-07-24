@@ -1449,13 +1449,16 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
             {isRegistration && (
               <div style={{
+                height: 25, borderRadius: 13,
                 fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
                 textTransform: "uppercase", color: "#fff",
-                background: "#6C63FF", padding: "2px 7px",
+                background: "#6C63FF",
                 fontFamily: "Inter, sans-serif",
-                borderRadius: 7,
+                display: "flex", alignItems: "center", gap: 4,
+                padding: "0 8px 0 7px",
               }}>
-                Inscriptions
+                <Pencil size={11} strokeWidth={2.5} />
+                INSCR.
               </div>
             )}
             {isLive && (
