@@ -1516,46 +1516,16 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
         </div>
       </div>
 
-      {/* Compact stats row — replaces the old meta-row + PhaseRow pair,
-          same three facts (count, deadline, phase) in a single line. */}
+      {/* Compact stats row — now just the two facts that don't have a
+          better home elsewhere (deadline, phase); registration count/
+          capacity moved to the full-width progress bar above the footer
+          button below. */}
       <div style={{
         display: "flex", alignItems: "center",
         padding: "9px 12px",
         borderBottom: "1px solid #f0f0f0",
       }}>
-        <div style={{ flex: 0.8, display: "flex", flexDirection: "column", gap: 3, minWidth: 0, justifyContent: "center" }}>
-          {isRegistration ? (
-            <>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 12.5, fontWeight: 800, color: "#222", lineHeight: 1 }}>
-                {comp.registeredCount}
-                <span style={{ fontWeight: 600, color: "#bbb" }}>/{comp.contestants}</span>
-              </span>
-              <div style={{ height: 4, borderRadius: 999, background: "#eee", width: "100%", overflow: "hidden" }}>
-                <div style={{
-                  height: "100%",
-                  borderRadius: 999,
-                  width: `${Math.min(100, Math.round((comp.registeredCount / Math.max(comp.contestants, 1)) * 100))}%`,
-                  background: comp.registeredCount >= comp.contestants ? "#00B894" : accent,
-                  transition: "width 0.4s ease",
-                }} />
-              </div>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
-                Inscrits
-              </span>
-            </>
-          ) : (
-            <>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: "#222", lineHeight: 1 }}>
-                {comp.contestants}
-              </span>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
-                Candidats
-              </span>
-            </>
-          )}
-        </div>
-        <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
-        <div style={{ flex: 1.3, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <span style={{
             fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
             color: comp.hot ? "#c0392b" : "#333",
@@ -1568,7 +1538,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           </span>
         </div>
         <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
-        <div style={{ flex: 0.9, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
           <span style={{
             fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: accent,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
@@ -1580,6 +1550,32 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
           </span>
         </div>
       </div>
+
+      {/* Full-width registration progress bar — sits right on top of the
+          footer button, left label is how many are already registered,
+          right label is the competition's capacity. Only shown during
+          the registration phase; live/completed footers have no bar. */}
+      {isRegistration && (
+        <div style={{ padding: "10px 12px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11.5, fontWeight: 800, color: "#222" }}>
+              {comp.registeredCount} inscrit{comp.registeredCount !== 1 ? "s" : ""}
+            </span>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 700, color: "#999" }}>
+              {comp.contestants} places
+            </span>
+          </div>
+          <div style={{ height: 8, borderRadius: 999, background: "#eee", width: "100%", overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              borderRadius: 999,
+              width: `${Math.min(100, Math.round((comp.registeredCount / Math.max(comp.contestants, 1)) * 100))}%`,
+              background: comp.registeredCount >= comp.contestants ? "#00B894" : accent,
+              transition: "width 0.4s ease",
+            }} />
+          </div>
+        </div>
+      )}
 
       {/* Footer — voting or registration */}
       {isRegistration ? (
