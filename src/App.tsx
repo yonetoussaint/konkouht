@@ -2913,14 +2913,33 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   // subscription in App() and re-renders with the authoritative result —
   // see the `editionsByComp` subscription near the top-level App component.
 
+  // Dynamic countdown: always shows the 3 most significant units for the
+  // remaining duration (e.g. "2D : 12H : 45M" close to the deadline,
+  // "5M : 2W : 23D" months out, "1Y : 12M : 32W" a year+ out,
+  // "21H : 23M : 45S" under a day). Units shrink as time passes, so the
+  // display is never cluttered with zeros the way a fixed d/h/m/s format
+  // would be for a far-off deadline.
+  const COUNTDOWN_UNITS = [
+    { label: "Y", secs: 31536000 }, // 365d
+    { label: "M", secs: 2592000 },  // 30d ("month")
+    { label: "W", secs: 604800 },
+    { label: "D", secs: 86400 },
+    { label: "H", secs: 3600 },
+    { label: "M", secs: 60 },       // minute
+    { label: "S", secs: 1 },
+  ];
   const fmtCountdown = (s) => {
-    const d = Math.floor(s / 86400);
-    const h = Math.floor((s % 86400) / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sc = s % 60;
-    if (d > 0) return `${d}j ${String(h).padStart(2,"0")}h ${String(m).padStart(2,"0")}m`;
-    if (h > 0) return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
-    return `${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
+    if (!Number.isFinite(s) || s <= 0) return "Terminé";
+    let startIdx = COUNTDOWN_UNITS.findIndex((u) => s >= u.secs);
+    if (startIdx === -1) startIdx = COUNTDOWN_UNITS.length - 1;
+    let remaining = s;
+    return COUNTDOWN_UNITS.slice(startIdx, startIdx + 3)
+      .map((u) => {
+        const val = Math.floor(remaining / u.secs);
+        remaining -= val * u.secs;
+        return `${val}${u.label}`;
+      })
+      .join(" : ");
   };
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [mediaLightbox, setMediaLightbox] = useState(null); // approved participant_media row
@@ -4167,19 +4186,24 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
                     borderLeft: i > 0 ? "1px solid #f0f0f0" : "none",
                     padding: "10px 4px",
                     display: "flex", flexDirection: "column", alignItems: "center",
-                    background: hotTimer ? "rgba(192,57,43,0.06)" : "transparent",
+                    background: s.timer ? "transparent" : "transparent",
                     transition: "background 0.3s",
                   }}>
                     <div style={{
                       fontFamily: "'Space Grotesk', sans-serif",
-                      fontSize: s.timer ? 15 : 24, fontWeight: 800,
-                      color: hotTimer ? "#c0392b" : s.accent ? accent : "#111",
+                      fontSize: s.timer ? 13 : 24, fontWeight: 800,
+                      color: hotTimer ? "#c0392b" : s.timer ? "#6C63FF" : s.accent ? accent : "#111",
                       lineHeight: 1.15,
-                      transition: s.timer ? "opacity 0.12s, transform 0.28s cubic-bezier(0.34,1.56,0.64,1)" : "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
+                      transition: s.timer ? "opacity 0.12s, transform 0.28s cubic-bezier(0.34,1.56,0.64,1), background 0.3s" : "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
                       opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
                       transform: s.bump ? "scale(1.14)" : "scale(1)",
                       fontVariantNumeric: s.timer ? "normal" : "tabular-nums",
                       whiteSpace: s.timer ? "nowrap" : "normal",
+                      ...(s.timer ? {
+                        padding: "3px 8px",
+                        borderRadius: 6,
+                        background: hotTimer ? "rgba(192,57,43,0.09)" : "rgba(108,99,255,0.09)",
+                      } : {}),
                     }}>{s.timer ? fmtCountdown(secondsLeft) : s.value}</div>
                     {s.timer && (
                       <div style={{
