@@ -1523,13 +1523,36 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
         padding: "9px 12px",
         borderBottom: "1px solid #f0f0f0",
       }}>
-        <div style={{ flex: 0.8, display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: "#222", lineHeight: 1 }}>
-            {isRegistration ? comp.registeredCount : comp.contestants}
-          </span>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
-            {isRegistration ? "Inscrits" : "Candidats"}
-          </span>
+        <div style={{ flex: 0.8, display: "flex", flexDirection: "column", gap: 3, minWidth: 0, justifyContent: "center" }}>
+          {isRegistration ? (
+            <>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 12.5, fontWeight: 800, color: "#222", lineHeight: 1 }}>
+                {comp.registeredCount}
+                <span style={{ fontWeight: 600, color: "#bbb" }}>/{comp.contestants}</span>
+              </span>
+              <div style={{ height: 4, borderRadius: 999, background: "#eee", width: "100%", overflow: "hidden" }}>
+                <div style={{
+                  height: "100%",
+                  borderRadius: 999,
+                  width: `${Math.min(100, Math.round((comp.registeredCount / Math.max(comp.contestants, 1)) * 100))}%`,
+                  background: comp.registeredCount >= comp.contestants ? "#00B894" : accent,
+                  transition: "width 0.4s ease",
+                }} />
+              </div>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+                Inscrits
+              </span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: "#222", lineHeight: 1 }}>
+                {comp.contestants}
+              </span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+                Candidats
+              </span>
+            </>
+          )}
         </div>
         <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
         <div style={{ flex: 1.3, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
