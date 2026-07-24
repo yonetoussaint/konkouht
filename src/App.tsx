@@ -1049,6 +1049,17 @@ function fmtAbsoluteDate(target) {
   return `${date} ${month}, ${hours}:${minutes} ${ampm}`;
 }
 
+// Date-only variant for CompCard's compact stats row — the card is small
+// enough that the time just adds noise once you already have the "Fin
+// inscr." / "Fin dans" label sitting right next to it.
+function fmtAbsoluteDateOnly(target) {
+  const d = new Date(target);
+  if (Number.isNaN(d.getTime())) return "";
+  const date = d.getDate();
+  const month = FR_MONTH_ABBR[d.getMonth()];
+  return `${date} ${month}`;
+}
+
 // Compact duration for the card overlay chip ("2j 14h", "6h 22m") — the
 // stats row below already shows the absolute deadline, so this is just a
 // quick-glance urgency cue, not meant to be precise to the minute.
@@ -1600,7 +1611,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
             color: comp.hot ? "#c0392b" : "#333",
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           }}>
-            {fmtAbsoluteDate(resolvedEndDate)}
+            {fmtAbsoluteDateOnly(resolvedEndDate)}
           </span>
           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             {isRegistration ? "Fin inscr." : "Fin dans"}
