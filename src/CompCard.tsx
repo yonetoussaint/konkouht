@@ -220,7 +220,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           </div>
         </div>
 
-        {/* Bottom overlay - COMPLETELY REDONE for proper alignment */}
+        {/* Bottom overlay - RESTRUCTURED with 3 rows */}
         <div style={{
           position: "absolute", 
           left: 0, 
@@ -229,24 +229,50 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           padding: "8px 12px 9px",
           display: "flex", 
           flexDirection: "column", 
-          gap: 4,
+          gap: 3,
         }}>
-          {/* Title */}
+          {/* Row 1: Title + Competition Code */}
           <div style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 15, 
-            fontWeight: 800,
-            color: "#fff",
-            lineHeight: 1.2,
-            textShadow: "0 1px 6px rgba(0,0,0,0.4)",
-            overflow: "hidden", 
-            textOverflow: "ellipsis", 
-            whiteSpace: "nowrap",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
           }}>
-            {comp.title}
+            <div style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: 15, 
+              fontWeight: 800,
+              color: "#fff",
+              lineHeight: 1.2,
+              textShadow: "0 1px 6px rgba(0,0,0,0.4)",
+              overflow: "hidden", 
+              textOverflow: "ellipsis", 
+              whiteSpace: "nowrap",
+              flex: 1,
+              minWidth: 0,
+            }}>
+              {comp.title}
+            </div>
+            <span style={{
+              flexShrink: 0,
+              display: "flex", 
+              alignItems: "center",
+              padding: "2px 7px",
+              borderRadius: 999,
+              background: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+              fontFamily: "Inter, sans-serif", 
+              fontSize: 9, 
+              fontWeight: 700,
+              color: "#fff",
+              whiteSpace: "nowrap",
+            }}>
+              {`S${isoWeekNumber(new Date(resolvedEndDate))}-Q${comp.contestants}`}
+            </span>
           </div>
           
-          {/* Organizer + Timer row - FIXED */}
+          {/* Row 2: Organizer + Timer */}
           <div style={{ 
             display: "flex", 
             alignItems: "center",
@@ -306,62 +332,46 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               </span>
             </div>
 
-            {/* Right: Timer - stays fixed on right */}
+            {/* Right: Timer */}
             <div style={{
               flexShrink: 0,
               display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              gap: 2,
+              alignItems: "center",
+              gap: 4,
             }}>
-              <span style={{
-                display: "flex", 
-                alignItems: "center",
-                padding: "2px 7px",
-                borderRadius: 999,
-                background: "rgba(0,0,0,0.4)",
-                backdropFilter: "blur(6px)",
-                WebkitBackdropFilter: "blur(6px)",
-                fontFamily: "Inter, sans-serif", 
-                fontSize: 9, 
-                fontWeight: 700,
-                color: "#fff",
-                whiteSpace: "nowrap",
-              }}>
-                {`S${isoWeekNumber(new Date(resolvedEndDate))}-Q${comp.contestants}`}
-              </span>
-              <span style={{
-                display: "flex", 
-                alignItems: "center", 
-                gap: 2,
-                fontFamily: "Inter, sans-serif", 
-                fontSize: 9, 
-                fontWeight: 700,
-                color: "rgba(255,255,255,0.85)",
-              }}>
-                {isCompleted ? (
-                  <>
-                    <Trophy size={9} strokeWidth={2.5} />
-                    {comp.winnerName ? comp.winnerName : "Terminé"}
-                  </>
-                ) : (
+              {isCompleted ? (
+                <>
+                  <Trophy size={9} strokeWidth={2.5} />
                   <span style={{
-                    display: "flex", 
-                    alignItems: "center", 
-                    gap: 2,
-                    padding: "2px 7px",
-                    borderRadius: 999,
-                    background: comp.hot ? "rgba(192,57,43,0.55)" : "rgba(0,0,0,0.4)",
-                    backdropFilter: "blur(6px)", 
-                    WebkitBackdropFilter: "blur(6px)",
-                    color: "#fff",
+                    fontFamily: "Inter, sans-serif", 
+                    fontSize: 9, 
+                    fontWeight: 700,
+                    color: "rgba(255,255,255,0.85)",
                     whiteSpace: "nowrap",
                   }}>
-                    <Clock size={9} strokeWidth={2.5} />
-                    {fmtCountdown(resolvedEndDate)}
+                    {comp.winnerName ? comp.winnerName : "Terminé"}
                   </span>
-                )}
-              </span>
+                </>
+              ) : (
+                <span style={{
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 3,
+                  padding: "2px 7px",
+                  borderRadius: 999,
+                  background: comp.hot ? "rgba(192,57,43,0.55)" : "rgba(0,0,0,0.4)",
+                  backdropFilter: "blur(6px)", 
+                  WebkitBackdropFilter: "blur(6px)",
+                  color: "#fff",
+                  whiteSpace: "nowrap",
+                  fontFamily: "Inter, sans-serif", 
+                  fontSize: 9, 
+                  fontWeight: 700,
+                }}>
+                  <Clock size={9} strokeWidth={2.5} />
+                  {fmtCountdown(resolvedEndDate)}
+                </span>
+              )}
             </div>
           </div>
         </div>
