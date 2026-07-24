@@ -27,20 +27,12 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
   const [voteCount] = useState(comp.votes);
   const [followed, setFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(comp.followers);
-  // No real share/comment counters exist on comp yet, so derive stable
-  // per-competition stand-ins the same way getRegistrationFee does — keeps
-  // them consistent across re-renders without needing new mock fields.
   const [shareCount, setShareCount] = useState(() => 3 + (Math.abs(hashStr(comp.id)) % 240));
   const [commentCount] = useState(() => 5 + (Math.abs(hashStr(comp.id + "c")) % 380));
   const isRegistration = comp.phase === "registration";
   const isCompleted = comp.phase === "completed";
   const isLive = comp.phase === "live";
 
-  // Real editions carry a real comp.endsAt. Competitions still on the
-  // legacy mock "2j 18h"-style `ends` duration string don't have one, so we
-  // derive a stand-in absolute deadline once (relative to now) and hold it
-  // for the life of the card — recomputing it on every render would make
-  // the displayed date creep forward as the feed re-renders.
   const resolvedEndDate = useMemo(() => {
     if (comp.endsAt) return comp.endsAt;
     const str = comp.ends || "";
@@ -69,8 +61,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
         boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
       }}
     >
-      {/* Banner — title, organizer, and badges all live on the image now,
-          so the card doesn't need a separate bordered title block below it. */}
+      {/* Banner */}
       <div style={{ height: fullWidth ? 194 : 126, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
         {(comp.bannerUrl || comp.images?.[0]?.url) ? (
           <img
@@ -96,7 +87,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           background: "linear-gradient(to bottom, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.78) 100%)",
         }} />
 
-        {/* Top row — status badges on the left, follow toggle on the right */}
+        {/* Top row - status badges and action buttons */}
         <div style={{
           position: "absolute", top: 8, left: 8, right: 8,
           display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6,
@@ -229,7 +220,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           </div>
         </div>
 
-        {/* Bottom overlay — title + organizer, replaces the old separate title block */}
+        {/* Bottom overlay - title + organizer in same row as timer */}
         <div style={{
           position: "absolute", left: 0, right: 0, bottom: 0,
           padding: "8px 12px 9px",
@@ -258,16 +249,20 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 600,
               color: "rgba(255,255,255,0.92)",
               display: "flex", alignItems: "center", gap: 2,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              flex: 1,
+              minWidth: 0,
             }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{comp.organisateur}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                {comp.organisateur}
+              </span>
               <svg width="11" height="11" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
                 <path fill="#1877F2" d="M12 0l2.39 2.39 3.3-.6 1.02 3.18 3.18 1.02-.6 3.3L24 12l-2.71 2.71.6 3.3-3.18 1.02-1.02 3.18-3.3-.6L12 24l-2.39-2.39-3.3.6-1.02-3.18-3.18-1.02.6-3.3L0 12l2.71-2.71-.6-3.3 3.18-1.02L6.31 1.79l3.3.6z" />
                 <path fill="#fff" d="M10.5 15.17l-3-3 1.41-1.41L10.5 12.34l5.09-5.09 1.41 1.42z" />
               </svg>
             </span>
             <span style={{
-              marginLeft: "auto", flexShrink: 0,
+              flexShrink: 0,
               display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3,
             }}>
               <span style={{
@@ -312,7 +307,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
         </div>
       </div>
 
-      {/* Compact stats row — deadline, prize, and phase. */}
+      {/* Compact stats row */}
       <div style={{
         display: "flex", alignItems: "center",
         padding: "9px 12px",
@@ -356,13 +351,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
         </div>
       </div>
 
-      {/* Full-width, edge-to-edge registration progress bar — flush
-          against the stats row's bottom border above it, and sitting
-          right on top of the footer button below. No side padding, no
-          border-radius, to match the flat edge-to-edge style used
-          elsewhere. The registered/capacity counts already show on the
-          footer button itself, so this is just the bar. Only shown
-          during the registration phase. */}
+      {/* Registration progress bar */}
       {isRegistration && (
         <div style={{ height: 6, width: "100%", background: "#eee", overflow: "hidden", flexShrink: 0 }}>
           <div style={{
@@ -374,7 +363,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
         </div>
       )}
 
-      {/* Footer — voting or registration */}
+      {/* Footer */}
       {isRegistration ? (
         isOwnCompetition ? (
           <div
@@ -432,41 +421,41 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
             </span>
           </div>
         ) : (
-        <button
-          onClick={(e) => { e.stopPropagation(); onRegister?.(comp); }}
-          style={{
-            border: "none",
-            background: "#6C63FF",
-            color: "#fff",
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontWeight: 700,
-            fontSize: 12.5,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            padding: "10px 14px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-            transition: "background 0.15s",
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Plus size={13} strokeWidth={2.5} />
-            S'inscrire
-          </span>
-          <span
+          <button
+            onClick={(e) => { e.stopPropagation(); onRegister?.(comp); }}
             style={{
-              fontFamily: "Inter, sans-serif",
-              fontSize: 11.5,
-              fontWeight: 600,
-              opacity: 0.75,
+              border: "none",
+              background: "#6C63FF",
+              color: "#fff",
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: 12.5,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              padding: "10px 14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              transition: "background 0.15s",
+              flexShrink: 0,
             }}
           >
-            {comp.registeredCount}/{comp.contestants}
-          </span>
-        </button>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Plus size={13} strokeWidth={2.5} />
+              S'inscrire
+            </span>
+            <span
+              style={{
+                fontFamily: "Inter, sans-serif",
+                fontSize: 11.5,
+                fontWeight: 600,
+                opacity: 0.75,
+              }}
+            >
+              {comp.registeredCount}/{comp.contestants}
+            </span>
+          </button>
         )
       ) : isCompleted ? (
         <button
