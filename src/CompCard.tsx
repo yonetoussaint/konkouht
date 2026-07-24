@@ -236,34 +236,66 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           }}>
             {comp.title}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
-            <div style={{
-              width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-              background: accent, color: "#fff",
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: 8.5, fontWeight: 700,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              {comp.organisateur.charAt(0)}
-            </div>
-            <span style={{
-              fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 600,
-              color: "rgba(255,255,255,0.92)",
-              display: "flex", alignItems: "center", gap: 2,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "space-between",
+            gap: 8,
+            minWidth: 0 
+          }}>
+            {/* Left: Avatar + Organizer name + Badge */}
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: 5,
               flex: 1,
               minWidth: 0,
+              overflow: "hidden"
             }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                {comp.organisateur}
+              <div style={{
+                width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                background: accent, color: "#fff",
+                fontFamily: "'Space Grotesk', sans-serif", fontSize: 8.5, fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {comp.organisateur.charAt(0)}
+              </div>
+              <span style={{
+                fontFamily: "Inter, sans-serif", 
+                fontSize: 10.5, 
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.92)",
+                display: "flex", 
+                alignItems: "center", 
+                gap: 2,
+                overflow: "hidden",
+                flex: 1,
+                minWidth: 0,
+              }}>
+                <span style={{ 
+                  overflow: "hidden", 
+                  textOverflow: "ellipsis", 
+                  whiteSpace: "nowrap",
+                  flex: 1,
+                  minWidth: 0,
+                }}>
+                  {comp.organisateur}
+                </span>
+                <svg width="11" height="11" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                  <path fill="#1877F2" d="M12 0l2.39 2.39 3.3-.6 1.02 3.18 3.18 1.02-.6 3.3L24 12l-2.71 2.71.6 3.3-3.18 1.02-1.02 3.18-3.3-.6L12 24l-2.39-2.39-3.3.6-1.02-3.18-3.18-1.02.6-3.3L0 12l2.71-2.71-.6-3.3 3.18-1.02L6.31 1.79l3.3.6z" />
+                  <path fill="#fff" d="M10.5 15.17l-3-3 1.41-1.41L10.5 12.34l5.09-5.09 1.41 1.42z" />
+                </svg>
               </span>
-              <svg width="11" height="11" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                <path fill="#1877F2" d="M12 0l2.39 2.39 3.3-.6 1.02 3.18 3.18 1.02-.6 3.3L24 12l-2.71 2.71.6 3.3-3.18 1.02-1.02 3.18-3.3-.6L12 24l-2.39-2.39-3.3.6-1.02-3.18-3.18-1.02.6-3.3L0 12l2.71-2.71-.6-3.3 3.18-1.02L6.31 1.79l3.3.6z" />
-                <path fill="#fff" d="M10.5 15.17l-3-3 1.41-1.41L10.5 12.34l5.09-5.09 1.41 1.42z" />
-              </svg>
-            </span>
-            <span style={{
+            </div>
+
+            {/* Right: Timer */}
+            <div style={{
               flexShrink: 0,
-              display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3,
+              display: "flex", 
+              flexDirection: "column", 
+              alignItems: "flex-end", 
+              gap: 3,
+              marginLeft: "auto",
             }}>
               <span style={{
                 display: "flex", alignItems: "center",
@@ -302,7 +334,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
                   </span>
                 )}
               </span>
-            </span>
+            </div>
           </div>
         </div>
       </div>
