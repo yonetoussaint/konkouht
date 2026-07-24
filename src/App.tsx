@@ -3,7 +3,7 @@ import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { createClient } from "@supabase/supabase-js";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame, ArrowUp, ArrowDown, Pencil, CalendarDays, Star } from "lucide-react";
-import { SlActionRedo } from "react-icons/sl";
+import { PiShareFatThin } from "react-icons/pi";
 
 /* ─── Supabase client ─────────────────────────────────────────────────────
    Previously lived in lib/competitionData.js — moved in here along with
@@ -1474,7 +1474,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
                 padding: 0,
               }}
             >
-              <SlActionRedo size={12} />
+              <PiShareFatThin size={14} />
             </button>
             <button
               onClick={(e) => {
