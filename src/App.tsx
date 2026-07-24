@@ -1578,15 +1578,15 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
             }}>
               <span style={{
                 display: "flex", alignItems: "center",
-                padding: "2px 7px",
+                padding: "3px 7px",
                 borderRadius: 999,
                 background: "rgba(0,0,0,0.4)",
                 backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
-                fontFamily: "Inter, sans-serif", fontSize: 8.5, fontWeight: 700,
+                fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
                 color: "#fff",
                 whiteSpace: "nowrap",
               }}>
-                {comp.edition}
+                {`S${isoWeekNumber(new Date(resolvedEndDate))}-Q${comp.contestants}`}
               </span>
               <span style={{
                 display: "flex", alignItems: "center", gap: 3,
@@ -1657,7 +1657,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
             {getRegistrationFee(comp)} HTG
           </span>
           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
-            Frais
+            Frais Inscr.
           </span>
         </div>
       </div>
