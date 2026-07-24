@@ -1078,6 +1078,19 @@ function fmtCountdown(target) {
   return `${minutes}m`;
 }
 
+// Compact prize amount for the card's tight stats-row cell ("50K HTG",
+// "1.2M HTG") — the full precise figure is shown on the competition's own
+// page, this is just a quick-glance number. Returns null when there's no
+// prize set yet (mock seed competitions, or an edition the organizer
+// hasn't filled in) so the caller can fall back to a placeholder dash.
+function fmtCompactPrize(amount) {
+  const n = Number(amount);
+  if (!n || Number.isNaN(n) || n <= 0) return null;
+  if (n >= 1_000_000) return `${(n % 1_000_000 === 0 ? n / 1_000_000 : (n / 1_000_000).toFixed(1))}M`;
+  if (n >= 1_000) return `${(n % 1_000 === 0 ? n / 1_000 : (n / 1_000).toFixed(1))}K`;
+  return `${n}`;
+}
+
 // NOTE: the old module-level findCompWithNiche(compId) — which looked up a
 // competition directly in the static NICHES seed data — was removed here.
 // Every id stored anywhere in the app (notifications, registeredCompIds,
@@ -1364,7 +1377,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
     >
       {/* Banner — title, organizer, and badges all live on the image now,
           so the card doesn't need a separate bordered title block below it. */}
-      <div style={{ height: fullWidth ? 200 : 132, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
+      <div style={{ height: fullWidth ? 164 : 96, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
         {(comp.bannerUrl || comp.images?.[0]?.url) ? (
           <img
             src={comp.bannerUrl || comp.images[0].url}
@@ -1516,10 +1529,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
         </div>
       </div>
 
-      {/* Compact stats row — now just the two facts that don't have a
-          better home elsewhere (deadline, phase); registration count/
-          capacity moved to the full-width progress bar above the footer
-          button below. */}
+      {/* Compact stats row — deadline, prize, and phase. */}
       <div style={{
         display: "flex", alignItems: "center",
         padding: "9px 12px",
@@ -1540,6 +1550,18 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
         <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
           <span style={{
+            fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: "#222",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {fmtCompactPrize(comp.prizeAmount) ? `${fmtCompactPrize(comp.prizeAmount)} HTG` : "—"}
+          </span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+            Cagnotte
+          </span>
+        </div>
+        <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
+          <span style={{
             fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: accent,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           }}>
@@ -1551,12 +1573,14 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
         </div>
       </div>
 
-      {/* Full-width registration progress bar — sits right on top of the
-          footer button, left label is how many are already registered,
-          right label is the competition's capacity. Only shown during
-          the registration phase; live/completed footers have no bar. */}
+      {/* Full-width, edge-to-edge registration progress bar — sits right
+          on top of the footer button, flush with both card edges (no
+          side padding, no border-radius) to match the flat edge-to-edge
+          style used elsewhere. Left label is how many are already
+          registered, right label is the competition's capacity. Only
+          shown during the registration phase. */}
       {isRegistration && (
-        <div style={{ padding: "10px 12px 0" }}>
+        <div style={{ padding: "10px 12px 8px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
             <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11.5, fontWeight: 800, color: "#222" }}>
               {comp.registeredCount} inscrit{comp.registeredCount !== 1 ? "s" : ""}
@@ -1565,15 +1589,16 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
               {comp.contestants} places
             </span>
           </div>
-          <div style={{ height: 8, borderRadius: 999, background: "#eee", width: "100%", overflow: "hidden" }}>
-            <div style={{
-              height: "100%",
-              borderRadius: 999,
-              width: `${Math.min(100, Math.round((comp.registeredCount / Math.max(comp.contestants, 1)) * 100))}%`,
-              background: comp.registeredCount >= comp.contestants ? "#00B894" : accent,
-              transition: "width 0.4s ease",
-            }} />
-          </div>
+        </div>
+      )}
+      {isRegistration && (
+        <div style={{ height: 6, width: "100%", background: "#eee", overflow: "hidden", flexShrink: 0 }}>
+          <div style={{
+            height: "100%",
+            width: `${Math.min(100, Math.round((comp.registeredCount / Math.max(comp.contestants, 1)) * 100))}%`,
+            background: comp.registeredCount >= comp.contestants ? "#00B894" : accent,
+            transition: "width 0.4s ease",
+          }} />
         </div>
       )}
 
