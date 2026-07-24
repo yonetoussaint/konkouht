@@ -1066,17 +1066,39 @@ function estimateEndTimestamp(comp) {
   return Date.now() + (total || 3600) * 1000;
 }
 
+// Shared unit table for dynamic countdowns: always shows the 3 most
+// significant units for the remaining duration (e.g. "2D : 12H : 45M" close
+// to a deadline, "5M : 2W : 23D" months out, "1Y : 12M : 32W" a year+ out,
+// "21H : 23M : 45S" under a day) instead of a fixed d/h/m format that's
+// either cluttered with zeros or too coarse depending on how far off the
+// deadline is.
+const COUNTDOWN_UNITS = [
+  { label: "Y", secs: 31536000 }, // 365d
+  { label: "M", secs: 2592000 },  // 30d ("month")
+  { label: "W", secs: 604800 },
+  { label: "D", secs: 86400 },
+  { label: "H", secs: 3600 },
+  { label: "M", secs: 60 },       // minute
+  { label: "S", secs: 1 },
+];
+function fmtCountdownSecs(s) {
+  if (!Number.isFinite(s) || s <= 0) return "Terminé";
+  let startIdx = COUNTDOWN_UNITS.findIndex((u) => s >= u.secs);
+  if (startIdx === -1) startIdx = COUNTDOWN_UNITS.length - 1;
+  let remaining = s;
+  return COUNTDOWN_UNITS.slice(startIdx, startIdx + 3)
+    .map((u) => {
+      const val = Math.floor(remaining / u.secs);
+      remaining -= val * u.secs;
+      return `${val}${u.label}`;
+    })
+    .join(" : ");
+}
+
 function fmtCountdown(target) {
   const diff = new Date(target).getTime() - Date.now();
   if (Number.isNaN(diff)) return "";
-  if (diff <= 0) return "Terminé";
-  const totalMin = Math.floor(diff / 60000);
-  const days = Math.floor(totalMin / 1440);
-  const hours = Math.floor((totalMin % 1440) / 60);
-  const minutes = totalMin % 60;
-  if (days > 0) return `${days}j ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
+  return fmtCountdownSecs(Math.floor(diff / 1000));
 }
 
 // Compact prize amount for the card's tight stats-row cell ("50K HTG",
@@ -1548,10 +1570,18 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
                   {comp.winnerName ? comp.winnerName : "Terminé"}
                 </>
               ) : (
-                <>
+                <span style={{
+                  display: "flex", alignItems: "center", gap: 3,
+                  padding: "3px 7px",
+                  borderRadius: 999,
+                  background: comp.hot ? "rgba(192,57,43,0.55)" : "rgba(0,0,0,0.4)",
+                  backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+                  color: "#fff",
+                  whiteSpace: "nowrap",
+                }}>
                   <Clock size={10} strokeWidth={2.5} />
                   {fmtCountdown(resolvedEndDate)}
-                </>
+                </span>
               )}
             </span>
           </div>
@@ -2918,29 +2948,9 @@ function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onReg
   // "5M : 2W : 23D" months out, "1Y : 12M : 32W" a year+ out,
   // "21H : 23M : 45S" under a day). Units shrink as time passes, so the
   // display is never cluttered with zeros the way a fixed d/h/m/s format
-  // would be for a far-off deadline.
-  const COUNTDOWN_UNITS = [
-    { label: "Y", secs: 31536000 }, // 365d
-    { label: "M", secs: 2592000 },  // 30d ("month")
-    { label: "W", secs: 604800 },
-    { label: "D", secs: 86400 },
-    { label: "H", secs: 3600 },
-    { label: "M", secs: 60 },       // minute
-    { label: "S", secs: 1 },
-  ];
-  const fmtCountdown = (s) => {
-    if (!Number.isFinite(s) || s <= 0) return "Terminé";
-    let startIdx = COUNTDOWN_UNITS.findIndex((u) => s >= u.secs);
-    if (startIdx === -1) startIdx = COUNTDOWN_UNITS.length - 1;
-    let remaining = s;
-    return COUNTDOWN_UNITS.slice(startIdx, startIdx + 3)
-      .map((u) => {
-        const val = Math.floor(remaining / u.secs);
-        remaining -= val * u.secs;
-        return `${val}${u.label}`;
-      })
-      .join(" : ");
-  };
+  // would be for a far-off deadline. Shares COUNTDOWN_UNITS/fmtCountdownSecs
+  // with the module-level fmtCountdown() used on the home-screen cards.
+  const fmtCountdown = (s) => fmtCountdownSecs(s);
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
   const [mediaLightbox, setMediaLightbox] = useState(null); // approved participant_media row
   const [showGiftBar, setShowGiftBar] = useState(false);
