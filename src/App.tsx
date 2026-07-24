@@ -1377,7 +1377,7 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
     >
       {/* Banner — title, organizer, and badges all live on the image now,
           so the card doesn't need a separate bordered title block below it. */}
-      <div style={{ height: fullWidth ? 164 : 96, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
+      <div style={{ height: fullWidth ? 194 : 126, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
         {(comp.bannerUrl || comp.images?.[0]?.url) ? (
           <img
             src={comp.bannerUrl || comp.images[0].url}
@@ -1573,24 +1573,13 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
         </div>
       </div>
 
-      {/* Full-width, edge-to-edge registration progress bar — sits right
-          on top of the footer button, flush with both card edges (no
-          side padding, no border-radius) to match the flat edge-to-edge
-          style used elsewhere. Left label is how many are already
-          registered, right label is the competition's capacity. Only
-          shown during the registration phase. */}
-      {isRegistration && (
-        <div style={{ padding: "10px 12px 8px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11.5, fontWeight: 800, color: "#222" }}>
-              {comp.registeredCount} inscrit{comp.registeredCount !== 1 ? "s" : ""}
-            </span>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 700, color: "#999" }}>
-              {comp.contestants} places
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Full-width, edge-to-edge registration progress bar — flush
+          against the stats row's bottom border above it, and sitting
+          right on top of the footer button below. No side padding, no
+          border-radius, to match the flat edge-to-edge style used
+          elsewhere. The registered/capacity counts already show on the
+          footer button itself, so this is just the bar. Only shown
+          during the registration phase. */}
       {isRegistration && (
         <div style={{ height: 6, width: "100%", background: "#eee", overflow: "hidden", flexShrink: 0 }}>
           <div style={{
