@@ -220,116 +220,144 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           </div>
         </div>
 
-        {/* Bottom overlay - title + organizer in same row as timer */}
+        {/* Bottom overlay - COMPLETELY REDONE for proper alignment */}
         <div style={{
-          position: "absolute", left: 0, right: 0, bottom: 0,
+          position: "absolute", 
+          left: 0, 
+          right: 0, 
+          bottom: 0,
           padding: "8px 12px 9px",
-          display: "flex", flexDirection: "column", gap: 5,
+          display: "flex", 
+          flexDirection: "column", 
+          gap: 4,
         }}>
+          {/* Title */}
           <div style={{
             fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 15, fontWeight: 800,
+            fontSize: 15, 
+            fontWeight: 800,
             color: "#fff",
             lineHeight: 1.2,
             textShadow: "0 1px 6px rgba(0,0,0,0.4)",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            overflow: "hidden", 
+            textOverflow: "ellipsis", 
+            whiteSpace: "nowrap",
           }}>
             {comp.title}
           </div>
+          
+          {/* Organizer + Timer row - FIXED */}
           <div style={{ 
             display: "flex", 
-            alignItems: "center", 
+            alignItems: "center",
             justifyContent: "space-between",
             gap: 8,
-            minWidth: 0 
           }}>
-            {/* Left: Avatar + Organizer name + Badge */}
+            {/* Left: Avatar + Organizer */}
             <div style={{ 
               display: "flex", 
               alignItems: "center", 
               gap: 5,
               flex: 1,
               minWidth: 0,
-              overflow: "hidden"
+              overflow: "hidden",
             }}>
               <div style={{
-                width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-                background: accent, color: "#fff",
-                fontFamily: "'Space Grotesk', sans-serif", fontSize: 8.5, fontWeight: 700,
-                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 16, 
+                height: 16, 
+                borderRadius: "50%", 
+                flexShrink: 0,
+                background: accent, 
+                color: "#fff",
+                fontFamily: "'Space Grotesk', sans-serif", 
+                fontSize: 8.5, 
+                fontWeight: 700,
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center",
               }}>
                 {comp.organisateur.charAt(0)}
               </div>
               <span style={{
-                fontFamily: "Inter, sans-serif", 
-                fontSize: 10.5, 
+                fontFamily: "Inter, sans-serif",
+                fontSize: 10.5,
                 fontWeight: 600,
                 color: "rgba(255,255,255,0.92)",
-                display: "flex", 
-                alignItems: "center", 
+                display: "flex",
+                alignItems: "center",
                 gap: 2,
                 overflow: "hidden",
                 flex: 1,
                 minWidth: 0,
               }}>
-                <span style={{ 
-                  overflow: "hidden", 
-                  textOverflow: "ellipsis", 
+                <span style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                   flex: 1,
                   minWidth: 0,
                 }}>
                   {comp.organisateur}
                 </span>
-                <svg width="11" height="11" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" style={{ flexShrink: 0, marginLeft: 1 }}>
                   <path fill="#1877F2" d="M12 0l2.39 2.39 3.3-.6 1.02 3.18 3.18 1.02-.6 3.3L24 12l-2.71 2.71.6 3.3-3.18 1.02-1.02 3.18-3.3-.6L12 24l-2.39-2.39-3.3.6-1.02-3.18-3.18-1.02.6-3.3L0 12l2.71-2.71-.6-3.3 3.18-1.02L6.31 1.79l3.3.6z" />
                   <path fill="#fff" d="M10.5 15.17l-3-3 1.41-1.41L10.5 12.34l5.09-5.09 1.41 1.42z" />
                 </svg>
               </span>
             </div>
 
-            {/* Right: Timer */}
+            {/* Right: Timer - stays fixed on right */}
             <div style={{
               flexShrink: 0,
-              display: "flex", 
-              flexDirection: "column", 
-              alignItems: "flex-end", 
-              gap: 3,
-              marginLeft: "auto",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              gap: 2,
             }}>
               <span style={{
-                display: "flex", alignItems: "center",
-                padding: "3px 7px",
+                display: "flex", 
+                alignItems: "center",
+                padding: "2px 7px",
                 borderRadius: 999,
                 background: "rgba(0,0,0,0.4)",
-                backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
-                fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+                fontFamily: "Inter, sans-serif", 
+                fontSize: 9, 
+                fontWeight: 700,
                 color: "#fff",
                 whiteSpace: "nowrap",
               }}>
                 {`S${isoWeekNumber(new Date(resolvedEndDate))}-Q${comp.contestants}`}
               </span>
               <span style={{
-                display: "flex", alignItems: "center", gap: 3,
-                fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+                display: "flex", 
+                alignItems: "center", 
+                gap: 2,
+                fontFamily: "Inter, sans-serif", 
+                fontSize: 9, 
+                fontWeight: 700,
                 color: "rgba(255,255,255,0.85)",
               }}>
                 {isCompleted ? (
                   <>
-                    <Trophy size={10} strokeWidth={2.5} />
+                    <Trophy size={9} strokeWidth={2.5} />
                     {comp.winnerName ? comp.winnerName : "Terminé"}
                   </>
                 ) : (
                   <span style={{
-                    display: "flex", alignItems: "center", gap: 3,
-                    padding: "3px 7px",
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: 2,
+                    padding: "2px 7px",
                     borderRadius: 999,
                     background: comp.hot ? "rgba(192,57,43,0.55)" : "rgba(0,0,0,0.4)",
-                    backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+                    backdropFilter: "blur(6px)", 
+                    WebkitBackdropFilter: "blur(6px)",
                     color: "#fff",
                     whiteSpace: "nowrap",
                   }}>
-                    <Clock size={10} strokeWidth={2.5} />
+                    <Clock size={9} strokeWidth={2.5} />
                     {fmtCountdown(resolvedEndDate)}
                   </span>
                 )}
@@ -341,43 +369,79 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
 
       {/* Compact stats row */}
       <div style={{
-        display: "flex", alignItems: "center",
+        display: "flex", 
+        alignItems: "center",
         padding: "9px 12px",
         borderBottom: "1px solid #f0f0f0",
       }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <span style={{
-            fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+            fontFamily: "'Space Grotesk', sans-serif", 
+            fontSize: 12, 
+            fontWeight: 700,
             color: comp.hot ? "#c0392b" : "#333",
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            whiteSpace: "nowrap", 
+            overflow: "hidden", 
+            textOverflow: "ellipsis",
           }}>
             {fmtAbsoluteDateOnly(resolvedEndDate)}
           </span>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <span style={{ 
+            fontFamily: "Inter, sans-serif", 
+            fontSize: 8.5, 
+            color: "#aaa", 
+            textTransform: "uppercase", 
+            letterSpacing: "0.06em", 
+            fontWeight: 700 
+          }}>
             {isRegistration ? "Fin inscr." : "Fin dans"}
           </span>
         </div>
         <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
           <span style={{
-            fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: "#222",
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            fontFamily: "'Space Grotesk', sans-serif", 
+            fontSize: 12, 
+            fontWeight: 700, 
+            color: "#222",
+            whiteSpace: "nowrap", 
+            overflow: "hidden", 
+            textOverflow: "ellipsis",
           }}>
             {fmtCompactPrize(comp.prizeAmount) ? `${fmtCompactPrize(comp.prizeAmount)} HTG` : "—"}
           </span>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <span style={{ 
+            fontFamily: "Inter, sans-serif", 
+            fontSize: 8.5, 
+            color: "#aaa", 
+            textTransform: "uppercase", 
+            letterSpacing: "0.06em", 
+            fontWeight: 700 
+          }}>
             Cagnotte
           </span>
         </div>
         <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
           <span style={{
-            fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: accent,
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            fontFamily: "'Space Grotesk', sans-serif", 
+            fontSize: 12, 
+            fontWeight: 700, 
+            color: accent,
+            whiteSpace: "nowrap", 
+            overflow: "hidden", 
+            textOverflow: "ellipsis",
           }}>
             {getRegistrationFee(comp)} HTG
           </span>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <span style={{ 
+            fontFamily: "Inter, sans-serif", 
+            fontSize: 8.5, 
+            color: "#aaa", 
+            textTransform: "uppercase", 
+            letterSpacing: "0.06em", 
+            fontWeight: 700 
+          }}>
             Frais Inscr.
           </span>
         </div>
