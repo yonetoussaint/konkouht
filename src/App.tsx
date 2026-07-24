@@ -1372,6 +1372,11 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
   const [voteCount] = useState(comp.votes);
   const [followed, setFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(comp.followers);
+  // No real share/comment counters exist on comp yet, so derive stable
+  // per-competition stand-ins the same way getRegistrationFee does — keeps
+  // them consistent across re-renders without needing new mock fields.
+  const [shareCount, setShareCount] = useState(() => 3 + (Math.abs(hashStr(comp.id)) % 240));
+  const [commentCount] = useState(() => 5 + (Math.abs(hashStr(comp.id + "c")) % 380));
   const isRegistration = comp.phase === "registration";
   const isCompleted = comp.phase === "completed";
   const isLive = comp.phase === "live";
@@ -1492,22 +1497,50 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
                 } else if (navigator.clipboard) {
                   navigator.clipboard.writeText(shareData.text).catch(() => {});
                 }
+                setShareCount((c) => c + 1);
               }}
               title="Partager"
               style={{
                 flexShrink: 0,
-                width: 25, height: 25, borderRadius: "50%",
+                height: 25, borderRadius: 13,
                 border: "1px solid rgba(255,255,255,0.55)",
                 background: "rgba(0,0,0,0.35)",
                 backdropFilter: "blur(6px)",
                 WebkitBackdropFilter: "blur(6px)",
                 color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 cursor: "pointer",
-                padding: 0,
+                padding: "0 8px 0 7px",
               }}
             >
-              <PiShareFat size={14} />
+              <PiShareFat size={13} />
+              <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "Inter, sans-serif" }}>
+                {formatCoins(shareCount)}
+              </span>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen?.(comp, { focusComments: true });
+              }}
+              title="Commentaires"
+              style={{
+                flexShrink: 0,
+                height: 25, borderRadius: 13,
+                border: "1px solid rgba(255,255,255,0.55)",
+                background: "rgba(0,0,0,0.35)",
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+                color: "#fff",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                cursor: "pointer",
+                padding: "0 8px 0 7px",
+              }}
+            >
+              <MessageCircle size={13} strokeWidth={2.25} />
+              <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "Inter, sans-serif" }}>
+                {formatCoins(commentCount)}
+              </span>
             </button>
             <button
               onClick={(e) => {
@@ -1518,19 +1551,22 @@ function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompeti
               title={followed ? "Retirer des favoris" : "Ajouter aux favoris"}
               style={{
                 flexShrink: 0,
-                width: 25, height: 25, borderRadius: "50%",
+                height: 25, borderRadius: 13,
                 border: followed ? "none" : "1px solid rgba(255,255,255,0.55)",
                 background: followed ? accent : "rgba(0,0,0,0.35)",
                 backdropFilter: "blur(6px)",
                 WebkitBackdropFilter: "blur(6px)",
                 color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 cursor: "pointer",
                 transition: "background 0.15s",
-                padding: 0,
+                padding: "0 8px 0 7px",
               }}
             >
               <Star size={12} strokeWidth={2.5} fill={followed ? "#fff" : "none"} />
+              <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "Inter, sans-serif" }}>
+                {formatCoins(followerCount)}
+              </span>
             </button>
           </div>
         </div>
