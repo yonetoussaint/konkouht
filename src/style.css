@@ -1,0 +1,100 @@
+/* ============================================================
+   Native-feel foundation.
+   This file was empty before — everything below is what turns
+   a WebView into something that *feels* like an installed app
+   instead of a browser tab wearing a splash screen.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #F2F2F0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+
+  /* Kills the rubber-band "pull to refresh" / bounce-past-the-edge feel
+     that instantly reads as "this is a website." */
+  overscroll-behavior: none;
+
+  /* No browser text selection halo on tap-and-hold. */
+  -webkit-user-select: none;
+  user-select: none;
+
+  /* No blue/gray flash rectangle on tap (the single biggest tell). */
+  -webkit-tap-highlight-color: transparent;
+
+  /* No callout menu ("Copy" / "Look Up") on long-press. */
+  -webkit-touch-callout: none;
+}
+
+/* Text the user actually needs to select (comments, messages, form
+   inputs) opts back in explicitly. */
+input, textarea, [contenteditable="true"], .selectable-text {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+#root {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+/* Opt-in only — do NOT blanket-match every element with overflowY in its
+   inline style. Forcing -webkit-overflow-scrolling: touch onto many
+   (especially large, stacked, full-screen) elements promotes each one
+   to its own compositing layer; that's the classic WebKit jank/memory
+   trap. Add class="native-scroll" to the specific scroll containers
+   that need momentum scrolling. */
+.native-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+button, [role="button"], a {
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ---- Touch press feedback ----
+   Native controls compress slightly under a finger; web controls
+   change color on :hover. Add this class to any tappable element
+   to get the tactile "give" a native control has. Pairs with
+   hapticTap() in native.ts for the buttons that matter (vote,
+   register, send gift, post comment). */
+.tap-scale {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  touch-action: manipulation;
+}
+.tap-scale:active {
+  transform: scale(0.96);
+}
+.tap-scale-sm {
+  touch-action: manipulation;
+}
+.tap-scale-sm:active {
+  transform: scale(0.98);
+}
+
+.safe-top    { padding-top: var(--safe-top); }
+.safe-bottom { padding-bottom: var(--safe-bottom); }
+
+@keyframes screen-push-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+.screen-push-in {
+  animation: screen-push-in 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
