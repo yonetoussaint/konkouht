@@ -12,6 +12,7 @@ import {
   Trophy,
   Gift,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { PiShareFat } from "react-icons/pi";
 import {
@@ -30,6 +31,10 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
   const [followed, setFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(comp.followers);
   const [shareCount, setShareCount] = useState(() => 3 + (Math.abs(hashStr(comp.id)) % 240));
+  // Brief spinner while the native share sheet is opening/closing — the
+  // clipboard/onOpenShare fallbacks are effectively instant so this
+  // clears right after those fire.
+  const [isSharing, setIsSharing] = useState(false);
   const [commentCount] = useState(() => 5 + (Math.abs(hashStr(comp.id + "c")) % 380));
   const isRegistration = comp.phase === "registration";
   const isCompleted = comp.phase === "completed";
@@ -150,8 +155,9 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                setIsSharing(true);
                 const onShared = () => setShareCount((c) => c + 1);
-                if (shareCompetitionNatively(comp, onShared)) return;
+                if (shareCompetitionNatively(comp, onShared, () => setIsSharing(false))) return;
                 if (onOpenShare) {
                   onOpenShare(comp, onShared);
                 } else if (navigator.clipboard) {
@@ -159,6 +165,7 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
                   navigator.clipboard.writeText(url).catch(() => {});
                   onShared();
                 }
+                setIsSharing(false);
               }}
               title="Partager"
               style={{
@@ -174,7 +181,11 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
                 padding: "0 8px 0 7px",
               }}
             >
-              <PiShareFat size={13} />
+              {isSharing ? (
+                <Loader2 size={13} style={{ animation: "compcard-share-spin 0.6s linear infinite" }} />
+              ) : (
+                <PiShareFat size={13} />
+              )}
               <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "Inter, sans-serif" }}>
                 {formatCoins(shareCount)}
               </span>
@@ -649,6 +660,7 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
           </span>
         </button>
       )}
+      <style>{`@keyframes compcard-share-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
