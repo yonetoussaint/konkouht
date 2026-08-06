@@ -5304,7 +5304,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                       }}
                     >
                       {isSharing ? (
-                        <Loader2 size={23} color="#fff" strokeWidth={2} style={{ animation: "spin 0.6s linear infinite" }} />
+                        <Loader2 size={23} color="#fff" strokeWidth={2} style={{ animation: "share-spin 0.6s linear infinite" }} />
                       ) : (
                         <PiShareFat size={23} color="#fff" strokeWidth={2} />
                       )}
@@ -5407,7 +5407,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                     }}
                   >
                     {isSharing ? (
-                      <Loader2 size={21} color="#fff" strokeWidth={2} style={{ animation: "spin 0.6s linear infinite" }} />
+                      <Loader2 size={21} color="#fff" strokeWidth={2} style={{ animation: "share-spin 0.6s linear infinite" }} />
                     ) : (
                       <PiShareFat size={21} color="#fff" strokeWidth={2} />
                     )}
@@ -5510,6 +5510,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
           </div>
         );
       })()}
+      <style>{`@keyframes share-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
 
       {showShareSheet && (
         <ShareSheet
