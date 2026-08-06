@@ -9,7 +9,7 @@ import {
   Trophy, Home, Wallet, Users, Bell, BadgeCheck, Play, Plus, Gift, X, Check,
   ArrowLeft, Send, ChevronRight, ChevronLeft, MessageCircle,
   Image as ImageIcon, Heart, Share2, Bookmark, Info, Volume2, VolumeX, Hand,
-  Clock, Pencil, Link2,
+  Clock, Pencil, Link2, Loader2,
 } from "lucide-react";
 import {
   supabase,
@@ -2386,6 +2386,19 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // the footer's gift button is dedicated solely to sending a gift.
   const [commentsPanelTab, setCommentsPanelTab] = useState("comments"); // "comments" | "gifts" | "donateurs"
   const [showShareSheet, setShowShareSheet] = useState(false);
+  // Brief spinner state for the footer share button — covers the native
+  // share sheet's open/dismiss round-trip (navigator.share can take a
+  // beat to appear) and the moment before the custom ShareSheet fallback
+  // mounts, so the tap always gets visible feedback.
+  const [isSharing, setIsSharing] = useState(false);
+  const handleShareTap = () => {
+    setIsSharing(true);
+    const onShared = () => setShareCount((n) => n + 1);
+    if (!shareCompetitionNatively(comp, onShared, () => setIsSharing(false))) {
+      setShowShareSheet(true);
+      setIsSharing(false);
+    }
+  };
   // Backfill only: comp.shortUrl is normally already on the row (set
   // server-side at creation time), so there's nothing to prefetch. This
   // only does real work for an edition that predates the short_url column
@@ -5278,10 +5291,8 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                     </button>
 
                     <button
-                      onClick={() => {
-                        const onShared = () => setShareCount((n) => n + 1);
-                        if (!shareCompetitionNatively(comp, onShared)) setShowShareSheet(true);
-                      }}
+                      onClick={handleShareTap}
+                      disabled={isSharing}
                       title="Partager"
                       style={{
                         position: "relative",
@@ -5292,7 +5303,11 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                         cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                       }}
                     >
-                      <PiShareFat size={23} color="#fff" strokeWidth={2} />
+                      {isSharing ? (
+                        <Loader2 size={23} color="#fff" strokeWidth={2} style={{ animation: "spin 0.6s linear infinite" }} />
+                      ) : (
+                        <PiShareFat size={23} color="#fff" strokeWidth={2} />
+                      )}
                       {shareCount > 0 && (
                         <span style={{
                           position: "absolute", top: -4, right: -4,
@@ -5379,10 +5394,8 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
 
                   {/* Share — standalone button with diagonal badge counter */}
                   <button
-                    onClick={() => {
-                      const onShared = () => setShareCount((n) => n + 1);
-                      if (!shareCompetitionNatively(comp, onShared)) setShowShareSheet(true);
-                    }}
+                    onClick={handleShareTap}
+                    disabled={isSharing}
                     title="Partager"
                     style={{
                       flexShrink: 0, width: 40, height: 40, borderRadius: "50%",
@@ -5393,7 +5406,11 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                       position: "relative",
                     }}
                   >
-                    <PiShareFat size={21} color="#fff" strokeWidth={2} />
+                    {isSharing ? (
+                      <Loader2 size={21} color="#fff" strokeWidth={2} style={{ animation: "spin 0.6s linear infinite" }} />
+                    ) : (
+                      <PiShareFat size={21} color="#fff" strokeWidth={2} />
+                    )}
                     {shareCount > 0 && (
                       <span style={{
                         position: "absolute", top: -4, right: -4,

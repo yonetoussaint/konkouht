@@ -114,12 +114,13 @@ export function canShareNatively() {
    receiving platform unfurls its own preview card from the og:title/
    og:description tags (see netlify/edge-functions/share.js) instead of
    showing raw text alongside it. */
-export function shareCompetitionNatively(comp, onShared) {
+export function shareCompetitionNatively(comp, onShared, onSettled) {
   if (!canShareNatively()) return false;
   const url = buildBestShareUrl(comp);
   navigator
     .share({ url })
     .then(() => onShared?.(comp))
-    .catch(() => {});
+    .catch(() => {})
+    .finally(() => onSettled?.());
   return true;
 }
