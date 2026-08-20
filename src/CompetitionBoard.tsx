@@ -23,6 +23,7 @@ import {
   WALLET_PIN,
   fetchRegistrations,
   refundRegistrationFee,
+  isCompOwner,
 } from "./App";
 
 async function fetchComments(editionId) {
@@ -1889,7 +1890,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   const isRegistration = comp.phase === "registration";
   const isCompleted = comp.phase === "completed";
   const registrationFee = getRegistrationFee(comp);
-  const isOwnCompetition = currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
+  const isOwnCompetition = isCompOwner(comp, currentUser);
   // Admins/organizers manage their own competition, they don't send themselves gifts —
   // so the gift button is swapped out for an edit entry point instead. Once the
   // competition is completed there's no one left to vote for, so sending gifts
