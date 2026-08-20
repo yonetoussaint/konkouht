@@ -99,6 +99,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   to authenticated
 //   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
 //
+// -- UPDATE: every signed-in user can now create/edit their OWN
+// -- competitions, not just the platform organizer. This needs a
+// -- `created_by` (+ `organisateur`) column and replaces the three
+// -- organizer-only policies above with owner-or-organizer versions —
+// -- see allow-user-created-competitions.sql for the full migration
+// -- (columns, policies, and what still needs manual attention).
+//
 // -- If migrating from the old single-edition `competition_edits` table,
 // -- create the new table above, then backfill (each old row becomes one
 // -- edition of its competition_id) and drop the old table once verified:
@@ -304,6 +311,13 @@ function mapEditionRow(row) {
     closedAt: row.closed_at,
     liveDurationSeconds: row.live_duration_seconds,
     createdAt: row.created_at,
+    // Ownership — whoever actually created this edition. Null for older
+    // rows created before this column existed (those fall back to the
+    // platform-organizer default in isCompOwner). `organisateur` lets a
+    // user-created edition show its own creator's name instead of always
+    // inheriting the seed competition's hardcoded "FNCH".
+    createdBy: row.created_by ?? null,
+    organisateur: row.organisateur ?? null,
   };
 }
 
@@ -355,6 +369,8 @@ async function createEdition({
   rules,
   liveDurationSeconds,
   updatedBy,
+  createdBy,
+  organisateur,
 }) {
   const { data, error } = await supabase
     .from(EDITIONS_TABLE)
@@ -376,6 +392,10 @@ async function createEdition({
       active: true,
       updated_by: updatedBy,
       updated_at: new Date().toISOString(),
+      // Ownership is set once, here, at creation — never touched again by
+      // later edits (see saveEditionEdit, which never patches these).
+      created_by: createdBy,
+      organisateur,
     })
     .select()
     .single();
@@ -841,6 +861,20 @@ async function rejectWithdrawal({ transactionId, pin, reason }) {
 // and this account is auto-recognized as its verified organizer.
 const PLATFORM_ORGANIZER_EMAIL = "yonetoussaint25@gmail.com";
 export const PLATFORM_ORGANIZER_SIGLE = "FNCH";
+
+// Every signed-in user can create and manage their own competitions now —
+// not just the platform organizer. A competition/edition is "owned" by
+// whoever created it (comp.createdBy, set once at insert time and never
+// changed by later edits — see createEdition). The platform organizer
+// remains the owner of every pre-existing/seeded competition (the ones
+// with no createdBy yet, or explicitly organized under PLATFORM_ORGANIZER_SIGLE)
+// so nothing already live changes hands. Use this everywhere instead of
+// re-deriving ownership inline, so the rule stays in one place.
+export function isCompOwner(comp, currentUser) {
+  if (!comp || !currentUser?.id) return false;
+  if (comp.createdBy) return comp.createdBy === currentUser.id;
+  return !!currentUser.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
+}
 
 const NICHES = [
   {
@@ -1476,7 +1510,7 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser })
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {niche.competitions.map((comp) => (
-          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE} />
+          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={isCompOwner(comp, currentUser)} />
         ))}
 
       </div>
@@ -1533,7 +1567,7 @@ function TypeRow({ icon: Icon, label, accent, items, onOpen, onOpenComments, onO
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {items.map((comp) => (
-          <CompCard key={comp.id} comp={comp} accent={comp.accent} onOpen={onOpen} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE} />
+          <CompCard key={comp.id} comp={comp} accent={comp.accent} onOpen={onOpen} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={isCompOwner(comp, currentUser)} />
         ))}
       </div>
     </section>
@@ -3202,8 +3236,10 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
           </div>
         </div>
 
-        {/* Admin entry point — only ever rendered for the platform organizer */}
-        {currentUser?.isOrganizer && (
+        {/* Every signed-in user can create and manage their own competitions
+            from here — not just the platform organizer, who additionally
+            gets the full admin view (every competition, plus withdrawals). */}
+        {currentUser && (
           <button
             onClick={onOpenAdmin}
             style={{
@@ -3216,7 +3252,7 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <BadgeCheck size={18} strokeWidth={2.5} />
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700 }}>
-                Panneau d'administration
+                {currentUser.isOrganizer ? "Panneau d'administration" : "Mes compétitions"}
               </span>
             </div>
             <ChevronRight size={16} />
@@ -3288,7 +3324,11 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
    where this is mounted in App()). Lists every competition across every
    niche in one place so nothing needs to be found by browsing the homepage
    first — tapping a row jumps straight into that competition's edit panel. */
-function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCreateEdition, onPublishEdition, onDeleteEdition, onBack, showToast }) {
+function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggleActive, onCreateEdition, onPublishEdition, onDeleteEdition, onBack, showToast }) {
+  // The platform organizer sees every competition (plus withdrawals);
+  // everyone else only ever sees — and can only manage — competitions
+  // they created themselves.
+  const isFullAdmin = !!currentUser?.isOrganizer;
   const [adminSection, setAdminSection] = useState("competitions"); // "competitions" | "withdrawals"
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Total");
@@ -3308,9 +3348,9 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
     setDeletingId(null);
   }
 
-  const allEntries = niches.flatMap((niche) =>
-    niche.competitions.map((comp) => ({ comp, niche }))
-  );
+  const allEntries = niches
+    .flatMap((niche) => niche.competitions.map((comp) => ({ comp, niche })))
+    .filter(({ comp }) => isFullAdmin || isCompOwner(comp, currentUser));
 
   const searchedEntries = query.trim() === ""
     ? allEntries
@@ -3384,46 +3424,50 @@ function AdminPage({ niches, seedCompetitions, onOpenComp, onToggleActive, onCre
         </button>
         <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
-            Administration
+            {isFullAdmin ? "Administration" : "Mes compétitions"}
           </span>
           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
-            Gérer toutes les compétitions
+            {isFullAdmin ? "Gérer toutes les compétitions" : "Créer et gérer vos compétitions"}
           </span>
         </div>
       </header>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-        {/* Section switcher — competitions management vs. pending withdrawals */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-          {[
-            { id: "competitions", label: "Compétitions" },
-            { id: "withdrawals", label: "Retraits" },
-          ].map((s) => {
-            const isActive = adminSection === s.id;
-            return (
-              <button
-                key={s.id}
-                onClick={() => setAdminSection(s.id)}
-                style={{
-                  flex: 1,
-                  border: isActive ? "1px solid #111" : "1px solid #e0e0e0",
-                  background: isActive ? "#111" : "#fff",
-                  color: isActive ? "#fff" : "#555",
-                  borderRadius: 10,
-                  padding: "10px 12px",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Section switcher — competitions management vs. pending withdrawals.
+            Withdrawals are platform-organizer-only, so regular users creating
+            their own competitions never see that tab at all. */}
+        {isFullAdmin && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+            {[
+              { id: "competitions", label: "Compétitions" },
+              { id: "withdrawals", label: "Retraits" },
+            ].map((s) => {
+              const isActive = adminSection === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setAdminSection(s.id)}
+                  style={{
+                    flex: 1,
+                    border: isActive ? "1px solid #111" : "1px solid #e0e0e0",
+                    background: isActive ? "#111" : "#fff",
+                    color: isActive ? "#fff" : "#555",
+                    borderRadius: 10,
+                    padding: "10px 12px",
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-        {adminSection === "withdrawals" && (
+        {isFullAdmin && adminSection === "withdrawals" && (
           <WithdrawalsPanel showToast={showToast} />
         )}
 
@@ -4566,6 +4610,8 @@ export default function App() {
             winnerName: row.winner_name,
             winnerPrize: row.winner_prize,
             closedAt: row.closed_at,
+            createdBy: row.created_by ?? null,
+            organisateur: row.organisateur ?? null,
           };
           setEditionsByComp((prev) => {
             const existing = prev[row.competition_id] || [];
@@ -4667,6 +4713,11 @@ export default function App() {
       fee: e.fee != null ? e.fee : comp.fee,
       rewardExtra: e.rewardExtra != null ? e.rewardExtra : comp.rewardExtra,
       rules: (e.rules && e.rules.length > 0) ? e.rules : comp.rules,
+      // Whoever created THIS edition owns it — falls back to the seed's
+      // organisateur (always the platform, "FNCH") for editions with no
+      // owner of their own, i.e. every pre-existing competition.
+      createdBy: e.createdBy ?? null,
+      organisateur: e.organisateur || comp.organisateur,
       // Real count from the registrations table always wins over any
       // seeded placeholder — 0 until someone actually registers for THIS
       // edition (a new season starts back at 0, it doesn't inherit the
@@ -4803,6 +4854,8 @@ export default function App() {
       winnerPrize: null,
       closedAt: null,
       createdAt: new Date().toISOString(),
+      createdBy: currentUser?.id ?? null,
+      organisateur: currentUser?.isOrganizer ? PLATFORM_ORGANIZER_SIGLE : (currentUser?.fullName || "Organisateur"),
     };
     setPendingNewEdition(true);
     setCompEditIntent(true);
@@ -4828,6 +4881,8 @@ export default function App() {
       bannerUrl,
       liveDurationSeconds,
       updatedBy: currentUser?.id,
+      createdBy: currentUser?.id,
+      organisateur: currentUser?.isOrganizer ? PLATFORM_ORGANIZER_SIGLE : (currentUser?.fullName || "Organisateur"),
     });
     if (error) {
       console.error("createEdition error:", error);
@@ -5359,8 +5414,8 @@ export default function App() {
     if (!currentUser?.id) {
       return { success: false, error: "Vous devez être connecté pour vous inscrire." };
     }
-    if (currentUser.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE) {
-      return { success: false, error: "Un organisateur ne peut pas s'inscrire à sa propre compétition." };
+    if (isCompOwner(comp, currentUser)) {
+      return { success: false, error: "Vous ne pouvez pas vous inscrire à votre propre compétition." };
     }
     // Hard guarantee: never let someone register without a presentation
     // media. The modal already enforces this, but defending in depth here
@@ -5556,8 +5611,8 @@ export default function App() {
       showToast(`Vous êtes déjà inscrit à ${comp.title}`);
       return;
     }
-    if (currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE) {
-      showToast("Un organisateur ne peut pas s'inscrire à sa propre compétition");
+    if (isCompOwner(comp, currentUser)) {
+      showToast("Vous ne pouvez pas vous inscrire à votre propre compétition");
       return;
     }
     if (!isAuthenticated) {
@@ -5934,8 +5989,9 @@ export default function App() {
           onUpdateAvatar={handleUpdateAvatar}
           showToast={showToast}
         />
-      ) : activeTab === "admin" && currentUser?.isOrganizer ? (
+      ) : activeTab === "admin" && currentUser ? (
         <AdminPage
+          currentUser={currentUser}
           niches={allNichesWithEdits}
           seedCompetitions={seedCompetitionsList}
           onOpenComp={handleAdminOpenComp}
@@ -6179,7 +6235,7 @@ export default function App() {
                   onRegister={handleRegisterTypeComp}
                   registeredCompIds={registeredCompIds}
                   isRegistered={registeredCompIds?.has(comp.id)}
-                  isOwnCompetition={currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE}
+                  isOwnCompetition={isCompOwner(comp, currentUser)}
                   fullWidth
                 />
               ))}
