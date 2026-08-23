@@ -127,7 +127,7 @@ export default function ShareSheet({ comp, onClose, accent = "#6C63FF", onShared
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%", maxWidth: 480,
-          background: "#fff",
+          background: "#1c1c1f",
           borderTopLeftRadius: 20, borderTopRightRadius: 20,
           display: "flex", flexDirection: "column",
           transform: entered ? "translateY(0)" : "translateY(100%)",
@@ -138,7 +138,7 @@ export default function ShareSheet({ comp, onClose, accent = "#6C63FF", onShared
       >
         {/* Drag handle */}
         <div style={{ display: "flex", justifyContent: "center", paddingTop: 10, paddingBottom: 4, flexShrink: 0 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 999, background: "#ddd" }} />
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: "#2a2a2e" }} />
         </div>
 
         {/* Header */}
@@ -148,14 +148,14 @@ export default function ShareSheet({ comp, onClose, accent = "#6C63FF", onShared
         }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <span style={{
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#111",
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#f2f2f2",
               display: "flex", alignItems: "center", gap: 6,
             }}>
               <Share2 size={14} strokeWidth={2.5} color={accent} />
               Partager
             </span>
             <div style={{
-              fontFamily: "Inter, sans-serif", fontSize: 11.5, color: "#999", marginTop: 3,
+              fontFamily: "Inter, sans-serif", fontSize: 11.5, color: "#8a8a90", marginTop: 3,
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>
               {comp.title}
@@ -164,7 +164,7 @@ export default function ShareSheet({ comp, onClose, accent = "#6C63FF", onShared
           <button
             onClick={handleClose}
             style={{
-              border: "none", background: "#f5f5f5", borderRadius: "50%",
+              border: "none", background: "#202023", borderRadius: "50%",
               width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer", flexShrink: 0,
             }}
@@ -194,7 +194,7 @@ export default function ShareSheet({ comp, onClose, accent = "#6C63FF", onShared
               }}>
                 <Icon size={22} color="#fff" />
               </div>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 600, color: "#555" }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 600, color: "#c9c9c9" }}>
                 {label}
               </span>
             </button>
@@ -206,8 +206,8 @@ export default function ShareSheet({ comp, onClose, accent = "#6C63FF", onShared
           <button
             onClick={handleCopyLink}
             style={{
-              width: "100%", border: "1px solid #ececec", borderRadius: 14,
-              background: "#f9f9f9", padding: "12px 14px",
+              width: "100%", border: "1px solid #2a2a2e", borderRadius: 14,
+              background: "#202023", padding: "12px 14px",
               display: "flex", alignItems: "center", gap: 10,
               cursor: "pointer",
             }}
@@ -222,7 +222,7 @@ export default function ShareSheet({ comp, onClose, accent = "#6C63FF", onShared
             </div>
             <span style={{
               flex: 1, minWidth: 0, textAlign: "left",
-              fontFamily: "Inter, sans-serif", fontSize: 12.5, color: "#333",
+              fontFamily: "Inter, sans-serif", fontSize: 12.5, color: "#f2f2f2",
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>
               {url}

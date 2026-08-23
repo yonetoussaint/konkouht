@@ -217,7 +217,7 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%", maxWidth: 480, height: "78vh", maxHeight: 640,
-          background: "#fff",
+          background: "#1c1c1f",
           borderTopLeftRadius: 20, borderTopRightRadius: 20,
           display: "flex", flexDirection: "column",
           transform: entered ? "translateY(0)" : "translateY(100%)",
@@ -227,24 +227,24 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
       >
         {/* Drag handle */}
         <div style={{ display: "flex", justifyContent: "center", paddingTop: 10, paddingBottom: 4, flexShrink: 0 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 999, background: "#ddd" }} />
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: "#2a2a2e" }} />
         </div>
 
         {/* Header */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "6px 16px 10px", flexShrink: 0, borderBottom: "1px solid #f0f0f0",
+          padding: "6px 16px 10px", flexShrink: 0, borderBottom: "1px solid #2a2a2e",
         }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <span style={{
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#111",
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#f2f2f2",
               display: "flex", alignItems: "center", gap: 6,
             }}>
               <MessageCircle size={14} strokeWidth={2.5} color={accent} />
               Commentaires
             </span>
             <div style={{
-              fontFamily: "Inter, sans-serif", fontSize: 11.5, color: "#999", marginTop: 3,
+              fontFamily: "Inter, sans-serif", fontSize: 11.5, color: "#8a8a90", marginTop: 3,
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>
               {comp.title}
@@ -254,7 +254,7 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
             className="tap-scale-sm"
             onClick={handleClose}
             style={{
-              border: "none", background: "#f5f5f5", borderRadius: "50%",
+              border: "none", background: "#202023", borderRadius: "50%",
               width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
               flexShrink: 0,
             }}
@@ -266,11 +266,11 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
         {/* Comment list */}
         <div className="native-scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "4px 16px" }}>
           {loading ? (
-            <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
+            <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#8a8a90" }}>
               Chargement…
             </div>
           ) : comments.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
+            <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#8a8a90" }}>
               Aucun commentaire pour le moment. Soyez le premier !
             </div>
           ) : comments.map((c, i) => {
@@ -279,11 +279,11 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
             const isReplying = replyingTo === c.id;
             const isLast = i === comments.length - 1;
             return (
-              <div key={c.id} style={{ borderBottom: isLast ? "none" : "1px solid #f0f0f0", padding: "10px 0" }}>
+              <div key={c.id} style={{ borderBottom: isLast ? "none" : "1px solid #2a2a2e", padding: "10px 0" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                   <div style={{
                     width: 28, height: 28, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
-                    border: "1px solid #e0e0e0",
+                    border: "1px solid #2a2a2e",
                     background: c.isMine ? "#111" : "transparent",
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
@@ -297,15 +297,15 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#333" }}>{c.name}</span>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb" }}>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#f2f2f2" }}>{c.name}</span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90" }}>
                         {fmtCommentTime(c.minutesAgo)}
                       </span>
                     </div>
-                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#444", lineHeight: 1.4, margin: "0 0 6px" }}>{c.text}</p>
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#cfcfcf", lineHeight: 1.4, margin: "0 0 6px" }}>{c.text}</p>
                     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      <button className="tap-scale-sm" onClick={() => toggleLike(c.id)} style={{ border: "none", background: "none", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: liked ? "#e74c3c" : "#aaa" }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill={liked ? "#e74c3c" : "none"} stroke={liked ? "#e74c3c" : "#aaa"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                      <button className="tap-scale-sm" onClick={() => toggleLike(c.id)} style={{ border: "none", background: "none", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: liked ? "#ff6b5e" : "#8a8a90" }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill={liked ? "#ff6b5e" : "none"} stroke={liked ? "#ff6b5e" : "#8a8a90"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                         {c.likes + (liked ? 1 : 0)}
                       </button>
                       <button
@@ -337,7 +337,7 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
                       onChange={(e) => setReplyDraft(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") handlePostReply(c.id); }}
                       placeholder={`Répondre à ${c.name}…`}
-                      style={{ flex: 1, minWidth: 0, border: "1px solid #e0e0e0", background: "#fafafa", padding: "7px 10px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", outline: "none" }}
+                      style={{ flex: 1, minWidth: 0, border: "1px solid #2a2a2e", background: "#26262a", padding: "7px 10px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#f2f2f2", outline: "none" }}
                     />
                     <button
                       className="tap-scale-sm"
@@ -348,12 +348,12 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
                 )}
 
                 {repliesOpen && c.replies?.length > 0 && (
-                  <div style={{ marginLeft: 38, marginTop: 8, borderLeft: "2px solid #f0f0f0", paddingLeft: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ marginLeft: 38, marginTop: 8, borderLeft: "2px solid #2a2a2e", paddingLeft: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                     {c.replies.map((r) => {
                       const rLiked = likedIds.has(r.id);
                       return (
                         <div key={r.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                          <div style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #e0e0e0", background: r.isMine ? "#111" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #2a2a2e", background: r.isMine ? "#111" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             {r.isMine ? (
                               <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{r.name.charAt(0)}</span>
                             ) : (
@@ -362,12 +362,12 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
-                              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333" }}>{r.name}</span>
-                              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb" }}>{fmtCommentTime(r.minutesAgo)}</span>
+                              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#f2f2f2" }}>{r.name}</span>
+                              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#8a8a90" }}>{fmtCommentTime(r.minutesAgo)}</span>
                             </div>
-                            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#555", lineHeight: 1.4, margin: "0 0 4px" }}>{r.text}</p>
-                            <button className="tap-scale-sm" onClick={() => toggleLike(r.id)} style={{ border: "none", background: "none", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: rLiked ? "#e74c3c" : "#bbb" }}>
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill={rLiked ? "#e74c3c" : "none"} stroke={rLiked ? "#e74c3c" : "#bbb"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#c9c9c9", lineHeight: 1.4, margin: "0 0 4px" }}>{r.text}</p>
+                            <button className="tap-scale-sm" onClick={() => toggleLike(r.id)} style={{ border: "none", background: "none", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: rLiked ? "#ff6b5e" : "#8a8a90" }}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill={rLiked ? "#ff6b5e" : "none"} stroke={rLiked ? "#ff6b5e" : "#8a8a90"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                               {r.likes + (rLiked ? 1 : 0)}
                             </button>
                           </div>
@@ -384,7 +384,7 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
         {/* Composer */}
         <div style={{
           display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
-          padding: "10px 16px", borderTop: "1px solid #f0f0f0",
+          padding: "10px 16px", borderTop: "1px solid #2a2a2e",
           paddingBottom: "calc(10px + env(safe-area-inset-bottom, 0px))",
         }}>
           <MyAvatar user={currentUser} size={30} fontSize={12} iconSize={14} />
@@ -396,9 +396,9 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
             onKeyDown={(e) => { if (e.key === "Enter") handlePost(); }}
             placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
             style={{
-              flex: 1, minWidth: 0, border: "none", borderRadius: 999, background: "#f5f5f5",
+              flex: 1, minWidth: 0, border: "none", borderRadius: 999, background: "#202023",
               padding: "10px 16px", fontFamily: "Inter, sans-serif", fontSize: 13,
-              color: "#333", outline: "none",
+              color: "#f2f2f2", outline: "none",
             }}
           />
           <button
@@ -406,8 +406,8 @@ export default function CommentsSheet({ comp, accent = "#6C63FF", currentUser, o
             onClick={handlePost}
             disabled={!draft.trim() || posting}
             style={{
-              border: "none", borderRadius: 999, background: draft.trim() ? accent : "#eee",
-              color: draft.trim() ? "#fff" : "#bbb",
+              border: "none", borderRadius: 999, background: draft.trim() ? accent : "#26262a",
+              color: draft.trim() ? "#fff" : "#8a8a90",
               padding: "10px 14px", flexShrink: 0, whiteSpace: "nowrap",
               fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
               textTransform: "uppercase", letterSpacing: "0.04em",

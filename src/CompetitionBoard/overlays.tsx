@@ -17,13 +17,13 @@ export function ParticipantListOverlay({ comp, participants, onClose }) {
   const ranked = participants || [];
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#111", overflowY: "auto" }}>
       <div
         style={{
           position: "sticky",
           top: 0,
-          background: "#fff",
-          borderBottom: "1px solid #e0e0e0",
+          background: "#1c1c1f",
+          borderBottom: "1px solid #2a2a2e",
           padding: "14px 16px",
           display: "flex",
           alignItems: "center",
@@ -33,7 +33,7 @@ export function ParticipantListOverlay({ comp, participants, onClose }) {
       >
         <button
           onClick={onClose}
-          style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
+          style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#f2f2f2", padding: 0, lineHeight: 1 }}
         >
           <ArrowLeft size={18} />
         </button>
@@ -41,15 +41,15 @@ export function ParticipantListOverlay({ comp, participants, onClose }) {
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
         {/* Column headers */}
-        <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #e0e0e0", marginBottom: 4 }}>
-          <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
-          <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Participant</span>
-          <span style={{ width: 90, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Votes</span>
-          <span style={{ width: 70, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Points</span>
+        <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #2a2a2e", marginBottom: 4 }}>
+          <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
+          <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Participant</span>
+          <span style={{ width: 90, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Votes</span>
+          <span style={{ width: 70, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Points</span>
         </div>
 
         {ranked.length === 0 ? (
-          <div style={{ padding: "40px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
+          <div style={{ padding: "40px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90" }}>
             Aucun participant pour le moment.
           </div>
         ) : ranked.map((p, rank) => (
@@ -59,7 +59,7 @@ export function ParticipantListOverlay({ comp, participants, onClose }) {
               display: "flex",
               alignItems: "center",
               padding: "10px 0",
-              borderBottom: "1px solid #eee",
+              borderBottom: "1px solid #2a2a2e",
             }}
           >
             <span
@@ -77,16 +77,16 @@ export function ParticipantListOverlay({ comp, participants, onClose }) {
               <div style={{
                   width: 28, height: 28, borderRadius: "50%",
                   flexShrink: 0, overflow: "hidden",
-                  border: "1px solid #e0e0e0",
+                  border: "1px solid #2a2a2e",
                 }}>
                 <EntityAvatar url={p.avatarUrl} name={p.name} />
               </div>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 600 }}>{p.name}</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#f2f2f2", fontWeight: 600 }}>{p.name}</span>
             </div>
-            <span style={{ width: 90, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#333" }}>
+            <span style={{ width: 90, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>
               {fmtVotes(p.votes)}
             </span>
-            <span style={{ width: 70, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#aaa" }}>
+            <span style={{ width: 70, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#8a8a90" }}>
               {p.points}
             </span>
           </div>
@@ -103,21 +103,21 @@ export function ParticipantListOverlay({ comp, participants, onClose }) {
 
 export function AlbumGridOverlay({ items, onClose, onOpenItem }) {
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#111", overflowY: "auto" }}>
       <div
         style={{
-          position: "sticky", top: 0, background: "#fff",
-          borderBottom: "1px solid #e0e0e0", padding: "14px 16px",
+          position: "sticky", top: 0, background: "#1c1c1f",
+          borderBottom: "1px solid #2a2a2e", padding: "14px 16px",
           display: "flex", alignItems: "center", gap: 12, zIndex: 1,
         }}
       >
         <button
           onClick={onClose}
-          style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
+          style={{ border: "none", background: "none", cursor: "pointer", color: "#f2f2f2", padding: 0, lineHeight: 1 }}
         >
           <ArrowLeft size={18} />
         </button>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#111" }}>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#f2f2f2" }}>
           Médias des participants
         </span>
       </div>
@@ -149,13 +149,13 @@ export function AlbumGridOverlay({ items, onClose, onOpenItem }) {
 
 export function RegistrantListOverlay({ comp, registrants, accent, onClose, canRemove, onRemove, removingRegistrantId }) {
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#111", overflowY: "auto" }}>
       <div
         style={{
           position: "sticky",
           top: 0,
-          background: "#fff",
-          borderBottom: "1px solid #e0e0e0",
+          background: "#1c1c1f",
+          borderBottom: "1px solid #2a2a2e",
           padding: "14px 16px",
           display: "flex",
           alignItems: "center",
@@ -165,26 +165,26 @@ export function RegistrantListOverlay({ comp, registrants, accent, onClose, canR
       >
         <button
           onClick={onClose}
-          style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
+          style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#f2f2f2", padding: 0, lineHeight: 1 }}
         >
           <ArrowLeft size={18} />
         </button>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#333" }}>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#f2f2f2" }}>
           Membres inscrits — {comp.title}
         </span>
       </div>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
         {/* Column headers */}
-        <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #e0e0e0", marginBottom: 4 }}>
-          <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
-          <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Membre</span>
-          <span style={{ width: 100, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Date</span>
-          <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Frais</span>
+        <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #2a2a2e", marginBottom: 4 }}>
+          <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
+          <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Membre</span>
+          <span style={{ width: 100, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Date</span>
+          <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Frais</span>
         </div>
 
         {registrants.length === 0 ? (
-          <div style={{ padding: "40px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#bbb" }}>
+          <div style={{ padding: "40px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90" }}>
             Aucune inscription pour le moment.
           </div>
         ) : registrants.map((r, i) => (
@@ -194,7 +194,7 @@ export function RegistrantListOverlay({ comp, registrants, accent, onClose, canR
               display: "flex",
               alignItems: "center",
               padding: "10px 0",
-              borderBottom: "1px solid #eee",
+              borderBottom: "1px solid #2a2a2e",
             }}
           >
             <span
@@ -203,7 +203,7 @@ export function RegistrantListOverlay({ comp, registrants, accent, onClose, canR
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontSize: 13,
                 fontWeight: 700,
-                color: "#bbb",
+                color: "#8a8a90",
               }}
             >
               {i + 1}
@@ -212,17 +212,17 @@ export function RegistrantListOverlay({ comp, registrants, accent, onClose, canR
               <div style={{
                   width: 28, height: 28, borderRadius: "50%",
                   flexShrink: 0,
-                  background: "#f0ebff", color: "#6C63FF",
+                  background: "#262048", color: "#B9A2FF",
                   fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
                 {r.name.charAt(0).toUpperCase()}
               </div>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#f2f2f2", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
             </div>
-            <span style={{ width: 100, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#999", lineHeight: 1.3 }}>
+            <span style={{ width: 100, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#8a8a90", lineHeight: 1.3 }}>
               {r.date}<br />
-              <span style={{ fontSize: 11, color: "#bbb" }}>{r.time}</span>
+              <span style={{ fontSize: 11, color: "#8a8a90" }}>{r.time}</span>
             </span>
             <span style={{ width: 80, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: accent }}>
               {r.fee} gdes
@@ -234,8 +234,8 @@ export function RegistrantListOverlay({ comp, registrants, accent, onClose, canR
                 title="Retirer ce participant"
                 style={{
                   width: 26, height: 26, flexShrink: 0, marginLeft: 10,
-                  border: "1px solid #f3d0cd", borderRadius: "50%",
-                  background: "#fdf1f0", color: "#e74c3c",
+                  border: "1px solid #6a3530", borderRadius: "50%",
+                  background: "#3f2423", color: "#ff6b5e",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   cursor: removingRegistrantId === r.id ? "default" : "pointer",
                   opacity: removingRegistrantId === r.id ? 0.5 : 1,
@@ -281,8 +281,8 @@ export function ParticipantsSheet({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%", maxWidth: 480,
-          background: "#fff",
-          borderTop: "2px solid #111",
+          background: "#1c1c1f",
+          borderTop: "2px solid #2a2a2e",
           maxHeight: "88vh",
           display: "flex", flexDirection: "column",
         }}
@@ -291,18 +291,18 @@ export function ParticipantsSheet({
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "14px 16px 12px",
-          borderBottom: "1px solid #e0e0e0",
+          borderBottom: "1px solid #2a2a2e",
           flexShrink: 0,
         }}>
           <div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#f2f2f2" }}>
               Participants
             </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 2 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", marginTop: 2 }}>
               {isRegistration ? `${liveRegistered}/${comp.contestants} inscrits` : `${comp.contestants} participants`}
             </div>
           </div>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#f2f2f2", padding: 4, lineHeight: 0 }}>
             <X size={20} />
           </button>
         </div>
@@ -312,19 +312,19 @@ export function ParticipantsSheet({
           {isRegistration ? (
             <>
               <div style={{
-                padding: "20px", background: "#f8f7fc", borderRadius: 16,
+                padding: "20px", background: "#222", borderRadius: 16,
                 textAlign: "center", marginBottom: 16,
               }}>
                 <div style={{
                   fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700,
-                  color: "#6C63FF", marginBottom: 4,
+                  color: "#B9A2FF", marginBottom: 4,
                 }}>
                   {liveRegistered}/{comp.contestants}
                 </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#666", marginBottom: 12 }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#c9c9c9", marginBottom: 12 }}>
                   personnes inscrites
                 </div>
-                <div style={{ height: 8, borderRadius: 999, background: "#e0d5ff", width: "100%", marginBottom: 12, overflow: "hidden" }}>
+                <div style={{ height: 8, borderRadius: 999, background: "#26262a", width: "100%", marginBottom: 12, overflow: "hidden" }}>
                   <div
                     className="bar-shimmer"
                     style={{
@@ -338,7 +338,7 @@ export function ParticipantsSheet({
                     }}
                   />
                 </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", lineHeight: 1.5 }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", lineHeight: 1.5 }}>
                   {comp.contestants - liveRegistered > 0
                     ? `${comp.contestants - liveRegistered} place${comp.contestants - liveRegistered !== 1 ? 's' : ''} encore disponible${comp.contestants - liveRegistered !== 1 ? 's' : ''}`
                     : "Les inscriptions sont complètes"}
@@ -349,7 +349,7 @@ export function ParticipantsSheet({
                 <span style={{
                   display: "flex", alignItems: "center", gap: 6,
                   fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+                  color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.1em",
                 }}><Users size={13} strokeWidth={2.5} />Membres inscrits</span>
                 {registrants.length > 5 && (
                   <button
@@ -371,11 +371,11 @@ export function ParticipantsSheet({
               </div>
 
               {registrantsLoading ? (
-                <div style={{ padding: "20px 0 24px", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+                <div style={{ padding: "20px 0 24px", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#8a8a90" }}>
                   Chargement des inscrits...
                 </div>
               ) : registrants.length === 0 ? (
-                <div style={{ padding: "20px 0 24px", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+                <div style={{ padding: "20px 0 24px", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#8a8a90" }}>
                   Aucune inscription pour le moment.
                 </div>
               ) : (
@@ -385,12 +385,12 @@ export function ParticipantsSheet({
                     <div key={r.id} style={{
                       display: "flex", alignItems: "center", gap: 10,
                       padding: "9px 6px", margin: "0 -6px", borderRadius: 8,
-                      background: isMe ? "#f0ebff" : "transparent",
+                      background: isMe ? "#262048" : "transparent",
                       borderBottom: idx < arr.length - 1 ? "1px solid #f3f3f3" : "none",
                     }}>
                       <div style={{
                         width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-                        background: "#f0ebff", color: "#6C63FF",
+                        background: "#262048", color: "#B9A2FF",
                         fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
                         display: "flex", alignItems: "center", justifyContent: "center",
                         border: isMe ? "2px solid #6C63FF" : "none",
@@ -401,7 +401,7 @@ export function ParticipantsSheet({
                         <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: isMe ? "#6C63FF" : "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {r.name}
                         </span>
-                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90" }}>
                           {fmtRelativeTime(r.createdAt)}
                         </span>
                       </div>
@@ -423,8 +423,8 @@ export function ParticipantsSheet({
                           title="Retirer ce participant"
                           style={{
                             width: 24, height: 24, flexShrink: 0, marginLeft: 4,
-                            border: "1px solid #f3d0cd", borderRadius: "50%",
-                            background: "#fdf1f0", color: "#e74c3c",
+                            border: "1px solid #6a3530", borderRadius: "50%",
+                            background: "#3f2423", color: "#ff6b5e",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             cursor: removingRegistrantId === r.id ? "default" : "pointer",
                             opacity: removingRegistrantId === r.id ? 0.5 : 1,
@@ -445,7 +445,7 @@ export function ParticipantsSheet({
                 <span style={{
                   display: "flex", alignItems: "center", gap: 6,
                   fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+                  color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.1em",
                 }}><Trophy size={13} strokeWidth={2.5} />Classement · Top 5</span>
                 <button
                   onClick={onShowAllRanked}
@@ -465,7 +465,7 @@ export function ParticipantsSheet({
               </div>
 
               {ranked.length === 0 ? (
-                <div style={{ padding: "24px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
+                <div style={{ padding: "24px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90" }}>
                   Aucun participant pour le moment.
                 </div>
               ) : ranked.map((p, rank) => {
@@ -474,7 +474,7 @@ export function ParticipantsSheet({
                   <div key={p.id ?? p.index} style={{
                     display: "flex", alignItems: "center", gap: 10,
                     padding: "11px 0",
-                    borderBottom: rank < ranked.length - 1 ? "1px solid #f0f0f0" : "none",
+                    borderBottom: rank < ranked.length - 1 ? "1px solid #2a2a2e" : "none",
                   }}>
                     <span style={{
                       width: 20, flexShrink: 0, textAlign: "center",
@@ -486,8 +486,8 @@ export function ParticipantsSheet({
                     </span>
                     <div style={{
                       width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                      overflow: "hidden", background: "#fff",
-                      border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                      overflow: "hidden", background: "#1c1c1f",
+                      border: rank === 0 ? `2px solid ${accent}` : "2px solid #2a2a2e",
                       boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
                     }}>
                       <EntityAvatar url={p.avatarUrl} name={p.name} />
@@ -496,7 +496,7 @@ export function ParticipantsSheet({
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
                         <span style={{
                           fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                          color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                          color: "#eaeaea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                         }}>{p.name}</span>
                         <span style={{
                           display: "flex", alignItems: "center", gap: 4,
@@ -506,7 +506,7 @@ export function ParticipantsSheet({
                           🪙 {p.points.toLocaleString("fr-FR")}
                         </span>
                       </div>
-                      <div style={{ height: 4, background: "#f0f0f0", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ height: 4, background: "#26262a", borderRadius: 2, overflow: "hidden" }}>
                         <div
                           className="bar-shimmer"
                           style={{
@@ -549,8 +549,8 @@ export function AlbumSheet({ accent, uploads = [], uploading = false, onUpload, 
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%", maxWidth: 480,
-          background: "#fff",
-          borderTop: `2px solid #111`,
+          background: "#1c1c1f",
+          borderTop: `2px solid #2a2a2e`,
           maxHeight: "88vh",
           display: "flex", flexDirection: "column",
         }}
@@ -559,18 +559,18 @@ export function AlbumSheet({ accent, uploads = [], uploading = false, onUpload, 
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "14px 16px 12px",
-          borderBottom: "1px solid #e0e0e0",
+          borderBottom: "1px solid #2a2a2e",
           flexShrink: 0,
         }}>
           <div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#f2f2f2" }}>
               Mon album
             </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 2 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", marginTop: 2 }}>
               {subtitle}
             </div>
           </div>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#f2f2f2", padding: 4, lineHeight: 0 }}>
             <X size={20} />
           </button>
         </div>
@@ -582,9 +582,9 @@ export function AlbumSheet({ accent, uploads = [], uploading = false, onUpload, 
           display: "flex", flexDirection: "column", gap: 12,
         }}>
           <div style={{
-            background: "#faf9f7", border: "1px solid #eee",
+            background: "#222", border: "1px solid #2a2a2e",
             padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12,
-            color: "#777", lineHeight: 1.6,
+            color: "#b6b6bc", lineHeight: 1.6,
           }}>
             Ajoutez vos propres photos ou vidéos — elles seront visibles publiquement une fois approuvées par l'organisateur.
           </div>
@@ -609,7 +609,7 @@ export function AlbumSheet({ accent, uploads = [], uploading = false, onUpload, 
           </label>
 
           {uploads.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+            <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#8a8a90" }}>
               Aucun média envoyé pour l'instant.
             </div>
           ) : (
@@ -741,7 +741,7 @@ export function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, m
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 800, color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 800, color: "#ff6b5e", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               Salle audio en direct
             </span>
           </div>
@@ -759,7 +759,7 @@ export function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, m
 
         <div style={{ padding: "0 18px 22px", overflowY: "auto" }}>
           {/* Speakers grid */}
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#c9c9c9", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
             À l'antenne · {speakers.length}
           </div>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -769,7 +769,7 @@ export function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, m
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#fff", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>
                   {s.name.split(" ")[0]}
                 </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#777" }}>{s.role}</div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#b6b6bc" }}>{s.role}</div>
               </div>
             ))}
           </div>
@@ -786,13 +786,13 @@ export function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, m
                 </div>
               ))}
             </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888" }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9a9aa0" }}>
               {listenerCount} auditeurs
             </div>
           </div>
 
           {/* Description */}
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#bbb", lineHeight: 1.5, marginTop: 16 }}>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90", lineHeight: 1.5, marginTop: 16 }}>
             Suivez le commentaire audio en direct de cette compétition — analyses, moments forts et ambiance, commentés en temps réel.
           </div>
 
@@ -833,7 +833,7 @@ export function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, m
             style={{
               width: "100%", background: "none", border: "none", cursor: "pointer",
               marginTop: 14, padding: "8px 0",
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#e74c3c",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#ff6b5e",
             }}
           >
             Quitter la salle

@@ -9,17 +9,17 @@ const TX_VISUALS = {
   deposit:            { icon: ArrowDownLeft, color: "#00B894", bg: "#f0fbf7" },
   withdrawal:         { icon: ArrowUpRight, color: "#E17055", bg: "#fff4f0" },
   withdrawal_refund:  { icon: ArrowDownLeft, color: "#00B894", bg: "#f0fbf7" },
-  gift_sent:          { icon: Gift, color: "#6C63FF", bg: "#f0ebff" },
+  gift_sent:          { icon: Gift, color: "#B9A2FF", bg: "#f0ebff" },
   competition_prize:  { icon: Trophy, color: "#FDCB6E", bg: "#fffaf0" },
-  registration_fee:   { icon: Ticket, color: "#0984E3", bg: "#eef7ff" },
+  registration_fee:   { icon: Ticket, color: "#5B9BD5", bg: "#122f44" },
   registration_refund:{ icon: Percent, color: "#00B894", bg: "#f0fbf7" },
 };
 
 // Small status pill shown on a withdrawal row/detail while it's waiting on
 // admin review, or if it was rejected (money already refunded separately).
 const WITHDRAWAL_STATUS_LABELS = {
-  pending:   { label: "En attente", color: "#C07A00", bg: "#fff8e8" },
-  rejected:  { label: "Rejeté",     color: "#C0392B", bg: "#fdf0ef" },
+  pending:   { label: "En attente", color: "#E0A93B", bg: "#fff8e8" },
+  rejected:  { label: "Rejeté",     color: "#ff6b5e", bg: "#fdf0ef" },
 };
 
 function txReference(id) {
@@ -52,7 +52,7 @@ function extractCompetitionTitle(mainLabel) {
 
 function TransactionRow({ tx, isLast, showToast, onSelect }) {
   const isCredit = tx.amount != null ? tx.amount > 0 : tx.type === "deposit";
-  const visual = TX_VISUALS[tx.type] || { icon: ArrowUpRight, color: "#888", bg: "#f7f7f5" };
+  const visual = TX_VISUALS[tx.type] || { icon: ArrowUpRight, color: "#9a9aa0", bg: "#f7f7f5" };
   const Icon = visual.icon;
   const time = tx.date.includes(",") ? tx.date.split(",").slice(1).join(",").trim() : tx.date;
   const reference = txReference(tx.id);
@@ -75,7 +75,7 @@ function TransactionRow({ tx, isLast, showToast, onSelect }) {
         alignItems: "center",
         gap: 12,
         padding: "12px 14px",
-        borderBottom: isLast ? "none" : "1px solid #f0f0f0",
+        borderBottom: isLast ? "none" : "1px solid #2a2a2e",
         cursor: onSelect ? "pointer" : "default",
       }}
     >
@@ -96,7 +96,7 @@ function TransactionRow({ tx, isLast, showToast, onSelect }) {
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", lineHeight: 1.3, minWidth: 0, gap: 3 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#f2f2f2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {labelMain}
           </span>
           {statusPill && (
@@ -139,16 +139,16 @@ function TransactionRow({ tx, isLast, showToast, onSelect }) {
             {labelNote}
           </span>
         )}
-        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
+        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
           <span>{time}</span>
-          <span style={{ color: "#ddd" }}>·</span>
+          <span style={{ color: "#8a8a90" }}>·</span>
           <span
             onClick={copyReference}
             title="Copier la référence"
             style={{
               fontFamily: "'Space Mono', monospace",
               fontSize: 10,
-              color: "#bbb",
+              color: "#8a8a90",
               cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
@@ -185,11 +185,11 @@ function EquationRow({ label, value, bold }) {
         alignItems: "center",
         gap: 10,
         padding: "10px 12px",
-        borderBottom: "1px solid #f5f5f5",
-        background: bold ? "#fafafa" : "#fff",
+        borderBottom: "1px solid #2a2a2e",
+        background: bold ? "#26262a" : "#1c1c1f",
       }}
     >
-      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: bold ? 700 : 500, color: "#555" }}>
+      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: bold ? 700 : 500, color: "#c9c9c9" }}>
         {label}
       </span>
       <span
@@ -210,7 +210,7 @@ function EquationRow({ label, value, bold }) {
 function TransactionDetailSheet({ tx, allTransactions, onClose }) {
   if (!tx) return null;
 
-  const visual = TX_VISUALS[tx.type] || { icon: ArrowUpRight, color: "#888", bg: "#f7f7f5" };
+  const visual = TX_VISUALS[tx.type] || { icon: ArrowUpRight, color: "#9a9aa0", bg: "#f7f7f5" };
   const Icon = visual.icon;
   const { main: labelMain, note: labelNote } = splitLabelNote(tx.label);
   const reference = txReference(tx.id);
@@ -249,7 +249,7 @@ function TransactionDetailSheet({ tx, allTransactions, onClose }) {
           left: 0,
           right: 0,
           bottom: 0,
-          background: "#fff",
+          background: "#1c1c1f",
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
           padding: "10px 18px 28px",
@@ -258,7 +258,7 @@ function TransactionDetailSheet({ tx, allTransactions, onClose }) {
           overflowY: "auto",
         }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "#ddd", margin: "0 auto 18px" }} />
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: "#2a2a2e", margin: "0 auto 18px" }} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
           <div
@@ -271,14 +271,14 @@ function TransactionDetailSheet({ tx, allTransactions, onClose }) {
             <Icon size={20} color={visual.color} strokeWidth={2.5} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 700, color: "#222" }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 700, color: "#eaeaea" }}>
               {labelMain}
             </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#999" }}>{tx.date}</div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#8a8a90" }}>{tx.date}</div>
           </div>
         </div>
 
-        <div style={{ textAlign: "center", padding: "10px 0 20px", borderBottom: "1px solid #f0f0f0", marginBottom: 18 }}>
+        <div style={{ textAlign: "center", padding: "10px 0 20px", borderBottom: "1px solid #2a2a2e", marginBottom: 18 }}>
           <div
             style={{
               fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 800,
@@ -301,12 +301,12 @@ function TransactionDetailSheet({ tx, allTransactions, onClose }) {
             </div>
           )}
           {tx.status === "pending" && (
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 8, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", marginTop: 8, lineHeight: 1.5 }}>
               Le montant a été déduit de votre solde et est en attente de confirmation par un administrateur.
             </div>
           )}
           {tx.status === "rejected" && (
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 8, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", marginTop: 8, lineHeight: 1.5 }}>
               Ce retrait a été rejeté et le montant a été recrédité sur votre solde.
             </div>
           )}
@@ -314,12 +314,12 @@ function TransactionDetailSheet({ tx, allTransactions, onClose }) {
 
         {labelNote && (
           <div style={{ marginBottom: 18 }}>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#8a8a90", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
               Détail
             </div>
             <div
               style={{
-                fontFamily: "Inter, sans-serif", fontSize: 13, color: "#444",
+                fontFamily: "Inter, sans-serif", fontSize: 13, color: "#cfcfcf",
                 background: visual.bg, border: `1px solid ${visual.color}33`,
                 borderRadius: 10, padding: "10px 12px",
               }}
@@ -331,26 +331,26 @@ function TransactionDetailSheet({ tx, allTransactions, onClose }) {
 
         {showEquation && (
           <div style={{ marginBottom: 18 }}>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#8a8a90", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
               Pourquoi ce montant
             </div>
-            <div style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ border: "1px solid #2a2a2e", borderRadius: 10, overflow: "hidden" }}>
               <EquationRow label="Frais d'inscription payé" value={feeTx.amount} />
               <EquationRow label="Réduction early bird (déjà reçue)" value={discountTx.amount} />
               <EquationRow label="Remboursement" value={tx.amount} bold />
             </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb", marginTop: 8, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", marginTop: 8, lineHeight: 1.5 }}>
               {Math.abs(feeTx.amount).toLocaleString("fr-FR")} − {discountTx.amount.toLocaleString("fr-FR")} = {tx.amount.toLocaleString("fr-FR")} — la réduction déjà reçue n'est pas remboursée une seconde fois.
             </div>
           </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0 0", borderTop: "1px solid #f0f0f0" }}>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#999" }}>Référence</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0 0", borderTop: "1px solid #2a2a2e" }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#8a8a90" }}>Référence</span>
           <span
             onClick={copyReference}
             style={{
-              fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#666",
+              fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#c9c9c9",
               display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer",
             }}
           >
@@ -448,8 +448,8 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
   return (
     <div
       style={{
-        border: "1px solid #e0e0e0",
-        background: "#fff",
+        border: "1px solid #2a2a2e",
+        background: "#1c1c1f",
         borderRadius: 14,
         marginBottom: 16,
         padding: 14,
@@ -467,10 +467,10 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                border: active ? `1px solid ${m.accent}` : "1px solid #e0e0e0",
+                border: active ? `1px solid ${m.accent}` : "1px solid #2a2a2e",
                 borderRadius: 999,
                 background: active ? m.accent : "#fff",
-                color: active ? "#fff" : "#666",
+                color: active ? "#fff" : "#c9c9c9",
                 fontFamily: "Inter, sans-serif",
                 fontSize: 12,
                 fontWeight: 700,
@@ -503,7 +503,7 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
       </div>
 
       {/* User's own number for the active method */}
-      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#aaa", marginBottom: 6 }}>
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8a8a90", marginBottom: 6 }}>
         Votre numéro {current?.label}
       </div>
 
@@ -513,7 +513,7 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
             style={{
               display: "flex",
               alignItems: "center",
-              border: "1px solid #ddd",
+              border: "1px solid #2a2a2e",
               borderRadius: 10,
               marginBottom: 10,
               overflow: "hidden",
@@ -523,12 +523,12 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
               style={{
                 flexShrink: 0,
                 padding: "10px 10px",
-                background: "#f5f5f5",
-                borderRight: "1px solid #ddd",
+                background: "#202023",
+                borderRight: "1px solid #2a2a2e",
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontSize: 15,
                 fontWeight: 700,
-                color: "#888",
+                color: "#9a9aa0",
               }}
             >
               +509
@@ -549,7 +549,7 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontSize: 15,
                 fontWeight: 600,
-                color: "#111",
+                color: "#f2f2f2",
               }}
             />
           </div>
@@ -578,10 +578,10 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
               disabled={saving}
               style={{
                 flex: 1,
-                border: "1px solid #e0e0e0",
+                border: "1px solid #2a2a2e",
                 borderRadius: 999,
-                background: "#fff",
-                color: "#666",
+                background: "#1c1c1f",
+                color: "#c9c9c9",
                 fontFamily: "Inter, sans-serif",
                 fontSize: 12,
                 fontWeight: 700,
@@ -598,7 +598,7 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
           <div style={{ minWidth: 0 }}>
             {userNumber ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, letterSpacing: "0.04em", color: "#111" }}>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, letterSpacing: "0.04em", color: "#f2f2f2" }}>
                   {userNumber}
                 </div>
                 <span
@@ -621,7 +621,7 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
                 </span>
               </div>
             ) : (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#999", fontStyle: "italic" }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90", fontStyle: "italic" }}>
                 Aucun numéro {current?.label} enregistré
               </div>
             )}
@@ -633,10 +633,10 @@ function DepositNumbersCard({ currentUser, onUpdateNumber, showToast }) {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              border: `1px solid ${current?.accent ?? "#111"}`,
+              border: `1px solid ${current?.accent ?? "#fff"}`,
               borderRadius: 999,
-              background: "#fff",
-              color: current?.accent ?? "#111",
+              background: "#1c1c1f",
+              color: current?.accent ?? "#fff",
               fontFamily: "Inter, sans-serif",
               fontSize: 12,
               fontWeight: 700,
@@ -694,11 +694,11 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
 
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", paddingBottom: 80 }}>
+    <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 80 }}>
       {/* Header */}
       <header
         style={{
-          background: "#fff",
+          background: "#1c1c1f",
           position: "sticky",
           top: 0,
           zIndex: 50,
@@ -709,13 +709,13 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
             onClick={() => showToast && showToast("Menu bientôt disponible")}
-            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#333", flexShrink: 0, display: "flex" }}
+            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#f2f2f2", flexShrink: 0, display: "flex" }}
           >
             <Menu size={20} strokeWidth={2.25} />
           </button>
           <button
             onClick={() => showToast && showToast("Messagerie bientôt disponible")}
-            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#333", flexShrink: 0, display: "flex" }}
+            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#f2f2f2", flexShrink: 0, display: "flex" }}
           >
             <MessageCircle size={20} strokeWidth={2.25} />
           </button>
@@ -724,13 +724,13 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
             onClick={onOpenNotifications}
-            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#333", flexShrink: 0, display: "flex" }}
+            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#f2f2f2", flexShrink: 0, display: "flex" }}
           >
             <Bell size={20} strokeWidth={2.25} />
           </button>
           <button
             onClick={() => showToast && showToast("Aide bientôt disponible")}
-            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#333", flexShrink: 0, display: "flex" }}
+            style={{ border: "none", background: "none", cursor: "pointer", padding: 6, lineHeight: 0, color: "#f2f2f2", flexShrink: 0, display: "flex" }}
           >
             <HelpCircle size={20} strokeWidth={2.25} />
           </button>
@@ -740,8 +740,8 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 8px" }}>
         <div
           style={{
-            border: "1px solid #e0e0e0",
-            background: "#fff",
+            border: "1px solid #2a2a2e",
+            background: "#1c1c1f",
             padding: "14px 16px",
             marginBottom: 10,
             borderRadius: 14,
@@ -755,7 +755,7 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
                 fontWeight: 700,
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
-                color: "#aaa",
+                color: "#8a8a90",
               }}
             >
               Solde disponible
@@ -790,10 +790,10 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(26px, 7vw, 32px)", fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.02em", color: "#111", wordBreak: "break-all" }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(26px, 7vw, 32px)", fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.02em", color: "#f2f2f2", wordBreak: "break-all" }}>
               {effectiveBalance.toLocaleString("fr-FR")}
             </span>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#999" }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#8a8a90" }}>
               HTG
             </span>
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: dayChange >= 0 ? "#00B894" : "#FF5252", marginLeft: "auto" }}>
@@ -808,15 +808,15 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
         ) : (
           <div
             style={{
-              border: "1px solid #e0e0e0",
-              background: "#fafafa",
+              border: "1px solid #2a2a2e",
+              background: "#26262a",
               borderRadius: 14,
               marginBottom: 16,
               padding: 16,
               textAlign: "center",
             }}
           >
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#666", marginBottom: 10 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#c9c9c9", marginBottom: 10 }}>
               Connectez-vous pour voir votre portefeuille et gérer vos numéros de dépôt.
             </div>
             <button
@@ -840,20 +840,20 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
 
         {/* Quick stats */}
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 130px", minWidth: 0, border: "1px solid #e0e0e0", background: "#fff", padding: "10px 12px", borderRadius: 12 }}>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#aaa", marginBottom: 4 }}>
+          <div style={{ flex: "1 1 130px", minWidth: 0, border: "1px solid #2a2a2e", background: "#1c1c1f", padding: "10px 12px", borderRadius: 12 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8a8a90", marginBottom: 4 }}>
               Total déposé
             </div>
             <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#00B894", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              +{totalDeposited.toLocaleString("fr-FR")} <span style={{ fontSize: 10, fontWeight: 600, color: "#aaa" }}>HTG</span>
+              +{totalDeposited.toLocaleString("fr-FR")} <span style={{ fontSize: 10, fontWeight: 600, color: "#8a8a90" }}>HTG</span>
             </div>
           </div>
-          <div style={{ flex: "1 1 130px", minWidth: 0, border: "1px solid #e0e0e0", background: "#fff", padding: "10px 12px", borderRadius: 12 }}>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#aaa", marginBottom: 4 }}>
+          <div style={{ flex: "1 1 130px", minWidth: 0, border: "1px solid #2a2a2e", background: "#1c1c1f", padding: "10px 12px", borderRadius: 12 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8a8a90", marginBottom: 4 }}>
               Cadeaux envoyés
             </div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              -{totalGifted.toLocaleString("fr-FR")} <span style={{ fontSize: 10, fontWeight: 600, color: "#aaa" }}>HTG</span>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#f2f2f2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              -{totalGifted.toLocaleString("fr-FR")} <span style={{ fontSize: 10, fontWeight: 600, color: "#8a8a90" }}>HTG</span>
             </div>
           </div>
         </div>
@@ -883,9 +883,9 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
                 gap: 8,
                 height: 48,
                 borderRadius: 24,
-                border: action.filled ? "1px solid #111" : "1px solid #e0e0e0",
-                background: action.filled ? "#111" : "#fff",
-                color: action.filled ? "#fff" : "#333",
+                border: action.filled ? "1px solid #fff" : "1px solid #2a2a2e",
+                background: action.filled ? "#fff" : "#1c1c1f",
+                color: action.filled ? "#111" : "#c9c9c9",
                 cursor: "pointer",
                 padding: "0 20px",
               }}
@@ -909,13 +909,13 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
         {/* Info note */}
         <div
           style={{
-            border: "1px solid #e0e0e0",
-            background: "#fff",
+            border: "1px solid #2a2a2e",
+            background: "#1c1c1f",
             padding: "12px 14px",
             marginBottom: 24,
             fontFamily: "Inter, sans-serif",
             fontSize: 11,
-            color: "#aaa",
+            color: "#8a8a90",
             lineHeight: 1.5,
             borderRadius: 12,
           }}
@@ -928,7 +928,7 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
           style={{
             fontFamily: "Inter, sans-serif",
             fontSize: 11,
-            color: "#888",
+            color: "#9a9aa0",
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
@@ -944,8 +944,8 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
             display: "flex",
             alignItems: "center",
             gap: 6,
-            border: `1px solid ${searchFocused ? "#111" : "#e0e0e0"}`,
-            background: "#f9f9f9",
+            border: `1px solid ${searchFocused ? "#fff" : "#2a2a2e"}`,
+            background: "#202023",
             height: 38,
             borderRadius: 10,
             padding: "0 10px",
@@ -969,7 +969,7 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
               fontFamily: "Inter, sans-serif",
               fontSize: 13,
               fontWeight: 500,
-              color: "#333",
+              color: "#f2f2f2",
               background: "transparent",
               height: "100%",
             }}
@@ -984,9 +984,9 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
               onClick={() => setTxFilter(f.id)}
               style={{
                 flexShrink: 0,
-                border: `1px solid ${txFilter === f.id ? "#111" : "#e0e0e0"}`,
-                background: txFilter === f.id ? "#111" : "#fff",
-                color: txFilter === f.id ? "#fff" : "#666",
+                border: `1px solid ${txFilter === f.id ? "#fff" : "#2a2a2e"}`,
+                background: txFilter === f.id ? "#fff" : "#202023",
+                color: txFilter === f.id ? "#111" : "#c9c9c9",
                 fontFamily: "Inter, sans-serif",
                 fontWeight: 700,
                 fontSize: 11,
@@ -1001,7 +1001,7 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
         </div>
 
         {groups.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 8px", border: "1px solid #e0e0e0", background: "#fff", color: "#aaa", fontFamily: "Inter, sans-serif", fontSize: 13, borderRadius: 12 }}>
+          <div style={{ textAlign: "center", padding: "40px 8px", border: "1px solid #2a2a2e", background: "#1c1c1f", color: "#8a8a90", fontFamily: "Inter, sans-serif", fontSize: 13, borderRadius: 12 }}>
             Aucune transaction pour le moment.
           </div>
         ) : (
@@ -1010,8 +1010,8 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
               <div
                 key={g.day}
                 style={{
-                  border: "1px solid #e0e0e0",
-                  background: "#fff",
+                  border: "1px solid #2a2a2e",
+                  background: "#1c1c1f",
                   overflow: "hidden",
                   borderRadius: 14,
                 }}
@@ -1023,10 +1023,10 @@ export default function WalletPage({ balance, transactions, currentUser, isAuthe
                     fontWeight: 700,
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
-                    color: "#999",
+                    color: "#8a8a90",
                     padding: "10px 14px",
-                    background: "#fafafa",
-                    borderBottom: "1px solid #eee",
+                    background: "#26262a",
+                    borderBottom: "1px solid #2a2a2e",
                   }}
                 >
                   {g.day}

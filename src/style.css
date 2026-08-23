@@ -6,7 +6,7 @@
    ============================================================ */
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
@@ -17,7 +17,7 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #F2F2F0;
+  background: #111;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 

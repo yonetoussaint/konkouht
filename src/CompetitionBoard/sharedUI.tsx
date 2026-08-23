@@ -76,7 +76,7 @@ export function PhaseStatusBadge({ isRegistration, isCompleted }) {
       <span style={{
         display: "flex", alignItems: "center", gap: 4,
         fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
-        color: "#999", textTransform: "uppercase", letterSpacing: "0.06em",
+        color: "#8a8a90", textTransform: "uppercase", letterSpacing: "0.06em",
       }}>
         <BadgeCheck size={11} strokeWidth={2.5} />
         Terminé
@@ -87,7 +87,7 @@ export function PhaseStatusBadge({ isRegistration, isCompleted }) {
     return (
       <span style={{
         fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
-        color: "#999", textTransform: "uppercase", letterSpacing: "0.06em",
+        color: "#8a8a90", textTransform: "uppercase", letterSpacing: "0.06em",
       }}>
         Bientôt
       </span>
@@ -119,7 +119,7 @@ export function OrganiserChip({ name, accent }) {
         {name.charAt(0).toUpperCase()}
       </span>
       <span style={{
-        fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 600, color: "#999",
+        fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 600, color: "#8a8a90",
         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 100,
       }}>
         {name}

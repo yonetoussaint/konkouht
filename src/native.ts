@@ -10,8 +10,8 @@ export const isNative = Capacitor.isNativePlatform();
 export async function initNativeShell() {
   if (!isNative) return;
   try {
-    await StatusBar.setStyle({ style: Style.Dark }); // dark icons on our light background
-    await StatusBar.setBackgroundColor({ color: "#F2F2F0" });
+    await StatusBar.setStyle({ style: Style.Light }); // light icons on our dark background
+    await StatusBar.setBackgroundColor({ color: "#111111" });
   } catch {
     // StatusBar overlay isn't available on every platform/version � safe to ignore.
   }

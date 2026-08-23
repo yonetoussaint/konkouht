@@ -1129,7 +1129,7 @@ function BottomTabBar({ active, onChange, unreadCount, currentUser, dark }) {
         left: 0,
         right: 0,
         background: dark ? "#111" : "#fff",
-        borderTop: dark ? "1px solid #2a2a2e" : "1px solid #e0e0e0",
+        borderTop: dark ? "1px solid #2a2a2e" : "1px solid #2a2a2e",
         display: "flex",
         zIndex: 100,
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -1211,7 +1211,7 @@ function PhaseRow({ edition, accent }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        borderTop: "1px solid #e8e8e8",
+        borderTop: "1px solid #2a2a2e",
         marginLeft: -14,
         marginRight: -14,
         paddingLeft: 14,
@@ -1224,7 +1224,7 @@ function PhaseRow({ edition, accent }) {
         style={{
           fontFamily: "Inter, sans-serif",
           fontSize: 11,
-          color: "#888",
+          color: "#9a9aa0",
           fontWeight: 500,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
@@ -1249,7 +1249,7 @@ function PhaseRow({ edition, accent }) {
 /* ─── SKELETON CARD (feature 1) ─────────────────────────────────────────── */
 function SkeletonCard() {
   return (
-    <div style={{ flexShrink: 0, width: 272, border: "1px solid #ececec", borderRadius: 18, overflow: "hidden", background: "#fff" }}>
+    <div style={{ flexShrink: 0, width: 272, border: "1px solid #2a2a2e", borderRadius: 18, overflow: "hidden", background: "#1c1c1f" }}>
       <style>{`
         @keyframes shimmer {
           0% { background-position: -400px 0; }
@@ -1440,7 +1440,7 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser })
   }, []);
 
   return (
-    <section style={{ marginBottom: 0, borderBottom: "2px solid #e0e0e0", paddingBottom: 8, paddingTop: 8 }}>
+    <section style={{ marginBottom: 0, borderBottom: "2px solid #2a2a2e", paddingBottom: 8, paddingTop: 8 }}>
       {/* Row header */}
       <div
         style={{
@@ -1460,7 +1460,7 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser })
             fontFamily: "'Space Grotesk', sans-serif",
             fontSize: 15,
             fontWeight: 700,
-            color: "#333",
+            color: "#f2f2f2",
             letterSpacing: "-0.01em",
           }}
         >
@@ -1472,7 +1472,7 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser })
             marginLeft: "auto",
             border: "none",
             background: "none",
-            color: "#333",
+            color: "#f2f2f2",
             fontFamily: "Inter, sans-serif",
             fontSize: 11,
             fontWeight: 700,
@@ -1626,24 +1626,24 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
         style={{
           width: "100%",
           maxWidth: 480,
-          background: "#fff",
-          borderTop: "2px solid #111",
+          background: "#1c1c1f",
+          borderTop: "2px solid #2a2a2e",
           padding: 16,
           maxHeight: "85vh",
           overflowY: "auto",
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #2a2a2e" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
             Déposer des fonds
           </span>
-          <button onClick={handleClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
+          <button onClick={handleClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#f2f2f2", padding: 4, lineHeight: 0 }}>
             <X size={20} />
           </button>
         </div>
 
-        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9a9aa0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
           Marche à suivre
         </div>
 
@@ -1656,7 +1656,7 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
                   width: 20,
                   height: 20,
                   borderRadius: "50%",
-                  background: "#111",
+                  background: "#3a3a3e",
                   color: "#fff",
                   fontFamily: "'Space Grotesk', sans-serif",
                   fontSize: 11,
@@ -1668,7 +1668,7 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
               >
                 {i + 1}
               </span>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", lineHeight: 1.5, paddingTop: 1 }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#f2f2f2", lineHeight: 1.5, paddingTop: 1 }}>
                 {step}
               </span>
             </li>
@@ -1678,7 +1678,7 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
         {/* Number to send to */}
         <div
           style={{
-            border: "1px solid #e0e0e0",
+            border: "1px solid #2a2a2e",
             borderRadius: 12,
             padding: "14px 16px",
             marginBottom: 12,
@@ -1689,10 +1689,10 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
           }}
         >
           <div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#aaa", marginBottom: 4 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8a8a90", marginBottom: 4 }}>
               Numéro MonCash
             </div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 700, letterSpacing: "0.06em", color: "#111" }}>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 700, letterSpacing: "0.06em", color: "#f2f2f2" }}>
               {phoneNumber}
             </div>
           </div>
@@ -1701,9 +1701,9 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
             aria-label="Copier le numéro"
             style={{
               flexShrink: 0, width: 38, height: 38,
-              border: "1px solid #111",
-              background: copied ? "#111" : "#fff",
-              color: copied ? "#fff" : "#111",
+              border: "1px solid #2a2a2e",
+              background: copied ? "#00B894" : "#26262a",
+              color: copied ? "#fff" : "#f2f2f2",
               cursor: "pointer",
               display: "inline-flex", alignItems: "center", justifyContent: "center",
             }}
@@ -1712,7 +1712,7 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
           </button>
         </div>
 
-        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#C0392B", lineHeight: 1.5, marginBottom: 16 }}>
+        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#ff6b5e", lineHeight: 1.5, marginBottom: 16 }}>
           ⚠ Envoyez uniquement à partir du numéro MonCash enregistré sur votre compte.
         </div>
 
@@ -1721,8 +1721,8 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
           style={{
             width: "100%",
             border: "none",
-            background: "#111",
-            color: "#fff",
+            background: "#fff",
+            color: "#111",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
             fontSize: 14,
@@ -1784,34 +1784,34 @@ function WithdrawModal({ balance, onClose, onWithdraw }) {
         style={{
           width: "100%",
           maxWidth: 480,
-          background: "#fff",
-          borderTop: "2px solid #111",
+          background: "#1c1c1f",
+          borderTop: "2px solid #2a2a2e",
           padding: 16,
           maxHeight: "85vh",
           overflowY: "auto",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #2a2a2e" }}>
           {step === "pin" && (
-            <button onClick={() => { setStep("form"); setPin(""); setPinError(false); }} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 0, lineHeight: 0 }}>
+            <button onClick={() => { setStep("form"); setPin(""); setPinError(false); }} style={{ border: "none", background: "none", cursor: "pointer", color: "#f2f2f2", padding: 0, lineHeight: 0 }}>
               <ArrowLeft size={18} strokeWidth={2.5} />
             </button>
           )}
-          <span style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+          <span style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
             {step === "form" ? "Retirer des fonds" : "Confirmer le retrait"}
           </span>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#f2f2f2", padding: 4, lineHeight: 0 }}>
             <X size={20} />
           </button>
         </div>
 
         {step === "form" && (
           <>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9a9aa0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
               Solde disponible : {balance.toLocaleString("fr-FR")} HTG
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", border: "1px solid #ddd", padding: "12px 14px", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", border: "1px solid #2a2a2e", padding: "12px 14px", marginBottom: 12 }}>
               <input
                 type="number"
                 min="1"
@@ -1826,25 +1826,25 @@ function WithdrawModal({ balance, onClose, onWithdraw }) {
                   fontFamily: "'Space Grotesk', sans-serif",
                   fontSize: 20,
                   fontWeight: 700,
-                  color: "#333",
+                  color: "#f2f2f2",
                   minWidth: 0,
                 }}
               />
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", fontWeight: 600 }}>HTG</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90", fontWeight: 600 }}>HTG</span>
               <button
                 onClick={() => setAmountStr(String(balance))}
-                style={{ marginLeft: 10, border: "1px solid #ddd", background: "#fff", color: "#333", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, padding: "6px 10px", cursor: "pointer" }}
+                style={{ marginLeft: 10, border: "1px solid #2a2a2e", background: "#1c1c1f", color: "#f2f2f2", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, padding: "6px 10px", cursor: "pointer" }}
               >
                 Max
               </button>
             </div>
             {amount > balance && (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#e74c3c", fontWeight: 600, marginBottom: 12 }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#ff6b5e", fontWeight: 600, marginBottom: 12 }}>
                 Le montant dépasse votre solde disponible.
               </div>
             )}
 
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9a9aa0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
               Destination
             </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -1856,9 +1856,9 @@ function WithdrawModal({ balance, onClose, onWithdraw }) {
                     onClick={() => setMethod(m.id)}
                     style={{
                       flex: 1,
-                      border: `1px solid ${active ? "#111" : "#ddd"}`,
-                      background: active ? "#111" : "#fff",
-                      color: active ? "#fff" : "#333",
+                      border: `1px solid ${active ? "#fff" : "#2a2a2e"}`,
+                      background: active ? "#fff" : "#1c1c1f",
+                      color: active ? "#111" : "#c9c9c9",
                       fontFamily: "Inter, sans-serif",
                       fontSize: 12,
                       fontWeight: 700,
@@ -1872,7 +1872,7 @@ function WithdrawModal({ balance, onClose, onWithdraw }) {
               })}
             </div>
 
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", lineHeight: 1.5, marginBottom: 16 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", lineHeight: 1.5, marginBottom: 16 }}>
               Le montant sera immédiatement déduit de votre solde, puis votre retrait passera en attente le temps qu'un administrateur le confirme avant l'envoi vers {methodLabel}.
             </div>
 
@@ -1882,8 +1882,8 @@ function WithdrawModal({ balance, onClose, onWithdraw }) {
               style={{
                 width: "100%",
                 border: "none",
-                background: canSubmit ? "#111" : "#ccc",
-                color: "#fff",
+                background: canSubmit ? "#fff" : "#3a3a3e",
+                color: canSubmit ? "#111" : "#8a8a90",
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 700,
                 fontSize: 14,
@@ -1905,7 +1905,7 @@ function WithdrawModal({ balance, onClose, onWithdraw }) {
 
         {step === "pin" && (
           <>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", lineHeight: 1.5, marginBottom: 20 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9a9aa0", lineHeight: 1.5, marginBottom: 20 }}>
               Entrez votre code PIN à 4 chiffres pour confirmer le retrait de <strong>{amount.toLocaleString("fr-FR")} HTG</strong> vers {methodLabel}.
             </div>
 
@@ -1919,21 +1919,21 @@ function WithdrawModal({ balance, onClose, onWithdraw }) {
               placeholder="••••"
               style={{
                 width: "100%",
-                border: `1px solid ${pinError ? "#E74C3C" : "#ddd"}`,
+                border: `1px solid ${pinError ? "#E74C3C" : "#2a2a2e"}`,
                 padding: "14px 14px",
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontSize: 24,
                 fontWeight: 700,
                 letterSpacing: "0.4em",
                 textAlign: "center",
-                color: "#333",
+                color: "#f2f2f2",
                 outline: "none",
                 boxSizing: "border-box",
                 marginBottom: 8,
               }}
             />
             {pinError && (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#E74C3C", fontWeight: 600, marginBottom: 12 }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#ff6b5e", fontWeight: 600, marginBottom: 12 }}>
                 Code PIN incorrect. Réessayez.
               </div>
             )}
@@ -1944,8 +1944,8 @@ function WithdrawModal({ balance, onClose, onWithdraw }) {
               style={{
                 width: "100%",
                 border: "none",
-                background: pin.length === 4 ? "#111" : "#ccc",
-                color: "#fff",
+                background: pin.length === 4 ? "#fff" : "#3a3a3e",
+                color: pin.length === 4 ? "#111" : "#8a8a90",
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 700,
                 fontSize: 14,
@@ -2081,20 +2081,20 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
 
   const inputStyle = {
     width: "100%",
-    border: "1px solid #e0e0e0",
+    border: "1px solid #2a2a2e",
     borderRadius: 12,
     padding: "12px 12px 12px 40px",
     fontFamily: "Inter, sans-serif", fontSize: 14,
-    background: "#fafafa", color: "#333",
+    background: "#26262a", color: "#f2f2f2",
     boxSizing: "border-box",
     outline: "none",
   };
   const labelStyle = {
     fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-    color: "#888", textTransform: "uppercase", letterSpacing: "0.06em",
+    color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em",
     display: "block", marginBottom: 6,
   };
-  const fieldIconStyle = { position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#bbb", pointerEvents: "none" };
+  const fieldIconStyle = { position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#8a8a90", pointerEvents: "none" };
 
   return (
     <div
@@ -2115,7 +2115,7 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
         style={{
           width: "100%",
           maxWidth: 440,
-          background: "#fff",
+          background: "#1c1c1f",
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           padding: "10px 20px 24px",
@@ -2129,13 +2129,13 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
       >
         {/* Drag handle */}
         <div style={{ display: "flex", justifyContent: "center", padding: "6px 0 14px" }}>
-          <div style={{ width: 36, height: 4, borderRadius: 999, background: "#e0e0e0" }} />
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: "#2a2a2e" }} />
         </div>
 
         {mode === "reset" && (
           <button
             onClick={() => switchMode("login")}
-            style={{ border: "none", background: "none", cursor: "pointer", padding: 0, marginBottom: 10, display: "flex", alignItems: "center", gap: 6, color: "#888" }}
+            style={{ border: "none", background: "none", cursor: "pointer", padding: 0, marginBottom: 10, display: "flex", alignItems: "center", gap: 6, color: "#9a9aa0" }}
           >
             <ArrowLeft size={16} />
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600 }}>Retour</span>
@@ -2143,14 +2143,14 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
         )}
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#111", letterSpacing: "-0.01em" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
             {mode === "login" ? "Connexion requise" : mode === "signup" ? "Créer un compte" : "Mot de passe oublié"}
           </span>
-          <button onClick={onClose} style={{ border: "none", background: "#f5f5f5", cursor: "pointer", color: "#333", padding: 8, borderRadius: "50%", display: "flex", lineHeight: 0 }}>
+          <button onClick={onClose} style={{ border: "none", background: "#202023", cursor: "pointer", color: "#f2f2f2", padding: 8, borderRadius: "50%", display: "flex", lineHeight: 0 }}>
             <X size={16} />
           </button>
         </div>
-        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#888", display: "block", marginBottom: 20, lineHeight: 1.5 }}>
+        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9a9aa0", display: "block", marginBottom: 20, lineHeight: 1.5 }}>
           {mode === "reset"
             ? "Entrez votre e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe."
             : compTitle ? `Connectez-vous pour vous inscrire à ${compTitle}.`
@@ -2159,13 +2159,13 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
         </span>
 
         {mode !== "reset" && (
-          <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#f2f2f0", borderRadius: 999, padding: 4 }}>
+          <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#2a2a2e", borderRadius: 999, padding: 4 }}>
             <button
               onClick={() => switchMode("login")}
               style={{
                 flex: 1, border: "none", borderRadius: 999,
-                background: mode === "login" ? "#111" : "transparent",
-                color: mode === "login" ? "#fff" : "#888",
+                background: mode === "login" ? "#fff" : "transparent",
+                color: mode === "login" ? "#111" : "#8a8a90",
                 fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
                 textTransform: "uppercase", letterSpacing: "0.05em",
                 padding: "10px 0", cursor: "pointer", transition: "background 0.2s, color 0.2s",
@@ -2177,8 +2177,8 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
               onClick={() => switchMode("signup")}
               style={{
                 flex: 1, border: "none", borderRadius: 999,
-                background: mode === "signup" ? "#111" : "transparent",
-                color: mode === "signup" ? "#fff" : "#888",
+                background: mode === "signup" ? "#fff" : "transparent",
+                color: mode === "signup" ? "#111" : "#8a8a90",
                 fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
                 textTransform: "uppercase", letterSpacing: "0.05em",
                 padding: "10px 0", cursor: "pointer", transition: "background 0.2s, color 0.2s",
@@ -2229,7 +2229,7 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
                 {mode === "login" && (
                   <button
                     onClick={() => switchMode("reset")}
-                    style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#6C63FF" }}
+                    style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#B9A2FF" }}
                   >
                     Mot de passe oublié ?
                   </button>
@@ -2248,13 +2248,13 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
                 <button
                   onClick={() => setShowPassword((v) => !v)}
                   type="button"
-                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", cursor: "pointer", color: "#bbb", padding: 4, display: "flex" }}
+                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", cursor: "pointer", color: "#8a8a90", padding: 4, display: "flex" }}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               {mode === "signup" && (
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 5, display: "block" }}>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", marginTop: 5, display: "block" }}>
                   Au moins 6 caractères.
                 </span>
               )}
@@ -2262,12 +2262,12 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
           )}
 
           {info && (
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#00B894", background: "#f0fbf7", border: "1px solid #b8edd9", borderRadius: 10, padding: "8px 10px" }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#00B894", background: "#0f3b2e", border: "1px solid #b8edd9", borderRadius: 10, padding: "8px 10px" }}>
               {info}
             </span>
           )}
           {error && (
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C", background: "#fff0ed", border: "1px solid #ffcfc7", borderRadius: 10, padding: "8px 10px" }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#ff6b5e", background: "#3f2423", border: "1px solid #6a3530", borderRadius: 10, padding: "8px 10px" }}>
               {error}
             </span>
           )}
@@ -2280,8 +2280,8 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
             width: "100%",
             border: "none",
             borderRadius: 999,
-            background: "#111",
-            color: "#fff",
+            background: "#fff",
+            color: "#111",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
             fontSize: 13,
@@ -2303,9 +2303,9 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
         {mode !== "reset" && (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0" }}>
-              <div style={{ flex: 1, height: 1, background: "#eee" }} />
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.05em" }}>ou continuer avec</span>
-              <div style={{ flex: 1, height: 1, background: "#eee" }} />
+              <div style={{ flex: 1, height: 1, background: "#26262a" }} />
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", textTransform: "uppercase", letterSpacing: "0.05em" }}>ou continuer avec</span>
+              <div style={{ flex: 1, height: 1, background: "#26262a" }} />
             </div>
 
             <button
@@ -2313,7 +2313,7 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
               disabled={!!oauthProvider}
               style={{
                 width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                border: "1px solid #e0e0e0", borderRadius: 999, background: "#fff",
+                border: "1px solid #2a2a2e", borderRadius: 999, background: "#1c1c1f",
                 padding: "13px 0", cursor: oauthProvider ? "default" : "pointer",
                 opacity: oauthProvider ? 0.6 : 1,
               }}
@@ -2324,7 +2324,7 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
                 <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.2827-1.1168-.2827-1.71s.1027-1.17.2827-1.71V4.9582H.9573C.3477 6.1732 0 7.5477 0 9s.3477 2.8268.9573 4.0418L3.964 10.71z"/>
                 <path fill="#EA4335" d="M9 3.5795c1.3214 0 2.5077.4541 3.4405 1.346l2.5813-2.5814C13.4632.8918 11.4259 0 9 0 5.4818 0 2.4382 2.0168.9573 4.9582L3.964 7.29C4.6718 5.1627 6.5564 3.5795 9 3.5795z"/>
               </svg>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: "#333" }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: "#f2f2f2" }}>
                 {oauthProvider === "google" ? "Redirection…" : "Continuer avec Google"}
               </span>
             </button>
@@ -2332,8 +2332,8 @@ function AuthOverlay({ onClose, onAuthenticated, compTitle, followIntent }) {
         )}
 
         <div style={{ textAlign: "center", marginTop: 18 }}>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#ccc", letterSpacing: "0.02em" }}>
-            Propulsé par <span style={{ fontWeight: 700, color: "#999" }}>Mima</span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", letterSpacing: "0.02em" }}>
+            Propulsé par <span style={{ fontWeight: 700, color: "#8a8a90" }}>Mima</span>
           </span>
         </div>
       </div>
@@ -2503,7 +2503,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           style={{
             width: "100%",
             maxWidth: 380,
-            background: "#fff",
+            background: "#1c1c1f",
             padding: "36px 28px",
             textAlign: "center",
             borderRadius: 20,
@@ -2521,15 +2521,15 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           </div>
           <span style={{
             fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700,
-            color: "#111", display: "block", marginBottom: 8, letterSpacing: "-0.01em",
+            color: "#f2f2f2", display: "block", marginBottom: 8, letterSpacing: "-0.01em",
           }}>
             Inscription confirmée !
           </span>
           <span style={{
-            fontFamily: "Inter, sans-serif", fontSize: 13, color: "#888",
+            fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9a9aa0",
             display: "block", lineHeight: 1.6,
           }}>
-            Vous êtes inscrit à <strong style={{ color: "#333" }}>{comp.title}</strong>. Tes médias de présentation ont été envoyés — ils seront visibles publiquement une fois approuvés par l'organisateur.
+            Vous êtes inscrit à <strong style={{ color: "#f2f2f2" }}>{comp.title}</strong>. Tes médias de présentation ont été envoyés — ils seront visibles publiquement une fois approuvés par l'organisateur.
           </span>
         </div>
       </div>
@@ -2554,7 +2554,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
         style={{
           width: "100%",
           maxWidth: 480,
-          background: "#fff",
+          background: "#1c1c1f",
           padding: "10px 18px 20px",
           maxHeight: "88vh",
           overflowY: "auto",
@@ -2564,29 +2564,29 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
       >
         {/* Drag handle */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: "#e3e3e3" }} />
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "#2a2a2e" }} />
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
           {step === "media" && (
-            <button onClick={() => setStep("form")} style={{ border: "none", background: "#f5f5f5", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#333", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <button onClick={() => setStep("form")} style={{ border: "none", background: "#202023", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#f2f2f2", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <ArrowLeft size={16} strokeWidth={2.5} />
             </button>
           )}
           {step === "pin" && (
-            <button onClick={() => { setStep("media"); setPin(""); setPinError(false); }} style={{ border: "none", background: "#f5f5f5", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#333", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <button onClick={() => { setStep("media"); setPin(""); setPinError(false); }} style={{ border: "none", background: "#202023", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#f2f2f2", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <ArrowLeft size={16} strokeWidth={2.5} />
             </button>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#111", letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               S'inscrire à {comp.title}
             </span>
-            <span style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 500 }}>
+            <span style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", fontWeight: 500 }}>
               {comp.edition} · {comp.registeredCount}/{comp.contestants} inscrits
             </span>
           </div>
-          <button onClick={onClose} style={{ border: "none", background: "#f5f5f5", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#333", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <button onClick={onClose} style={{ border: "none", background: "#202023", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#f2f2f2", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <X size={16} strokeWidth={2.5} />
           </button>
         </div>
@@ -2595,11 +2595,11 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
         <>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
           {currentUser && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, background: "#fafafa" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, background: "#26262a" }}>
               <MyAvatar user={currentUser} size={34} fontSize={13} iconSize={16} loggedBg="#6C63FF" />
               <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3, minWidth: 0 }}>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#333" }}>{currentUser.fullName}</span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentUser.email}</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>{currentUser.fullName}</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentUser.email}</span>
               </div>
             </div>
           )}
@@ -2607,30 +2607,30 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
           {/* Receipt-style fee summary */}
           <div style={{
             borderRadius: 14,
-            border: `1px solid ${canAfford ? "#eee" : "#f5c6c6"}`,
-            background: canAfford ? "#fafafa" : "#fdf2f2",
+            border: `1px solid ${canAfford ? "#2a2a2e" : "#5a2a2a"}`,
+            background: canAfford ? "#202023" : "#3f2423",
             overflow: "hidden",
           }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px" }}>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", fontWeight: 600 }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9a9aa0", fontWeight: 600 }}>
                 Frais d'inscription
               </span>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 24, fontWeight: 800, color: "#111" }}>
-                {fee} <span style={{ fontSize: 13, fontWeight: 600, color: "#aaa" }}>gourdes</span>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 24, fontWeight: 800, color: "#f2f2f2" }}>
+                {fee} <span style={{ fontSize: 13, fontWeight: 600, color: "#8a8a90" }}>gourdes</span>
               </span>
             </div>
-            <div style={{ borderTop: `1px dashed ${canAfford ? "#e0e0e0" : "#f0c4c4"}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", fontWeight: 600 }}>
+            <div style={{ borderTop: `1px dashed ${canAfford ? "#2a2a2e" : "#6a3530"}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9a9aa0", fontWeight: 600 }}>
                 Votre solde
               </span>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: canAfford ? "#333" : "#E74C3C" }}>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: canAfford ? "#f2f2f2" : "#ff6b5e" }}>
                 {balance.toLocaleString("fr-FR")} gourdes
               </span>
             </div>
           </div>
 
           {!canAfford && (
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C", padding: "0 2px" }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#ff6b5e", padding: "0 2px" }}>
               Gourdes insuffisantes — achetez-en pour continuer.
             </span>
           )}
@@ -2643,7 +2643,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
             width: "100%",
             border: "none",
             borderRadius: 14,
-            background: canAfford ? "#6C63FF" : "#111",
+            background: canAfford ? "#6C63FF" : "#3a3a3e",
             color: "#fff",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
@@ -2678,7 +2678,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                 <span style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", fontWeight: 600,
+                  fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9a9aa0", fontWeight: 600,
                 }}>
                   Médias de présentation
                 </span>
@@ -2690,7 +2690,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
                 </span>
               </div>
               <span style={{
-                fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", lineHeight: 1.5, display: "block",
+                fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", lineHeight: 1.5, display: "block",
               }}>
                 Ajoute entre 1 et {MAX_MEDIA} photos ou vidéos pour présenter ta participation — elles seront ajoutées à ton album et visibles publiquement après approbation de l'organisateur.
               </span>
@@ -2761,7 +2761,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
                   border: "1.5px dashed #6C63FF", background: "rgba(108,99,255,0.04)",
                   borderRadius: 10, cursor: "pointer",
                   display: "flex", flexDirection: "column", alignItems: "center",
-                  justifyContent: "center", gap: 4, color: "#6C63FF",
+                  justifyContent: "center", gap: 4, color: "#B9A2FF",
                 }}>
                   <input
                     type="file"
@@ -2780,7 +2780,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
 
             {pendingMediaError && (
               <div style={{
-                fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C", fontWeight: 600,
+                fontFamily: "Inter, sans-serif", fontSize: 12, color: "#ff6b5e", fontWeight: 600,
                 textAlign: "center", marginBottom: 8,
               }}>
                 {pendingMediaError}
@@ -2788,7 +2788,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
             )}
 
             <div style={{
-              fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb", textAlign: "center", marginBottom: 6,
+              fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", textAlign: "center", marginBottom: 6,
             }}>
               Formats : JPG, PNG, MP4 · max 25 Mo / fichier
             </div>
@@ -2800,8 +2800,8 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
                 width: "100%",
                 border: "none",
                 borderRadius: 14,
-                background: hasMedia ? "#6C63FF" : "#e8e8e8",
-                color: hasMedia ? "#fff" : "#aaa",
+                background: hasMedia ? "#6C63FF" : "#26262a",
+                color: hasMedia ? "#fff" : "#8a8a90",
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 700,
                 fontSize: 14,
@@ -2827,15 +2827,15 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <div style={{
                 width: 48, height: 48, borderRadius: "50%",
-                background: "#f0ebff", color: "#6C63FF",
+                background: "#262048", color: "#B9A2FF",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 margin: "0 auto 14px",
               }}>
                 <BadgeCheck size={22} strokeWidth={2.25} />
               </div>
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888", lineHeight: 1.6 }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9a9aa0", lineHeight: 1.6 }}>
                 Entrez votre code PIN pour confirmer le paiement de<br />
-                <strong style={{ color: "#333" }}>{fee} gourdes</strong> pour {comp.title}.
+                <strong style={{ color: "#f2f2f2" }}>{fee} gourdes</strong> pour {comp.title}.
               </div>
             </div>
 
@@ -2849,7 +2849,7 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
               placeholder="••••"
               style={{
                 width: "100%",
-                border: `1.5px solid ${pinError ? "#E74C3C" : "#e3e3e3"}`,
+                border: `1.5px solid ${pinError ? "#E74C3C" : "#2a2a2e"}`,
                 borderRadius: 14,
                 padding: "14px 14px",
                 fontFamily: "'Space Grotesk', sans-serif",
@@ -2857,19 +2857,19 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
                 fontWeight: 700,
                 letterSpacing: "0.5em",
                 textAlign: "center",
-                color: "#111",
+                color: "#f2f2f2",
                 outline: "none",
                 boxSizing: "border-box",
                 marginBottom: 8,
               }}
             />
             {pinError && (
-              <div style={{ textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C", fontWeight: 600, marginBottom: 12 }}>
+              <div style={{ textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#ff6b5e", fontWeight: 600, marginBottom: 12 }}>
                 Code PIN incorrect. Réessayez.
               </div>
             )}
             {registerError && (
-              <div style={{ textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#E74C3C", fontWeight: 600, marginBottom: 12 }}>
+              <div style={{ textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#ff6b5e", fontWeight: 600, marginBottom: 12 }}>
                 {registerError}
               </div>
             )}
@@ -2881,8 +2881,8 @@ function RegistrationModal({ comp, onClose, onRegister, showToast, currentUser, 
                 width: "100%",
                 border: "none",
                 borderRadius: 14,
-                background: isSubmitting ? "#ddd" : pin.length === 4 ? "#6C63FF" : "#e8e8e8",
-                color: pin.length === 4 || isSubmitting ? "#fff" : "#aaa",
+                background: isSubmitting ? "#3a3a3e" : pin.length === 4 ? "#6C63FF" : "#26262a",
+                color: pin.length === 4 || isSubmitting ? "#fff" : "#8a8a90",
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 700,
                 fontSize: 14,
@@ -2925,14 +2925,14 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
         onClick={() => onOpen({ ...comp, accent: niche.accent, niche: niche.label })}
         style={{
           display: "flex", alignItems: "center", gap: 12,
-          border: "1px solid #e0e0e0", background: "#fff",
+          border: "1px solid #2a2a2e", background: "#1c1c1f",
           padding: "12px 14px", cursor: "pointer",
         }}
       >
         <div style={{
           width: 44, height: 44, flexShrink: 0, overflow: "hidden",
           border: `2px solid ${niche.accent}`,
-          background: "#eee", display: "flex", alignItems: "center", justifyContent: "center",
+          background: "#26262a", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           {(comp.bannerUrl || comp.images?.[0]?.url) ? (
             <img src={comp.bannerUrl || comp.images[0].url} alt={comp.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -2941,13 +2941,13 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#f2f2f2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {comp.title}
           </span>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90" }}>
             {niche.label} · {comp.edition}
             {comp.phase === "registration" && (
-              <span style={{ color: "#6C63FF", fontWeight: 600 }}> · {comp.registeredCount}/{comp.contestants} inscrits</span>
+              <span style={{ color: "#B9A2FF", fontWeight: 600 }}> · {comp.registeredCount}/{comp.contestants} inscrits</span>
             )}
           </span>
         </div>
@@ -2957,23 +2957,23 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
+    <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 80 }}>
       <header
         style={{
-          borderBottom: "1px solid #e0e0e0",
-          background: "#fff",
+          borderBottom: "1px solid #2a2a2e",
+          background: "#1c1c1f",
           position: "sticky",
           top: 0,
           zIndex: 50,
         }}
       >
         <div style={{ padding: "16px 16px 0" }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
             Mes compétitions
           </span>
         </div>
         {/* Section tabs */}
-        <div style={{ display: "flex", borderTop: "1px solid #f0f0f0", marginTop: 12 }}>
+        <div style={{ display: "flex", borderTop: "1px solid #2a2a2e", marginTop: 12 }}>
           {[
             { id: "inscrit", label: "Inscrit", count: registeredEntries.length },
             { id: "suivi", label: "Suivi", count: followedEntries.length },
@@ -2987,13 +2987,13 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
                   flex: 1,
                   border: "none",
                   background: "none",
-                  borderBottom: isActive ? "2px solid #111" : "2px solid transparent",
+                  borderBottom: isActive ? "2px solid #fff" : "2px solid transparent",
                   padding: "10px 0",
                   cursor: "pointer",
                   fontFamily: "Inter, sans-serif",
                   fontSize: 12,
                   fontWeight: isActive ? 700 : 500,
-                  color: isActive ? "#111" : "#aaa",
+                  color: isActive ? "#fff" : "#8a8a90",
                   letterSpacing: "0.04em",
                   display: "flex",
                   alignItems: "center",
@@ -3006,8 +3006,8 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
                 {tab.count > 0 && (
                   <span style={{
                     fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
-                    background: isActive ? "#111" : "#e0e0e0",
-                    color: isActive ? "#fff" : "#888",
+                    background: isActive ? "#fff" : "#2a2a2e",
+                    color: isActive ? "#111" : "#c9c9c9",
                     padding: "1px 6px",
                     minWidth: 18, textAlign: "center",
                     transition: "background 0.15s, color 0.15s",
@@ -3024,10 +3024,10 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
         {entries.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 8px" }}>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#333", marginBottom: 8 }}>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#f2f2f2", marginBottom: 8 }}>
               {activeSection === "inscrit" ? "Aucune inscription" : "Aucun suivi"}
             </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", lineHeight: 1.5 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90", lineHeight: 1.5 }}>
               {activeSection === "inscrit"
                 ? "Inscrivez-vous à une compétition pour la voir apparaître ici."
                 : "Suivez une compétition depuis sa fiche pour surveiller les inscriptions sans vous engager."}
@@ -3046,7 +3046,7 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
                       display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
                       fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
                       letterSpacing: "0.06em", textTransform: "uppercase",
-                      color: "#00875A", background: "#e8f8f3", border: "1px solid #c8ede1",
+                      color: "#5ee0a8", background: "#123a2b", border: "1px solid #1e5c44",
                       padding: "4px 8px",
                     }}>
                       <Check size={11} strokeWidth={2.5} />
@@ -3057,7 +3057,7 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
                       display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
                       fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
                       letterSpacing: "0.06em", textTransform: "uppercase",
-                      color: "#6C63FF", background: "#f0ebff", border: "1px solid #d5c8ff",
+                      color: "#B9A2FF", background: "#262048", border: "1px solid #3d3f",
                       padding: "4px 8px",
                     }}>
                       Suivi
@@ -3119,18 +3119,18 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
+    <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 80 }}>
       <header
         style={{
-          borderBottom: "1px solid #e0e0e0",
-          background: "#fff",
+          borderBottom: "1px solid #2a2a2e",
+          background: "#1c1c1f",
           position: "sticky",
           top: 0,
           zIndex: 50,
           padding: "16px 16px",
         }}
       >
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
           Compte
         </span>
       </header>
@@ -3157,7 +3157,7 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
                 style={{
                   position: "absolute", bottom: -2, right: -2,
                   width: 22, height: 22, borderRadius: "50%",
-                  background: "#6C63FF", border: "2px solid #F2F2F0",
+                  background: "#6C63FF", border: "2px solid #111",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   pointerEvents: "none",
                 }}
@@ -3186,7 +3186,7 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
                   onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }}
                   disabled={savingName}
                   style={{
-                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#333",
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#f2f2f2",
                     border: "none", borderBottom: "2px solid #111", outline: "none",
                     padding: "0 0 2px", minWidth: 0, flex: 1, background: "transparent",
                   }}
@@ -3201,21 +3201,21 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
                 <button
                   onClick={() => setEditingName(false)}
                   disabled={savingName}
-                  style={{ border: "none", background: "none", padding: 4, cursor: "pointer", color: "#999", flexShrink: 0 }}
+                  style={{ border: "none", background: "none", padding: 4, cursor: "pointer", color: "#8a8a90", flexShrink: 0 }}
                 >
                   <X size={18} strokeWidth={2.5} />
                 </button>
               </div>
             ) : (
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#f2f2f2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {currentUser ? currentUser.fullName : "Non connecté"}
                 </span>
                 {currentUser && (
                   <button
                     onClick={startEditingName}
                     title="Modifier le nom"
-                    style={{ border: "none", background: "none", padding: 2, cursor: "pointer", color: "#aaa", flexShrink: 0, display: "flex", alignItems: "center" }}
+                    style={{ border: "none", background: "none", padding: 2, cursor: "pointer", color: "#8a8a90", flexShrink: 0, display: "flex", alignItems: "center" }}
                   >
                     <Pencil size={14} strokeWidth={2.3} />
                   </button>
@@ -3223,13 +3223,13 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
               </span>
             )}
             {currentUser ? (
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#8a8a90", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {currentUser.email}
               </span>
             ) : (
               <button
                 onClick={onLoginRequest}
-                style={{ border: "none", background: "none", padding: 0, marginTop: 2, cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6C63FF", fontWeight: 700 }}
+                style={{ border: "none", background: "none", padding: 0, marginTop: 2, cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#B9A2FF", fontWeight: 700 }}
               >
                 Se connecter
               </button>
@@ -3246,7 +3246,7 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
             style={{
               width: "100%",
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              border: "1px solid #6C63FF", background: "#f0ebff", color: "#6C63FF",
+              border: "1px solid #6C63FF", background: "#262048", color: "#B9A2FF",
               padding: "14px 16px", marginBottom: 12, cursor: "pointer",
             }}
           >
@@ -3266,7 +3266,7 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
           style={{
             width: "100%",
             display: "flex", alignItems: "center", justifyContent: "space-between",
-            border: "1px solid #111", background: "#111", color: "#fff",
+            border: "1px solid #fff", background: "#fff", color: "#111",
             padding: "14px 16px", marginBottom: 24, cursor: "pointer",
           }}
         >
@@ -3276,13 +3276,13 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
               {balance.toLocaleString("fr-FR")} crédits
             </span>
           </div>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(17,17,17,0.6)" }}>
             Gérer <ChevronRight size={11} style={{ display: "inline" }} />
           </span>
         </button>
 
         {/* Other account links — placeholders for future screens */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 1, border: "1px solid #e0e0e0", background: "#fff" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 1, border: "1px solid #2a2a2e", background: "#1c1c1f" }}>
           {[
             { label: "Compétitions suivies", icon: BadgeCheck },
             { label: "Paramètres", icon: User },
@@ -3292,8 +3292,8 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
               key={item.label}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
-                padding: "13px 14px", borderBottom: "1px solid #f0f0f0",
-                fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333",
+                padding: "13px 14px", borderBottom: "1px solid #2a2a2e",
+                fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#f2f2f2",
               }}
             >
               <item.icon size={16} strokeWidth={2} color="#888" />
@@ -3408,11 +3408,11 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
   }, [seedCompetitions, templateQuery]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
+    <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 80 }}>
       <header
         style={{
-          borderBottom: "1px solid #e0e0e0",
-          background: "#fff",
+          borderBottom: "1px solid #2a2a2e",
+          background: "#1c1c1f",
           position: "sticky",
           top: 0,
           zIndex: 50,
@@ -3424,10 +3424,10 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
           <ArrowLeft size={20} color="#333" />
         </button>
         <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
             {isFullAdmin ? "Administration" : "Mes compétitions"}
           </span>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90" }}>
             {isFullAdmin ? "Gérer toutes les compétitions" : "Créer et gérer vos compétitions"}
           </span>
         </div>
@@ -3450,7 +3450,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                   onClick={() => setAdminSection(s.id)}
                   style={{
                     flex: 1,
-                    border: isActive ? "1px solid #111" : "1px solid #e0e0e0",
+                    border: isActive ? "1px solid #111" : "1px solid #2a2a2e",
                     background: isActive ? "#111" : "#fff",
                     color: isActive ? "#fff" : "#555",
                     borderRadius: 10,
@@ -3476,7 +3476,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
         <>
         {/* Search */}
         <div style={{ position: "relative", marginBottom: 14 }}>
-          <Search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#bbb" }} />
+          <Search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#8a8a90" }} />
           <input
             type="text"
             value={query}
@@ -3484,10 +3484,10 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
             placeholder="Rechercher une compétition…"
             style={{
               width: "100%", boxSizing: "border-box",
-              border: "1px solid #e0e0e0", borderRadius: 999,
+              border: "1px solid #2a2a2e", borderRadius: 999,
               padding: "10px 14px 10px 36px",
-              fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333",
-              background: "#fff", outline: "none",
+              fontFamily: "Inter, sans-serif", fontSize: 13, color: "#f2f2f2",
+              background: "#1c1c1f", outline: "none",
             }}
           />
         </div>
@@ -3524,15 +3524,15 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                   alignItems: "center",
                   gap: 6,
                   flex: "0 0 auto",
-                  border: isActive ? "1px solid #111" : "1px solid #e0e0e0",
-                  background: isActive ? "#111" : "#fff",
+                  border: isActive ? "1px solid #fff" : "1px solid #2a2a2e",
+                  background: isActive ? "#fff" : "#1c1c1f",
                   borderRadius: 999,
                   padding: "8px 14px",
                   cursor: "pointer",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: isActive ? "#fff" : "#555", whiteSpace: "nowrap" }}>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: isActive ? "#111" : "#c9c9c9", whiteSpace: "nowrap" }}>
                   {stat.label}
                 </span>
                 <span
@@ -3540,8 +3540,8 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                     fontFamily: "'Space Grotesk', sans-serif",
                     fontSize: 12,
                     fontWeight: 700,
-                    color: isActive ? "#111" : "#666",
-                    background: isActive ? "#fff" : "#F2F2F0",
+                    color: isActive ? "#fff" : "#8a8a90",
+                    background: isActive ? "#222" : "#2a2a2e",
                     borderRadius: 999,
                     padding: "1px 7px",
                     minWidth: 20,
@@ -3563,8 +3563,8 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
           onClick={() => setShowTemplatePicker(true)}
           style={{
             width: "100%", marginBottom: 8,
-            border: "1px dashed #ccc", borderRadius: 10, padding: "12px 16px",
-            background: "#fff", color: "#333",
+            border: "1px dashed #2a2a2e", borderRadius: 10, padding: "12px 16px",
+            background: "#1c1c1f", color: "#f2f2f2",
             fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700,
             cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
@@ -3575,7 +3575,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
 
         {filteredEntries.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 8px" }}>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90" }}>
               Aucune compétition ne correspond à « {query} »
             </span>
           </div>
@@ -3592,14 +3592,14 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                   onClick={() => onOpenComp(comp, niche)}
                   style={{
                     display: "flex", alignItems: "center", gap: 12,
-                    background: "#fff", border: "1px solid #e0e0e0", borderRadius: 14,
+                    background: "#1c1c1f", border: "1px solid #2a2a2e", borderRadius: 14,
                     padding: 10, cursor: "pointer",
                     opacity: comp.active ? 1 : 0.55,
                   }}
                 >
                   <div style={{
                     width: 48, height: 48, borderRadius: 10, flexShrink: 0,
-                    overflow: "hidden", background: "#f0f0f0",
+                    overflow: "hidden", background: "#26262a",
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
                     {thumb ? (
@@ -3610,7 +3610,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#eaeaea", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {comp.title}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -3637,22 +3637,22 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                       }}>
                         {comp.phase === "live" ? "● En direct" : comp.phase === "completed" ? "Terminé" : comp.phase === "draft" ? "Brouillon" : "Inscriptions"}
                       </span>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb" }}>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#8a8a90" }}>
                         {comp.edition}
                       </span>
                     </div>
                     {comp.phase === "registration" && comp.endsAt && (
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#999" }}>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#8a8a90" }}>
                         Fin insc. : {fmtAbsoluteDateOnly(comp.endsAt)}
                       </span>
                     )}
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, flexShrink: 0 }}>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#333" }}>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>
                       {(comp.registeredCount || 0).toLocaleString("fr-FR")}
                     </span>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#8a8a90", textTransform: "uppercase", letterSpacing: "0.03em" }}>
                       inscrits
                     </span>
                   </div>
@@ -3685,7 +3685,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                     style={{
                       flexShrink: 0,
                       border: "none", borderRadius: 8, padding: 6,
-                      background: "transparent", color: "#e74c3c",
+                      background: "transparent", color: "#ff6b5e",
                       cursor: isDeleting ? "default" : "pointer",
                       opacity: isDeleting ? 0.5 : 1,
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -3721,17 +3721,17 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "100%", maxWidth: 560, maxHeight: "82vh",
-              background: "#F2F2F0", borderRadius: "20px 20px 0 0",
+              background: "#1c1c1f", borderRadius: "20px 20px 0 0",
               display: "flex", flexDirection: "column", overflow: "hidden",
             }}
           >
             <div style={{
-              padding: "16px 16px 12px", background: "#fff",
-              borderBottom: "1px solid #e0e0e0",
+              padding: "16px 16px 12px", background: "#1c1c1f",
+              borderBottom: "1px solid #2a2a2e",
               display: "flex", flexDirection: "column", gap: 10,
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#222" }}>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#eaeaea" }}>
                   Choisir un modèle
                 </span>
                 <button
@@ -3743,7 +3743,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                 </button>
               </div>
               <div style={{ position: "relative" }}>
-                <Search size={14} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "#bbb" }} />
+                <Search size={14} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "#8a8a90" }} />
                 <input
                   type="text"
                   value={templateQuery}
@@ -3752,10 +3752,10 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                   autoFocus
                   style={{
                     width: "100%", boxSizing: "border-box",
-                    border: "1px solid #e0e0e0", borderRadius: 999,
+                    border: "1px solid #2a2a2e", borderRadius: 999,
                     padding: "9px 12px 9px 32px",
-                    fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333",
-                    background: "#fff", outline: "none",
+                    fontFamily: "Inter, sans-serif", fontSize: 13, color: "#f2f2f2",
+                    background: "#1c1c1f", outline: "none",
                   }}
                 />
               </div>
@@ -3764,7 +3764,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
             <div style={{ overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 18 }}>
               {templatesByNiche.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "30px 8px" }}>
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90" }}>
                     Aucun modèle ne correspond à « {templateQuery} »
                   </span>
                 </div>
@@ -3773,7 +3773,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                   <div key={niche.label}>
                     <span style={{
                       fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                      color: "#999", textTransform: "uppercase", letterSpacing: "0.04em",
+                      color: "#8a8a90", textTransform: "uppercase", letterSpacing: "0.04em",
                     }}>
                       {niche.label}
                     </span>
@@ -3787,7 +3787,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                             disabled={!!creatingTemplateKey}
                             style={{
                               display: "flex", alignItems: "center", gap: 12,
-                              background: "#fff", border: "1px solid #e0e0e0", borderRadius: 14,
+                              background: "#1c1c1f", border: "1px solid #2a2a2e", borderRadius: 14,
                               padding: 10, cursor: creatingTemplateKey ? "default" : "pointer",
                               opacity: creatingTemplateKey && !isCreating ? 0.5 : 1,
                               textAlign: "left", width: "100%", boxSizing: "border-box",
@@ -3795,7 +3795,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                           >
                             <div style={{
                               width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                              overflow: "hidden", background: "#f0f0f0",
+                              overflow: "hidden", background: "#26262a",
                               display: "flex", alignItems: "center", justifyContent: "center",
                             }}>
                               {s.comp.bannerUrl || s.comp.images?.[0]?.url ? (
@@ -3806,13 +3806,13 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                             </div>
                             <span style={{
                               flex: 1, minWidth: 0,
-                              fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#222",
+                              fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#eaeaea",
                               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                             }}>
                               {s.comp.title}
                             </span>
                             {isCreating ? (
-                              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999", flexShrink: 0 }}>…</span>
+                              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", flexShrink: 0 }}>…</span>
                             ) : (
                               <ChevronRight size={16} color="#ccc" style={{ flexShrink: 0 }} />
                             )}
@@ -3861,7 +3861,7 @@ function PinField({ value, onChange, autoFocus, error, placeholder = "•••�
         fontWeight: 700,
         letterSpacing: "0.4em",
         textAlign: "center",
-        color: "#333",
+        color: "#f2f2f2",
         outline: "none",
         boxSizing: "border-box",
         marginBottom: 10,
@@ -3883,16 +3883,16 @@ function AdminPinSheetShell({ title, onClose, children }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: "100%", maxWidth: 480, background: "#fff",
-          borderTop: "2px solid #111", padding: 16,
+          width: "100%", maxWidth: 480, background: "#1c1c1f",
+          borderTop: "2px solid #2a2a2e", padding: 16,
           maxHeight: "85vh", overflowY: "auto",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e0e0e0" }}>
-          <span style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #2a2a2e" }}>
+          <span style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
             {title}
           </span>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#f2f2f2", padding: 4, lineHeight: 0 }}>
             <X size={20} />
           </button>
         </div>
@@ -3936,7 +3936,7 @@ function AdminPinSetupModal({ hasExistingPin, onClose, onSaved, showToast }) {
 
   return (
     <AdminPinSheetShell title={hasExistingPin ? "Changer le code PIN" : "Créer un code PIN administrateur"} onClose={onClose}>
-      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", lineHeight: 1.5, marginBottom: 16 }}>
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9a9aa0", lineHeight: 1.5, marginBottom: 16 }}>
         {hasExistingPin
           ? "Ce code est requis pour confirmer ou rejeter un retrait. Entrez le code actuel puis le nouveau."
           : "Ce code sera requis pour confirmer ou rejeter chaque retrait en attente. Choisis 4 à 6 chiffres."}
@@ -3944,29 +3944,29 @@ function AdminPinSetupModal({ hasExistingPin, onClose, onSaved, showToast }) {
 
       {hasExistingPin && (
         <>
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
             Code actuel
           </div>
           <PinField value={currentPin} onChange={setCurrentPin} autoFocus />
         </>
       )}
 
-      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
         Nouveau code
       </div>
       <PinField value={newPin} onChange={setNewPin} autoFocus={!hasExistingPin} />
 
-      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
         Confirmer le nouveau code
       </div>
       <PinField value={confirmPin} onChange={setConfirmPin} error={confirmPin.length > 0 && confirmPin !== newPin} />
       {confirmPin.length > 0 && confirmPin !== newPin && (
-        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#E74C3C", fontWeight: 600, marginBottom: 8 }}>
+        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#ff6b5e", fontWeight: 600, marginBottom: 8 }}>
           Les deux codes ne correspondent pas.
         </div>
       )}
       {error && (
-        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#E74C3C", fontWeight: 600, marginBottom: 8 }}>
+        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#ff6b5e", fontWeight: 600, marginBottom: 8 }}>
           {error}
         </div>
       )}
@@ -3976,7 +3976,7 @@ function AdminPinSetupModal({ hasExistingPin, onClose, onSaved, showToast }) {
         disabled={!canSubmit || saving}
         style={{
           width: "100%", border: "none",
-          background: canSubmit && !saving ? "#111" : "#ccc", color: "#fff",
+          background: canSubmit && !saving ? "#fff" : "#3a3a3e", color: canSubmit && !saving ? "#111" : "#8a8a90",
           fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 14,
           letterSpacing: "0.06em", textTransform: "uppercase",
           padding: "14px 20px", cursor: canSubmit && !saving ? "pointer" : "not-allowed",
@@ -4023,18 +4023,18 @@ function WithdrawalActionPinModal({ action, onClose, onDone, showToast }) {
 
   return (
     <AdminPinSheetShell title={isReject ? "Rejeter le retrait" : "Confirmer le retrait"} onClose={onClose}>
-      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#555", lineHeight: 1.6, marginBottom: 16 }}>
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#c9c9c9", lineHeight: 1.6, marginBottom: 16 }}>
         {isReject
           ? <>Rejeter le retrait de <strong>{action.amount.toLocaleString("fr-FR")} HTG</strong> pour {action.name} ? Le montant sera immédiatement recrédité sur son solde.</>
           : <>Confirmer que <strong>{action.amount.toLocaleString("fr-FR")} HTG</strong> ont bien été envoyés à {action.name} ?</>}
       </div>
 
-      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
         Code PIN administrateur
       </div>
       <PinField value={pin} onChange={(v) => { setPin(v); setError(""); }} autoFocus error={!!error} />
       {error && (
-        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#E74C3C", fontWeight: 600, marginBottom: 8 }}>
+        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#ff6b5e", fontWeight: 600, marginBottom: 8 }}>
           {error}
         </div>
       )}
@@ -4044,8 +4044,8 @@ function WithdrawalActionPinModal({ action, onClose, onDone, showToast }) {
         disabled={pin.length < 4 || submitting}
         style={{
           width: "100%", border: "none",
-          background: pin.length >= 4 && !submitting ? (isReject ? "#c0392b" : "#111") : "#ccc",
-          color: "#fff",
+          background: pin.length >= 4 && !submitting ? (isReject ? "#e55737" : "#fff") : "#3a3a3e",
+          color: pin.length >= 4 && !submitting ? (isReject ? "#fff" : "#111") : "#8a8a90",
           fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 14,
           letterSpacing: "0.06em", textTransform: "uppercase",
           padding: "14px 20px", cursor: pin.length >= 4 && !submitting ? "pointer" : "not-allowed",
@@ -4089,13 +4089,13 @@ function WithdrawalsPanel({ showToast }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9a9aa0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
           {withdrawals.length} retrait{withdrawals.length > 1 ? "s" : ""} en attente
         </span>
         {pinExists && (
           <button
             onClick={() => setShowPinSetup(true)}
-            style={{ border: "none", background: "none", color: "#666", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+            style={{ border: "none", background: "none", color: "#c9c9c9", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
           >
             <Lock size={12} strokeWidth={2.5} /> Changer le code PIN
           </button>
@@ -4103,14 +4103,14 @@ function WithdrawalsPanel({ showToast }) {
       </div>
 
       {pinExists === false && (
-        <div style={{ border: "1px solid #e0e0e0", background: "#fffaf0", borderRadius: 12, padding: 14, marginBottom: 16 }}>
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#555", lineHeight: 1.5, marginBottom: 10 }}>
+        <div style={{ border: "1px solid #2a2a2e", background: "#3d311a", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#c9c9c9", lineHeight: 1.5, marginBottom: 10 }}>
             Aucun code PIN administrateur n'est encore configuré. Crée-en un pour pouvoir confirmer ou rejeter des retraits.
           </div>
           <button
             onClick={() => setShowPinSetup(true)}
             style={{
-              border: "none", borderRadius: 999, background: "#111", color: "#fff",
+              border: "none", borderRadius: 999, background: "#fff", color: "#111",
               fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
               padding: "10px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
             }}
@@ -4121,11 +4121,11 @@ function WithdrawalsPanel({ showToast }) {
       )}
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: "40px 8px", color: "#aaa", fontFamily: "Inter, sans-serif", fontSize: 13 }}>
+        <div style={{ textAlign: "center", padding: "40px 8px", color: "#8a8a90", fontFamily: "Inter, sans-serif", fontSize: 13 }}>
           Chargement…
         </div>
       ) : withdrawals.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px 8px", border: "1px solid #e0e0e0", background: "#fff", color: "#aaa", fontFamily: "Inter, sans-serif", fontSize: 13, borderRadius: 12 }}>
+        <div style={{ textAlign: "center", padding: "40px 8px", border: "1px solid #2a2a2e", background: "#1c1c1f", color: "#8a8a90", fontFamily: "Inter, sans-serif", fontSize: 13, borderRadius: 12 }}>
           Aucun retrait en attente.
         </div>
       ) : (
@@ -4133,13 +4133,13 @@ function WithdrawalsPanel({ showToast }) {
           {withdrawals.map((w) => {
             const dest = destinationNumber(w);
             return (
-              <div key={w.id} style={{ border: "1px solid #e0e0e0", background: "#fff", borderRadius: 14, padding: 14 }}>
+              <div key={w.id} style={{ border: "1px solid #2a2a2e", background: "#1c1c1f", borderRadius: 14, padding: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#222" }}>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#eaeaea" }}>
                       {w.full_name || "Utilisateur"}
                     </div>
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999" }}>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90" }}>
                       {new Date(w.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>
@@ -4149,11 +4149,11 @@ function WithdrawalsPanel({ showToast }) {
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: "#666", background: "#F2F2F0", borderRadius: 999, padding: "3px 9px" }}>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: "#c9c9c9", background: "#26262a", borderRadius: 999, padding: "3px 9px" }}>
                     {w.method || "—"}
                   </span>
                   {dest && (
-                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: "#666" }}>
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: "#c9c9c9" }}>
                       → {dest}
                     </span>
                   )}
@@ -4165,7 +4165,7 @@ function WithdrawalsPanel({ showToast }) {
                     disabled={!pinExists}
                     style={{
                       flex: 1, border: "none", borderRadius: 8, padding: "10px 12px",
-                      background: pinExists ? "#00B894" : "#ccc", color: "#fff",
+                      background: pinExists ? "#00B894" : "#3a3a3e", color: pinExists ? "#fff" : "#8a8a90",
                       fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, cursor: pinExists ? "pointer" : "not-allowed",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                     }}
@@ -4176,8 +4176,8 @@ function WithdrawalsPanel({ showToast }) {
                     onClick={() => pinExists && setAction({ txId: w.id, kind: "reject", amount: Number(w.amount), name: w.full_name || "cet utilisateur" })}
                     disabled={!pinExists}
                     style={{
-                      flex: 1, border: "1px solid #e0e0e0", borderRadius: 8, padding: "10px 12px",
-                      background: "#fff", color: pinExists ? "#c0392b" : "#ccc",
+                      flex: 1, border: "1px solid #2a2a2e", borderRadius: 8, padding: "10px 12px",
+                      background: "#1c1c1f", color: pinExists ? "#ff6b5e" : "#8a8a90",
                       fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, cursor: pinExists ? "pointer" : "not-allowed",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                     }}
@@ -4233,25 +4233,25 @@ function fmtNotifTime(ts) {
 }
 
 const NOTIF_TYPE_COLOR = {
-  result:       { bg: "#fff8e6", border: "#ffe08a", dot: "#f39c12" },
-  activity:     { bg: "#fff0ed", border: "#ffcfc7", dot: "#e74c3c" },
-  registration: { bg: "#f0ebff", border: "#d5c8ff", dot: "#6C63FF" },
-  system:       { bg: "#f0fbf7", border: "#b8edd9", dot: "#00B894" },
-  action:       { bg: "#f7f7f5", border: "#e0e0e0", dot: "#888"    },
+  result:       { bg: "#3d311a", border: "#6a5a30", dot: "#f39c12" },
+  activity:     { bg: "#3f2423", border: "#6a3530", dot: "#ff6b5e" },
+  registration: { bg: "#262048", border: "#3f3f5a", dot: "#B9A2FF" },
+  system:       { bg: "#0f3b2e", border: "#1e5c44", dot: "#00B894" },
+  action:       { bg: "#26262a", border: "#2a2a2e", dot: "#8a8a90" },
 };
 
 function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen }) {
   const unread = notifications.filter((n) => !n.read).length;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F2F2F0", paddingBottom: 80 }}>
+    <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 80 }}>
       <header style={{
-        borderBottom: "1px solid #e0e0e0", background: "#fff",
+        borderBottom: "1px solid #2a2a2e", background: "#1c1c1f",
         position: "sticky", top: 0, zIndex: 50,
         padding: "16px 16px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#333", letterSpacing: "-0.01em" }}>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
           Notifications
           {unread > 0 && (
             <span style={{
@@ -4269,7 +4269,7 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
             style={{
               border: "none", background: "none",
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              color: "#888", letterSpacing: "0.04em", textTransform: "uppercase",
+              color: "#9a9aa0", letterSpacing: "0.04em", textTransform: "uppercase",
               cursor: "pointer", padding: 0,
             }}
           >Tout lire</button>
@@ -4280,10 +4280,10 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
         {notifications.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 8px" }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>🔔</div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#333", marginBottom: 6 }}>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#f2f2f2", marginBottom: 6 }}>
               Aucune notification
             </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", lineHeight: 1.5 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90", lineHeight: 1.5 }}>
               Les activités de vos compétitions apparaîtront ici.
             </div>
           </div>
@@ -4298,8 +4298,8 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
               }}
               style={{
                 display: "flex", alignItems: "flex-start", gap: 12,
-                background: notif.read ? "#fff" : colors.bg,
-                border: `1px solid ${notif.read ? "#e0e0e0" : colors.border}`,
+                background: notif.read ? "#1c1c1f" : colors.bg,
+                border: `1px solid ${notif.read ? "#2a2a2e" : colors.border}`,
                 padding: "12px 14px",
                 cursor: notif.compId ? "pointer" : "default",
                 transition: "background 0.2s, border-color 0.2s",
@@ -4309,8 +4309,8 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
               <div style={{ position: "relative", flexShrink: 0 }}>
                 <div style={{
                   width: 38, height: 38,
-                  background: notif.read ? "#f7f7f5" : colors.bg,
-                  border: `1px solid ${notif.read ? "#e8e8e8" : colors.border}`,
+                  background: notif.read ? "#26262a" : colors.bg,
+                  border: `1px solid ${notif.read ? "#2a2a2e" : colors.border}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 18, lineHeight: 1,
                 }}>
@@ -4321,7 +4321,7 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
                     position: "absolute", top: -3, right: -3,
                     width: 8, height: 8, borderRadius: "50%",
                     background: colors.dot,
-                    border: "2px solid #fff",
+                    border: "2px solid #111",
                   }} />
                 )}
               </div>
@@ -4334,15 +4334,15 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
                 }}>
                   <span style={{
                     fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700,
-                    color: "#222", lineHeight: 1.2,
+                    color: "#eaeaea", lineHeight: 1.2,
                   }}>{notif.title}</span>
                   <span style={{
-                    fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb",
+                    fontFamily: "Inter, sans-serif", fontSize: 10, color: "#8a8a90",
                     fontWeight: 500, flexShrink: 0,
                   }}>{fmtNotifTime(notif.ts)}</span>
                 </div>
                 <span style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 12, color: "#666",
+                  fontFamily: "Inter, sans-serif", fontSize: 12, color: "#c9c9c9",
                   lineHeight: 1.45, display: "block",
                 }}>{notif.body}</span>
                 {notif.compId && (
@@ -5907,7 +5907,7 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { background: #F2F2F0; }
+        html, body { background: #111; }
         @keyframes toast-up {
           0%   { opacity: 0; transform: translateX(-50%) translateY(12px); }
           12%  { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -5939,7 +5939,7 @@ export default function App() {
             fontSize: 13,
             letterSpacing: "0.04em",
             padding: "10px 22px",
-            border: "1px solid #ddd",
+            border: "1px solid #2a2a2e",
             animation: "toast-up 2.5s ease forwards",
             whiteSpace: "nowrap",
           }}
@@ -6214,7 +6214,7 @@ export default function App() {
                 <>
                   <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.02em" }}>Aucun résultat</div>
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90", marginTop: 8 }}>Aucune compétition ne correspond à « {query} »</div>
-                  <button onClick={() => setQuery("")} style={{ marginTop: 20, border: "1px solid #fff", background: "#fff", color: "#111", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
+                  <button onClick={() => setQuery("")} style={{ marginTop: 20, border: "1px solid #fff", background: "#1c1c1f", color: "#111", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
                 </>
               )}
             </div>
@@ -6314,7 +6314,7 @@ export default function App() {
         />
       )}
 
-      <BottomTabBar active={activeTab} onChange={setActiveTab} unreadCount={unreadCount} currentUser={currentUser} dark={activeTab === "home"} />
+      <BottomTabBar active={activeTab} onChange={setActiveTab} unreadCount={unreadCount} currentUser={currentUser} dark />
 
       {selectedComp && (
         <CompetitionBoard
