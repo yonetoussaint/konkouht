@@ -1070,8 +1070,9 @@ function NewsBand() {
   return (
     <div
       style={{
-        background: "#111",
-        borderBottom: "2px solid #111",
+        background: "#18181b",
+        borderTop: "1px solid #2a2a2e",
+        borderBottom: "2px solid #2a2a2e",
         overflow: "hidden",
         whiteSpace: "nowrap",
         padding: "4px 0",
@@ -1119,7 +1120,7 @@ const TABS = [
   { id: "account", label: "Compte", icon: User },
 ];
 
-function BottomTabBar({ active, onChange, unreadCount, currentUser }) {
+function BottomTabBar({ active, onChange, unreadCount, currentUser, dark }) {
   return (
     <nav
       style={{
@@ -1127,8 +1128,8 @@ function BottomTabBar({ active, onChange, unreadCount, currentUser }) {
         bottom: 0,
         left: 0,
         right: 0,
-        background: "#fff",
-        borderTop: "1px solid #e0e0e0",
+        background: dark ? "#111" : "#fff",
+        borderTop: dark ? "1px solid #2a2a2e" : "1px solid #e0e0e0",
         display: "flex",
         zIndex: 100,
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -1153,7 +1154,7 @@ function BottomTabBar({ active, onChange, unreadCount, currentUser }) {
               alignItems: "center",
               gap: 4,
               cursor: "pointer",
-              color: isActive ? "#111" : "#aaa",
+              color: isActive ? (dark ? "#fff" : "#111") : (dark ? "#777" : "#aaa"),
               position: "relative",
             }}
           >
@@ -1164,7 +1165,7 @@ function BottomTabBar({ active, onChange, unreadCount, currentUser }) {
                   alt=""
                   style={{
                     width: 20, height: 20, borderRadius: "50%", objectFit: "cover", display: "block",
-                    border: isActive ? "1.5px solid #111" : "1.5px solid transparent",
+                    border: isActive ? (dark ? "1.5px solid #fff" : "1.5px solid #111") : "1.5px solid transparent",
                   }}
                 />
               ) : (
@@ -1177,7 +1178,7 @@ function BottomTabBar({ active, onChange, unreadCount, currentUser }) {
                   background: "#e74c3c", color: "#fff",
                   fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  border: "1.5px solid #fff",
+                  border: `1.5px solid ${dark ? "#111" : "#fff"}`,
                   padding: "0 3px",
                 }}>
                   {unreadCount > 9 ? "9+" : unreadCount}
@@ -1528,7 +1529,7 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser })
 function TypeRow({ icon: Icon, label, accent, items, onOpen, onOpenComments, onOpenShare, onRegister, registeredCompIds, currentUser }) {
   if (!items || items.length === 0) return null;
   return (
-    <section style={{ marginBottom: 0, borderBottom: "2px solid #e0e0e0", paddingBottom: 8, paddingTop: 8 }}>
+    <section style={{ marginBottom: 0, borderBottom: "2px solid #2a2a2e", paddingBottom: 8, paddingTop: 8 }}>
       <div
         style={{
           display: "flex",
@@ -1545,7 +1546,7 @@ function TypeRow({ icon: Icon, label, accent, items, onOpen, onOpenComments, onO
             fontFamily: "'Space Grotesk', sans-serif",
             fontSize: 15,
             fontWeight: 700,
-            color: "#333",
+            color: "#f2f2f2",
             letterSpacing: "-0.01em",
           }}
         >
@@ -6003,13 +6004,13 @@ export default function App() {
           showToast={showToast}
         />
       ) : (
-      <div style={{ minHeight: "100vh", background: "#fff", paddingBottom: 64 }}>
+      <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 64 }}>
 
         {/* ── HEADER ── */}
         <header
           style={{
-            borderBottom: "1px solid #e0e0e0",
-            background: "#fff",
+            borderBottom: "1px solid #2a2a2e",
+            background: "#111",
             position: "sticky",
             top: 0,
             zIndex: 50,
@@ -6023,15 +6024,15 @@ export default function App() {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                border: `1px solid ${homeSearchFocused ? "#111" : "#e0e0e0"}`,
-                background: "#f9f9f9",
+                border: `1px solid ${homeSearchFocused ? "#f5f5f5" : "#2a2a2e"}`,
+                background: "#1c1c1f",
                 height: 38,
                 borderRadius: 10,
                 padding: "0 10px",
                 transition: "border-color 0.15s",
               }}
             >
-              <Search size={15} color={homeSearchFocused ? "#333" : "#aaa"} strokeWidth={2.25} style={{ flexShrink: 0 }} />
+              <Search size={15} color={homeSearchFocused ? "#f5f5f5" : "#7a7a80"} strokeWidth={2.25} style={{ flexShrink: 0 }} />
               <input
                 type="text"
                 placeholder="Rechercher une compétition..."
@@ -6047,7 +6048,7 @@ export default function App() {
                   fontFamily: "Inter, sans-serif",
                   fontSize: 13,
                   fontWeight: 500,
-                  color: "#333",
+                  color: "#f5f5f5",
                   background: "transparent",
                   height: "100%",
                 }}
@@ -6069,9 +6070,9 @@ export default function App() {
                     fontWeight: 700,
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
-                    color: active ? "#fff" : "#666",
-                    background: active ? "#111" : "#f5f5f5",
-                    border: `1px solid ${active ? "#111" : "#e5e5e5"}`,
+                    color: active ? "#111" : "#c9c9c9",
+                    background: active ? "#fff" : "#202023",
+                    border: `1px solid ${active ? "#fff" : "#333"}`,
                     borderRadius: 20,
                     padding: "6px 14px",
                     cursor: "pointer",
@@ -6091,7 +6092,7 @@ export default function App() {
                         width: 6,
                         height: 6,
                         borderRadius: "50%",
-                        background: active ? "#fff" : "#E74C3C",
+                        background: "#E74C3C",
                         display: "inline-block",
                         animation: "pulse-dot 1s infinite",
                       }}
@@ -6112,7 +6113,7 @@ export default function App() {
             width: "100%",
             aspectRatio: "2.2 / 1",
             overflow: "hidden",
-            borderBottom: "2px solid #111",
+            borderBottom: "2px solid #2a2a2e",
           }}
         >
           {homeBannerSlides.map((slide, i) => (
@@ -6203,17 +6204,17 @@ export default function App() {
           }}
         >
           {visibleCompsFlat.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 8px", borderTop: "1px solid #ddd", background: "#fff" }}>
+            <div style={{ textAlign: "center", padding: "60px 8px", borderTop: "1px solid #2a2a2e", background: "transparent" }}>
               {activeFilter === "Favoris" && query.trim() === "" ? (
                 <>
-                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#333", letterSpacing: "-0.02em" }}>Aucun favori</div>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", marginTop: 8 }}>Suivez une compétition depuis sa fiche pour la retrouver ici.</div>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.02em" }}>Aucun favori</div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90", marginTop: 8 }}>Suivez une compétition depuis sa fiche pour la retrouver ici.</div>
                 </>
               ) : (
                 <>
-                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#333", letterSpacing: "-0.02em" }}>Aucun résultat</div>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa", marginTop: 8 }}>Aucune compétition ne correspond à « {query} »</div>
-                  <button onClick={() => setQuery("")} style={{ marginTop: 20, border: "1px solid #ddd", background: "#444", color: "#fff", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.02em" }}>Aucun résultat</div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90", marginTop: 8 }}>Aucune compétition ne correspond à « {query} »</div>
+                  <button onClick={() => setQuery("")} style={{ marginTop: 20, border: "1px solid #fff", background: "#fff", color: "#111", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
                 </>
               )}
             </div>
@@ -6313,7 +6314,7 @@ export default function App() {
         />
       )}
 
-      <BottomTabBar active={activeTab} onChange={setActiveTab} unreadCount={unreadCount} currentUser={currentUser} />
+      <BottomTabBar active={activeTab} onChange={setActiveTab} unreadCount={unreadCount} currentUser={currentUser} dark={activeTab === "home"} />
 
       {selectedComp && (
         <CompetitionBoard

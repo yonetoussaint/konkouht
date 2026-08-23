@@ -65,19 +65,19 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
       style={{
         flexShrink: fullWidth ? 1 : 0,
         width: fullWidth ? "100%" : 272,
-        border: "1px solid #ececec",
+        border: "1px solid #2a2a2e",
         borderRadius: 18,
         overflow: "hidden",
-        background: "#fff",
+        background: "#1c1c1f",
         display: "flex",
         flexDirection: "column",
         cursor: "pointer",
         userSelect: "none",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
       }}
     >
       {/* Banner */}
-      <div style={{ height: fullWidth ? 194 : 126, position: "relative", flexShrink: 0, overflow: "hidden", background: "#eee" }}>
+      <div style={{ height: fullWidth ? 194 : 126, position: "relative", flexShrink: 0, overflow: "hidden", background: "#26262a" }}>
         {(comp.bannerUrl || comp.images?.[0]?.url) ? (
           <img
             src={comp.bannerUrl || comp.images[0].url}
@@ -89,7 +89,7 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
           />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <ImageIcon size={26} color="#ccc" />
+            <ImageIcon size={26} color="#555" />
           </div>
         )}
         <div style={{
@@ -405,14 +405,14 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
         display: "flex", 
         alignItems: "center",
         padding: "9px 12px",
-        borderBottom: "1px solid #f0f0f0",
+        borderBottom: "1px solid #2a2a2e",
       }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <span style={{
             fontFamily: "'Space Grotesk', sans-serif", 
             fontSize: 12, 
             fontWeight: 700,
-            color: comp.hot ? "#c0392b" : "#333",
+            color: comp.hot ? "#e05545" : "#eaeaea",
             whiteSpace: "nowrap", 
             overflow: "hidden", 
             textOverflow: "ellipsis",
@@ -422,7 +422,7 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
           <span style={{ 
             fontFamily: "Inter, sans-serif", 
             fontSize: 8.5, 
-            color: "#aaa", 
+            color: "#8a8a90", 
             textTransform: "uppercase", 
             letterSpacing: "0.06em", 
             fontWeight: 700 
@@ -430,13 +430,13 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
             {isRegistration ? "Fin inscr." : "Fin dans"}
           </span>
         </div>
-        <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
+        <div style={{ width: 1, height: 24, background: "#2a2a2e", flexShrink: 0 }} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
           <span style={{
             fontFamily: "'Space Grotesk', sans-serif", 
             fontSize: 12, 
             fontWeight: 700, 
-            color: "#222",
+            color: "#f5f5f5",
             whiteSpace: "nowrap", 
             overflow: "hidden", 
             textOverflow: "ellipsis",
@@ -446,7 +446,7 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
           <span style={{ 
             fontFamily: "Inter, sans-serif", 
             fontSize: 8.5, 
-            color: "#aaa", 
+            color: "#8a8a90", 
             textTransform: "uppercase", 
             letterSpacing: "0.06em", 
             fontWeight: 700 
@@ -454,7 +454,7 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
             Cagnotte
           </span>
         </div>
-        <div style={{ width: 1, height: 24, background: "#eee", flexShrink: 0 }} />
+        <div style={{ width: 1, height: 24, background: "#2a2a2e", flexShrink: 0 }} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, paddingLeft: 10, minWidth: 0 }}>
           <span style={{
             fontFamily: "'Space Grotesk', sans-serif", 
@@ -482,7 +482,7 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
 
       {/* Registration progress bar */}
       {isRegistration && (
-        <div style={{ height: 6, width: "100%", background: "#eee", overflow: "hidden", flexShrink: 0 }}>
+        <div style={{ height: 6, width: "100%", background: "#2a2a2e", overflow: "hidden", flexShrink: 0 }}>
           <div style={{
             height: "100%",
             width: `${Math.min(100, Math.round((comp.registeredCount / Math.max(comp.contestants, 1)) * 100))}%`,
@@ -498,8 +498,8 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
           <div
             style={{
               border: "none",
-              background: "#f7f7f7",
-              color: "#999",
+              background: "#26262a",
+              color: "#8a8a90",
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
               fontSize: 12.5,
@@ -520,8 +520,8 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
           <div
             style={{
               border: "none",
-              background: "#e8f8f3",
-              color: "#00875A",
+              background: "#123a2b",
+              color: "#5ee0a8",
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
               fontSize: 12.5,
@@ -592,8 +592,8 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
           onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
           style={{
             border: "none",
-            background: "#f7f7f7",
-            color: "#666",
+            background: "#26262a",
+            color: "#b6b6bc",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
             fontSize: 12.5,
@@ -628,8 +628,8 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
           onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
           style={{
             border: "none",
-            background: "#111",
-            color: "#fff",
+            background: "#fff",
+            color: "#111",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
             fontSize: 12.5,

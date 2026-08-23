@@ -43,6 +43,13 @@ input, textarea, [contenteditable="true"], .selectable-text {
   user-select: text;
 }
 
+/* Input placeholders stay readable on both the light pages and the dark
+   homepage — a single neutral gray that reads on either surface. */
+input::placeholder,
+textarea::placeholder {
+  color: #7a7a80;
+}
+
 #root {
   height: 100%;
   overscroll-behavior: none;
