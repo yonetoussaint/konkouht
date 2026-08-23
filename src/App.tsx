@@ -3073,7 +3073,7 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
   );
 }
 
-function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLogout, onOpenAdmin, onUpdateFullName, onUpdateAvatar, showToast }) {
+function AccountPage({ currentUser, onLoginRequest, onLogout, onOpenAdmin, onUpdateFullName, onUpdateAvatar, showToast }) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -3259,27 +3259,6 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
             <ChevronRight size={16} />
           </button>
         )}
-
-        {/* Credits chip — drills into wallet */}
-        <button
-          onClick={onOpenWallet}
-          style={{
-            width: "100%",
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            border: "1px solid #fff", background: "#fff", color: "#111",
-            padding: "14px 16px", marginBottom: 24, cursor: "pointer",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Wallet size={18} strokeWidth={2.5} />
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700 }}>
-              {balance.toLocaleString("fr-FR")} crédits
-            </span>
-          </div>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(17,17,17,0.6)" }}>
-            Gérer <ChevronRight size={11} style={{ display: "inline" }} />
-          </span>
-        </button>
 
         {/* Other account links — placeholders for future screens */}
         <div style={{ display: "flex", flexDirection: "column", gap: 1, border: "1px solid #2a2a2e", background: "#1c1c1f" }}>
@@ -5981,8 +5960,6 @@ export default function App() {
       ) : activeTab === "account" ? (
         <AccountPage
           currentUser={currentUser}
-          balance={balance}
-          onOpenWallet={() => setActiveTab("wallet")}
           onLoginRequest={() => setShowAuthOverlay(true)}
           onLogout={handleLogout}
           onOpenAdmin={() => setActiveTab("admin")}
