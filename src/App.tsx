@@ -70,11 +70,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   winner_name text,
 //   winner_prize numeric,
 //   closed_at timestamptz,
-//   live_duration_seconds numeric,     -- set once at creation (or while still
-//                                       -- in registration); read by
-//                                       -- open_expired_registrations to compute
-//                                       -- the live-phase ends_at at transition
-//                                       -- time. Not editable once phase='live'.
+//   live_duration_seconds numeric,     -- kept in sync by the client
+//                                       -- (= live_ends_at - live_starts_at)
+//                                       -- so the legacy phase machine still
+//                                       -- has a single duration to read.
+//   registration_starts_at timestamptz, -- Début des inscriptions (éditable librement)
+//   live_starts_at timestamptz,        -- Début de la phase en direct (libre)
+//   live_ends_at timestamptz           -- Fin de la phase en direct (libre)
+//                                       -- ends_at reste la "Fin des inscriptions".
 //   updated_by uuid,
 //   updated_at timestamptz not null default now(),
 //   created_at timestamptz not null default now()
@@ -98,6 +101,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   on competition_editions for delete
 //   to authenticated
 //   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
+//
+// -- Schedule columns for editable registration/live start/end dates. The
+// -- organizer now picks each boundary directly in the edit panel, so add the
+// -- three timestamp columns below to back the four date pickers:
+// --   alter table competition_editions
+// --     add column if not exists registration_starts_at timestamptz,
+// --     add column if not exists live_starts_at timestamptz,
+// --     add column if not exists live_ends_at timestamptz;
+// -- ends_at (Fin des inscriptions) and live_duration_seconds already exist;
+// -- the client keeps live_duration_seconds in sync = live_ends_at - live_starts_at.
 //
 // -- UPDATE: every signed-in user can now create/edit their OWN
 // -- competitions, not just the platform organizer. This needs a
@@ -294,7 +307,10 @@ function mapEditionRow(row) {
     title: row.title,
     edition: row.edition,
     ends: row.ends,
-    endsAt: row.ends_at,
+        endsAt: row.ends_at,
+    registrationStartsAt: row.registration_starts_at,
+    liveStartsAt: row.live_starts_at,
+    liveEndsAt: row.live_ends_at,
     phase: row.phase,
     contestants: row.contestants,
     bannerUrl: row.banner_url,
@@ -367,7 +383,10 @@ async function createEdition({
   fee,
   rewardExtra,
   rules,
-  liveDurationSeconds,
+    liveDurationSeconds,
+  registrationStartsAt,
+  liveStartsAt,
+  liveEndsAt,
   updatedBy,
   createdBy,
   organisateur,
@@ -379,6 +398,7 @@ async function createEdition({
       title,
       edition,
       ends,
+      // ends_at is the registration deadline ("Fin des inscriptions").
       ends_at: endsAt ?? new Date(Date.now() + WEEK_SECONDS * 1000).toISOString(),
       phase: "registration",
       contestants,
@@ -388,7 +408,13 @@ async function createEdition({
       fee,
       reward_extra: rewardExtra,
       rules,
+      // Kept in sync = live_ends_at - live_starts_at so the legacy phase
+      // machine still has a duration to read; falls back to 1 week on first
+      // creation when no explicit live window was supplied yet.
       live_duration_seconds: liveDurationSeconds ?? WEEK_SECONDS,
+      registration_starts_at: registrationStartsAt,
+      live_starts_at: liveStartsAt,
+      live_ends_at: liveEndsAt,
       active: true,
       updated_by: updatedBy,
       updated_at: new Date().toISOString(),
@@ -463,7 +489,10 @@ async function saveEditionEdit({
   rewardExtra,
   rules,
   active,
-  liveDurationSeconds,
+    liveDurationSeconds,
+  registrationStartsAt,
+  liveStartsAt,
+  liveEndsAt,
   updatedBy,
 }) {
   const patch = { updated_by: updatedBy, updated_at: new Date().toISOString() };
@@ -479,11 +508,16 @@ async function saveEditionEdit({
   if (rewardExtra !== undefined) patch.reward_extra = rewardExtra;
   if (rules !== undefined) patch.rules = rules;
   if (active !== undefined) patch.active = active;
-  // endsAt/liveDurationSeconds are no longer admin-typed anywhere — the
-  // only caller that still passes them is handlePublishEdition, which
-  // computes a fixed "now + 1 week" value to start a draft's clock.
+  // ends_at is the registration deadline; live_duration_seconds is kept in
+  // sync (= live_ends_at - live_starts_at) for the legacy phase machine.
   if (endsAt !== undefined) patch.ends_at = endsAt;
   if (liveDurationSeconds !== undefined) patch.live_duration_seconds = liveDurationSeconds;
+  // The four independently-editable schedule dates — written when the admin
+  // adjusts them in the edit panel, preserved (left untouched) on saves that
+  // only touch unrelated fields.
+  if (registrationStartsAt !== undefined) patch.registration_starts_at = registrationStartsAt;
+  if (liveStartsAt !== undefined) patch.live_starts_at = liveStartsAt;
+  if (liveEndsAt !== undefined) patch.live_ends_at = liveEndsAt;
 
   const { data, error } = await supabase
     .from(EDITIONS_TABLE)
@@ -1003,6 +1037,10 @@ export function fmtAbsoluteDateOnly(target) {
 // display string. Mirrors CompCard's own resolvedEndDate derivation so the
 // homepage's notion of "soonest" matches what each card individually shows.
 function estimateEndTimestamp(comp) {
+  // In the live phase the on-screen deadline is the competition's end (which
+  // an organizer can now set explicitly); otherwise it's the registration
+  // deadline. Falls back to the legacy ends text string.
+  if (comp.phase === "live" && comp.liveEndsAt) return new Date(comp.liveEndsAt).getTime();
   if (comp.endsAt) return new Date(comp.endsAt).getTime();
   const str = comp.ends || "";
   let total = 0;
@@ -4577,7 +4615,10 @@ export default function App() {
             edition: row.edition,
             ends: row.ends,
             phase: row.phase,
-            endsAt: row.ends_at,
+                        endsAt: row.ends_at,
+            registrationStartsAt: row.registration_starts_at,
+            liveStartsAt: row.live_starts_at,
+            liveEndsAt: row.live_ends_at,
             contestants: row.contestants,
             description: row.description,
             prizeAmount: row.prize_amount,
@@ -4685,7 +4726,10 @@ export default function App() {
       edition: e.edition != null ? e.edition : comp.edition,
       ends: e.ends != null ? e.ends : comp.ends,
       phase: e.phase != null ? e.phase : comp.phase,
-      endsAt: e.endsAt != null ? e.endsAt : comp.endsAt,
+            endsAt: e.endsAt != null ? e.endsAt : comp.endsAt,
+      registrationStartsAt: e.registrationStartsAt ?? comp.registrationStartsAt,
+      liveStartsAt: e.liveStartsAt ?? comp.liveStartsAt,
+      liveEndsAt: e.liveEndsAt ?? comp.liveEndsAt,
       contestants: e.contestants != null ? e.contestants : comp.contestants,
       bannerUrl: e.bannerUrl != null ? e.bannerUrl : comp.bannerUrl,
       description: e.description != null ? e.description : comp.description,
@@ -4818,8 +4862,12 @@ export default function App() {
       competitionId: comp.id,
       title: null,
       edition: null,
-      ends: null,
+            ends: null,
       endsAt: null,
+      registrationStartsAt: null,
+      liveStartsAt: null,
+      liveEndsAt: null,
+      liveDurationSeconds: null,
       phase: "registration", // every edition starts open for registration — no draft state
       contestants: null,
       bannerUrl: null,
@@ -4845,7 +4893,7 @@ export default function App() {
   // First real save of a brand-new edition — this is an INSERT (the row
   // never existed before), always forced to phase "registration" inside
   // createEdition itself, not an update to an existing row.
-  async function handleCreateEditionSave({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
+    async function handleCreateEditionSave({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds, registrationStartsAt, liveStartsAt, liveEndsAt }) {
     const { data, error } = await createEdition({
       competitionId,
       title,
@@ -4860,6 +4908,9 @@ export default function App() {
       rules,
       bannerUrl,
       liveDurationSeconds,
+      registrationStartsAt,
+      liveStartsAt,
+      liveEndsAt,
       updatedBy: currentUser?.id,
       createdBy: currentUser?.id,
       organisateur: currentUser?.isOrganizer ? PLATFORM_ORGANIZER_SIGLE : (currentUser?.fullName || "Organisateur"),
@@ -4882,8 +4933,14 @@ export default function App() {
   // Publishes a draft edition — flips it to "registration" phase and marks
   // it active, so it starts showing up on the homepage/admin list as a
   // real, open competition instead of a hidden draft.
-  async function handlePublishEdition(comp) {
+    async function handlePublishEdition(comp) {
+    // Publishing a draft starts its clock immediately: inscription opens now,
+    // closes in a week, the live phase starts when inscription closes and
+    // runs a week — all set up as a complete default schedule the organizer
+    // can then reshape freely from the edit panel.
+    const publishedRegStart = new Date().toISOString();
     const publishedEndsAt = new Date(Date.now() + WEEK_SECONDS * 1000).toISOString();
+    const publishedLiveEndsAt = new Date(Date.now() + 2 * WEEK_SECONDS * 1000).toISOString();
     const { error } = await saveEditionEdit({
       editionId: comp.id,
       phase: "registration",
@@ -4891,6 +4948,9 @@ export default function App() {
       // Auto-created drafts (from close_expired_competitions) never had a
       // deadline set, so publishing is what starts their 1-week clock.
       endsAt: publishedEndsAt,
+      registrationStartsAt: publishedRegStart,
+      liveStartsAt: publishedEndsAt, // the live phase begins the instant inscription closes
+      liveEndsAt: publishedLiveEndsAt,
       liveDurationSeconds: WEEK_SECONDS,
       updatedBy: currentUser?.id,
     });
@@ -4904,7 +4964,7 @@ export default function App() {
       return {
         ...prev,
         [comp.competitionId]: list.map((e) =>
-          e.id === comp.id ? { ...e, phase: "registration", active: true, endsAt: publishedEndsAt, liveDurationSeconds: WEEK_SECONDS } : e
+          e.id === comp.id ? { ...e, phase: "registration", active: true, endsAt: publishedEndsAt, registrationStartsAt: publishedRegStart, liveStartsAt: publishedEndsAt, liveEndsAt: publishedLiveEndsAt, liveDurationSeconds: WEEK_SECONDS } : e
         ),
       };
     });
@@ -5048,11 +5108,11 @@ export default function App() {
   }, [compImages, editionsByComp, compRegCounts]);
 
 
-  async function handleEditComp({ editionId, competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
+    async function handleEditComp({ editionId, competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds, registrationStartsAt, liveStartsAt, liveEndsAt }) {
     // TEMP DEBUG — remove once we've confirmed the session is attached.
     const { data: debugSession } = await supabase.auth.getSession();
     console.log("[DEBUG] session email:", debugSession.session?.user?.email, "has token:", !!debugSession.session?.access_token);
-    const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds };
+    const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds, registrationStartsAt, liveStartsAt, liveEndsAt };
     const { data, error } = await saveEditionEdit({
       editionId,
       ...edits,
@@ -5075,11 +5135,15 @@ export default function App() {
       const nextList = idx === -1 ? [...list, data] : list.map((e, i) => (i === idx ? { ...e, ...data } : e));
       return { ...prev, [competitionId]: nextList };
     });
-    setSelectedComp((prev) => (prev && prev.id === editionId ? {
+        setSelectedComp((prev) => (prev && prev.id === editionId ? {
       ...prev,
       ...edits,
       contestants: edits.contestants != null ? edits.contestants : prev.contestants,
       endsAt: edits.endsAt != null ? edits.endsAt : prev.endsAt,
+      registrationStartsAt: edits.registrationStartsAt ?? prev.registrationStartsAt,
+      liveStartsAt: edits.liveStartsAt ?? prev.liveStartsAt,
+      liveEndsAt: edits.liveEndsAt ?? prev.liveEndsAt,
+      liveDurationSeconds: edits.liveDurationSeconds != null ? edits.liveDurationSeconds : prev.liveDurationSeconds,
       fee: edits.fee != null ? edits.fee : prev.fee,
     } : prev));
     showToast(phase === "draft" ? "Brouillon enregistré." : "Compétition mise à jour.");

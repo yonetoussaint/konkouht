@@ -1926,9 +1926,24 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // 1 week too — both computed server-side. The "Fixe" tab leaves it at
   // that default; the "Date personnalisée" tab lets the admin override
   // either with a specific deadline/duration.
-  const [scheduleMode, setScheduleMode] = useState(comp.endsAt ? "custom" : "fixed");
-  const [editEndsAt, setEditEndsAt] = useState(toDatetimeLocal(comp.endsAt));
-  const [editLiveDurationSeconds, setEditLiveDurationSeconds] = useState(comp.liveDurationSeconds ?? null);
+  // The four freely-editable schedule dates for this competition edition.
+  const now = new Date();
+  const defaultRegStart = comp.registrationStartsAt ? toDatetimeLocal(comp.registrationStartsAt) : toDatetimeLocal(now.toISOString());
+  const defaultRegEnd = comp.endsAt ? toDatetimeLocal(comp.endsAt) : toDatetimeLocal(new Date(now.getTime() + WEEK_SECONDS * 1000).toISOString());
+  const defaultLiveStart = comp.liveStartsAt ? toDatetimeLocal(comp.liveStartsAt) : defaultRegEnd;
+  const defaultLiveEnd = comp.liveEndsAt ? toDatetimeLocal(comp.liveEndsAt) : toDatetimeLocal(new Date(new Date(defaultLiveStart).getTime() + WEEK_SECONDS * 1000).toISOString());
+
+  const [editRegStart, setEditRegStart] = useState(defaultRegStart);
+  const [editRegEnd, setEditRegEnd] = useState(defaultRegEnd);
+  const [editLiveStart, setEditLiveStart] = useState(defaultLiveStart);
+  const [editLiveEnd, setEditLiveEnd] = useState(defaultLiveEnd);
+
+  const regStartMs = new Date(editRegStart).getTime();
+  const regEndMs = new Date(editRegEnd).getTime();
+  const liveStartMs = new Date(editLiveStart).getTime();
+  const liveEndMs = new Date(editLiveEnd).getTime();
+  const scheduleValid = !Number.isNaN(regStartMs) && !Number.isNaN(regEndMs) && !Number.isNaN(liveStartMs) && !Number.isNaN(liveEndMs) &&
+    regStartMs <= regEndMs && regEndMs <= liveStartMs && liveStartMs <= liveEndMs;
   // Set the moment the admin uses the quick "+X heures/jours/semaines"
   // extend control on the "Fixe" tab — that's a real, deliberate change to
   // the deadline even though the tab itself never otherwise sends endsAt.
@@ -2126,7 +2141,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // Only required when the admin has actively chosen "Date personnalisée"
   // — the "Fixe" tab never blocks saving, since the server fills in the
   // defaults itself.
-  const scheduleIncomplete = !isCompleted && isRegistration && scheduleMode === "custom" && (!editEndsAt || !editLiveDurationSeconds);
+  const scheduleIncomplete = !isCompleted && isRegistration && !scheduleValid;
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removingImageId, setRemovingImageId] = useState(null);
   const images = comp.images || [];
@@ -2143,11 +2158,11 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     setEditRewardExtra(comp.rewardExtra || "");
     setEditRules((comp.rules || []).join("\n"));
     setEditBannerUrl(comp.bannerUrl || null);
-    setEditEndsAt(toDatetimeLocal(comp.endsAt));
-    setEditLiveDurationSeconds(comp.liveDurationSeconds ?? null);
-    setScheduleMode(comp.endsAt ? "custom" : "fixed");
-    setScheduleDirty(false);
-  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.description, comp.prizeAmount, comp.fee, comp.rewardExtra, comp.rules, comp.bannerUrl, comp.endsAt, comp.liveDurationSeconds]);
+    if (comp.registrationStartsAt) setEditRegStart(toDatetimeLocal(comp.registrationStartsAt));
+    if (comp.endsAt) setEditRegEnd(toDatetimeLocal(comp.endsAt));
+    if (comp.liveStartsAt) setEditLiveStart(toDatetimeLocal(comp.liveStartsAt));
+    if (comp.liveEndsAt) setEditLiveEnd(toDatetimeLocal(comp.liveEndsAt));
+  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.description, comp.prizeAmount, comp.fee, comp.rewardExtra, comp.rules, comp.bannerUrl, comp.registrationStartsAt, comp.endsAt, comp.liveStartsAt, comp.liveEndsAt]);
 
   async function handleAddImageFile(e) {
     const file = e.target.files?.[0];
@@ -2179,6 +2194,13 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     const trimmedPrize = editPrizeAmount.trim();
     const trimmedContestants = editContestants.trim();
     const trimmedFee = editFee.trim();
+
+    const regStartIso = editRegStart ? new Date(editRegStart).toISOString() : null;
+    const regEndIso = editRegEnd ? new Date(editRegEnd).toISOString() : null;
+    const liveStartIso = editLiveStart ? new Date(editLiveStart).toISOString() : null;
+    const liveEndIso = editLiveEnd ? new Date(editLiveEnd).toISOString() : null;
+    const liveDurSecs = (regEndMs && liveEndMs && liveEndMs > regEndMs) ? Math.round((liveEndMs - regEndMs) / 1000) : WEEK_SECONDS;
+
     const fields = {
       title: editTitle.trim() || comp.title,
       edition: editEdition.trim() || comp.edition,
@@ -2190,15 +2212,13 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
       rewardExtra: editRewardExtra.trim(),
       rules: editRules.split("\n").map((r) => r.trim()).filter(Boolean),
       bannerUrl: editBannerUrl,
-      // Sent whenever the admin picked "Date personnalisée", or used the
-      // quick "+X" extend control on the "Fixe" tab — on plain "Fixe" with
-      // no extension applied, these stay undefined so the server keeps its
-      // 1-week defaults (set at creation, or left alone on an existing
-      // edition).
-      ...(isRegistration && (scheduleMode === "custom" || scheduleDirty)
+      ...(isRegistration
         ? {
-            endsAt: editEndsAt ? new Date(editEndsAt).toISOString() : null,
-            liveDurationSeconds: editLiveDurationSeconds,
+            endsAt: regEndIso,
+            registrationStartsAt: regStartIso,
+            liveStartsAt: liveStartIso,
+            liveEndsAt: liveEndIso,
+            liveDurationSeconds: liveDurSecs,
           }
         : {}),
     };
@@ -5740,92 +5760,60 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
             )}
 
             {isRegistration && (
-              <>
-              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                {[
-                  { key: "fixed", label: "Fixe (1 semaine)" },
-                  { key: "custom", label: "Date personnalisée" },
-                ].map((tab) => {
-                  const active = scheduleMode === tab.key;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setScheduleMode(tab.key)}
-                      style={{
-                        flex: 1,
-                        border: active ? "1px solid #0d0d0d" : "1px solid #2a2a2a",
-                        background: active ? "#0d0d0d" : "#1a1a1a",
-                        color: active ? "#fff" : "#9a9a9a",
-                        borderRadius: 8,
-                        padding: "8px 10px",
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        WebkitTapHighlightColor: "transparent",
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {scheduleMode === "fixed" ? (
-                <div style={{ border: "1px solid #2a2a2a", background: "#242424", borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#c4c4c4", marginBottom: 4 }}>
-                    📅 Inscriptions : 1 semaine (ou moins si complet)
-                  </div>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#c4c4c4", marginBottom: 4 }}>
-                    🔴 Phase en direct : 1 semaine
-                  </div>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", lineHeight: 1.4, marginBottom: 10 }}>
-                    Durées par défaut, gérées automatiquement.
-                  </div>
-
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    Prolonger les inscriptions
-                  </div>
-                  {renderExtendStepper()}
+              <div style={{ background: "#1f1f23", border: "1px solid #2a2a2e", borderRadius: 12, padding: "14px", marginBottom: 16 }}>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                  📅 Planification & Calendrier
                 </div>
-              ) : (
-                <>
-                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    Fin des inscriptions
-                  </label>
-                  <div style={{ marginBottom: 8 }}>
-                    <DateTimePills
-                      value={editEndsAt}
-                      minDate={toDatetimeLocal(new Date().toISOString()).split("T")[0]}
-                      onChange={(next) => {
-                        setEditEndsAt(next);
-                        setEditEnds(next ? fmtCountdown(new Date(next).toISOString()) : "");
-                        setScheduleDirty(true);
-                      }}
-                    />
-                  </div>
-                  <div style={{ marginBottom: 4 }}>{renderExtendStepper()}</div>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 14 }}>
-                    Pilote le vrai compte à rebours.
-                  </div>
 
-                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    Durée de la phase en direct
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+                    Début des inscriptions
                   </label>
-                  {renderLiveDurationStepper()}
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginTop: 8, marginBottom: 10 }}>
-                    Combien de temps durera la phase en direct une fois les inscriptions closes.
-                  </div>
+                  <DateTimePills
+                    value={editRegStart}
+                    onChange={(next) => setEditRegStart(next)}
+                  />
+                </div>
 
-                  {scheduleIncomplete && (
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, fontWeight: 700, color: "#D35400", background: "#2e2013", border: "1px solid #4a3520", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
-                      Choisissez une date de fin d'inscription et une durée pour la phase en direct avant de pouvoir enregistrer.
-                    </div>
-                  )}
-                </>
-              )}
-              </>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+                    Fin des inscriptions (Clôture)
+                  </label>
+                  <DateTimePills
+                    value={editRegEnd}
+                    onChange={(next) => {
+                      setEditRegEnd(next);
+                      setEditEnds(next ? fmtCountdown(new Date(next).toISOString()) : "");
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+                    Début de la phase en direct
+                  </label>
+                  <DateTimePills
+                    value={editLiveStart}
+                    onChange={(next) => setEditLiveStart(next)}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 6 }}>
+                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+                    Fin de la phase en direct (Clôture finale)
+                  </label>
+                  <DateTimePills
+                    value={editLiveEnd}
+                    onChange={(next) => setEditLiveEnd(next)}
+                  />
+                </div>
+
+                {!scheduleValid && (
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, fontWeight: 700, color: "#FF5252", background: "#2e1515", border: "1px solid #5a2222", borderRadius: 8, padding: "8px 10px", marginTop: 10 }}>
+                    ⚠️ Ordre chronologique invalide : Début inscriptions ≤ Fin inscriptions ≤ Début direct ≤ Fin direct.
+                  </div>
+                )}
+              </div>
             )}
 
             {isLive && (
