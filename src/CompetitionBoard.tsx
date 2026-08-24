@@ -24,6 +24,7 @@ import {
   fetchRegistrations,
   refundRegistrationFee,
   isCompOwner,
+  WEEK_SECONDS,
 } from "./App";
 
 async function fetchComments(editionId) {

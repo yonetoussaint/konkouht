@@ -368,7 +368,7 @@ async function fetchCompetitionEditions() {
 // still override either with a custom date/duration via the "Date
 // personnalisée" tab in the edit form; when they don't, these defaults
 // are used.
-const WEEK_SECONDS = 7 * 24 * 60 * 60;
+export const WEEK_SECONDS = 7 * 24 * 60 * 60;
 
 async function createEdition({
   competitionId,
