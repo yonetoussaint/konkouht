@@ -90,3 +90,20 @@ export function getRegistrationFee(comp) {
 export function isValidEmail(str) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str.trim());
 }
+
+// ─── Fake name pool ───────────────────────────────────────────────────────
+
+const FAKE_FIRST = [
+  "Marie", "Jean", "Claudine", "Pierre", "Roseline", "Widlène", "Édouard",
+  "Fabiola", "Kévin", "Nadège", "Josué", "Mirlande", "Christophe", "Yanick",
+  "Lovely", "Réginald", "Sabrina", "Frantz", "Guerlande", "Olivier",
+  "Stéphanie", "Duckens", "Nathalie", "Carline", "Jude", "Ketsia",
+  "Wilner", "Sophonie", "Berlange", "Alix",
+];
+const FAKE_LAST_INIT = "ABCDEFGHJKLMNPRSTW";
+
+export function fakeName(index) {
+  const first = FAKE_FIRST[index % FAKE_FIRST.length];
+  const lastInit = FAKE_LAST_INIT[(index * 7 + 3) % FAKE_LAST_INIT.length];
+  return `${first} ${lastInit}.`;
+}

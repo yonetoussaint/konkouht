@@ -15,6 +15,7 @@ import PhaseRow from "./components/PhaseRow";
 import SkeletonCard from "./components/SkeletonCard";
 import PinField from "./components/PinField";
 import AdminPinSheetShell from "./components/AdminPinSheetShell";
+import MyAvatar from "./components/MyAvatar";
 import { supabase } from "./lib/supabaseClient";
 import {
   mapEditionRow,
@@ -58,6 +59,7 @@ import {
   hashStr,
   getRegistrationFee,
   isValidEmail,
+  fakeName,
 } from "./utils/format";
 
 // Re-export symbols consumed by other entry points, preserving the public
@@ -73,6 +75,8 @@ export {
   fmtCompactPrize,
   hashStr,
   getRegistrationFee,
+  fakeName,
+  MyAvatar,
 };
 
 // ── Required schema (run once in Supabase SQL editor) ──────────────────────
@@ -513,27 +517,6 @@ function BottomTabBar({ active, onChange, unreadCount, currentUser, dark }) {
 </nav>
       );
     }
-export function MyAvatar({ user, size = 34, fontSize = 13, iconSize = 14, loggedBg = "#111", guestBg = "#e0e0e0" }) {
-  if (user?.avatarUrl) {
-    return (
-      <img
-        src={user.avatarUrl}
-        alt={user.fullName || "Profil"}
-        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, display: "block" }}
-      />
-    );
-  }
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%", flexShrink: 0,
-      background: user ? loggedBg : guestBg, color: "#fff",
-      fontFamily: "'Space Grotesk', sans-serif", fontSize, fontWeight: 700,
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
-      {user ? user.fullName.charAt(0).toUpperCase() : <User size={iconSize} color="#999" />}
-    </div>
-  );
-}
 
 function getUnsplashId(compId) {
   const ids = {
@@ -577,24 +560,6 @@ const WHY_STORIES = [
 function getWhyStory(index) {
   return WHY_STORIES[index % WHY_STORIES.length];
 }
-
-/* ─── FAKE NAME POOL ────────────────────────────────────────────────────── */
-
-const FAKE_FIRST = [
-  "Marie", "Jean", "Claudine", "Pierre", "Roseline", "Widlène", "Édouard",
-  "Fabiola", "Kévin", "Nadège", "Josué", "Mirlande", "Christophe", "Yanick",
-  "Lovely", "Réginald", "Sabrina", "Frantz", "Guerlande", "Olivier",
-  "Stéphanie", "Duckens", "Nathalie", "Carline", "Jude", "Ketsia",
-  "Wilner", "Sophonie", "Berlange", "Alix",
-];
-const FAKE_LAST_INIT = "ABCDEFGHJKLMNPRSTW";
-
-export function fakeName(index) {
-  const first = FAKE_FIRST[index % FAKE_FIRST.length];
-  const lastInit = FAKE_LAST_INIT[(index * 7 + 3) % FAKE_LAST_INIT.length];
-  return `${first} ${lastInit}.`;
-}
-
 /* ─── PARTICIPANT LIST OVERLAY ──────────────────────────────────────────── */
 
 // Builds the real, database-backed participant/classement list out of the
