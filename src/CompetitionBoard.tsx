@@ -1954,7 +1954,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // now) — e.g. clicking "+1 jour" twice pushes the deadline out by a day
   // each time, rather than resetting it.
   function extendEndsAt(amountSeconds) {
-    const base = editEndsAt ? new Date(editEndsAt) : comp.endsAt ? new Date(comp.endsAt) : new Date();
+    const base = editEnds ? new Date(editEnds) : comp.endsAt ? new Date(comp.endsAt) : new Date();
     const rawNext = new Date(base.getTime() + amountSeconds * 1000);
     // "Raccourcir" (negative amount) can pull the deadline back, but never
     // earlier than right now — a registration deadline in the past doesn't
@@ -1962,7 +1962,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     // computing a live end that's already ended.
     const now = new Date();
     const next = rawNext.getTime() < now.getTime() ? now : rawNext;
-    setEditEndsAt(toDatetimeLocal(next.toISOString()));
+    setEditEnds(toDatetimeLocal(next.toISOString()));
     setScheduleDirty(true);
   }
   // Stepper state backing the "Prolonger" control on both the "Fixe" and
@@ -1986,7 +1986,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // stepper's amount/unit as the admin adjusts them, without committing
   // anything until they actually click the button.
   function extendPreviewLabel() {
-    const base = editEndsAt ? new Date(editEndsAt) : comp.endsAt ? new Date(comp.endsAt) : new Date();
+    const base = editEnds ? new Date(editEnds) : comp.endsAt ? new Date(comp.endsAt) : new Date();
     if (Number.isNaN(base.getTime())) return null;
     const next = new Date(base.getTime() + extendAmount * EXTEND_UNIT_SECONDS[extendUnit] * 1000);
     return fmtAbsoluteDateTime(next.toISOString());
@@ -2078,7 +2078,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   }
   function renderLiveDurationStepper() {
     const durationSecs = editLiveDurationSeconds ?? 0;
-    const regEndMs = editEndsAt ? new Date(editEndsAt).getTime() : comp.endsAt ? new Date(comp.endsAt).getTime() : Date.now();
+    const regEndMs = editEnds ? new Date(editEnds).getTime() : comp.endsAt ? new Date(comp.endsAt).getTime() : Date.now();
     const liveEndLabel = editLiveDurationSeconds
       ? fmtAbsoluteDateTime(new Date(regEndMs + durationSecs * 1000).toISOString())
       : null;
@@ -5746,9 +5746,9 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                 }}>
                   {isRegistration ? "🕒 Inscriptions" : "● En direct"}
                 </div>
-                {isRegistration && (editEndsAt || comp.endsAt) && (
+                {isRegistration && (editEnds || comp.endsAt) && (
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#c4c4c4", marginBottom: 6 }}>
-                    Se termine le {fmtAbsoluteDateTime(editEndsAt ? new Date(editEndsAt).toISOString() : comp.endsAt)}
+                    Se termine le {fmtAbsoluteDateTime(editEnds ? new Date(editEnds).toISOString() : comp.endsAt)}
                     {scheduleDirty && <span style={{ color: "#00B894" }}> (à enregistrer)</span>}
                   </div>
                 )}
