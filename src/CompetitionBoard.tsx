@@ -5746,9 +5746,9 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                 }}>
                   {isRegistration ? "🕒 Inscriptions" : "● En direct"}
                 </div>
-                {isRegistration && (editEnds || comp.endsAt) && (
+                {isRegistration && (editRegEnd || comp.endsAt) && (
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#c4c4c4", marginBottom: 6 }}>
-                    Se termine le {fmtAbsoluteDateTime(editEnds ? new Date(editEnds).toISOString() : comp.endsAt)}
+                    Se termine le {fmtAbsoluteDateTime(editRegEnd ? editRegEnd : comp.endsAt)}
                     {scheduleDirty && <span style={{ color: "#00B894" }}> (à enregistrer)</span>}
                   </div>
                 )}
@@ -5784,7 +5784,6 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                     value={editRegEnd}
                     onChange={(next) => {
                       setEditRegEnd(next);
-                      setEditEnds(next ? fmtCountdown(new Date(next).toISOString()) : "");
                     }}
                   />
                 </div>
