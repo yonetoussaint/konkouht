@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "cap:sync": "vite build && npx cap sync",
     "cap:ios": "vite build && npx cap sync ios && npx cap open ios",
-    "cap:android": "vite build && npx cap sync android && npx cap open android"
+    "cap:android": "vite build && npx cap sync android && npx cap open android",
+    "supabase-cli": "node cli.js"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",
@@ -20,8 +21,10 @@
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",
     "@lottiefiles/react-lottie-player": "^3.6.0",
-    "@supabase/supabase-js": "^2.45.4",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@supabase/supabase-js": "^2.112.4",
     "lucide-react": "^0.263.1",
+    "playwright": "^1.63.0-alpha-2026-08-05",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^5.3.0",
@@ -30,10 +33,23 @@
   "devDependencies": {
     "@capacitor/android": "^8.4.2",
     "@capacitor/ios": "^8.4.2",
+    "@playwright/cli": "^0.1.18",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
-  }
+  },
+  "main": "browse-and-add.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yonetoussaint/konkouht.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yonetoussaint/konkouht/issues"
+  },
+  "homepage": "https://github.com/yonetoussaint/konkouht#readme"
 }

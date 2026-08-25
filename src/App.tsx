@@ -29,6 +29,9 @@ import {
   deleteCompetitionImage,
   uploadCompetitionImage,
   WEEK_SECONDS,
+  PLATFORM_ORGANIZER_EMAIL,
+  PLATFORM_ORGANIZER_SIGLE,
+  isCompOwner,
 } from "./lib/competitionData";
 import {
   fetchRegistrations,
@@ -77,6 +80,8 @@ export {
   getRegistrationFee,
   fakeName,
   MyAvatar,
+  isCompOwner,
+  PLATFORM_ORGANIZER_SIGLE,
 };
 
 // ── Required schema (run once in Supabase SQL editor) ──────────────────────

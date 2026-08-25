@@ -381,3 +381,25 @@ export async function deleteDraftEdition(editionId) {
   const { error } = await supabase.from(EDITIONS_TABLE).delete().eq("id", editionId);
   return { error };
 }
+
+// ─── Ownership ────────────────────────────────────────────────────────────
+
+// FNCH ("Fédération Nationale des Concours d'Haïti") is the platform's own
+// organizing body — every competition on the app is run under this sigle,
+// and this account is auto-recognized as its verified organizer.
+export const PLATFORM_ORGANIZER_EMAIL = "yonetoussaint25@gmail.com";
+export const PLATFORM_ORGANIZER_SIGLE = "FNCH";
+
+// Every signed-in user can create and manage their own competitions now —
+// not just the platform organizer. A competition/edition is "owned" by
+// whoever created it (comp.createdBy, set once at insert time and never
+// changed by later edits — see createEdition). The platform organizer
+// remains the owner of every pre-existing/seeded competition (the ones
+// with no createdBy yet, or explicitly organized under PLATFORM_ORGANIZER_SIGLE)
+// so nothing already live changes hands. Use this everywhere instead of
+// re-deriving ownership inline, so the rule stays in one place.
+export function isCompOwner(comp, currentUser) {
+  if (!comp || !currentUser?.id) return false;
+  if (comp.createdBy) return comp.createdBy === currentUser.id;
+  return !!currentUser.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
+}

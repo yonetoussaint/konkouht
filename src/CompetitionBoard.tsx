@@ -26,6 +26,16 @@ import {
   isCompOwner,
   WEEK_SECONDS,
 } from "./App";
+import {
+  fetchComments,
+  insertComment,
+  deleteRegistration,
+  deleteParticipantAlbum,
+  notoAnimatedEmojiUrl,
+} from "./lib/competitionBoardData";
+import AnimatedGiftIcon from "./features/competitions/AnimatedGiftIcon";
+import { GIFT_CATALOG, giftPriceHTG } from "./features/competitions/gifts";
+import EntityAvatar from "./features/competitions/EntityAvatar";
 
 async function fetchComments(editionId) {
   const { data, error } = await supabase
@@ -131,153 +141,7 @@ async function deleteParticipantAlbum(uploaderId, editionId) {
 // If that ever becomes a real concern, replace this with a Postgres
 // function (e.g. `increment_wallet_balance(user_id, amount)`) called via
 // supabase.rpc(), which resolves it atomically server-side.
-function notoAnimatedEmojiUrl(emoji) {
-  const codepoints = Array.from(emoji)
-    .map((ch) => ch.codePointAt(0).toString(16))
-    .filter((cp) => cp !== "fe0f");
-  return `https://fonts.gstatic.com/s/e/notoemoji/latest/${codepoints.join("_")}/lottie.json`;
 }
-
-// Renders a gift's icon as an animated sticker instead of a static emoji
-// glyph. Falls back to the plain emoji if the animation fails to load
-// (e.g. no matching Noto animation exists for that emoji, or offline).
-function AnimatedGiftIcon({ emoji, size = 40 }) {
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return (
-      <span style={{ fontSize: size * 0.7, lineHeight: 1, display: "block" }}>
-        {emoji}
-      </span>
-    );
-  }
-
-  return (
-    <Player
-      src={notoAnimatedEmojiUrl(emoji)}
-      autoplay
-      loop
-      onEvent={(event) => {
-        if (event === "error") setFailed(true);
-      }}
-      style={{ width: size, height: size }}
-    />
-  );
-}
-
-// Gift "points" (shown on the icon) are not the same as the actual HTG
-// price charged — points are a display/prestige number, the real cost in
-// gourdes is derived from this rate (e.g. 50 points -> 45 HTG at 0.9).
-const POINTS_TO_HTG_RATE = 0.9;
-function giftPriceHTG(gift) {
-  return Math.round(gift.cost * POINTS_TO_HTG_RATE);
-}
-
-const GIFT_CATALOG = [
-  { id: "g1", name: "Applaudissement", icon: "👏", cost: 10 },
-  { id: "g2", name: "Pouce levé", icon: "👍", cost: 10 },
-  { id: "g3", name: "Cœur", icon: "❤️", cost: 15 },
-  { id: "g4", name: "Étoile", icon: "⭐", cost: 25 },
-  { id: "g5", name: "Ballon", icon: "🎈", cost: 25 },
-  { id: "g6", name: "Fleur", icon: "💐", cost: 30 },
-  { id: "g7", name: "Flamme", icon: "🔥", cost: 50 },
-  { id: "g8", name: "Éclair", icon: "⚡", cost: 50 },
-  { id: "g9", name: "Papillon", icon: "🦋", cost: 60 },
-  { id: "g10", name: "Confettis", icon: "🎉", cost: 75 },
-  { id: "g11", name: "Cadeau", icon: "🎁", cost: 100 },
-  { id: "g12", name: "Micro", icon: "🎤", cost: 100 },
-  { id: "g13", name: "Danse", icon: "💃", cost: 120 },
-  { id: "g14", name: "Couronne", icon: "👑", cost: 150 },
-  { id: "g15", name: "Feu d'artifice", icon: "🎆", cost: 180 },
-  { id: "g16", name: "Guitare", icon: "🎸", cost: 200 },
-  { id: "g17", name: "Arc-en-ciel", icon: "🌈", cost: 220 },
-  { id: "g18", name: "Médaille d'or", icon: "🥇", cost: 250 },
-  { id: "g19", name: "Trophée", icon: "🏆", cost: 300 },
-  { id: "g20", name: "Champagne", icon: "🍾", cost: 350 },
-  { id: "g21", name: "Fusée", icon: "🚀", cost: 400 },
-  { id: "g22", name: "Sirène", icon: "🧜‍♀️", cost: 450 },
-  { id: "g23", name: "Voiture de sport", icon: "🏎️", cost: 500 },
-  { id: "g24", name: "Lion", icon: "🦁", cost: 600 },
-  { id: "g25", name: "Diamant", icon: "💎", cost: 750 },
-  { id: "g26", name: "Yacht", icon: "🛥️", cost: 900 },
-  { id: "g27", name: "Château", icon: "🏰", cost: 1200 },
-  { id: "g28", name: "Avion privé", icon: "✈️", cost: 1500 },
-  { id: "g29", name: "Fusée spatiale", icon: "🛸", cost: 2000 },
-  { id: "g30", name: "Couronne royale", icon: "👑", cost: 3000 },
-];
-
-function fmtAbsoluteDate(target) {
-  const d = new Date(target);
-  if (Number.isNaN(d.getTime())) return "";
-  const date = d.getDate();
-  const month = FR_MONTH_ABBR[d.getMonth()];
-  let hours = d.getHours();
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-  return `${date} ${month}, ${hours}:${minutes} ${ampm}`;
-}
-
-// Date-only variant for CompCard's compact stats row — the card is small
-// enough that the time just adds noise once you already have the "Fin
-// inscr." / "Fin dans" label sitting right next to it.
-const COUNTDOWN_UNITS = [
-  { label: "Y", secs: 31536000 }, // 365d
-  { label: "M", secs: 2592000 },  // 30d ("month")
-  { label: "W", secs: 604800 },
-  { label: "D", secs: 86400 },
-  { label: "H", secs: 3600 },
-  { label: "M", secs: 60 },       // minute
-  { label: "S", secs: 1 },
-];
-function fmtCountdownSecs(s, unitCount = 3) {
-  if (!Number.isFinite(s) || s <= 0) return "Terminé";
-  let startIdx = COUNTDOWN_UNITS.findIndex((u) => s >= u.secs);
-  if (startIdx === -1) startIdx = COUNTDOWN_UNITS.length - 1;
-  let remaining = s;
-  return COUNTDOWN_UNITS.slice(startIdx, startIdx + unitCount)
-    .map((u) => {
-      const val = Math.floor(remaining / u.secs);
-      remaining -= val * u.secs;
-      return `${val}${u.label}`;
-    })
-    .join(" : ");
-}
-
-export function fmtCountdown(target) {
-  const diff = new Date(target).getTime() - Date.now();
-  if (Number.isNaN(diff)) return "";
-  return fmtCountdownSecs(Math.floor(diff / 1000));
-}
-
-// Short French relative-time label for a past timestamp ("À l'instant",
-// "Il y a 12 min", "Il y a 3h") — used in participant-preview rows instead
-// of restating fields already covered by the stat chips.
-function fmtRelativeTime(iso) {
-  const diffSecs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (!Number.isFinite(diffSecs) || diffSecs < 0) return "";
-  if (diffSecs < 60) return "À l'instant";
-  const mins = Math.floor(diffSecs / 60);
-  if (mins < 60) return `Il y a ${mins} min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `Il y a ${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `Il y a ${days}j`;
-}
-
-// Compact prize amount for the card's tight stats-row cell ("50K HTG",
-// "1.2M HTG") — the full precise figure is shown on the competition's own
-// page, this is just a quick-glance number. Returns null when there's no
-// prize set yet (mock seed competitions, or an edition the organizer
-// hasn't filled in) so the caller can fall back to a placeholder dash.
-const COMMENTATORS = [
-  { name: "Marc Fontaine" },
-  { name: "Sophie Laurent" },
-  { name: "Thierry Dubois" },
-  { name: "Karine Joseph" },
-  { name: "Yves Baptiste" },
-];
 
 // Registration fee for a competition, in credits. Organizers can set an
 // explicit comp.fee from the edit screen; competitions that never had one
@@ -294,27 +158,6 @@ export function formatCoins(n) {
   return n.toLocaleString("fr-FR");
 }
 
-function EntityAvatar({ url, name, bg = "#242424", color = "#9a9a9a" }) {
-  if (url) {
-    return (
-      <img
-        src={url}
-        alt={name || ""}
-        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-      />
-    );
-  }
-  return (
-    <div style={{
-      width: "100%", height: "100%",
-      background: bg, color,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
-    }}>
-      {(name || "?").trim().charAt(0).toUpperCase()}
-    </div>
-  );
-}
 
 // Shared header row for the home-preview sections (Participants, Médias,
 // Donateurs, Live) — one component so the icon/label/action treatment can't
