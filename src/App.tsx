@@ -10,6 +10,11 @@ import { shortenEditionUrl } from "./lib/share";
 import { App as CapacitorApp } from "@capacitor/app";
 import { isNative } from "./native";
 import WalletPage from "./WalletPage";
+import NewsBand from "./components/NewsBand";
+import PhaseRow from "./components/PhaseRow";
+import SkeletonCard from "./components/SkeletonCard";
+import PinField from "./components/PinField";
+import AdminPinSheetShell from "./components/AdminPinSheetShell";
 import { supabase } from "./lib/supabaseClient";
 import {
   mapEditionRow,
@@ -427,71 +432,6 @@ const NICHE_ICONS = {
   "Gaming": Gamepad2,
 };
 
-
-/* ─── NEWS BAND ─────────────────────────────────────────────────────────── */
-
-const NEWS_ITEMS = [
-  "✦ Concours de Beauté Saison 1 entre en demi-finale",
-  "🏆 Miss Élégance : la finale approche",
-  "👑 Concours de Beauté — vote en direct, votez maintenant",
-  "📋 Top Model Open dépasse les 20 inscriptions",
-  "✦ Miss Élégance — derniers votes avant la finale",
-];
-
-function NewsBand() {
-  return (
-    <div
-      style={{
-        background: "#18181b",
-        borderTop: "1px solid #2a2a2e",
-        borderBottom: "2px solid #2a2a2e",
-        overflow: "hidden",
-        whiteSpace: "nowrap",
-        padding: "4px 0",
-      }}
-    >
-      <style>{`
-        @keyframes news-scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}</style>
-      <div
-        style={{
-          display: "inline-flex",
-          animation: "news-scroll 30s linear infinite",
-        }}
-      >
-        {[...NEWS_ITEMS, ...NEWS_ITEMS].map((item, i) => (
-          <span
-            key={i}
-            style={{
-              fontFamily: "Inter, sans-serif",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#fff",
-              letterSpacing: "0.02em",
-              padding: "0 20px",
-            }}
-          >
-            {item}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── BOTTOM TAB BAR ────────────────────────────────────────────────────── */
-
-const TABS = [
-  { id: "home", label: "Accueil", icon: Home },
-  { id: "mycomps", label: "Mes compets", icon: BadgeCheck },
-  { id: "wallet", label: "Portefeuille", icon: Wallet },
-  { id: "notifications", label: "Notifs", icon: Bell },
-  { id: "account", label: "Compte", icon: User },
-];
-
 function BottomTabBar({ active, onChange, unreadCount, currentUser, dark }) {
   return (
     <nav
@@ -570,79 +510,9 @@ function BottomTabBar({ active, onChange, unreadCount, currentUser, dark }) {
           </button>
         );
       })}
-    </nav>
-  );
-}
-
-/* ─── PHASE ROW ─────────────────────────────────────────────────────────── */
-
-function PhaseRow({ edition, accent }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        borderTop: "1px solid #2a2a2e",
-        marginLeft: -14,
-        marginRight: -14,
-        paddingLeft: 14,
-        paddingRight: 14,
-        paddingTop: 10,
-        marginTop: 10,
-      }}
-    >
-      <span
-        style={{
-          fontFamily: "Inter, sans-serif",
-          fontSize: 11,
-          color: "#9a9aa0",
-          fontWeight: 500,
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-        }}
-      >
-        Phase
-      </span>
-      <span
-        style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontSize: 13,
-          fontWeight: 700,
-          color: accent,
-        }}
-      >
-        {edition}
-      </span>
-    </div>
-  );
-}
-
-/* ─── SKELETON CARD (feature 1) ─────────────────────────────────────────── */
-function SkeletonCard() {
-  return (
-    <div style={{ flexShrink: 0, width: 272, border: "1px solid #2a2a2e", borderRadius: 18, overflow: "hidden", background: "#1c1c1f" }}>
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -400px 0; }
-          100% { background-position: 400px 0; }
-        }
-        .sk { background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite; }
-      `}</style>
-      <div className="sk" style={{ height: 132 }} />
-      <div style={{ display: "flex", gap: 8, padding: "9px 12px" }}>
-        <div style={{ flex: 1 }}><div className="sk" style={{ height: 15, marginBottom: 4 }} /><div className="sk" style={{ height: 9, width: "60%" }} /></div>
-        <div style={{ flex: 1 }}><div className="sk" style={{ height: 15, marginBottom: 4 }} /><div className="sk" style={{ height: 9, width: "70%" }} /></div>
-        <div style={{ flex: 1 }}><div className="sk" style={{ height: 15, marginBottom: 4 }} /><div className="sk" style={{ height: 9, width: "50%" }} /></div>
-      </div>
-      <div className="sk" style={{ height: 40 }} />
-    </div>
-  );
-}
-
-// Fills the parent circle (which sets width/height/overflow/border) with
-// either the person's real photo, or — when none is on file — a flat
-// initials circle built from their name. Never a stock/mock photo.
+</nav>
+      );
+    }
 export function MyAvatar({ user, size = 34, fontSize = 13, iconSize = 14, loggedBg = "#111", guestBg = "#e0e0e0" }) {
   if (user?.avatarUrl) {
     return (
@@ -3188,70 +3058,6 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
    confirm/reject requires the admin PIN, checked server-side in
    confirm_withdrawal/reject_withdrawal — the PIN itself is never stored or
    compared on the client. ────────────────────────────────────────────── */
-
-// Small numeric PIN input used by both the create/change-PIN sheet and the
-// per-action confirmation prompt below. Deliberately not reusing the
-// user-facing WALLET_PIN input styling 1:1 so the two flows read as
-// distinct in the UI (this one leans on the admin panel's palette).
-function PinField({ value, onChange, autoFocus, error, placeholder = "••••" }) {
-  return (
-    <input
-      type="password"
-      inputMode="numeric"
-      autoFocus={autoFocus}
-      maxLength={6}
-      value={value}
-      onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 6))}
-      placeholder={placeholder}
-      style={{
-        width: "100%",
-        border: `1px solid ${error ? "#E74C3C" : "#ddd"}`,
-        padding: "14px 14px",
-        fontFamily: "'Space Grotesk', sans-serif",
-        fontSize: 22,
-        fontWeight: 700,
-        letterSpacing: "0.4em",
-        textAlign: "center",
-        color: "#f2f2f2",
-        outline: "none",
-        boxSizing: "border-box",
-        marginBottom: 10,
-      }}
-    />
-  );
-}
-
-function AdminPinSheetShell({ title, onClose, children }) {
-  return (
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 1500,
-        background: "rgba(17,17,17,0.5)",
-        display: "flex", alignItems: "flex-end", justifyContent: "center",
-      }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%", maxWidth: 480, background: "#1c1c1f",
-          borderTop: "2px solid #2a2a2e", padding: 16,
-          maxHeight: "85vh", overflowY: "auto",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #2a2a2e" }}>
-          <span style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
-            {title}
-          </span>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#f2f2f2", padding: 4, lineHeight: 0 }}>
-            <X size={20} />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
 
 // Create the admin PIN the first time, or change it afterwards (requires
 // the current PIN to change). Used both from the empty-state prompt and
