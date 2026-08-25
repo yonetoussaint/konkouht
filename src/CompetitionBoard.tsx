@@ -1305,7 +1305,7 @@ function MediaSheet({
                     </span>
                   </div>
                   );
-                })()}
+                })()}$
                 {albums.slice(0, 11).map((album) => {
                   const cover = album.items[0];
                   const count = album.items.length;
@@ -3327,7 +3327,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
         </div>
       </div>
         );
-      })()}
+      })()}$
 
       {/* ── HERO ── */}
       <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0, marginTop: -46 }}>
@@ -3448,7 +3448,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
 
             </>
           );
-        })()}
+        })()}$
       </div>
 
       {/* ── CONTENT SHEET — rounded top corners, sits flush below the hero ── */}
@@ -3596,7 +3596,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                   </div>
                 </div>
               );
-            })()}
+            })()}$
           </div>
           <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 10 }}>
             {isRegistration ? "Prix de base et bonus attendu selon les cadeaux reçus." : "Détail de la cagnotte et de sa progression en direct."}
@@ -3801,7 +3801,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                       }}>🪙 {p.points.toLocaleString("fr-FR")}</span>
                     </div>
                   );
-                })()}
+                })()}$
               </div>
             )}
 
@@ -3941,7 +3941,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                       })}
                     </div>
                   );
-                })()}
+                })()}$
 
                 {/* Animated fill bar — same treatment as the Participants tab's registration bar,
                     with milestone ticks at 25/50/75% to gauge fill speed at a glance. Color ramps
@@ -3994,7 +3994,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                       <style>{`@keyframes bar-glow-pulse { 0%,100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.85); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } }`}</style>
                     </div>
                   );
-                })()}
+                })()}$
 
                 {/* Consolidated stat chips — pulls Places/Frais/Temps into one row right under the bar,
                     instead of scattering them across separate rows below. */}
@@ -4178,7 +4178,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                   )}
                 </div>
               );
-            })()}
+            })()}$
 
             <button
               onClick={() => {
@@ -4448,7 +4448,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
             )}
           </div>
           );
-        })()}
+        })()}$
 
         {/* ── DONATEURS PREVIEW ── */}
         {!isRegistration && (
@@ -4993,7 +4993,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                   </div>
                 </>
               );
-            })()}
+            })()}$
           </div>
         </div>
       )}
@@ -5531,7 +5531,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
             </div>
           </div>
         );
-      })()}
+      })()}$
       <style>{`@keyframes share-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
 
       {showShareSheet && (
@@ -5748,7 +5748,12 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                 </div>
                 {isRegistration && (editRegEnd || comp.endsAt) && (
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#c4c4c4", marginBottom: 6 }}>
-                    Se termine le {fmtAbsoluteDateTime(editRegEnd ? editRegEnd : comp.endsAt)}
+                    Se termine le {(() => {
+                      const raw = editRegEnd || comp.endsAt;
+                      if (!raw) return null;
+                      const d = new Date(raw);
+                      return Number.isNaN(d.getTime()) ? null : fmtAbsoluteDateTime(raw);
+                    })()}$
                     {scheduleDirty && <span style={{ color: "#00B894" }}> (à enregistrer)</span>}
                   </div>
                 )}
