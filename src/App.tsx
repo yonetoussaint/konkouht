@@ -42,11 +42,33 @@ import {
   confirmWithdrawal,
   rejectWithdrawal,
 } from "./lib/walletData";
+import {
+  FR_MONTH_ABBR,
+  fmtCountdown,
+  fmtVotes,
+  formatCoins,
+  fmtAbsoluteDateOnly,
+  estimateEndTimestamp,
+  fmtCompactPrize,
+  hashStr,
+  getRegistrationFee,
+  isValidEmail,
+} from "./utils/format";
 
 // Re-export symbols consumed by other entry points, preserving the public
 // surface this file has always exposed (CompCard, CompetitionBoard,
 // CommentsSheet, WalletPage, etc. import these from "./App").
 export { supabase, isoWeekNumber, WEEK_SECONDS, fetchRegistrations, refundRegistrationFee };
+export {
+  FR_MONTH_ABBR,
+  fmtCountdown,
+  fmtVotes,
+  formatCoins,
+  fmtAbsoluteDateOnly,
+  fmtCompactPrize,
+  hashStr,
+  getRegistrationFee,
+};
 
 // ── Required schema (run once in Supabase SQL editor) ──────────────────────
 //
@@ -405,112 +427,6 @@ const NICHE_ICONS = {
   "Gaming": Gamepad2,
 };
 
-/* ─── HELPERS ───────────────────────────────────────────────────────────── */
-
-// Compact "time remaining" label (e.g. "2j 5h", "3h 20m", "45m") used on
-// CompCard's countdown badge — was imported but never defined.
-export function fmtCountdown(target) {
-  const diffMs = new Date(target).getTime() - Date.now();
-  if (diffMs <= 0) return "Terminé";
-  const totalMin = Math.floor(diffMs / 60000);
-  const days = Math.floor(totalMin / 1440);
-  const hours = Math.floor((totalMin % 1440) / 60);
-  const mins = totalMin % 60;
-  if (days > 0) return `${days}j ${hours}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
-}
-
-export function fmtVotes(n) {
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "k";
-  return n.toString();
-}
-
-// Compact formatter for small counter badges (shares, comments, followers)
-// on CompCard — same "1.2k" style as fmtVotes, kept as its own export since
-// it's conceptually a different kind of count (engagement, not vote tally).
-export function formatCoins(n) {
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "k";
-  return n.toString();
-}
-
-// People read a fixed point in time ("20 Juil, 3:45 PM") far faster than a
-// duration ("2j 12h") — no mental math needed to figure out whether that's
-// tonight or next week. Used for both inscription deadlines and competition
-// end times, wherever we'd otherwise show a countdown-style duration.
-export const FR_MONTH_ABBR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
-export function fmtAbsoluteDateOnly(target) {
-  const d = new Date(target);
-  if (Number.isNaN(d.getTime())) return "";
-  const date = d.getDate();
-  const month = FR_MONTH_ABBR[d.getMonth()];
-  return `${date} ${month}`;
-}
-
-// Compact duration for the card overlay chip ("2j 14h", "6h 22m") — the
-// stats row below already shows the absolute deadline, so this is just a
-// quick-glance urgency cue, not meant to be precise to the minute.
-// Shared with fmtCountdown's parsing logic, but returns a raw timestamp for
-// sorting purposes (e.g. "Se termine bientôt" section) rather than a
-// display string. Mirrors CompCard's own resolvedEndDate derivation so the
-// homepage's notion of "soonest" matches what each card individually shows.
-function estimateEndTimestamp(comp) {
-  // In the live phase the on-screen deadline is the competition's end (which
-  // an organizer can now set explicitly); otherwise it's the registration
-  // deadline. Falls back to the legacy ends text string.
-  if (comp.phase === "live" && comp.liveEndsAt) return new Date(comp.liveEndsAt).getTime();
-  if (comp.endsAt) return new Date(comp.endsAt).getTime();
-  const str = comp.ends || "";
-  let total = 0;
-  const d = str.match(/(\d+)j/); if (d) total += parseInt(d[1]) * 86400;
-  const h = str.match(/(\d+)h/); if (h) total += parseInt(h[1]) * 3600;
-  const m = str.match(/(\d+)m/); if (m) total += parseInt(m[1]) * 60;
-  return Date.now() + (total || 3600) * 1000;
-}
-
-// Shared unit table for dynamic countdowns: always shows the 3 most
-// significant units for the remaining duration (e.g. "2D : 12H : 45M" close
-// to a deadline, "5M : 2W : 23D" months out, "1Y : 12M : 32W" a year+ out,
-// "21H : 23M : 45S" under a day) instead of a fixed d/h/m format that's
-// either cluttered with zeros or too coarse depending on how far off the
-// deadline is.
-export function fmtCompactPrize(amount) {
-  const n = Number(amount);
-  if (!n || Number.isNaN(n) || n <= 0) return null;
-  if (n >= 1_000_000) return `${(n % 1_000_000 === 0 ? n / 1_000_000 : (n / 1_000_000).toFixed(1))}M`;
-  if (n >= 1_000) return `${(n % 1_000 === 0 ? n / 1_000 : (n / 1_000).toFixed(1))}K`;
-  return `${n}`;
-}
-
-// NOTE: the old module-level findCompWithNiche(compId) — which looked up a
-// competition directly in the static NICHES seed data — was removed here.
-// Every id stored anywhere in the app (notifications, registeredCompIds,
-// followedCompIds) is now a specific edition's id, not a seed id, so the
-// lookup has to search each seed competition's editions and needs access
-// to `editionsByComp` state; see findEditionWithNiche inside App().
-
-export function hashStr(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = (h << 5) - h + str.charCodeAt(i);
-    h |= 0;
-  }
-  return h;
-}
-
-// Mock chroniqueurs sportifs for the live audio commentary band. Deterministic
-// per-competition pick via hashStr so the same competition always shows the
-// same commentator. Replace/extend once real hosts are onboarded.
-export function getRegistrationFee(comp) {
-  return comp.fee != null ? comp.fee : 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
-}
-
-// Compact French-style formatting for coin/point totals: 1 200 -> "1,2k",
-// 3 400 000 -> "3,4M". Small numbers stay exact with fr-FR thousands
-// separators so the leaderboard doesn't feel abbreviated for no reason.
-function isValidEmail(str) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str.trim());
-}
 
 /* ─── NEWS BAND ─────────────────────────────────────────────────────────── */
 
