@@ -3256,8 +3256,11 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     if (images.length === 0) return [{ type: "placeholder" }];
     // The organizer's chosen banner (comp.bannerUrl, set via the ★ toggle in
     // edit mode) leads the carousel — same priority CompCard uses for its
-    // thumbnail (comp.bannerUrl || comp.images[0].url). Without this, the
+    // thumbnail (comp.bannerUrl || comp.thumbnailUrl). Without this, the
     // board and the card could show different images as the "first" one.
+    // Note: this carousel still shows the full shared gallery for THIS
+    // edition's detail view — that's intentional and unrelated to the
+    // cross-edition banner leak (comp.thumbnailUrl handles that, see App.tsx).
     const ordered = comp.bannerUrl
       ? [...images].sort((a, b) => (a.url === comp.bannerUrl ? -1 : b.url === comp.bannerUrl ? 1 : 0))
       : images;
