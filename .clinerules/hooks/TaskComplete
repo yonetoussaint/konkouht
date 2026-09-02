@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -e
+
+INPUT=$(cat)
+
+WORKSPACE=$(echo "$INPUT" | jq -r '.workspaceRoots[0] // empty')
+
+if [ -z "$WORKSPACE" ]; then
+    echo '{"cancel":false}'
+    exit 0
+fi
+
+cd "$WORKSPACE"
+
+# Do nothing if there are no changes.
+if [ -z "$(git status --porcelain)" ]; then
+    echo '{"cancel":false}'
+    exit 0
+fi
+
+# Never automatically add common secret files.
+git add -A \
+  ':!.env' \
+  ':!.env.*' \
+  ':!*.pem' \
+  ':!*.key'
+
+# Do nothing if nothing was staged.
+if git diff --cached --quiet; then
+    echo '{"cancel":false}'
+    exit 0
+fi
+
+# Create the commit.
+git commit -m "chore: automated Cline update"
+
+# Push the current branch.
+git push
+
+echo '{"cancel":false}'
