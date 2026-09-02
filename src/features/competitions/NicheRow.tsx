@@ -19,7 +19,7 @@ export const NICHE_ICONS = {
   "Gaming": Gamepad2,
 };
 
-export default function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser }) {
+export default function NicheRow({ niche, onOpen, onOpenComments, onOpenShare, onRegister, registeredCompIds, currentUser }) {
   const railRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -115,7 +115,7 @@ export default function NicheRow({ niche, onOpen, onRegister, registeredCompIds,
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {niche.competitions.map((comp) => (
-          <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={isCompOwner(comp, currentUser)} />
+                    <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={isCompOwner(comp, currentUser)} fullWidth />
         ))}
 
       </div>

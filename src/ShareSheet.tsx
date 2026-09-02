@@ -41,7 +41,7 @@ export default function ShareSheet({ comp, onClose, accent = "#6C63FF", onShared
   // og:title/og:description tags the link unfurls to, so we don't want to
   // prefix the url with raw text. Kept as a variable (rather than always
   // using `url` alone) so a future call site can reintroduce text easily.
-  const text = buildShareText(comp);
+  const text = buildShareText();
   const shareBody = text ? `${text} ${url}` : url;
 
   function handleClose() {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 
-function notoAnimatedEmojiUrl(emoji) {
+function notoAnimatedEmojiUrl(emoji: string) {
   const codepoints = Array.from(emoji)
     .map((ch) => ch.codePointAt(0).toString(16))
     .filter((cp) => cp !== "fe0f");

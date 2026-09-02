@@ -26,7 +26,7 @@ import {
   formatCoins,
 } from "./App";
 
-export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenShare, onRegister, isRegistered, isOwnCompetition, fullWidth }) {
+export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenShare, onRegister, isRegistered, isOwnCompetition, fullWidth = false }) {
   const [voteCount] = useState(comp.votes);
   const [followed, setFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(comp.followers);

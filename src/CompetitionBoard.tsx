@@ -2548,6 +2548,11 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   const basePrizePool = comp.prizeAmount != null && comp.prizeAmount !== ""
     ? Number(comp.prizeAmount)
     : 0;
+  // Prix partagé entre 3 vainqueurs : 50% / 30% / 20%
+  const totalPrizePool = basePrizePool; // will use heroPrizeValue when computed later
+  const firstPlacePrize = Math.round(totalPrizePool * 0.5);
+  const secondPlacePrize = Math.round(totalPrizePool * 0.3);
+  const thirdPlacePrize = totalPrizePool - firstPlacePrize - secondPlacePrize;
   // Real registrants for this competition, fetched from Supabase. Always
   // fetched (not just during "registration") since the voting-phase
   // classement/albums/gift-picker below are now built from these rows
@@ -3503,11 +3508,31 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
             </div>
             {comp.winnerUserId ? (
               <>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 800, marginBottom: 2 }}>
-                  {comp.winnerName} remporte {Number(comp.winnerPrize || 0).toLocaleString("fr-FR")} HTG
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
+                  Podium des vainqueurs
                 </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                  Félicitations au gagnant 🎉
+                <div style={{ display: "flex", justifyContent: "center", gap: 20, marginBottom: 4 }}>
+                  {/* 2nd Place */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", margin: "0 auto 4px", border: "2px solid #F0C420" }} />
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#F0C420", marginBottom: 2 }}>🥈 2nd</div>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>{secondPlacePrize.toLocaleString("fr-FR")} HTG</div>
+                  </div>
+                  {/* 1st Place */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", margin: "0 auto 4px", border: "3px solid #F0C420" }} />
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#F0C420", marginBottom: 2 }}>🥇 1er</div>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800, color: "#f2f2f2" }}>{firstPlacePrize.toLocaleString("fr-FR")} HTG</div>
+                  </div>
+                  {/* 3rd Place */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", margin: "0 auto 4px", border: "2px solid #F0C420" }} />
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#F0C420", marginBottom: 2 }}>🥉 3e</div>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>{thirdPlacePrize.toLocaleString("fr-FR")} HTG</div>
+                  </div>
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+                  Le prix total de {Number(comp.winnerPrize || 0).toLocaleString("fr-FR")} HTG a été réparti.
                 </div>
               </>
             ) : (
@@ -3744,43 +3769,52 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
               ))}
             </div>
 
-            {/* Winner — this platform has one winner per competition (the
-                real, DB-persisted comp.winnerName), not a ranked podium.
-                Flat row, matching the Classement tab's own style. */}
-            {ranked.length > 0 && (
-              <div style={{ padding: "14px 16px 4px" }}>
-                <div style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
-                  marginBottom: 4,
-                }}>
-                  Gagnant
-                </div>
-                {(() => {
-                  const p = ranked[0];
-                  return (
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0" }}>
-                      <span style={{
-                        width: 20, flexShrink: 0, textAlign: "center",
-                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700,
-                        color: accent,
-                      }}>
-                        🥇
-                      </span>
-                      <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: `2px solid ${accent}` }}>
-                        <EntityAvatar url={p.avatarUrl} name={p.name} />
-                      </div>
-                      <span style={{
-                        flex: 1, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
-                        color: "#f2f2f2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>{comp.winnerName || p.name}</span>
-                      <span style={{
-                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700,
-                        color: accent, flexShrink: 0,
-                      }}>🪙 {p.points.toLocaleString("fr-FR")}</span>
+            {/* Podium — three winners sharing the prize pool */}
+            {ranked.length >= 3 && (
+              <>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Podium des vainqueurs</div>
+                <div style={{ display: "flex", alignItems: "end", gap: 12 }}>
+                  {/* 2nd Place (Left) */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", overflow: "hidden", margin: "0 auto 2px", border: `2px solid ${accent}` }}>
+                      <EntityAvatar url={ranked[1].avatarUrl} name={ranked[1].name} />
                     </div>
-                  );
-                })()}
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: accent, marginBottom: 2 }}>🥈</div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, color: "#f2f2f2", background: "#242424", borderRadius: 4, padding: "2px 6px" }}>{ranked[1].points.toLocaleString("fr-FR")}</div>
+                  </div>
+                  {/* 1st Place (Center) */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", overflow: "hidden", margin: "0 auto 2px", border: `3px solid ${accent}` }}>
+                      <EntityAvatar url={ranked[0].avatarUrl} name={ranked[0].name} />
+                    </div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: accent, marginBottom: 2 }}>🥇</div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: "#f2f2f2", background: "#242424", borderRadius: 4, padding: "2px 8px" }}>{ranked[0].points.toLocaleString("fr-FR")}</div>
+                  </div>
+                  {/* 3rd Place (Right) */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", overflow: "hidden", margin: "0 auto 2px", border: `2px solid ${accent}` }}>
+                      <EntityAvatar url={ranked[2].avatarUrl} name={ranked[2].name} />
+                    </div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: accent, marginBottom: 2 }}>🥉</div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, color: "#f2f2f2", background: "#242424", borderRadius: 4, padding: "2px 6px" }}>{ranked[2].points.toLocaleString("fr-FR")}</div>
+                  </div>
+                </div>
+              </>
+            )}
+            {ranked.length >= 1 && ranked.length < 3 && (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#7a7a7a", marginTop: 4 }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#7a7a7a", marginBottom: 2 }}>
+                  Il n'y a que {ranked.length} participant(s) classé pour le podium.
+                </div>
+                {ranked.slice(0, 3).map((winner, index) => (
+                  <div key={winner.id} style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#f2f2f2", marginLeft: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600 }}>{index + 1}°</span>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
+                      <EntityAvatar url={winner.avatarUrl} name={winner.name} />
+                    </div>
+                    <span style={{ flex: 1 }}>{winner.points.toLocaleString("fr-FR")}</span>
+                  </div>
+                ))}
               </div>
             )}
 

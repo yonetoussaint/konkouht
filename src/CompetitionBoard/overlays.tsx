@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import {
-  Trophy, Users, Play, Plus, ArrowLeft, ChevronLeft, Volume2, VolumeX, Hand,
+  Trophy, Users, Play, Plus, ArrowLeft, ChevronLeft, Volume2, VolumeX, Hand, X,
 } from "lucide-react";
 import { fmtVotes, hashStr } from "../App";
 import { fmtRelativeTime } from "./constants";
