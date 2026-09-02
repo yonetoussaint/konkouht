@@ -2934,8 +2934,8 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
           border: `2px solid ${niche.accent}`,
           background: "#26262a", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          {(comp.bannerUrl || comp.images?.[0]?.url) ? (
-            <img src={comp.bannerUrl || comp.images[0].url} alt={comp.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          {(comp.bannerUrl || comp.thumbnailUrl) ? (
+            <img src={comp.bannerUrl || comp.thumbnailUrl} alt={comp.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           ) : (
             <ImageIcon size={16} color="#ccc" />
           )}
@@ -3582,7 +3582,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {filteredEntries.map(({ comp, niche }) => {
-              const thumb = comp.bannerUrl || comp.images?.[0]?.url;
+              const thumb = comp.bannerUrl || comp.thumbnailUrl;
               const isDraft = comp.phase === "draft";
               const isDeleting = deletingId === comp.id;
               const isPublishing = publishingId === comp.id;
@@ -3798,8 +3798,8 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
                               overflow: "hidden", background: "#26262a",
                               display: "flex", alignItems: "center", justifyContent: "center",
                             }}>
-                              {s.comp.bannerUrl || s.comp.images?.[0]?.url ? (
-                                <img src={s.comp.bannerUrl || s.comp.images[0].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              {s.comp.bannerUrl || s.comp.thumbnailUrl ? (
+                                <img src={s.comp.bannerUrl || s.comp.thumbnailUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                               ) : (
                                 <ImageIcon size={16} color="#ccc" />
                               )}
@@ -4726,6 +4726,15 @@ export default function App() {
       registeredCount: compRegCounts[e.id] ?? 0,
       // The gallery is shared across every edition of a series.
       images: compImages[comp.id] || [],
+      // Falling back to the shared gallery's first photo as an implicit
+      // "banner" only makes sense when there's a single edition — with
+      // several editions sharing one pool, that first photo could well be
+      // the one another edition's admin just tagged as *their* banner, so
+      // it would visually "leak" onto every sibling edition that hasn't
+      // set its own. Only offer this fallback when there's no ambiguity.
+      thumbnailUrl: (editionsByComp[comp.id] || []).length <= 1
+        ? (compImages[comp.id] || [])[0]?.url || null
+        : null,
       active: e.active !== false,
       winnerUserId: e.winnerUserId,
       winnerName: e.winnerName,
@@ -5049,20 +5058,24 @@ export default function App() {
   // Home banner slides: any published edition with a dedicated banner (set
   // from the edit screen's "Bannière" section) is shown on the homepage —
   // that's the whole point of that control. Editions without a banner fall
-  // back to their series' first gallery image, but only if they're flagged
-  // "hot"; nothing fake or unintentional ever shows up here. Drafts never
-  // appear — publishedEditionsForComp already excludes them.
+  // back to their series' first gallery image, but only via c.thumbnailUrl,
+  // which is already null whenever that series has more than one edition —
+  // otherwise a photo one admin tagged as edition A's banner could silently
+  // surface as edition B's homepage image too, since the gallery itself is
+  // shared across every edition of a series. Nothing fake or unintentional
+  // ever shows up here. Drafts never appear — publishedEditionsForComp
+  // already excludes them.
   const homeBannerSlides = useMemo(() => {
     return NICHES.flatMap((niche) =>
       niche.competitions.flatMap((seed) =>
         publishedEditionsForComp(seed)
           .filter((c) => c.active !== false)
-          .filter((c) => c.bannerUrl || (c.hot && compImages[c.competitionId]?.length > 0))
+          .filter((c) => c.bannerUrl || (c.hot && c.thumbnailUrl))
           .map((c) => ({
             ...c,
             niche,
             color: niche.accent,
-            image: c.bannerUrl || compImages[c.competitionId][0].url,
+            image: c.bannerUrl || c.thumbnailUrl,
           }))
       )
     ).slice(0, 6);
