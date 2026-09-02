@@ -2296,9 +2296,9 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   const [bannerFullscreen, setBannerFullscreen] = useState(false);
   const [tickFlash, setTickFlash] = useState(false);
   // Bonus punch-up: only the gift bonus bumps/flashes, the base prize stays static
-  const [bonusBump, setBonusBump] = useState(false);
-  const [cagnotteFlash, setCagnotteFlash] = useState(null); // { id, amount } | null
-  const cagnotteFlashTimeoutRef = useRef(null);
+  const [bonusBump, setBonusBump] = useState([false, false, false]); // per place: [1st, 2nd, 3rd]
+  const [cagnotteFlash, setCagnotteFlash] = useState([null, null, null]); // per place: { id, amount } | null
+  const cagnotteFlashTimeoutRefs = useRef([null, null, null]);
 
   // ── Leader row live signals: momentum flash, margin trend, time-in-lead ──
   const leaderSinceRef = useRef(Date.now());
@@ -2884,30 +2884,36 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     const h = Math.floor(m / 60);
     return `${h}h${String(m % 60).padStart(2, "0")}`;
   };
-  const leaderGiftCredits = leader ? leader.points : 0;
-  const bonusValue = isRegistration ? 0 : Math.round(leaderGiftCredits * WINNER_GIFT_SHARE);
-  const winnerPrize = basePrizePool + bonusValue;
-  const heroPrizeValue = isRegistration ? basePrizePool : winnerPrize;
-  // Only the bonus bumps/flashes live — the base prize number stays put
-  const prevBonusRef = useRef(bonusValue);
+  // Prize — three winners: each place's share of registration fees (base,
+  // 50/30/20 via firstPlacePrize/secondPlacePrize/thirdPlacePrize above) +
+  // 30% of that place's own personal gift credits.
+  const placeBasePrizes = [firstPlacePrize, secondPlacePrize, thirdPlacePrize];
+  const placeGiftCredits = [leader ? leader.points : 0, secondPlace ? secondPlace.points : 0, thirdPlace ? thirdPlace.points : 0];
+  const bonusValues = isRegistration ? [0, 0, 0] : placeGiftCredits.map((c) => Math.round(c * WINNER_GIFT_SHARE));
+  const placeTotalPrizes = placeBasePrizes.map((base, i) => base + bonusValues[i]);
+  const heroPrizeValue = placeTotalPrizes.reduce((a, b) => a + b, 0); // grand total across all 3 winners
+  // Only the bonus bumps/flashes live, per place — the base prize number stays put
+  const prevBonusValuesRef = useRef(bonusValues);
   useEffect(() => {
-    if (bonusValue !== prevBonusRef.current) {
-      const delta = bonusValue - prevBonusRef.current;
-      prevBonusRef.current = bonusValue;
-      setBonusBump(true);
-      const t = setTimeout(() => setBonusBump(false), 380);
-      if (delta > 0) {
-        setCagnotteFlash({ id: Date.now(), amount: delta });
-        clearTimeout(cagnotteFlashTimeoutRef.current);
-        cagnotteFlashTimeoutRef.current = setTimeout(() => setCagnotteFlash(null), 1400);
+    bonusValues.forEach((val, i) => {
+      if (val !== prevBonusValuesRef.current[i]) {
+        const delta = val - prevBonusValuesRef.current[i];
+        prevBonusValuesRef.current[i] = val;
+        setBonusBump((prev) => prev.map((b, j) => (j === i ? true : b)));
+        setTimeout(() => setBonusBump((prev) => prev.map((b, j) => (j === i ? false : b))), 380);
+        if (delta > 0) {
+          setCagnotteFlash((prev) => prev.map((f, j) => (j === i ? { id: Date.now() + i, amount: delta } : f)));
+          clearTimeout(cagnotteFlashTimeoutRefs.current[i]);
+          cagnotteFlashTimeoutRefs.current[i] = setTimeout(() => {
+            setCagnotteFlash((prev) => prev.map((f, j) => (j === i ? null : f)));
+          }, 1400);
+        }
       }
-      return () => clearTimeout(t);
-    }
-  }, [bonusValue]);
-  // Contribution breakdown — how much of the pot is base vs. gift bonus
-  const giftBonusValue = Math.max(0, heroPrizeValue - basePrizePool);
-  const giftBonusPct = heroPrizeValue > 0 ? Math.min(100, Math.round((giftBonusValue / heroPrizeValue) * 100)) : 0;
-  // Next round milestone, to create a little anticipation
+    });
+  }, [bonusValues[0], bonusValues[1], bonusValues[2]]);
+  // Contribution breakdown per place — how much of that winner's share is base vs. gift bonus
+  const giftBonusPcts = placeTotalPrizes.map((total, i) => (total > 0 ? Math.min(100, Math.round((bonusValues[i] / total) * 100)) : 0));
+  // Next round milestone for the combined pot, to create a little anticipation
   const nextMilestone = (() => {
     const v = heroPrizeValue;
     const step = v < 5000 ? 1000 : v < 20000 ? 5000 : v < 100000 ? 10000 : 50000;
@@ -3606,12 +3612,12 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
             {isRegistration ? "Prix de base et bonus attendu selon les cadeaux reçus." : "Détail de la cagnotte et de sa progression en direct."}
           </div>
 
-          {/* Prize — single winner: registration fees (base) + 30% of their personal gifts */}
+          {/* Prize — three winners: each place's base share (50/30/20) + 30% of that place's own personal gifts */}
           <div>
 
             {/* Hero cagnotte — gray chip wrapper, matching the Places/Frais/Temps stat chips */}
             <div style={{ position: "relative", background: "#242424", borderRadius: 10, padding: "12px 12px 10px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                 <Trophy size={14} color="#C99A2E" strokeWidth={2.3} />
                 <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#C99A2E", textTransform: "uppercase", letterSpacing: "0.09em" }}>
                   {isRegistration ? "Prix à gagner" : "Cagnotte à gagner"}
@@ -3626,86 +3632,74 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                 )}
               </div>
 
-              <div style={{ display: "flex", gap: 8 }}>
-                {/* Mini card — Prix (base prize), static, never bumps or increments */}
-                <div style={{ flex: 1, background: "#1a1a1a", borderRadius: 8, padding: "10px 10px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: 4 }}>
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                      Prix
+              {/* Three-winner podium — 1st / 2nd / 3rd, each with base share + own gift bonus */}
+              <div style={{ display: "flex", gap: 6 }}>
+                {[
+                  { rank: 1, label: "1er", emoji: "🥇", color: "#C99A2E", base: placeBasePrizes[0], bonus: bonusValues[0], pct: giftBonusPcts[0] },
+                  { rank: 2, label: "2e", emoji: "🥈", color: "#C7CBD1", base: placeBasePrizes[1], bonus: bonusValues[1], pct: giftBonusPcts[1] },
+                  { rank: 3, label: "3e", emoji: "🥉", color: "#CD7F32", base: placeBasePrizes[2], bonus: bonusValues[2], pct: giftBonusPcts[2] },
+                ].map((p, i) => (
+                  <div key={p.rank} style={{ flex: 1, background: "#1a1a1a", borderRadius: 8, padding: "10px 8px", position: "relative", minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, lineHeight: 1 }}>{p.emoji}</span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700, color: p.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        {p.label}
+                      </span>
                     </div>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a", background: "#242424", borderRadius: 999, padding: "2px 6px", letterSpacing: "0.04em", flexShrink: 0 }}>
-                      HTG
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, flexWrap: "wrap" }}>
-                    <span style={{
-                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 800, color: "#f2f2f2",
-                      fontVariantNumeric: "tabular-nums",
-                    }}>
-                      {basePrizePool.toLocaleString("fr-FR")}
-                    </span>
-                  </div>
-                </div>
 
-                {/* Mini card — Bonus (gift-based), the only piece that bumps/increments once live */}
-                <div style={{ flex: 1, background: "#1a1a1a", borderRadius: 8, padding: "10px 10px", position: "relative" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: 4 }}>
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 4 }}>
-                      <Gift size={10} color={accent} strokeWidth={2.5} />
-                      Bonus
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 3, flexWrap: "wrap" }}>
+                      <span style={{
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 800, color: "#f2f2f2",
+                        fontVariantNumeric: "tabular-nums",
+                      }}>
+                        {(p.base + p.bonus).toLocaleString("fr-FR")}
+                      </span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, fontWeight: 700, color: "#7a7a7a" }}>HTG</span>
                     </div>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a", background: "#242424", borderRadius: 999, padding: "2px 6px", letterSpacing: "0.04em", flexShrink: 0 }}>
-                      HTG
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, flexWrap: "wrap" }}>
-                    <span style={{
-                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 800, color: accent,
-                      fontVariantNumeric: "tabular-nums",
-                      transform: bonusBump ? "scale(1.08)" : "scale(1)",
-                      transformOrigin: "left center",
-                      transition: "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
-                      display: "inline-block",
-                    }}>
-                      +{bonusValue.toLocaleString("fr-FR")}
-                    </span>
-                    {cagnotteFlash != null && (
-                      <span key={cagnotteFlash.id} style={{
-                        position: "absolute", right: 8, top: 6,
-                        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 800, color: "#27ae60",
+
+                    {!isRegistration && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 3 }}>
+                        <Gift size={9} color={accent} strokeWidth={2.5} />
+                        <span style={{
+                          fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: accent,
+                          fontVariantNumeric: "tabular-nums",
+                          transform: bonusBump[i] ? "scale(1.08)" : "scale(1)",
+                          transformOrigin: "left center",
+                          transition: "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
+                          display: "inline-block",
+                        }}>
+                          +{p.bonus.toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                    )}
+
+                    {cagnotteFlash[i] != null && (
+                      <span key={cagnotteFlash[i].id} style={{
+                        position: "absolute", right: 6, top: 6,
+                        fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#27ae60",
                         whiteSpace: "nowrap", animation: "float-up-fade 1.4s ease-out forwards",
                       }}>
-                        +{cagnotteFlash.amount.toLocaleString("fr-FR")}
+                        +{cagnotteFlash[i].amount.toLocaleString("fr-FR")}
                       </span>
                     )}
+
+                    {!isRegistration && p.base + p.bonus > 0 && (
+                      <div style={{ marginTop: 6 }}>
+                        <div style={{ display: "flex", width: "100%", height: 4, borderRadius: 2, overflow: "hidden", background: "#242424" }}>
+                          <div style={{ width: `${100 - p.pct}%`, background: "#242424", transition: "width 0.4s ease" }} />
+                          <div style={{ width: `${p.pct}%`, background: accent, transition: "width 0.4s ease" }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                ))}
               </div>
 
-              {isRegistration ? null : (
-                <>
-                  {/* Contribution breakdown — base prize vs. gift bonus, as a thin segmented bar */}
-                  {heroPrizeValue > 0 && (
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ display: "flex", width: "100%", height: 5, borderRadius: 3, overflow: "hidden", background: "#242424" }}>
-                        <div style={{ width: `${100 - giftBonusPct}%`, background: "#242424", transition: "width 0.4s ease" }} />
-                        <div style={{ width: `${giftBonusPct}%`, background: accent, transition: "width 0.4s ease" }} />
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, fontFamily: "Inter, sans-serif", fontSize: 9, color: "#7a7a7a" }}>
-                        <span>Mise de base {(100 - giftBonusPct)}%</span>
-                        <span>Cadeaux {giftBonusPct}%</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Milestone marker — a little anticipation for the next round number */}
-                  {!isCompleted && (
-                    <div style={{ marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 10, color: "#7a7a7a" }}>
-                      Prochain palier : {nextMilestone.toLocaleString("fr-FR")} HTG
-                      <span style={{ marginLeft: 6, color: "#7a7a7a" }}>({milestoneProgressPct}%)</span>
-                    </div>
-                  )}
-                </>
+              {!isRegistration && !isCompleted && (
+                <div style={{ marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 10, color: "#7a7a7a" }}>
+                  Cagnotte totale : {heroPrizeValue.toLocaleString("fr-FR")} HTG · Prochain palier : {nextMilestone.toLocaleString("fr-FR")} HTG
+                  <span style={{ marginLeft: 6, color: "#7a7a7a" }}>({milestoneProgressPct}%)</span>
+                </div>
               )}
 
               {rulesInfo.rewardExtra && (
