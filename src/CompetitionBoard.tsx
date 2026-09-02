@@ -3254,8 +3254,15 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   const heroBannerSlides = useMemo(() => {
     const images = comp.images || [];
     if (images.length === 0) return [{ type: "placeholder" }];
-    return images.map((img) => ({ type: "image", src: img.url }));
-  }, [comp.images]);
+    // The organizer's chosen banner (comp.bannerUrl, set via the ★ toggle in
+    // edit mode) leads the carousel — same priority CompCard uses for its
+    // thumbnail (comp.bannerUrl || comp.images[0].url). Without this, the
+    // board and the card could show different images as the "first" one.
+    const ordered = comp.bannerUrl
+      ? [...images].sort((a, b) => (a.url === comp.bannerUrl ? -1 : b.url === comp.bannerUrl ? 1 : 0))
+      : images;
+    return ordered.map((img) => ({ type: "image", src: img.url }));
+  }, [comp.images, comp.bannerUrl]);
 
   return (
     <div ref={scrollRef} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#242424", overflowY: "auto" }}>
