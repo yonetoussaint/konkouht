@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
+import { createClient } from "@supabase/supabase-js";
 import { Music, PersonStanding, Trophy, Palette, Laugh, Gamepad2, LayoutGrid, Home, Wallet, User, Users, Bell, BadgeCheck, Play, File, Plus, Gift, ArrowDownLeft, ArrowUpRight, ShoppingCart, X, Check, Sparkles, ChevronsUp, ArrowLeft, Send, ChevronRight, ChevronLeft, Copy, CreditCard, HelpCircle, Search, Menu, MessageCircle, Image as ImageIcon, Mail, Lock, Eye, EyeOff, Heart, Share2, Sticker, Info, Volume2, VolumeX, Radio, Mic, MicOff, Hand, Clock, Flame, ArrowUp, ArrowDown, Pencil } from "lucide-react";
 import CompCard from "./CompCard";
 import CompetitionBoard from "./CompetitionBoard";
@@ -10,79 +11,27 @@ import { shortenEditionUrl } from "./lib/share";
 import { App as CapacitorApp } from "@capacitor/app";
 import { isNative } from "./native";
 import WalletPage from "./WalletPage";
-import NewsBand from "./components/NewsBand";
-import PhaseRow from "./components/PhaseRow";
-import SkeletonCard from "./components/SkeletonCard";
-import PinField from "./components/PinField";
-import AdminPinSheetShell from "./components/AdminPinSheetShell";
-import MyAvatar from "./components/MyAvatar";
-import { supabase } from "./lib/supabaseClient";
-import {
-  mapEditionRow,
-  fetchCompetitionEditions,
-  createEdition,
-  isoWeekNumber,
-  saveEditionEdit,
-  deleteDraftEdition,
-  fetchAllCompetitionImages,
-  addCompetitionImage,
-  deleteCompetitionImage,
-  uploadCompetitionImage,
-  WEEK_SECONDS,
-  PLATFORM_ORGANIZER_EMAIL,
-  PLATFORM_ORGANIZER_SIGLE,
-  isCompOwner,
-} from "./lib/competitionData";
-import {
-  fetchRegistrations,
-  fetchAllRegistrationCounts,
-  fetchUserRegistrations,
-  insertRegistration,
-  refundRegistrationFee,
-  EARLY_BIRD_LIMIT,
-  EARLY_BIRD_DISCOUNT,
-} from "./lib/registrationData";
-import {
-  withdrawFromWallet,
-  debitWalletForGift,
-  adminPinExists,
-  setAdminPin,
-  listPendingWithdrawals,
-  confirmWithdrawal,
-  rejectWithdrawal,
-} from "./lib/walletData";
-import {
-  FR_MONTH_ABBR,
-  fmtCountdown,
-  fmtVotes,
-  formatCoins,
-  fmtAbsoluteDateOnly,
-  estimateEndTimestamp,
-  fmtCompactPrize,
-  hashStr,
-  getRegistrationFee,
-  isValidEmail,
-  fakeName,
-} from "./utils/format";
 
-// Re-export symbols consumed by other entry points, preserving the public
-// surface this file has always exposed (CompCard, CompetitionBoard,
-// CommentsSheet, WalletPage, etc. import these from "./App").
-export { supabase, isoWeekNumber, WEEK_SECONDS, fetchRegistrations, refundRegistrationFee };
-export {
-  FR_MONTH_ABBR,
-  fmtCountdown,
-  fmtVotes,
-  formatCoins,
-  fmtAbsoluteDateOnly,
-  fmtCompactPrize,
-  hashStr,
-  getRegistrationFee,
-  fakeName,
-  MyAvatar,
-  isCompOwner,
-  PLATFORM_ORGANIZER_SIGLE,
-};
+/* ─── Supabase client ─────────────────────────────────────────────────────
+   Previously lived in lib/competitionData.js — moved in here along with
+   every competition/registration/comment/gallery data function so this
+   file is the single source of truth for both UI and data access. ────── */
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    "Missing Supabase env vars. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file."
+  );
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
 
 // ── Required schema (run once in Supabase SQL editor) ──────────────────────
 //
@@ -121,14 +70,11 @@ export {
 //   winner_name text,
 //   winner_prize numeric,
 //   closed_at timestamptz,
-//   live_duration_seconds numeric,     -- kept in sync by the client
-//                                       -- (= live_ends_at - live_starts_at)
-//                                       -- so the legacy phase machine still
-//                                       -- has a single duration to read.
-//   registration_starts_at timestamptz, -- Début des inscriptions (éditable librement)
-//   live_starts_at timestamptz,        -- Début de la phase en direct (libre)
-//   live_ends_at timestamptz           -- Fin de la phase en direct (libre)
-//                                       -- ends_at reste la "Fin des inscriptions".
+//   live_duration_seconds numeric,     -- set once at creation (or while still
+//                                       -- in registration); read by
+//                                       -- open_expired_registrations to compute
+//                                       -- the live-phase ends_at at transition
+//                                       -- time. Not editable once phase='live'.
 //   updated_by uuid,
 //   updated_at timestamptz not null default now(),
 //   created_at timestamptz not null default now()
@@ -152,16 +98,6 @@ export {
 //   on competition_editions for delete
 //   to authenticated
 //   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
-//
-// -- Schedule columns for editable registration/live start/end dates. The
-// -- organizer now picks each boundary directly in the edit panel, so add the
-// -- three timestamp columns below to back the four date pickers:
-// --   alter table competition_editions
-// --     add column if not exists registration_starts_at timestamptz,
-// --     add column if not exists live_starts_at timestamptz,
-// --     add column if not exists live_ends_at timestamptz;
-// -- ends_at (Fin des inscriptions) and live_duration_seconds already exist;
-// -- the client keeps live_duration_seconds in sync = live_ends_at - live_starts_at.
 //
 // -- UPDATE: every signed-in user can now create/edit their OWN
 // -- competitions, not just the platform organizer. This needs a
@@ -342,13 +278,589 @@ export {
 //   using ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' )
 //   with check ( (select auth.jwt() ->> 'email') = 'yonetoussaint25@gmail.com' );
 
+const BUCKET = "competition-images";
+const IMAGES_TABLE = "competition_images";
+const EDITIONS_TABLE = "competition_editions";
+
+/* ─── competition_editions ───────────────────────────────────────────────
+   Maps a raw DB row to the camelCase shape used throughout App.jsx (this
+   exact shape is also what the "competition-editions-global" realtime
+   subscription in App.jsx builds by hand from payload.new — keep both in
+   sync if either changes). ──────────────────────────────────────────── */
+function mapEditionRow(row) {
+  return {
+    id: row.id,
+    competitionId: row.competition_id,
+    title: row.title,
+    edition: row.edition,
+    ends: row.ends,
+    endsAt: row.ends_at,
+    phase: row.phase,
+    contestants: row.contestants,
+    bannerUrl: row.banner_url,
+    shortUrl: row.short_url,
+    description: row.description,
+    prizeAmount: row.prize_amount,
+    fee: row.fee,
+    rewardExtra: row.reward_extra,
+    rules: row.rules || [],
+    active: row.active !== false,
+    winnerUserId: row.winner_user_id,
+    winnerName: row.winner_name,
+    winnerPrize: row.winner_prize,
+    closedAt: row.closed_at,
+    liveDurationSeconds: row.live_duration_seconds,
+    createdAt: row.created_at,
+    // Ownership — whoever actually created this edition. Null for older
+    // rows created before this column existed (those fall back to the
+    // platform-organizer default in isCompOwner). `organisateur` lets a
+    // user-created edition show its own creator's name instead of always
+    // inheriting the seed competition's hardcoded "FNCH".
+    createdBy: row.created_by ?? null,
+    organisateur: row.organisateur ?? null,
+  };
+}
+
+// Returns { [competitionId]: [editionObj, ...] } — every edition (drafts
+// included) of every seed competition, grouped by seed id. App.jsx does
+// its own filtering/sorting (e.g. hiding drafts on the homepage) on top
+// of this.
+async function fetchCompetitionEditions() {
+  const { data, error } = await supabase.from(EDITIONS_TABLE).select("*");
+  if (error) {
+    console.error("fetchCompetitionEditions error:", error);
+    return {};
+  }
+  const map = {};
+  (data || []).forEach((row) => {
+    (map[row.competition_id] ||= []).push(mapEditionRow(row));
+  });
+  return map;
+}
+
+// Creates a brand-new edition for a seed competition, in one shot, with
+// every field the admin already filled in on the create form. Replaces
+// the old createDraftEdition + saveEditionEdit two-step flow: that used
+// to insert a bare empty "draft" row the instant the admin picked a
+// template — before they'd typed anything — so backing out of the form
+// left an orphan row behind that had to be deleted separately. Now
+// nothing touches the database until the admin presses "Enregistrer",
+// and it always lands as phase "registration" — there's no draft state
+// for a freshly created edition, it opens for registration right away.
+// Every edition defaults to a fixed schedule — 1 week to register, then
+// (if it isn't already full and live by then) 1 week live. The admin can
+// still override either with a custom date/duration via the "Date
+// personnalisée" tab in the edit form; when they don't, these defaults
+// are used.
+const WEEK_SECONDS = 7 * 24 * 60 * 60;
+
+async function createEdition({
+  competitionId,
+  title,
+  edition,
+  ends,
+  endsAt,
+  contestants,
+  bannerUrl,
+  description,
+  prizeAmount,
+  fee,
+  rewardExtra,
+  rules,
+  liveDurationSeconds,
+  updatedBy,
+  createdBy,
+  organisateur,
+}) {
+  const { data, error } = await supabase
+    .from(EDITIONS_TABLE)
+    .insert({
+      competition_id: competitionId,
+      title,
+      edition,
+      ends,
+      ends_at: endsAt ?? new Date(Date.now() + WEEK_SECONDS * 1000).toISOString(),
+      phase: "registration",
+      contestants,
+      banner_url: bannerUrl,
+      description,
+      prize_amount: prizeAmount,
+      fee,
+      reward_extra: rewardExtra,
+      rules,
+      live_duration_seconds: liveDurationSeconds ?? WEEK_SECONDS,
+      active: true,
+      updated_by: updatedBy,
+      updated_at: new Date().toISOString(),
+      // Ownership is set once, here, at creation — never touched again by
+      // later edits (see saveEditionEdit, which never patches these).
+      created_by: createdBy,
+      organisateur,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("createEdition error:", error);
+    return { data: null, error };
+  }
+
+  // Shorten ONCE, right here at creation time, and persist it to the row —
+  // this is the only place an edition's id is ever new, so it's the only
+  // place that needs to call the shortener. Every future read (this admin's
+  // own next render, every other client, the share sheet, the native share
+  // tap) then just reads short_url straight off the row — no per-client,
+  // per-mount fetch, and nothing to race against a quick share tap or a
+  // fresh app launch. If the shorten call fails here (network hiccup),
+  // shortUrl stays null and callers fall back to the long link or the
+  // mount-time backfill in lib/share.js; it's not retried automatically.
+  const shortUrl = await shortenEditionUrl(data.id);
+  if (shortUrl) {
+    const { data: updated, error: shortenError } = await supabase
+      .from(EDITIONS_TABLE)
+      .update({ short_url: shortUrl })
+      .eq("id", data.id)
+      .select()
+      .single();
+    if (!shortenError && updated) {
+      return { data: mapEditionRow(updated), error: null };
+    }
+    console.error("createEdition: failed to persist short_url:", shortenError);
+  }
+
+  return { data: mapEditionRow(data), error: null };
+}
+
+// ISO-8601 week number (Monday-start, week 1 = the week containing the
+// year's first Thursday) for a given date. Used only to label auto-
+// generated weekly editions ("Semaine 32"), never sent to the database
+// as-is.
+export function isoWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7; // Monday=1 .. Sunday=7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// Updates one existing edition by its own id (owner-only via RLS). Unlike
+// the old single-row-per-competition saveCompetitionEdit, this is always
+// an UPDATE, never an upsert — a new edition is created first via
+// createEdition, so editionId always refers to a real row by the
+// time this is called.
+async function saveEditionEdit({
+  editionId,
+  title,
+  edition,
+  ends,
+  endsAt,
+  phase,
+  contestants,
+  bannerUrl,
+  description,
+  prizeAmount,
+  fee,
+  rewardExtra,
+  rules,
+  active,
+  liveDurationSeconds,
+  updatedBy,
+}) {
+  const patch = { updated_by: updatedBy, updated_at: new Date().toISOString() };
+  if (title !== undefined) patch.title = title;
+  if (edition !== undefined) patch.edition = edition;
+  if (ends !== undefined) patch.ends = ends;
+  if (phase !== undefined) patch.phase = phase;
+  if (contestants !== undefined) patch.contestants = contestants;
+  if (bannerUrl !== undefined) patch.banner_url = bannerUrl;
+  if (description !== undefined) patch.description = description;
+  if (prizeAmount !== undefined) patch.prize_amount = prizeAmount;
+  if (fee !== undefined) patch.fee = fee;
+  if (rewardExtra !== undefined) patch.reward_extra = rewardExtra;
+  if (rules !== undefined) patch.rules = rules;
+  if (active !== undefined) patch.active = active;
+  // endsAt/liveDurationSeconds are no longer admin-typed anywhere — the
+  // only caller that still passes them is handlePublishEdition, which
+  // computes a fixed "now + 1 week" value to start a draft's clock.
+  if (endsAt !== undefined) patch.ends_at = endsAt;
+  if (liveDurationSeconds !== undefined) patch.live_duration_seconds = liveDurationSeconds;
+
+  const { data, error } = await supabase
+    .from(EDITIONS_TABLE)
+    .update(patch)
+    .eq("id", editionId)
+    .select()
+    .single();
+
+  if (error) return { data: null, error };
+  return { data: mapEditionRow(data), error: null };
+}
+
+// Deletes an edition outright (owner-only via RLS). Called after
+// handleDeleteEdition below has already refunded registrants and cleaned
+// up dependent rows (comments/gifts/registrations/media), so this works
+// for a draft OR a published/completed edition — it used to also filter
+// `.eq("phase", "draft")`, which silently no-op'd on any non-draft
+// edition (0 rows matched, no error) and got misread as an RLS block.
+async function deleteDraftEdition(editionId) {
+  const { error } = await supabase
+    .from(EDITIONS_TABLE)
+    .delete()
+    .eq("id", editionId);
+  return { error };
+}
+
+// Downsizes and re-encodes an image before upload so banners stay
+// link-preview-friendly (WhatsApp/Facebook crawlers are unreliable above a
+// couple hundred KB). Falls back to the original file if compression fails
+// or doesn't actually save space — never blocks an upload on this.
+//
+// Reads dimensions via a plain <img> first (cheap — the browser doesn't
+// have to decode full pixel data just to report width/height), then asks
+// createImageBitmap to decode straight to the target size via
+// resizeWidth/resizeHeight. Decoding a 12MP camera photo at full res before
+// scaling it down (the previous approach) is what was making this slow.
+//
+// Returns a plain { body, name, type } object rather than a File — the
+// Android WebView Capacitor runs in doesn't reliably support `new File(...)`
+// even though Blob works fine, so we upload the Blob directly.
+async function compressImageFile(file, { maxDimension = 1280, quality = 0.8 } = {}) {
+  const original = { body: file, name: file.name, type: file.type };
+  if (!file || !file.type?.startsWith("image/")) return original;
+
+  const objectUrl = URL.createObjectURL(file);
+  let naturalWidth, naturalHeight;
+  try {
+    ({ naturalWidth, naturalHeight } = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("image load failed"));
+      img.src = objectUrl;
+    }));
+  } catch {
+    URL.revokeObjectURL(objectUrl);
+    return original;
+  }
+  URL.revokeObjectURL(objectUrl);
+
+  let width = naturalWidth;
+  let height = naturalHeight;
+  if (width > maxDimension || height > maxDimension) {
+    const scale = maxDimension / Math.max(width, height);
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
+  }
+
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file, {
+      resizeWidth: width,
+      resizeHeight: height,
+      resizeQuality: "medium",
+    });
+  } catch {
+    return original;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  if (!blob || blob.size >= file.size) return original;
+
+  const newName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+  return { body: blob, name: newName, type: "image/jpeg" };
+}
+
+
+// Upload a new banner/thumbnail image for a competition and return its
+// public URL. Overwrites any previous file for the same competition.
+async function uploadCompetitionImage({ competitionId, file }) {
+  const img = await compressImageFile(file);
+  const ext = img.name.split(".").pop() || "jpg";
+  const path = `${competitionId}/banner.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, img.body, { upsert: true, cacheControl: "3600", contentType: img.type });
+
+  if (uploadError) {
+    return { url: null, error: uploadError };
+  }
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  const url = `${data.publicUrl}?t=${Date.now()}`;
+  return { url, error: null };
+}
+
+/* ─── competition_images (gallery) ──────────────────────────────────────── */
+
+async function fetchAllCompetitionImages() {
+  const { data, error } = await supabase
+    .from(IMAGES_TABLE)
+    .select("*")
+    .order("position", { ascending: true });
+
+  if (error) {
+    console.error("fetchAllCompetitionImages error:", error);
+    return {};
+  }
+
+  const grouped = {};
+  for (const row of data || []) {
+    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(row.file_path);
+    if (!grouped[row.competition_id]) grouped[row.competition_id] = [];
+    grouped[row.competition_id].push({
+      id: row.id,
+      url: pub.publicUrl,
+      position: row.position,
+    });
+  }
+  return grouped;
+}
+
+async function addCompetitionImage({ competitionId, file, position }) {
+  const img = await compressImageFile(file);
+  const ext = img.name.split(".").pop() || "jpg";
+  const filePath = `${competitionId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(filePath, img.body, { contentType: img.type });
+  if (uploadError) {
+    console.error("addCompetitionImage upload error:", uploadError);
+    return { data: null, error: uploadError };
+  }
+
+  const { data: row, error: insertError } = await supabase
+    .from(IMAGES_TABLE)
+    .insert({ competition_id: competitionId, file_path: filePath, position })
+    .select()
+    .single();
+
+  if (insertError) {
+    console.error("addCompetitionImage insert error:", insertError);
+    await supabase.storage.from(BUCKET).remove([filePath]);
+    return { data: null, error: insertError };
+  }
+
+  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+  return { data: { id: row.id, url: pub.publicUrl, position: row.position }, error: null };
+}
+
+async function deleteCompetitionImage(imageId) {
+  const { data: row, error: fetchError } = await supabase
+    .from(IMAGES_TABLE)
+    .select("file_path")
+    .eq("id", imageId)
+    .single();
+
+  if (fetchError) {
+    console.error("deleteCompetitionImage fetch error:", fetchError);
+    return { error: fetchError };
+  }
+
+  const { error: storageError } = await supabase.storage.from(BUCKET).remove([row.file_path]);
+  if (storageError) {
+    console.error("deleteCompetitionImage storage error:", storageError);
+  }
+
+  const { error } = await supabase.from(IMAGES_TABLE).delete().eq("id", imageId);
+  if (error) {
+    console.error("deleteCompetitionImage delete error:", error);
+  }
+  return { error };
+}
+
+/* ─── comments (edition-scoped) ──────────────────────────────────────────
+   See the schema notes above (edition_id + avatar_url added). ────────── */
+
+async function fetchAllRegistrationCounts() {
+  const { data, error } = await supabase.from("registrations").select("edition_id");
+  if (error) {
+    console.error("fetchAllRegistrationCounts failed:", error.message);
+    return {};
+  }
+  const counts = {};
+  (data || []).forEach((row) => {
+    if (!row.edition_id) return;
+    counts[row.edition_id] = (counts[row.edition_id] || 0) + 1;
+  });
+  return counts;
+}
+
+export async function fetchRegistrations(editionId) {
+  const { data, error } = await supabase
+    .from("registrations")
+    .select("id, user_id, full_name, avatar_url, fee_paid, created_at, is_early_bird")
+    .eq("edition_id", editionId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("fetchRegistrations failed:", error.message);
+    return [];
+  }
+  return data || [];
+}
+
+async function fetchUserRegistrations(userId) {
+  const { data, error } = await supabase
+    .from("registrations")
+    .select("edition_id, competition_id")
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("fetchUserRegistrations failed:", error.message);
+    return [];
+  }
+  return data || [];
+}
+
+// Early-bird rule: the first N registrants (by created_at) on an edition
+// get half their registration fee refunded instantly, straight to their
+// wallet, as soon as they register. Everyone after them pays full price
+// and their fee goes to the prize pool as usual.
+// NOTE: the actual early-bird tagging/discount logic now runs inside
+// register_for_competition (see wallet_rpc_migration.sql), not here. These
+// two constants are kept only for any UI copy that references them (e.g.
+// "first 3 spots") — if you change one, change both places.
+const EARLY_BIRD_LIMIT = 3;
+const EARLY_BIRD_DISCOUNT = 0.5;
+
+// Registration + fee debit + early-bird tagging/discount all happen inside
+// one atomic DB transaction (register_for_competition, see
+// wallet_rpc_migration.sql) — the client never writes wallet_transactions/
+// wallet_balances directly for a registration, and never passes a userId:
+// the function always debits auth.uid(), so a client can't pay as someone
+// else. This is also where the real balance is checked; there's no local
+// "is balance high enough" client check that can go stale or race.
+async function insertRegistration({ editionId, competitionId, fullName, avatarUrl, fee }) {
+  const { data, error } = await supabase.rpc("register_for_competition", {
+    p_edition_id: editionId,
+    p_competition_id: competitionId,
+    p_full_name: fullName,
+    p_avatar_url: avatarUrl,
+    p_fee: fee || 0,
+  });
+
+  if (error) return { data: null, error };
+
+  // The RPC returns a `table(...)`, so postgrest hands it back as an array.
+  const row = Array.isArray(data) ? data[0] : data;
+  return { data: row, error: null };
+}
+
+// Admin-only removal (enforced both client-side by isOwnCompetition/phase
+// checks in App.jsx, and server-side by the "only the platform organizer
+// can delete registrations" RLS policy above). Deletes the row outright —
+// there's no "removed" status, since a removed registration during the
+// registration phase shouldn't linger anywhere in the participant lists.
+// Atomic (row-locked update, no more fetch-then-upsert race) and
+// organizer-only — refund_registration_fee checks the caller's JWT email
+// itself, so this can only ever be called successfully from an
+// organizer-authenticated session (edition deletion, participant removal).
+export async function refundRegistrationFee({ userId, amount, competitionTitle, isEarlyBird }) {
+  if (!amount) return { error: null };
+
+  const { error } = await supabase.rpc("refund_registration_fee", {
+    p_user_id: userId,
+    p_amount: amount,
+    p_competition_title: competitionTitle,
+    p_is_early_bird: !!isEarlyBird,
+  });
+  if (error) {
+    console.error("refundRegistrationFee error:", error);
+    return { error };
+  }
+
+  return { error: null };
+}
+
+// Withdrawals and gift-sends used to be local-state-only (setBalance +
+// a fake `t-${Date.now()}` transaction) and never touched wallet_balances/
+// wallet_transactions at all — the balance and the "history" entry both
+// vanished on refresh since nothing was persisted. These two mirror
+// insertRegistration/refundRegistrationFee above: one atomic RPC call
+// (withdraw_from_wallet / debit_wallet_for_gift, see
+// wallet_rpc_migration.sql) that checks the real balance, debits it, and
+// logs the wallet_transactions row server-side, scoped to auth.uid() so a
+// client can never debit someone else's wallet. The client trusts the
+// returned balance instead of subtracting locally.
+async function withdrawFromWallet({ amount, methodLabel }) {
+  const { data, error } = await supabase.rpc("withdraw_from_wallet", {
+    p_amount: amount,
+    p_method_label: methodLabel,
+  });
+  if (error) return { newBalance: null, error };
+  return { newBalance: Number(data), error: null };
+}
+
+async function debitWalletForGift({ amount, label }) {
+  const { data, error } = await supabase.rpc("debit_wallet_for_gift", {
+    p_amount: amount,
+    p_label: label,
+  });
+  if (error) return { newBalance: null, error };
+  return { newBalance: Number(data), error: null };
+}
+
+// ── Admin withdrawal-confirmation PIN + pending-withdrawal review ─────────
+// Withdrawals now land as `status: "pending"` (see withdraw_from_wallet in
+// the wallet_rpc_migration.sql update) — the balance is debited right
+// away so the same funds can't be withdrawn twice, but nothing is actually
+// paid out until the organizer reviews it here and confirms with a PIN
+// that's stored hashed (bcrypt, via pgcrypto) server-side in
+// admin_settings. The client never sees or stores the PIN itself; every
+// check happens inside the SECURITY DEFINER RPCs, which also re-verify the
+// caller is the organizer.
+async function adminPinExists() {
+  const { data, error } = await supabase.rpc("admin_pin_exists");
+  if (error) return { exists: false, error };
+  return { exists: !!data, error: null };
+}
+
+async function setAdminPin({ newPin, currentPin }) {
+  const { error } = await supabase.rpc("set_admin_pin", {
+    p_new_pin: newPin,
+    p_current_pin: currentPin || null,
+  });
+  return { error };
+}
+
+async function listPendingWithdrawals() {
+  const { data, error } = await supabase.rpc("list_pending_withdrawals");
+  if (error) return { withdrawals: [], error };
+  return { withdrawals: data || [], error: null };
+}
+
+async function confirmWithdrawal({ transactionId, pin }) {
+  const { error } = await supabase.rpc("confirm_withdrawal", {
+    p_transaction_id: transactionId,
+    p_pin: pin,
+  });
+  return { error };
+}
+
+async function rejectWithdrawal({ transactionId, pin, reason }) {
+  const { error } = await supabase.rpc("reject_withdrawal", {
+    p_transaction_id: transactionId,
+    p_pin: pin,
+    p_reason: reason || null,
+  });
+  return { error };
+}
+
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
 // FNCH ("Fédération Nationale des Concours d'Haïti") is the platform's own
 // organizing body — every competition on the app is run under this sigle,
 // and this account is auto-recognized as its verified organizer.
-// PLATFORM_ORGANIZER_EMAIL and PLATFORM_ORGANIZER_SIGLE are imported above
-// from ./lib/competitionData (the single source of truth).
+const PLATFORM_ORGANIZER_EMAIL = "yonetoussaint25@gmail.com";
+export const PLATFORM_ORGANIZER_SIGLE = "FNCH";
 
 // Every signed-in user can create and manage their own competitions now —
 // not just the platform organizer. A competition/edition is "owned" by
@@ -356,8 +868,13 @@ export {
 // changed by later edits — see createEdition). The platform organizer
 // remains the owner of every pre-existing/seeded competition (the ones
 // with no createdBy yet, or explicitly organized under PLATFORM_ORGANIZER_SIGLE)
-// isCompOwner is imported from ./lib/competitionData above (the single
-// source of truth). See the DATA section comment above.
+// so nothing already live changes hands. Use this everywhere instead of
+// re-deriving ownership inline, so the rule stays in one place.
+export function isCompOwner(comp, currentUser) {
+  if (!comp || !currentUser?.id) return false;
+  if (comp.createdBy) return comp.createdBy === currentUser.id;
+  return !!currentUser.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
+}
 
 const NICHES = [
   {
@@ -435,6 +952,173 @@ const NICHE_ICONS = {
   "Beauté": Sparkles,
   "Gaming": Gamepad2,
 };
+
+/* ─── HELPERS ───────────────────────────────────────────────────────────── */
+
+// Compact "time remaining" label (e.g. "2j 5h", "3h 20m", "45m") used on
+// CompCard's countdown badge — was imported but never defined.
+export function fmtCountdown(target) {
+  const diffMs = new Date(target).getTime() - Date.now();
+  if (diffMs <= 0) return "Terminé";
+  const totalMin = Math.floor(diffMs / 60000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const mins = totalMin % 60;
+  if (days > 0) return `${days}j ${hours}h`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
+export function fmtVotes(n) {
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "k";
+  return n.toString();
+}
+
+// Compact formatter for small counter badges (shares, comments, followers)
+// on CompCard — same "1.2k" style as fmtVotes, kept as its own export since
+// it's conceptually a different kind of count (engagement, not vote tally).
+export function formatCoins(n) {
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "k";
+  return n.toString();
+}
+
+// People read a fixed point in time ("20 Juil, 3:45 PM") far faster than a
+// duration ("2j 12h") — no mental math needed to figure out whether that's
+// tonight or next week. Used for both inscription deadlines and competition
+// end times, wherever we'd otherwise show a countdown-style duration.
+export const FR_MONTH_ABBR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+export function fmtAbsoluteDateOnly(target) {
+  const d = new Date(target);
+  if (Number.isNaN(d.getTime())) return "";
+  const date = d.getDate();
+  const month = FR_MONTH_ABBR[d.getMonth()];
+  return `${date} ${month}`;
+}
+
+// Compact duration for the card overlay chip ("2j 14h", "6h 22m") — the
+// stats row below already shows the absolute deadline, so this is just a
+// quick-glance urgency cue, not meant to be precise to the minute.
+// Shared with fmtCountdown's parsing logic, but returns a raw timestamp for
+// sorting purposes (e.g. "Se termine bientôt" section) rather than a
+// display string. Mirrors CompCard's own resolvedEndDate derivation so the
+// homepage's notion of "soonest" matches what each card individually shows.
+function estimateEndTimestamp(comp) {
+  if (comp.endsAt) return new Date(comp.endsAt).getTime();
+  const str = comp.ends || "";
+  let total = 0;
+  const d = str.match(/(\d+)j/); if (d) total += parseInt(d[1]) * 86400;
+  const h = str.match(/(\d+)h/); if (h) total += parseInt(h[1]) * 3600;
+  const m = str.match(/(\d+)m/); if (m) total += parseInt(m[1]) * 60;
+  return Date.now() + (total || 3600) * 1000;
+}
+
+// Shared unit table for dynamic countdowns: always shows the 3 most
+// significant units for the remaining duration (e.g. "2D : 12H : 45M" close
+// to a deadline, "5M : 2W : 23D" months out, "1Y : 12M : 32W" a year+ out,
+// "21H : 23M : 45S" under a day) instead of a fixed d/h/m format that's
+// either cluttered with zeros or too coarse depending on how far off the
+// deadline is.
+export function fmtCompactPrize(amount) {
+  const n = Number(amount);
+  if (!n || Number.isNaN(n) || n <= 0) return null;
+  if (n >= 1_000_000) return `${(n % 1_000_000 === 0 ? n / 1_000_000 : (n / 1_000_000).toFixed(1))}M`;
+  if (n >= 1_000) return `${(n % 1_000 === 0 ? n / 1_000 : (n / 1_000).toFixed(1))}K`;
+  return `${n}`;
+}
+
+// NOTE: the old module-level findCompWithNiche(compId) — which looked up a
+// competition directly in the static NICHES seed data — was removed here.
+// Every id stored anywhere in the app (notifications, registeredCompIds,
+// followedCompIds) is now a specific edition's id, not a seed id, so the
+// lookup has to search each seed competition's editions and needs access
+// to `editionsByComp` state; see findEditionWithNiche inside App().
+
+export function hashStr(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (h << 5) - h + str.charCodeAt(i);
+    h |= 0;
+  }
+  return h;
+}
+
+// Mock chroniqueurs sportifs for the live audio commentary band. Deterministic
+// per-competition pick via hashStr so the same competition always shows the
+// same commentator. Replace/extend once real hosts are onboarded.
+export function getRegistrationFee(comp) {
+  return comp.fee != null ? comp.fee : 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
+}
+
+// Compact French-style formatting for coin/point totals: 1 200 -> "1,2k",
+// 3 400 000 -> "3,4M". Small numbers stay exact with fr-FR thousands
+// separators so the leaderboard doesn't feel abbreviated for no reason.
+function isValidEmail(str) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str.trim());
+}
+
+/* ─── NEWS BAND ─────────────────────────────────────────────────────────── */
+
+const NEWS_ITEMS = [
+  "✦ Concours de Beauté Saison 1 entre en demi-finale",
+  "🏆 Miss Élégance : la finale approche",
+  "👑 Concours de Beauté — vote en direct, votez maintenant",
+  "📋 Top Model Open dépasse les 20 inscriptions",
+  "✦ Miss Élégance — derniers votes avant la finale",
+];
+
+function NewsBand() {
+  return (
+    <div
+      style={{
+        background: "#18181b",
+        borderTop: "1px solid #2a2a2e",
+        borderBottom: "2px solid #2a2a2e",
+        overflow: "hidden",
+        whiteSpace: "nowrap",
+        padding: "4px 0",
+      }}
+    >
+      <style>{`
+        @keyframes news-scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
+      <div
+        style={{
+          display: "inline-flex",
+          animation: "news-scroll 30s linear infinite",
+        }}
+      >
+        {[...NEWS_ITEMS, ...NEWS_ITEMS].map((item, i) => (
+          <span
+            key={i}
+            style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#fff",
+              letterSpacing: "0.02em",
+              padding: "0 20px",
+            }}
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── BOTTOM TAB BAR ────────────────────────────────────────────────────── */
+
+const TABS = [
+  { id: "home", label: "Accueil", icon: Home },
+  { id: "mycomps", label: "Mes compets", icon: BadgeCheck },
+  { id: "wallet", label: "Portefeuille", icon: Wallet },
+  { id: "notifications", label: "Notifs", icon: Bell },
+  { id: "account", label: "Compte", icon: User },
+];
 
 function BottomTabBar({ active, onChange, unreadCount, currentUser, dark }) {
   return (
@@ -514,9 +1198,100 @@ function BottomTabBar({ active, onChange, unreadCount, currentUser, dark }) {
           </button>
         );
       })}
-</nav>
-      );
-    }
+    </nav>
+  );
+}
+
+/* ─── PHASE ROW ─────────────────────────────────────────────────────────── */
+
+function PhaseRow({ edition, accent }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderTop: "1px solid #2a2a2e",
+        marginLeft: -14,
+        marginRight: -14,
+        paddingLeft: 14,
+        paddingRight: 14,
+        paddingTop: 10,
+        marginTop: 10,
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "Inter, sans-serif",
+          fontSize: 11,
+          color: "#9a9aa0",
+          fontWeight: 500,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        Phase
+      </span>
+      <span
+        style={{
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontSize: 13,
+          fontWeight: 700,
+          color: accent,
+        }}
+      >
+        {edition}
+      </span>
+    </div>
+  );
+}
+
+/* ─── SKELETON CARD (feature 1) ─────────────────────────────────────────── */
+function SkeletonCard() {
+  return (
+    <div style={{ flexShrink: 0, width: 272, border: "1px solid #2a2a2e", borderRadius: 18, overflow: "hidden", background: "#1c1c1f" }}>
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: -400px 0; }
+          100% { background-position: 400px 0; }
+        }
+        .sk { background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite; }
+      `}</style>
+      <div className="sk" style={{ height: 132 }} />
+      <div style={{ display: "flex", gap: 8, padding: "9px 12px" }}>
+        <div style={{ flex: 1 }}><div className="sk" style={{ height: 15, marginBottom: 4 }} /><div className="sk" style={{ height: 9, width: "60%" }} /></div>
+        <div style={{ flex: 1 }}><div className="sk" style={{ height: 15, marginBottom: 4 }} /><div className="sk" style={{ height: 9, width: "70%" }} /></div>
+        <div style={{ flex: 1 }}><div className="sk" style={{ height: 15, marginBottom: 4 }} /><div className="sk" style={{ height: 9, width: "50%" }} /></div>
+      </div>
+      <div className="sk" style={{ height: 40 }} />
+    </div>
+  );
+}
+
+// Fills the parent circle (which sets width/height/overflow/border) with
+// either the person's real photo, or — when none is on file — a flat
+// initials circle built from their name. Never a stock/mock photo.
+export function MyAvatar({ user, size = 34, fontSize = 13, iconSize = 14, loggedBg = "#111", guestBg = "#e0e0e0" }) {
+  if (user?.avatarUrl) {
+    return (
+      <img
+        src={user.avatarUrl}
+        alt={user.fullName || "Profil"}
+        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, display: "block" }}
+      />
+    );
+  }
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: user ? loggedBg : guestBg, color: "#fff",
+      fontFamily: "'Space Grotesk', sans-serif", fontSize, fontWeight: 700,
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      {user ? user.fullName.charAt(0).toUpperCase() : <User size={iconSize} color="#999" />}
+    </div>
+  );
+}
 
 function getUnsplashId(compId) {
   const ids = {
@@ -560,6 +1335,24 @@ const WHY_STORIES = [
 function getWhyStory(index) {
   return WHY_STORIES[index % WHY_STORIES.length];
 }
+
+/* ─── FAKE NAME POOL ────────────────────────────────────────────────────── */
+
+const FAKE_FIRST = [
+  "Marie", "Jean", "Claudine", "Pierre", "Roseline", "Widlène", "Édouard",
+  "Fabiola", "Kévin", "Nadège", "Josué", "Mirlande", "Christophe", "Yanick",
+  "Lovely", "Réginald", "Sabrina", "Frantz", "Guerlande", "Olivier",
+  "Stéphanie", "Duckens", "Nathalie", "Carline", "Jude", "Ketsia",
+  "Wilner", "Sophonie", "Berlange", "Alix",
+];
+const FAKE_LAST_INIT = "ABCDEFGHJKLMNPRSTW";
+
+export function fakeName(index) {
+  const first = FAKE_FIRST[index % FAKE_FIRST.length];
+  const lastInit = FAKE_LAST_INIT[(index * 7 + 3) % FAKE_LAST_INIT.length];
+  return `${first} ${lastInit}.`;
+}
+
 /* ─── PARTICIPANT LIST OVERLAY ──────────────────────────────────────────── */
 
 // Builds the real, database-backed participant/classement list out of the
@@ -2280,7 +3073,7 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
   );
 }
 
-function AccountPage({ currentUser, onLoginRequest, onLogout, onOpenAdmin, onUpdateFullName, onUpdateAvatar, showToast }) {
+function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLogout, onOpenAdmin, onUpdateFullName, onUpdateAvatar, showToast }) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -2466,6 +3259,27 @@ function AccountPage({ currentUser, onLoginRequest, onLogout, onOpenAdmin, onUpd
             <ChevronRight size={16} />
           </button>
         )}
+
+        {/* Credits chip — drills into wallet */}
+        <button
+          onClick={onOpenWallet}
+          style={{
+            width: "100%",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            border: "1px solid #fff", background: "#fff", color: "#111",
+            padding: "14px 16px", marginBottom: 24, cursor: "pointer",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Wallet size={18} strokeWidth={2.5} />
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700 }}>
+              {balance.toLocaleString("fr-FR")} crédits
+            </span>
+          </div>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(17,17,17,0.6)" }}>
+            Gérer <ChevronRight size={11} style={{ display: "inline" }} />
+          </span>
+        </button>
 
         {/* Other account links — placeholders for future screens */}
         <div style={{ display: "flex", flexDirection: "column", gap: 1, border: "1px solid #2a2a2e", background: "#1c1c1f" }}>
@@ -3023,6 +3837,70 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
    confirm/reject requires the admin PIN, checked server-side in
    confirm_withdrawal/reject_withdrawal — the PIN itself is never stored or
    compared on the client. ────────────────────────────────────────────── */
+
+// Small numeric PIN input used by both the create/change-PIN sheet and the
+// per-action confirmation prompt below. Deliberately not reusing the
+// user-facing WALLET_PIN input styling 1:1 so the two flows read as
+// distinct in the UI (this one leans on the admin panel's palette).
+function PinField({ value, onChange, autoFocus, error, placeholder = "••••" }) {
+  return (
+    <input
+      type="password"
+      inputMode="numeric"
+      autoFocus={autoFocus}
+      maxLength={6}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 6))}
+      placeholder={placeholder}
+      style={{
+        width: "100%",
+        border: `1px solid ${error ? "#E74C3C" : "#ddd"}`,
+        padding: "14px 14px",
+        fontFamily: "'Space Grotesk', sans-serif",
+        fontSize: 22,
+        fontWeight: 700,
+        letterSpacing: "0.4em",
+        textAlign: "center",
+        color: "#f2f2f2",
+        outline: "none",
+        boxSizing: "border-box",
+        marginBottom: 10,
+      }}
+    />
+  );
+}
+
+function AdminPinSheetShell({ title, onClose, children }) {
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 1500,
+        background: "rgba(17,17,17,0.5)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480, background: "#1c1c1f",
+          borderTop: "2px solid #2a2a2e", padding: 16,
+          maxHeight: "85vh", overflowY: "auto",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #2a2a2e" }}>
+          <span style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
+            {title}
+          </span>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#f2f2f2", padding: 4, lineHeight: 0 }}>
+            <X size={20} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 // Create the admin PIN the first time, or change it afterwards (requires
 // the current PIN to change). Used both from the empty-state prompt and
@@ -3720,10 +4598,7 @@ export default function App() {
             edition: row.edition,
             ends: row.ends,
             phase: row.phase,
-                        endsAt: row.ends_at,
-            registrationStartsAt: row.registration_starts_at,
-            liveStartsAt: row.live_starts_at,
-            liveEndsAt: row.live_ends_at,
+            endsAt: row.ends_at,
             contestants: row.contestants,
             description: row.description,
             prizeAmount: row.prize_amount,
@@ -3831,10 +4706,7 @@ export default function App() {
       edition: e.edition != null ? e.edition : comp.edition,
       ends: e.ends != null ? e.ends : comp.ends,
       phase: e.phase != null ? e.phase : comp.phase,
-            endsAt: e.endsAt != null ? e.endsAt : comp.endsAt,
-      registrationStartsAt: e.registrationStartsAt ?? comp.registrationStartsAt,
-      liveStartsAt: e.liveStartsAt ?? comp.liveStartsAt,
-      liveEndsAt: e.liveEndsAt ?? comp.liveEndsAt,
+      endsAt: e.endsAt != null ? e.endsAt : comp.endsAt,
       contestants: e.contestants != null ? e.contestants : comp.contestants,
       bannerUrl: e.bannerUrl != null ? e.bannerUrl : comp.bannerUrl,
       description: e.description != null ? e.description : comp.description,
@@ -3967,12 +4839,8 @@ export default function App() {
       competitionId: comp.id,
       title: null,
       edition: null,
-            ends: null,
+      ends: null,
       endsAt: null,
-      registrationStartsAt: null,
-      liveStartsAt: null,
-      liveEndsAt: null,
-      liveDurationSeconds: null,
       phase: "registration", // every edition starts open for registration — no draft state
       contestants: null,
       bannerUrl: null,
@@ -3998,7 +4866,7 @@ export default function App() {
   // First real save of a brand-new edition — this is an INSERT (the row
   // never existed before), always forced to phase "registration" inside
   // createEdition itself, not an update to an existing row.
-    async function handleCreateEditionSave({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds, registrationStartsAt, liveStartsAt, liveEndsAt }) {
+  async function handleCreateEditionSave({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
     const { data, error } = await createEdition({
       competitionId,
       title,
@@ -4013,9 +4881,6 @@ export default function App() {
       rules,
       bannerUrl,
       liveDurationSeconds,
-      registrationStartsAt,
-      liveStartsAt,
-      liveEndsAt,
       updatedBy: currentUser?.id,
       createdBy: currentUser?.id,
       organisateur: currentUser?.isOrganizer ? PLATFORM_ORGANIZER_SIGLE : (currentUser?.fullName || "Organisateur"),
@@ -4038,14 +4903,8 @@ export default function App() {
   // Publishes a draft edition — flips it to "registration" phase and marks
   // it active, so it starts showing up on the homepage/admin list as a
   // real, open competition instead of a hidden draft.
-    async function handlePublishEdition(comp) {
-    // Publishing a draft starts its clock immediately: inscription opens now,
-    // closes in a week, the live phase starts when inscription closes and
-    // runs a week — all set up as a complete default schedule the organizer
-    // can then reshape freely from the edit panel.
-    const publishedRegStart = new Date().toISOString();
+  async function handlePublishEdition(comp) {
     const publishedEndsAt = new Date(Date.now() + WEEK_SECONDS * 1000).toISOString();
-    const publishedLiveEndsAt = new Date(Date.now() + 2 * WEEK_SECONDS * 1000).toISOString();
     const { error } = await saveEditionEdit({
       editionId: comp.id,
       phase: "registration",
@@ -4053,9 +4912,6 @@ export default function App() {
       // Auto-created drafts (from close_expired_competitions) never had a
       // deadline set, so publishing is what starts their 1-week clock.
       endsAt: publishedEndsAt,
-      registrationStartsAt: publishedRegStart,
-      liveStartsAt: publishedEndsAt, // the live phase begins the instant inscription closes
-      liveEndsAt: publishedLiveEndsAt,
       liveDurationSeconds: WEEK_SECONDS,
       updatedBy: currentUser?.id,
     });
@@ -4069,7 +4925,7 @@ export default function App() {
       return {
         ...prev,
         [comp.competitionId]: list.map((e) =>
-          e.id === comp.id ? { ...e, phase: "registration", active: true, endsAt: publishedEndsAt, registrationStartsAt: publishedRegStart, liveStartsAt: publishedEndsAt, liveEndsAt: publishedLiveEndsAt, liveDurationSeconds: WEEK_SECONDS } : e
+          e.id === comp.id ? { ...e, phase: "registration", active: true, endsAt: publishedEndsAt, liveDurationSeconds: WEEK_SECONDS } : e
         ),
       };
     });
@@ -4213,11 +5069,11 @@ export default function App() {
   }, [compImages, editionsByComp, compRegCounts]);
 
 
-    async function handleEditComp({ editionId, competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds, registrationStartsAt, liveStartsAt, liveEndsAt }) {
+  async function handleEditComp({ editionId, competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
     // TEMP DEBUG — remove once we've confirmed the session is attached.
     const { data: debugSession } = await supabase.auth.getSession();
     console.log("[DEBUG] session email:", debugSession.session?.user?.email, "has token:", !!debugSession.session?.access_token);
-    const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds, registrationStartsAt, liveStartsAt, liveEndsAt };
+    const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds };
     const { data, error } = await saveEditionEdit({
       editionId,
       ...edits,
@@ -4240,15 +5096,11 @@ export default function App() {
       const nextList = idx === -1 ? [...list, data] : list.map((e, i) => (i === idx ? { ...e, ...data } : e));
       return { ...prev, [competitionId]: nextList };
     });
-        setSelectedComp((prev) => (prev && prev.id === editionId ? {
+    setSelectedComp((prev) => (prev && prev.id === editionId ? {
       ...prev,
       ...edits,
       contestants: edits.contestants != null ? edits.contestants : prev.contestants,
       endsAt: edits.endsAt != null ? edits.endsAt : prev.endsAt,
-      registrationStartsAt: edits.registrationStartsAt ?? prev.registrationStartsAt,
-      liveStartsAt: edits.liveStartsAt ?? prev.liveStartsAt,
-      liveEndsAt: edits.liveEndsAt ?? prev.liveEndsAt,
-      liveDurationSeconds: edits.liveDurationSeconds != null ? edits.liveDurationSeconds : prev.liveDurationSeconds,
       fee: edits.fee != null ? edits.fee : prev.fee,
     } : prev));
     showToast(phase === "draft" ? "Brouillon enregistré." : "Compétition mise à jour.");
@@ -5129,6 +5981,8 @@ export default function App() {
       ) : activeTab === "account" ? (
         <AccountPage
           currentUser={currentUser}
+          balance={balance}
+          onOpenWallet={() => setActiveTab("wallet")}
           onLoginRequest={() => setShowAuthOverlay(true)}
           onLogout={handleLogout}
           onOpenAdmin={() => setActiveTab("admin")}
