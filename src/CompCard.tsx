@@ -78,9 +78,9 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
     >
       {/* Banner */}
       <div style={{ height: fullWidth ? 194 : 126, position: "relative", flexShrink: 0, overflow: "hidden", background: "#26262a" }}>
-        {(comp.bannerUrl || comp.images?.[0]?.url) ? (
+        {(comp.bannerUrl || comp.thumbnailUrl) ? (
           <img
-            src={comp.bannerUrl || comp.images[0].url}
+            src={comp.bannerUrl || comp.thumbnailUrl}
             alt={comp.title}
             style={{
               width: "100%", height: "100%", objectFit: "cover", display: "block",
