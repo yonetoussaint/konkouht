@@ -24,7 +24,18 @@ import {
   fetchRegistrations,
   refundRegistrationFee,
   isCompOwner,
+  WEEK_SECONDS,
 } from "./App";
+import {
+  fetchComments,
+  insertComment,
+  deleteRegistration,
+  deleteParticipantAlbum,
+  notoAnimatedEmojiUrl,
+} from "./lib/competitionBoardData";
+import AnimatedGiftIcon from "./features/competitions/AnimatedGiftIcon";
+import { GIFT_CATALOG, giftPriceHTG } from "./features/competitions/gifts";
+import EntityAvatar from "./features/competitions/EntityAvatar";
 
 async function fetchComments(editionId) {
   const { data, error } = await supabase
@@ -130,153 +141,7 @@ async function deleteParticipantAlbum(uploaderId, editionId) {
 // If that ever becomes a real concern, replace this with a Postgres
 // function (e.g. `increment_wallet_balance(user_id, amount)`) called via
 // supabase.rpc(), which resolves it atomically server-side.
-function notoAnimatedEmojiUrl(emoji) {
-  const codepoints = Array.from(emoji)
-    .map((ch) => ch.codePointAt(0).toString(16))
-    .filter((cp) => cp !== "fe0f");
-  return `https://fonts.gstatic.com/s/e/notoemoji/latest/${codepoints.join("_")}/lottie.json`;
 }
-
-// Renders a gift's icon as an animated sticker instead of a static emoji
-// glyph. Falls back to the plain emoji if the animation fails to load
-// (e.g. no matching Noto animation exists for that emoji, or offline).
-function AnimatedGiftIcon({ emoji, size = 40 }) {
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return (
-      <span style={{ fontSize: size * 0.7, lineHeight: 1, display: "block" }}>
-        {emoji}
-      </span>
-    );
-  }
-
-  return (
-    <Player
-      src={notoAnimatedEmojiUrl(emoji)}
-      autoplay
-      loop
-      onEvent={(event) => {
-        if (event === "error") setFailed(true);
-      }}
-      style={{ width: size, height: size }}
-    />
-  );
-}
-
-// Gift "points" (shown on the icon) are not the same as the actual HTG
-// price charged — points are a display/prestige number, the real cost in
-// gourdes is derived from this rate (e.g. 50 points -> 45 HTG at 0.9).
-const POINTS_TO_HTG_RATE = 0.9;
-function giftPriceHTG(gift) {
-  return Math.round(gift.cost * POINTS_TO_HTG_RATE);
-}
-
-const GIFT_CATALOG = [
-  { id: "g1", name: "Applaudissement", icon: "👏", cost: 10 },
-  { id: "g2", name: "Pouce levé", icon: "👍", cost: 10 },
-  { id: "g3", name: "Cœur", icon: "❤️", cost: 15 },
-  { id: "g4", name: "Étoile", icon: "⭐", cost: 25 },
-  { id: "g5", name: "Ballon", icon: "🎈", cost: 25 },
-  { id: "g6", name: "Fleur", icon: "💐", cost: 30 },
-  { id: "g7", name: "Flamme", icon: "🔥", cost: 50 },
-  { id: "g8", name: "Éclair", icon: "⚡", cost: 50 },
-  { id: "g9", name: "Papillon", icon: "🦋", cost: 60 },
-  { id: "g10", name: "Confettis", icon: "🎉", cost: 75 },
-  { id: "g11", name: "Cadeau", icon: "🎁", cost: 100 },
-  { id: "g12", name: "Micro", icon: "🎤", cost: 100 },
-  { id: "g13", name: "Danse", icon: "💃", cost: 120 },
-  { id: "g14", name: "Couronne", icon: "👑", cost: 150 },
-  { id: "g15", name: "Feu d'artifice", icon: "🎆", cost: 180 },
-  { id: "g16", name: "Guitare", icon: "🎸", cost: 200 },
-  { id: "g17", name: "Arc-en-ciel", icon: "🌈", cost: 220 },
-  { id: "g18", name: "Médaille d'or", icon: "🥇", cost: 250 },
-  { id: "g19", name: "Trophée", icon: "🏆", cost: 300 },
-  { id: "g20", name: "Champagne", icon: "🍾", cost: 350 },
-  { id: "g21", name: "Fusée", icon: "🚀", cost: 400 },
-  { id: "g22", name: "Sirène", icon: "🧜‍♀️", cost: 450 },
-  { id: "g23", name: "Voiture de sport", icon: "🏎️", cost: 500 },
-  { id: "g24", name: "Lion", icon: "🦁", cost: 600 },
-  { id: "g25", name: "Diamant", icon: "💎", cost: 750 },
-  { id: "g26", name: "Yacht", icon: "🛥️", cost: 900 },
-  { id: "g27", name: "Château", icon: "🏰", cost: 1200 },
-  { id: "g28", name: "Avion privé", icon: "✈️", cost: 1500 },
-  { id: "g29", name: "Fusée spatiale", icon: "🛸", cost: 2000 },
-  { id: "g30", name: "Couronne royale", icon: "👑", cost: 3000 },
-];
-
-function fmtAbsoluteDate(target) {
-  const d = new Date(target);
-  if (Number.isNaN(d.getTime())) return "";
-  const date = d.getDate();
-  const month = FR_MONTH_ABBR[d.getMonth()];
-  let hours = d.getHours();
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-  return `${date} ${month}, ${hours}:${minutes} ${ampm}`;
-}
-
-// Date-only variant for CompCard's compact stats row — the card is small
-// enough that the time just adds noise once you already have the "Fin
-// inscr." / "Fin dans" label sitting right next to it.
-const COUNTDOWN_UNITS = [
-  { label: "Y", secs: 31536000 }, // 365d
-  { label: "M", secs: 2592000 },  // 30d ("month")
-  { label: "W", secs: 604800 },
-  { label: "D", secs: 86400 },
-  { label: "H", secs: 3600 },
-  { label: "M", secs: 60 },       // minute
-  { label: "S", secs: 1 },
-];
-function fmtCountdownSecs(s, unitCount = 3) {
-  if (!Number.isFinite(s) || s <= 0) return "Terminé";
-  let startIdx = COUNTDOWN_UNITS.findIndex((u) => s >= u.secs);
-  if (startIdx === -1) startIdx = COUNTDOWN_UNITS.length - 1;
-  let remaining = s;
-  return COUNTDOWN_UNITS.slice(startIdx, startIdx + unitCount)
-    .map((u) => {
-      const val = Math.floor(remaining / u.secs);
-      remaining -= val * u.secs;
-      return `${val}${u.label}`;
-    })
-    .join(" : ");
-}
-
-export function fmtCountdown(target) {
-  const diff = new Date(target).getTime() - Date.now();
-  if (Number.isNaN(diff)) return "";
-  return fmtCountdownSecs(Math.floor(diff / 1000));
-}
-
-// Short French relative-time label for a past timestamp ("À l'instant",
-// "Il y a 12 min", "Il y a 3h") — used in participant-preview rows instead
-// of restating fields already covered by the stat chips.
-function fmtRelativeTime(iso) {
-  const diffSecs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (!Number.isFinite(diffSecs) || diffSecs < 0) return "";
-  if (diffSecs < 60) return "À l'instant";
-  const mins = Math.floor(diffSecs / 60);
-  if (mins < 60) return `Il y a ${mins} min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `Il y a ${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `Il y a ${days}j`;
-}
-
-// Compact prize amount for the card's tight stats-row cell ("50K HTG",
-// "1.2M HTG") — the full precise figure is shown on the competition's own
-// page, this is just a quick-glance number. Returns null when there's no
-// prize set yet (mock seed competitions, or an edition the organizer
-// hasn't filled in) so the caller can fall back to a placeholder dash.
-const COMMENTATORS = [
-  { name: "Marc Fontaine" },
-  { name: "Sophie Laurent" },
-  { name: "Thierry Dubois" },
-  { name: "Karine Joseph" },
-  { name: "Yves Baptiste" },
-];
 
 // Registration fee for a competition, in credits. Organizers can set an
 // explicit comp.fee from the edit screen; competitions that never had one
@@ -293,27 +158,6 @@ export function formatCoins(n) {
   return n.toLocaleString("fr-FR");
 }
 
-function EntityAvatar({ url, name, bg = "#242424", color = "#9a9a9a" }) {
-  if (url) {
-    return (
-      <img
-        src={url}
-        alt={name || ""}
-        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-      />
-    );
-  }
-  return (
-    <div style={{
-      width: "100%", height: "100%",
-      background: bg, color,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
-    }}>
-      {(name || "?").trim().charAt(0).toUpperCase()}
-    </div>
-  );
-}
 
 // Shared header row for the home-preview sections (Participants, Médias,
 // Donateurs, Live) — one component so the icon/label/action treatment can't
@@ -1304,7 +1148,7 @@ function MediaSheet({
                     </span>
                   </div>
                   );
-                })()}
+                })()}$
                 {albums.slice(0, 11).map((album) => {
                   const cover = album.items[0];
                   const count = album.items.length;
@@ -1926,9 +1770,24 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // 1 week too — both computed server-side. The "Fixe" tab leaves it at
   // that default; the "Date personnalisée" tab lets the admin override
   // either with a specific deadline/duration.
-  const [scheduleMode, setScheduleMode] = useState(comp.endsAt ? "custom" : "fixed");
-  const [editEndsAt, setEditEndsAt] = useState(toDatetimeLocal(comp.endsAt));
-  const [editLiveDurationSeconds, setEditLiveDurationSeconds] = useState(comp.liveDurationSeconds ?? null);
+  // The four freely-editable schedule dates for this competition edition.
+  const now = new Date();
+  const defaultRegStart = comp.registrationStartsAt ? toDatetimeLocal(comp.registrationStartsAt) : toDatetimeLocal(now.toISOString());
+  const defaultRegEnd = comp.endsAt ? toDatetimeLocal(comp.endsAt) : toDatetimeLocal(new Date(now.getTime() + WEEK_SECONDS * 1000).toISOString());
+  const defaultLiveStart = comp.liveStartsAt ? toDatetimeLocal(comp.liveStartsAt) : defaultRegEnd;
+  const defaultLiveEnd = comp.liveEndsAt ? toDatetimeLocal(comp.liveEndsAt) : toDatetimeLocal(new Date(new Date(defaultLiveStart).getTime() + WEEK_SECONDS * 1000).toISOString());
+
+  const [editRegStart, setEditRegStart] = useState(defaultRegStart);
+  const [editRegEnd, setEditRegEnd] = useState(defaultRegEnd);
+  const [editLiveStart, setEditLiveStart] = useState(defaultLiveStart);
+  const [editLiveEnd, setEditLiveEnd] = useState(defaultLiveEnd);
+
+  const regStartMs = new Date(editRegStart).getTime();
+  const regEndMs = new Date(editRegEnd).getTime();
+  const liveStartMs = new Date(editLiveStart).getTime();
+  const liveEndMs = new Date(editLiveEnd).getTime();
+  const scheduleValid = !Number.isNaN(regStartMs) && !Number.isNaN(regEndMs) && !Number.isNaN(liveStartMs) && !Number.isNaN(liveEndMs) &&
+    regStartMs <= regEndMs && regEndMs <= liveStartMs && liveStartMs <= liveEndMs;
   // Set the moment the admin uses the quick "+X heures/jours/semaines"
   // extend control on the "Fixe" tab — that's a real, deliberate change to
   // the deadline even though the tab itself never otherwise sends endsAt.
@@ -1938,7 +1797,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // now) — e.g. clicking "+1 jour" twice pushes the deadline out by a day
   // each time, rather than resetting it.
   function extendEndsAt(amountSeconds) {
-    const base = editEndsAt ? new Date(editEndsAt) : comp.endsAt ? new Date(comp.endsAt) : new Date();
+    const base = editEnds ? new Date(editEnds) : comp.endsAt ? new Date(comp.endsAt) : new Date();
     const rawNext = new Date(base.getTime() + amountSeconds * 1000);
     // "Raccourcir" (negative amount) can pull the deadline back, but never
     // earlier than right now — a registration deadline in the past doesn't
@@ -1946,7 +1805,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     // computing a live end that's already ended.
     const now = new Date();
     const next = rawNext.getTime() < now.getTime() ? now : rawNext;
-    setEditEndsAt(toDatetimeLocal(next.toISOString()));
+    setEditEnds(toDatetimeLocal(next.toISOString()));
     setScheduleDirty(true);
   }
   // Stepper state backing the "Prolonger" control on both the "Fixe" and
@@ -1970,7 +1829,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // stepper's amount/unit as the admin adjusts them, without committing
   // anything until they actually click the button.
   function extendPreviewLabel() {
-    const base = editEndsAt ? new Date(editEndsAt) : comp.endsAt ? new Date(comp.endsAt) : new Date();
+    const base = editEnds ? new Date(editEnds) : comp.endsAt ? new Date(comp.endsAt) : new Date();
     if (Number.isNaN(base.getTime())) return null;
     const next = new Date(base.getTime() + extendAmount * EXTEND_UNIT_SECONDS[extendUnit] * 1000);
     return fmtAbsoluteDateTime(next.toISOString());
@@ -2062,7 +1921,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   }
   function renderLiveDurationStepper() {
     const durationSecs = editLiveDurationSeconds ?? 0;
-    const regEndMs = editEndsAt ? new Date(editEndsAt).getTime() : comp.endsAt ? new Date(comp.endsAt).getTime() : Date.now();
+    const regEndMs = editEnds ? new Date(editEnds).getTime() : comp.endsAt ? new Date(comp.endsAt).getTime() : Date.now();
     const liveEndLabel = editLiveDurationSeconds
       ? fmtAbsoluteDateTime(new Date(regEndMs + durationSecs * 1000).toISOString())
       : null;
@@ -2126,7 +1985,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // Only required when the admin has actively chosen "Date personnalisée"
   // — the "Fixe" tab never blocks saving, since the server fills in the
   // defaults itself.
-  const scheduleIncomplete = !isCompleted && isRegistration && scheduleMode === "custom" && (!editEndsAt || !editLiveDurationSeconds);
+  const scheduleIncomplete = !isCompleted && isRegistration && !scheduleValid;
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removingImageId, setRemovingImageId] = useState(null);
   const images = comp.images || [];
@@ -2143,11 +2002,11 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     setEditRewardExtra(comp.rewardExtra || "");
     setEditRules((comp.rules || []).join("\n"));
     setEditBannerUrl(comp.bannerUrl || null);
-    setEditEndsAt(toDatetimeLocal(comp.endsAt));
-    setEditLiveDurationSeconds(comp.liveDurationSeconds ?? null);
-    setScheduleMode(comp.endsAt ? "custom" : "fixed");
-    setScheduleDirty(false);
-  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.description, comp.prizeAmount, comp.fee, comp.rewardExtra, comp.rules, comp.bannerUrl, comp.endsAt, comp.liveDurationSeconds]);
+    if (comp.registrationStartsAt) setEditRegStart(toDatetimeLocal(comp.registrationStartsAt));
+    if (comp.endsAt) setEditRegEnd(toDatetimeLocal(comp.endsAt));
+    if (comp.liveStartsAt) setEditLiveStart(toDatetimeLocal(comp.liveStartsAt));
+    if (comp.liveEndsAt) setEditLiveEnd(toDatetimeLocal(comp.liveEndsAt));
+  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.description, comp.prizeAmount, comp.fee, comp.rewardExtra, comp.rules, comp.bannerUrl, comp.registrationStartsAt, comp.endsAt, comp.liveStartsAt, comp.liveEndsAt]);
 
   async function handleAddImageFile(e) {
     const file = e.target.files?.[0];
@@ -2179,6 +2038,13 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     const trimmedPrize = editPrizeAmount.trim();
     const trimmedContestants = editContestants.trim();
     const trimmedFee = editFee.trim();
+
+    const regStartIso = editRegStart ? new Date(editRegStart).toISOString() : null;
+    const regEndIso = editRegEnd ? new Date(editRegEnd).toISOString() : null;
+    const liveStartIso = editLiveStart ? new Date(editLiveStart).toISOString() : null;
+    const liveEndIso = editLiveEnd ? new Date(editLiveEnd).toISOString() : null;
+    const liveDurSecs = (regEndMs && liveEndMs && liveEndMs > regEndMs) ? Math.round((liveEndMs - regEndMs) / 1000) : WEEK_SECONDS;
+
     const fields = {
       title: editTitle.trim() || comp.title,
       edition: editEdition.trim() || comp.edition,
@@ -2190,15 +2056,13 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
       rewardExtra: editRewardExtra.trim(),
       rules: editRules.split("\n").map((r) => r.trim()).filter(Boolean),
       bannerUrl: editBannerUrl,
-      // Sent whenever the admin picked "Date personnalisée", or used the
-      // quick "+X" extend control on the "Fixe" tab — on plain "Fixe" with
-      // no extension applied, these stay undefined so the server keeps its
-      // 1-week defaults (set at creation, or left alone on an existing
-      // edition).
-      ...(isRegistration && (scheduleMode === "custom" || scheduleDirty)
+      ...(isRegistration
         ? {
-            endsAt: editEndsAt ? new Date(editEndsAt).toISOString() : null,
-            liveDurationSeconds: editLiveDurationSeconds,
+            endsAt: regEndIso,
+            registrationStartsAt: regStartIso,
+            liveStartsAt: liveStartIso,
+            liveEndsAt: liveEndIso,
+            liveDurationSeconds: liveDurSecs,
           }
         : {}),
     };
@@ -3306,7 +3170,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
         </div>
       </div>
         );
-      })()}
+      })()}$
 
       {/* ── HERO ── */}
       <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0, marginTop: -46 }}>
@@ -3427,7 +3291,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
 
             </>
           );
-        })()}
+        })()}$
       </div>
 
       {/* ── CONTENT SHEET — rounded top corners, sits flush below the hero ── */}
@@ -3575,7 +3439,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                   </div>
                 </div>
               );
-            })()}
+            })()}$
           </div>
           <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 10 }}>
             {isRegistration ? "Prix de base et bonus attendu selon les cadeaux reçus." : "Détail de la cagnotte et de sa progression en direct."}
@@ -3780,7 +3644,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                       }}>🪙 {p.points.toLocaleString("fr-FR")}</span>
                     </div>
                   );
-                })()}
+                })()}$
               </div>
             )}
 
@@ -3920,7 +3784,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                       })}
                     </div>
                   );
-                })()}
+                })()}$
 
                 {/* Animated fill bar — same treatment as the Participants tab's registration bar,
                     with milestone ticks at 25/50/75% to gauge fill speed at a glance. Color ramps
@@ -3973,7 +3837,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                       <style>{`@keyframes bar-glow-pulse { 0%,100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.85); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } }`}</style>
                     </div>
                   );
-                })()}
+                })()}$
 
                 {/* Consolidated stat chips — pulls Places/Frais/Temps into one row right under the bar,
                     instead of scattering them across separate rows below. */}
@@ -4157,7 +4021,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                   )}
                 </div>
               );
-            })()}
+            })()}$
 
             <button
               onClick={() => {
@@ -4427,7 +4291,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
             )}
           </div>
           );
-        })()}
+        })()}$
 
         {/* ── DONATEURS PREVIEW ── */}
         {!isRegistration && (
@@ -4972,7 +4836,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                   </div>
                 </>
               );
-            })()}
+            })()}$
           </div>
         </div>
       )}
@@ -5510,7 +5374,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
             </div>
           </div>
         );
-      })()}
+      })()}$
       <style>{`@keyframes share-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
 
       {showShareSheet && (
@@ -5725,9 +5589,14 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                 }}>
                   {isRegistration ? "🕒 Inscriptions" : "● En direct"}
                 </div>
-                {isRegistration && (editEndsAt || comp.endsAt) && (
+                {isRegistration && (editRegEnd || comp.endsAt) && (
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#c4c4c4", marginBottom: 6 }}>
-                    Se termine le {fmtAbsoluteDateTime(editEndsAt ? new Date(editEndsAt).toISOString() : comp.endsAt)}
+                    Se termine le {(() => {
+                      const raw = editRegEnd || comp.endsAt;
+                      if (!raw) return null;
+                      const d = new Date(raw);
+                      return Number.isNaN(d.getTime()) ? null : fmtAbsoluteDateTime(raw);
+                    })()}$
                     {scheduleDirty && <span style={{ color: "#00B894" }}> (à enregistrer)</span>}
                   </div>
                 )}
@@ -5740,92 +5609,59 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
             )}
 
             {isRegistration && (
-              <>
-              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                {[
-                  { key: "fixed", label: "Fixe (1 semaine)" },
-                  { key: "custom", label: "Date personnalisée" },
-                ].map((tab) => {
-                  const active = scheduleMode === tab.key;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setScheduleMode(tab.key)}
-                      style={{
-                        flex: 1,
-                        border: active ? "1px solid #0d0d0d" : "1px solid #2a2a2a",
-                        background: active ? "#0d0d0d" : "#1a1a1a",
-                        color: active ? "#fff" : "#9a9a9a",
-                        borderRadius: 8,
-                        padding: "8px 10px",
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        WebkitTapHighlightColor: "transparent",
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {scheduleMode === "fixed" ? (
-                <div style={{ border: "1px solid #2a2a2a", background: "#242424", borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#c4c4c4", marginBottom: 4 }}>
-                    📅 Inscriptions : 1 semaine (ou moins si complet)
-                  </div>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#c4c4c4", marginBottom: 4 }}>
-                    🔴 Phase en direct : 1 semaine
-                  </div>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", lineHeight: 1.4, marginBottom: 10 }}>
-                    Durées par défaut, gérées automatiquement.
-                  </div>
-
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    Prolonger les inscriptions
-                  </div>
-                  {renderExtendStepper()}
+              <div style={{ background: "#1f1f23", border: "1px solid #2a2a2e", borderRadius: 12, padding: "14px", marginBottom: 16 }}>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                  📅 Planification & Calendrier
                 </div>
-              ) : (
-                <>
-                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    Fin des inscriptions
-                  </label>
-                  <div style={{ marginBottom: 8 }}>
-                    <DateTimePills
-                      value={editEndsAt}
-                      minDate={toDatetimeLocal(new Date().toISOString()).split("T")[0]}
-                      onChange={(next) => {
-                        setEditEndsAt(next);
-                        setEditEnds(next ? fmtCountdown(new Date(next).toISOString()) : "");
-                        setScheduleDirty(true);
-                      }}
-                    />
-                  </div>
-                  <div style={{ marginBottom: 4 }}>{renderExtendStepper()}</div>
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 14 }}>
-                    Pilote le vrai compte à rebours.
-                  </div>
 
-                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    Durée de la phase en direct
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+                    Début des inscriptions
                   </label>
-                  {renderLiveDurationStepper()}
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginTop: 8, marginBottom: 10 }}>
-                    Combien de temps durera la phase en direct une fois les inscriptions closes.
-                  </div>
+                  <DateTimePills
+                    value={editRegStart}
+                    onChange={(next) => setEditRegStart(next)}
+                  />
+                </div>
 
-                  {scheduleIncomplete && (
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, fontWeight: 700, color: "#D35400", background: "#2e2013", border: "1px solid #4a3520", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
-                      Choisissez une date de fin d'inscription et une durée pour la phase en direct avant de pouvoir enregistrer.
-                    </div>
-                  )}
-                </>
-              )}
-              </>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+                    Fin des inscriptions (Clôture)
+                  </label>
+                  <DateTimePills
+                    value={editRegEnd}
+                    onChange={(next) => {
+                      setEditRegEnd(next);
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+                    Début de la phase en direct
+                  </label>
+                  <DateTimePills
+                    value={editLiveStart}
+                    onChange={(next) => setEditLiveStart(next)}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 6 }}>
+                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+                    Fin de la phase en direct (Clôture finale)
+                  </label>
+                  <DateTimePills
+                    value={editLiveEnd}
+                    onChange={(next) => setEditLiveEnd(next)}
+                  />
+                </div>
+
+                {!scheduleValid && (
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, fontWeight: 700, color: "#FF5252", background: "#2e1515", border: "1px solid #5a2222", borderRadius: 8, padding: "8px 10px", marginTop: 10 }}>
+                    ⚠️ Ordre chronologique invalide : Début inscriptions ≤ Fin inscriptions ≤ Début direct ≤ Fin direct.
+                  </div>
+                )}
+              </div>
             )}
 
             {isLive && (

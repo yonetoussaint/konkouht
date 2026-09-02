@@ -347,8 +347,8 @@ export {
 // FNCH ("Fédération Nationale des Concours d'Haïti") is the platform's own
 // organizing body — every competition on the app is run under this sigle,
 // and this account is auto-recognized as its verified organizer.
-const PLATFORM_ORGANIZER_EMAIL = "yonetoussaint25@gmail.com";
-export const PLATFORM_ORGANIZER_SIGLE = "FNCH";
+// PLATFORM_ORGANIZER_EMAIL and PLATFORM_ORGANIZER_SIGLE are imported above
+// from ./lib/competitionData (the single source of truth).
 
 // Every signed-in user can create and manage their own competitions now —
 // not just the platform organizer. A competition/edition is "owned" by
@@ -356,13 +356,8 @@ export const PLATFORM_ORGANIZER_SIGLE = "FNCH";
 // changed by later edits — see createEdition). The platform organizer
 // remains the owner of every pre-existing/seeded competition (the ones
 // with no createdBy yet, or explicitly organized under PLATFORM_ORGANIZER_SIGLE)
-// so nothing already live changes hands. Use this everywhere instead of
-// re-deriving ownership inline, so the rule stays in one place.
-export function isCompOwner(comp, currentUser) {
-  if (!comp || !currentUser?.id) return false;
-  if (comp.createdBy) return comp.createdBy === currentUser.id;
-  return !!currentUser.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
-}
+// isCompOwner is imported from ./lib/competitionData above (the single
+// source of truth). See the DATA section comment above.
 
 const NICHES = [
   {
