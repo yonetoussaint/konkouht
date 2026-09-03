@@ -4,7 +4,7 @@ import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { PiShareFat } from "react-icons/pi";
 import ShareSheet from "./ShareSheet";
-import { shareCompetitionNatively, prefetchShortUrl } from "./lib/share";
+import { shareCompetitionNatively } from "./lib/share";
 import {
   Trophy, Home, Wallet, Users, Bell, BadgeCheck, Play, Plus, Gift, X, Check,
   ArrowLeft, Send, ChevronRight, ChevronLeft, MessageCircle,
@@ -2416,13 +2416,8 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
       setIsSharing(false);
     }
   };
-  // Backfill only: comp.shortUrl is normally already on the row (set
-  // server-side at creation time), so there's nothing to prefetch. This
-  // only does real work for an edition that predates the short_url column
-  // or whose one-shot shorten call failed at creation — see lib/share.js.
-  useEffect(() => {
-    if (!comp.shortUrl) prefetchShortUrl(comp);
-  }, [comp.id, comp.shortUrl]);
+  // Sharing always uses the plain link — no link shortener anywhere in the
+  // app anymore, so there's nothing to backfill or prefetch here.
   const [shareCount, setShareCount] = useState(comp.shares ?? 0);
   // Header save/bookmark toggle — purely local for now (the header's Share
   // button was redundant with the one in the footer bar, so it was swapped
