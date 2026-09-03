@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Share2, Link2, Check, Mail, MessageSquare } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaFacebookMessenger, FaTelegram } from "react-icons/fa";
-import { buildShareUrl, buildShareText, getCachedShortUrl, prefetchShortUrl } from "./lib/share";
+import { buildShareUrl, buildShareText } from "./lib/share";
 
 /* This sheet is now only ever mounted as a fallback for browsers without
    the Web Share API — call sites try navigator.share directly first (see
@@ -9,34 +9,18 @@ import { buildShareUrl, buildShareText, getCachedShortUrl, prefetchShortUrl } fr
 export default function ShareSheet({ comp, onClose, accent = "#6C63FF", onShared }) {
   const [entered, setEntered] = useState(false);
   const [copied, setCopied] = useState(false);
-  // Seed from the row's own short_url first (the normal case — set
-  // server-side at creation time), falling back to the shared backfill
-  // cache in case a call site already prefetched this comp's short link —
-  // avoids a flash of the long URL while we wait on the fetch below.
-  const [shortUrl, setShortUrl] = useState(() => comp?.shortUrl || getCachedShortUrl(comp));
 
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 10);
     return () => clearTimeout(t);
   }, []);
 
-  useEffect(() => {
-    if (!comp) return;
-    const known = comp.shortUrl || getCachedShortUrl(comp);
-    setShortUrl(known);
-    if (known) return;
-    let cancelled = false;
-    prefetchShortUrl(comp).then((url) => {
-      if (!cancelled && url) setShortUrl(url);
-    }); // long URL fallback below covers a null result
-    return () => {
-      cancelled = true;
-    };
-  }, [comp?.id, comp?.shortUrl]);
-
   if (!comp) return null;
 
-  const url = shortUrl || buildShareUrl(comp);
+  // Always the plain, direct link — no link shortener (tinyurl/is.gd/etc.)
+  // anywhere in the share flow, so there's no interstitial/ad page between
+  // the recipient's tap and the app.
+  const url = buildShareUrl(comp);
   // Empty per buildShareText — title/description ride entirely on the
   // og:title/og:description tags the link unfurls to, so we don't want to
   // prefix the url with raw text. Kept as a variable (rather than always
