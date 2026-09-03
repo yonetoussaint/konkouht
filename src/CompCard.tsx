@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { hapticTap } from "./native";
-import { shareCompetitionNatively, prefetchShortUrl, buildShareUrl, getCachedShortUrl } from "./lib/share";
+import { shareCompetitionNatively, buildShareUrl } from "./lib/share";
 import {
   Image as ImageIcon,
   Pencil,
@@ -40,13 +40,9 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
   const isCompleted = comp.phase === "completed";
   const isLive = comp.phase === "live";
 
-  // Backfill only: comp.shortUrl is normally already on the row (set
-  // server-side at creation time), so there's nothing to prefetch. This
-  // only does real work for an edition that predates the short_url column
-  // or whose one-shot shorten call failed at creation — see lib/share.js.
-  useEffect(() => {
-    if (!comp.shortUrl) prefetchShortUrl(comp);
-  }, [comp.id, comp.shortUrl]);
+  // Sharing always uses the plain link (buildShareUrl) — no link shortener
+  // is used anywhere in the app anymore. Any short_url value already
+  // persisted on older rows is intentionally ignored here.
 
   const resolvedEndDate = useMemo(() => {
     if (comp.endsAt) return comp.endsAt;
@@ -161,7 +157,7 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
                 if (onOpenShare) {
                   onOpenShare(comp, onShared);
                 } else if (navigator.clipboard) {
-                  const url = comp.shortUrl || getCachedShortUrl(comp) || buildShareUrl(comp);
+                  const url = buildShareUrl(comp);
                   navigator.clipboard.writeText(url).catch(() => {});
                   onShared();
                 }
