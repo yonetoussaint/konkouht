@@ -577,12 +577,24 @@ async function compressImageFile(file, { maxDimension = 1280, quality = 0.8 } = 
 }
 
 
-// Upload a new banner/thumbnail image for a competition and return its
-// public URL. Overwrites any previous file for the same competition.
-async function uploadCompetitionImage({ competitionId, file }) {
+// Upload a dedicated banner image for ONE edition and return its public
+// URL. This is intentionally separate from the shared per-series gallery
+// (competition_images / addCompetitionImage below): that gallery is keyed
+// by the seed competition_id and is shared across every edition of a
+// series on purpose, so tagging a shared photo as "the banner" let one
+// edition's chosen image visually bleed onto sibling editions that shared
+// the same pool (and, worse, onto a completely different competition if an
+// admin re-picked the same-looking tile while editing another edition).
+// Keying this upload by the edition's OWN id — never the seed id — instead
+// of a shared folder makes every edition's banner file, path, and URL
+// unique in storage as well as in the database, so there's no shared
+// resource left for two competitions to collide on. `upsert: true` only
+// overwrites THIS edition's own previous banner file (re-uploading a new
+// one for the same edition), never another edition's.
+async function uploadEditionBanner({ editionId, file }) {
   const img = await compressImageFile(file);
   const ext = img.name.split(".").pop() || "jpg";
-  const path = `${competitionId}/banner.${ext}`;
+  const path = `banners/${editionId}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
@@ -593,6 +605,8 @@ async function uploadCompetitionImage({ competitionId, file }) {
   }
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  // Cache-bust so re-uploading a new banner for the same edition (same
+  // path, upsert) shows up immediately instead of an old cached copy.
   const url = `${data.publicUrl}?t=${Date.now()}`;
   return { url, error: null };
 }
@@ -5120,6 +5134,22 @@ export default function App() {
     return { success: true, data };
   }
 
+  // Uploads a dedicated banner file for ONE edition (see uploadEditionBanner
+  // above for why this is kept separate from the shared gallery). Nothing
+  // is written to competition_editions here — CompetitionBoard just stores
+  // the returned URL in its local editBannerUrl state, same as every other
+  // field in the edit form, and it's only persisted once "Enregistrer" is
+  // pressed (handleEditComp / handleCreateEditionSave).
+  async function handleUploadBanner(editionId, file) {
+    const { url, error } = await uploadEditionBanner({ editionId, file });
+    if (error) {
+      console.error("uploadEditionBanner error:", error);
+      showToast("Échec de l'envoi de la bannière.");
+      return null;
+    }
+    return url;
+  }
+
   async function handleAddCompImage(competitionId, file) {
     const position = (compImages[competitionId] || []).length;
     const { data, error } = await addCompetitionImage({ competitionId, file, position });
@@ -6348,6 +6378,7 @@ export default function App() {
           onCreateComp={handleCreateEditionSave}
           onAddImage={handleAddCompImage}
           onRemoveImage={handleRemoveCompImage}
+          onUploadBanner={handleUploadBanner}
           startInEditMode={compEditIntent}
           isNewEdition={pendingNewEdition}
           onParticipantRemoved={(editionId) =>
