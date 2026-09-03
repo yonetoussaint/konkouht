@@ -1886,7 +1886,7 @@ function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, muted, o
 
 /* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
 
-export default function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onCreateComp, onAddImage, onRemoveImage, startInEditMode = false, isNewEdition = false, onParticipantRemoved }) {
+export default function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onCreateComp, onAddImage, onRemoveImage, onUploadBanner, startInEditMode = false, isNewEdition = false, onParticipantRemoved }) {
   const isRegistration = comp.phase === "registration";
   const isCompleted = comp.phase === "completed";
   const registrationFee = getRegistrationFee(comp);
@@ -2129,6 +2129,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   const scheduleIncomplete = !isCompleted && isRegistration && scheduleMode === "custom" && (!editEndsAt || !editLiveDurationSeconds);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removingImageId, setRemovingImageId] = useState(null);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const images = comp.images || [];
 
   useEffect(() => {
@@ -2160,12 +2161,27 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     setUploadingImage(false);
   }
 
-  // Banner: not a separate upload — just a tag on one of the thumbnails
-  // below, marking which image represents this competition on its card and
-  // in the homepage carousel. Persisted to competition_edits.bannerUrl only
-  // once "Enregistrer" is pressed, same as every other field in this panel.
-  function handleSetBanner(url) {
-    setEditBannerUrl((prev) => (prev === url ? null : url));
+  // Banner: a dedicated image uploaded just for THIS edition (via
+  // onUploadBanner, keyed by comp.id — never the shared gallery), marking
+  // what represents this specific competition on its card and in the
+  // homepage carousel. The gallery below is still shared across every
+  // edition of a series, so it deliberately can't be used to set the
+  // banner anymore — picking a shared photo there could make two different
+  // editions/competitions appear to have "the same" banner. Persisted to
+  // competition_editions.banner_url only once "Enregistrer" is pressed,
+  // same as every other field in this panel.
+  async function handleUploadBannerFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingBanner(true);
+    const url = await onUploadBanner?.(comp.id, file);
+    if (url) setEditBannerUrl(url);
+    setUploadingBanner(false);
+  }
+
+  function handleRemoveBanner() {
+    setEditBannerUrl(null);
   }
 
   async function handleRemoveImage(imageId) {
@@ -3253,18 +3269,23 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
 
   const heroBannerSlides = useMemo(() => {
     const images = comp.images || [];
-    if (images.length === 0) return [{ type: "placeholder" }];
-    // The organizer's chosen banner (comp.bannerUrl, set via the ★ toggle in
-    // edit mode) leads the carousel — same priority CompCard uses for its
-    // thumbnail (comp.bannerUrl || comp.thumbnailUrl). Without this, the
-    // board and the card could show different images as the "first" one.
-    // Note: this carousel still shows the full shared gallery for THIS
-    // edition's detail view — that's intentional and unrelated to the
-    // cross-edition banner leak (comp.thumbnailUrl handles that, see App.tsx).
-    const ordered = comp.bannerUrl
-      ? [...images].sort((a, b) => (a.url === comp.bannerUrl ? -1 : b.url === comp.bannerUrl ? 1 : 0))
-      : images;
-    return ordered.map((img) => ({ type: "image", src: img.url }));
+    // The organizer's dedicated banner (comp.bannerUrl — a per-edition
+    // upload, see onUploadBanner) always leads the carousel — same
+    // priority CompCard uses for its thumbnail
+    // (comp.bannerUrl || comp.thumbnailUrl), so the board and the card
+    // never show different images as the "first" one. It's prepended as
+    // its own slide rather than sorted into the gallery array below,
+    // because it now lives in its own storage path and is never one of
+    // the shared gallery's photos — that shared gallery still trails
+    // after it as extra photos for this series, but the banner itself
+    // can't be mistaken for another edition's or competition's banner.
+    const gallerySlides = images
+      .filter((img) => img.url !== comp.bannerUrl)
+      .map((img) => ({ type: "image", src: img.url }));
+    const slides = comp.bannerUrl
+      ? [{ type: "image", src: comp.bannerUrl }, ...gallerySlides]
+      : gallerySlides;
+    return slides.length > 0 ? slides : [{ type: "placeholder" }];
   }, [comp.images, comp.bannerUrl]);
 
   return (
@@ -5938,21 +5959,69 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
               style={{ width: "100%", boxSizing: "border-box", border: "1px solid #2a2a2a", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#c4c4c4", outline: "none", marginBottom: 18, resize: "vertical" }}
             />
 
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Bannière de cette compétition</label>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 10 }}>
+              Une image dédiée à cette compétition — affichée sur sa carte et dans le carrousel de l'accueil. Propre à cette compétition uniquement, jamais partagée avec une autre.
+            </div>
+            <div style={{
+              position: "relative", width: "100%", maxWidth: 220, aspectRatio: "16 / 9",
+              borderRadius: 10, overflow: "hidden", background: "#242424",
+              border: `1px solid ${editBannerUrl ? accent : "#3a3a3a"}`,
+              marginBottom: 18,
+            }}>
+              {editBannerUrl ? (
+                <img src={editBannerUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              ) : (
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <ImageIcon size={22} color="#555" />
+                </div>
+              )}
+              {uploadingBanner && (
+                <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700 }}>
+                  Envoi…
+                </div>
+              )}
+              {editBannerUrl && !uploadingBanner && (
+                <button
+                  onClick={handleRemoveBanner}
+                  style={{
+                    position: "absolute", top: 4, right: 4,
+                    width: 20, height: 20, borderRadius: "50%",
+                    border: "none", background: "rgba(0,0,0,0.55)", color: "#fff",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", padding: 0,
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+              <label style={{
+                position: "absolute", bottom: 4, left: 4, right: 4,
+                border: "none", borderRadius: 6,
+                background: "rgba(0,0,0,0.55)", color: "#fff",
+                fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: "0.04em",
+                padding: "4px 0", textAlign: "center",
+                cursor: uploadingBanner ? "default" : "pointer",
+              }}>
+                {editBannerUrl ? "Changer" : "Ajouter"}
+                <input type="file" accept="image/*" onChange={handleUploadBannerFile} disabled={uploadingBanner} style={{ display: "none" }} />
+              </label>
+            </div>
+
             <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Galerie / miniatures</label>
             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 10 }}>
-              Touchez <strong>Bannière</strong> sur une image pour en faire celle affichée sur la carte de la compétition et dans le carrousel de la page d'accueil.
+              Photos supplémentaires, partagées entre toutes les éditions de cette série.
             </div>
             <div style={{
               display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8,
               marginBottom: 18,
             }}>
               {images.map((img) => {
-                const isBanner = editBannerUrl === img.url;
                 return (
                   <div key={img.id} style={{
                     position: "relative", width: "100%", aspectRatio: "1 / 1",
                     borderRadius: 10, overflow: "hidden", background: "#242424",
-                    boxShadow: isBanner ? `0 0 0 2px ${accent}` : "none",
                   }}>
                     <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     <button
@@ -5971,21 +6040,6 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                       ) : (
                         <X size={12} />
                       )}
-                    </button>
-                    <button
-                      onClick={() => handleSetBanner(img.url)}
-                      style={{
-                        position: "absolute", bottom: 4, left: 4, right: 4,
-                        border: "none", borderRadius: 6,
-                        background: isBanner ? accent : "rgba(0,0,0,0.55)",
-                        color: "#fff",
-                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-                        textTransform: "uppercase", letterSpacing: "0.04em",
-                        padding: "4px 0",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {isBanner ? "★ Bannière" : "Bannière"}
                     </button>
                   </div>
                 );
