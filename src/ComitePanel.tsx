@@ -70,6 +70,11 @@ function Avatar({ url, name }) {
   );
 }
 
+function formatDate(value) {
+  if (!value) return null;
+  return new Date(value).toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 // Search existing users + pick one + set their percentage, in one sheet.
 function AddMemberSheet({ remainingPercentage, onClose, onSaved, showToast }) {
   const [query, setQuery] = useState("");
@@ -152,27 +157,35 @@ function AddMemberSheet({ remainingPercentage, onClose, onSaved, showToast }) {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {results.map((u) => (
-                <button
-                  key={u.user_id}
-                  onClick={() => setPicked(u)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    border: "1px solid #2a2a2e", borderRadius: 10, padding: "8px 10px",
-                    background: "#111", cursor: "pointer", textAlign: "left",
-                  }}
-                >
-                  <Avatar url={u.avatar_url} name={u.full_name} />
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#eaeaea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {u.full_name || "Utilisateur"}
+              {results.map((u) => {
+                const regDate = formatDate(u.created_at || u.registered_at);
+                return (
+                  <button
+                    key={u.user_id}
+                    onClick={() => setPicked(u)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      border: "1px solid #2a2a2e", borderRadius: 10, padding: "8px 10px",
+                      background: "#111", cursor: "pointer", textAlign: "left",
+                    }}
+                  >
+                    <Avatar url={u.avatar_url} name={u.full_name} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#eaeaea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {u.full_name || "Utilisateur"}
+                      </div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {u.email}
+                      </div>
+                      {regDate && (
+                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#6a6a70", marginTop: 2 }}>
+                          Inscrit le {regDate}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {u.email}
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
         </>
@@ -183,6 +196,11 @@ function AddMemberSheet({ remainingPercentage, onClose, onSaved, showToast }) {
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#eaeaea" }}>{picked.full_name || "Utilisateur"}</div>
               <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90" }}>{picked.email}</div>
+              {formatDate(picked.created_at || picked.registered_at) && (
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#6a6a70", marginTop: 2 }}>
+                  Inscrit le {formatDate(picked.created_at || picked.registered_at)}
+                </div>
+              )}
             </div>
             <button onClick={() => setPicked(null)} style={{ border: "none", background: "none", color: "#8a8a90", cursor: "pointer" }}>
               <X size={16} />
@@ -533,38 +551,42 @@ export default function ComitePanel({ showToast }) {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {members.map((m) => (
-            <div key={m.user_id} style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #2a2a2e", background: "#1c1c1f", borderRadius: 12, padding: 12 }}>
-              <Avatar url={m.avatar_url} name={m.full_name} />
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#eaeaea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {m.full_name || "Utilisateur"}
+          {members.map((m) => {
+            const regDate = formatDate(m.registered_at || m.created_at);
+            return (
+              <div key={m.user_id} style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #2a2a2e", background: "#1c1c1f", borderRadius: 12, padding: 12 }}>
+                <Avatar url={m.avatar_url} name={m.full_name} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#eaeaea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {m.full_name || "Utilisateur"}
+                  </div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {m.email}
+                  </div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#6a6a70", marginTop: 2 }}>
+                    Ajouté le {new Date(m.added_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    {regDate && <> · Inscrit le {regDate}</>}
+                  </div>
                 </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {m.email}
-                </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#6a6a70", marginTop: 2 }}>
-                  Ajouté le {new Date(m.added_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </div>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#00B894", flexShrink: 0 }}>
+                  {m.percentage}%
+                </span>
+                <button
+                  onClick={() => setEditingMember(m)}
+                  style={{ border: "none", background: "none", color: "#8a8a90", cursor: "pointer", padding: 4, display: "flex" }}
+                >
+                  <Pencil size={15} />
+                </button>
+                <button
+                  onClick={() => handleRemove(m)}
+                  disabled={removingId === m.user_id}
+                  style={{ border: "none", background: "none", color: "#ff6b5e", cursor: "pointer", padding: 4, display: "flex" }}
+                >
+                  <Trash2 size={15} />
+                </button>
               </div>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#00B894", flexShrink: 0 }}>
-                {m.percentage}%
-              </span>
-              <button
-                onClick={() => setEditingMember(m)}
-                style={{ border: "none", background: "none", color: "#8a8a90", cursor: "pointer", padding: 4, display: "flex" }}
-              >
-                <Pencil size={15} />
-              </button>
-              <button
-                onClick={() => handleRemove(m)}
-                disabled={removingId === m.user_id}
-                style={{ border: "none", background: "none", color: "#ff6b5e", cursor: "pointer", padding: 4, display: "flex" }}
-              >
-                <Trash2 size={15} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
