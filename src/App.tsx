@@ -11,6 +11,7 @@ import { shortenEditionUrl } from "./lib/share";
 import { App as CapacitorApp } from "@capacitor/app";
 import { isNative } from "./native";
 import WalletPage from "./WalletPage";
+import ComitePanel from "./ComitePanel";
 
 /* ─── Supabase client ─────────────────────────────────────────────────────
    Previously lived in lib/competitionData.js — moved in here along with
@@ -3344,7 +3345,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
   // everyone else only ever sees — and can only manage — competitions
   // they created themselves.
   const isFullAdmin = !!currentUser?.isOrganizer;
-  const [adminSection, setAdminSection] = useState("competitions"); // "competitions" | "withdrawals"
+  const [adminSection, setAdminSection] = useState("competitions"); // "competitions" | "withdrawals" | "comite"
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Total");
   const [deletingId, setDeletingId] = useState(null);
@@ -3456,6 +3457,7 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
             {[
               { id: "competitions", label: "Compétitions" },
               { id: "withdrawals", label: "Retraits" },
+              { id: "comite", label: "Comité" },
             ].map((s) => {
               const isActive = adminSection === s.id;
               return (
@@ -3484,6 +3486,10 @@ function AdminPage({ currentUser, niches, seedCompetitions, onOpenComp, onToggle
 
         {isFullAdmin && adminSection === "withdrawals" && (
           <WithdrawalsPanel showToast={showToast} />
+        )}
+
+        {isFullAdmin && adminSection === "comite" && (
+          <ComitePanel showToast={showToast} />
         )}
 
         {adminSection === "competitions" && (
