@@ -543,6 +543,9 @@ export default function ComitePanel({ showToast }) {
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {m.email}
                 </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#6a6a70", marginTop: 2 }}>
+                  Ajouté le {new Date(m.added_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </div>
               </div>
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#00B894", flexShrink: 0 }}>
                 {m.percentage}%
