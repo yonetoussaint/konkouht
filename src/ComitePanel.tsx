@@ -79,13 +79,20 @@ function AddMemberSheet({ remainingPercentage, onClose, onSaved, showToast }) {
   const [percentage, setPercentage] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [searchError, setSearchError] = useState("");
 
   useEffect(() => {
     if (picked) return;
     const t = setTimeout(async () => {
       setSearching(true);
-      const { users } = await searchUsersForComite(query);
-      setResults(users);
+      setSearchError("");
+      const { users, error: rpcError } = await searchUsersForComite(query);
+      if (rpcError) {
+        setSearchError("Impossible de charger les utilisateurs. Réessaie.");
+        setResults([]);
+      } else {
+        setResults(users);
+      }
       setSearching(false);
     }, 300);
     return () => clearTimeout(t);
@@ -134,6 +141,10 @@ function AddMemberSheet({ remainingPercentage, onClose, onSaved, showToast }) {
           {searching ? (
             <div style={{ textAlign: "center", padding: "24px 8px", color: "#8a8a90", fontFamily: "Inter, sans-serif", fontSize: 13 }}>
               Recherche…
+            </div>
+          ) : searchError ? (
+            <div style={{ textAlign: "center", padding: "24px 8px", color: "#ff6b5e", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600 }}>
+              {searchError}
             </div>
           ) : results.length === 0 ? (
             <div style={{ textAlign: "center", padding: "24px 8px", color: "#8a8a90", fontFamily: "Inter, sans-serif", fontSize: 13 }}>
