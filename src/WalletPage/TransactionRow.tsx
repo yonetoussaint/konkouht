@@ -153,3 +153,5 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
     </div>
   );
 }
+
+export default TransactionRow;
