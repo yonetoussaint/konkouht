@@ -1,13 +1,11 @@
 import { useState } from "react";
-import {
-  WalletHeader,
-  BalanceCard,
-  QuickActions,
-  StatsCards,
-  DepositNumbersCard,
-  TransactionHistory,
-  TransactionDetailSheet,
-} from "./WalletPage";
+import WalletHeader from "./WalletPage/WalletHeader";
+import BalanceCard from "./WalletPage/BalanceCard";
+import QuickActions from "./WalletPage/QuickActions";
+import StatsCards from "./WalletPage/StatsCards";
+import DepositNumbersCard from "./WalletPage/DepositNumbersCard";
+import TransactionHistory from "./WalletPage/TransactionHistory";
+import TransactionDetailSheet from "./WalletPage/TransactionDetailSheet";
 import { dedupeTransactions } from "./WalletPage/utils";
 import type { WalletPageProps } from "./WalletPage/types";
 
