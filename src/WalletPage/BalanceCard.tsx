@@ -130,3 +130,5 @@ export default function BalanceCard({
     </div>
   );
 }
+
+export default BalanceCard;
