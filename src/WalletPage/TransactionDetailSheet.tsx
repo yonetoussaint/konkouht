@@ -274,3 +274,5 @@ export default function TransactionDetailSheet({
     </>
   );
 }
+
+export default TransactionDetailSheet;
