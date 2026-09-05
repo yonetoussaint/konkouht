@@ -88,3 +88,5 @@ export default function WalletHeader({ onBack, onOpenNotifications, showToast }:
     </header>
   );
 }
+
+export default WalletHeader;
