@@ -47,3 +47,5 @@ export default function StatsCards({ totalDeposited, totalGifted }: StatsCardsPr
     </div>
   );
 }
+
+export default StatsCards;
