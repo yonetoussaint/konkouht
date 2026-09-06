@@ -67,11 +67,11 @@ const COLORS = {
   surface: "#14171c",
   surfaceRaised: "#1a1e24",
   border: "#22262d",
-  borderActive: "#3a3220",
+  borderActive: "#3a3a3e",
   text: "#eef0f2",
   textDim: "#7d8590",
-  gold: "#f0b90b",
-  goldDim: "rgba(240, 185, 11, 0.12)",
+  gold: "#848e9c",
+  goldDim: "rgba(132, 142, 156, 0.12)",
   up: "#0ecb81",
   down: "#f6465d",
 };
@@ -294,7 +294,7 @@ export function BalanceCardItem({
       {/* Stats card */}
       <div
         style={{
-          background: `radial-gradient(120% 140% at 100% -20%, rgba(240,185,11,0.06) 0%, transparent 55%), ${COLORS.surface}`,
+          background: `${COLORS.surface}`,
           border: `1px solid ${COLORS.border}`,
           borderRadius: 0,
           fontFamily: FONT_UI,
