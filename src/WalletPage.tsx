@@ -94,7 +94,7 @@ export default function WalletPage({
   return (
     <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 80 }}>
       <PageHeader
-        title="Wallet"
+        title="Portefeuille"
         onSettings={onOpenSettings}
         background="#111"
         borderColor="#2b3139"
