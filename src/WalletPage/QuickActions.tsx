@@ -143,7 +143,7 @@ export default function QuickActions({
               style={{
                 width: 44,
                 height: 44,
-                borderRadius: 0,
+                borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
