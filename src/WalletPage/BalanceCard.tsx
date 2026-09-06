@@ -7,12 +7,6 @@ import {
   RefreshCw,
   Lock,
 } from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
 
 // ---- currency icons ------------------------------------------------------
 function UsdtIcon({ size = 14 }) {
@@ -148,42 +142,58 @@ function Sparkline({ data, positive }) {
       </div>
     );
   }
+
+  // Simple SVG sparkline — no ResizeObserver, no recharts dependency
+  const W = 300;
+  const H = 56;
+  const values = data.map((d) => d.value);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const range = maxVal - minVal || 1;
+  const pad = 4;
+  const points = values
+    .map((v, i) => {
+      const x = pad + (i / (values.length - 1)) * (W - pad * 2);
+      const y = pad + (1 - (v - minVal) / range) * (H - pad * 2);
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  const areaPath =
+    `M${pad},${H - pad} ` +
+    values
+      .map((v, i) => {
+        const x = pad + (i / (values.length - 1)) * (W - pad * 2);
+        const y = pad + (1 - (v - minVal) / range) * (H - pad * 2);
+        return `L${x},${y}`;
+      })
+      .join(" ") +
+    ` L${W - pad},${H - pad} Z`;
+
   return (
-    <div style={{ height: 56, marginTop: 12 }}>
-      <ResponsiveContainer width="100%" height="100%" debounce={1}>
-        <AreaChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-          <defs>
-            <linearGradient id="bc-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-              <stop offset="100%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <Tooltip
-            cursor={{ stroke: COLORS.border }}
-            contentStyle={{
-              background: COLORS.surfaceRaised,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 8,
-              fontFamily: FONT_NUM,
-              fontSize: 12,
-              color: COLORS.text,
-              padding: "6px 10px",
-            }}
-            labelStyle={{ fontFamily: FONT_UI, color: COLORS.textDim, marginBottom: 2 }}
-            formatter={(value) => [value.toFixed(2), "Balance"]}
-          />
-          <Area
-            type="monotone"
-            dataKey="value"
-            stroke={color}
-            strokeWidth={1.75}
-            fill="url(#bc-fill)"
-            dot={false}
-            activeDot={{ r: 3, fill: color, strokeWidth: 0 }}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
+    <svg
+      width="100%"
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      style={{ display: "block", marginTop: 12 }}
+    >
+      <defs>
+        <linearGradient id={`bc-fill-${positive ? "up" : "down"}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.25} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#bc-fill-${positive ? "up" : "down"})`} />
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.75}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -421,7 +431,6 @@ export default function BalanceCard({ accounts, cardWidth = 300, gap = 14, onAct
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
         padding: "0 16px",
-        outline: "3px dashed red",
       }}
     >
       {accounts.map((account) => (
