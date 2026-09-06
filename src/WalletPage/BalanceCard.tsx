@@ -147,9 +147,9 @@ function Sparkline({ data, positive }) {
     );
   }
   return (
-    <div style={{ height: 56, marginTop: 4, marginLeft: -20, marginRight: -20 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
+    <div style={{ height: 56, marginTop: 12 }}>
+      <ResponsiveContainer width="100%" height="100%" debounce={1}>
+        <AreaChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="bc-fill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={0.25} />
@@ -248,7 +248,7 @@ export function BalanceCardItem({
         background: `radial-gradient(120% 140% at 100% -20%, rgba(240,185,11,0.06) 0%, transparent 55%), ${COLORS.surface}`,
         border: `1px solid ${COLORS.border}`,
         borderRadius: 16,
-        padding: "18px 20px 20px",
+        overflow: "hidden",
         fontFamily: FONT_UI,
         width,
         flexShrink: 0,
@@ -256,6 +256,7 @@ export function BalanceCardItem({
         overscrollBehaviorX: "contain",
       }}
     >
+      <div style={{ padding: "18px 20px 0" }}>
       {/* header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -355,6 +356,7 @@ export function BalanceCardItem({
           <Sparkline data={wallet.chartData} positive={isPositive} />
         </>
       )}
+      </div>
     </div>
   );
 }
