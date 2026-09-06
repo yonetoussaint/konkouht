@@ -99,11 +99,11 @@ export default function WalletPage({
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#181a1e", paddingBottom: 80 }}>
+    <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 80 }}>
       <PageHeader
         title="Wallet"
         onSettings={onOpenSettings}
-        background="#1e2329"
+        background="#111"
         borderColor="#2b3139"
       />
 
