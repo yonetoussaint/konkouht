@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Copy } from "lucide-react";
 
 export default function DepositPanel({ onClose }) {
   const [entered, setEntered] = useState(false);
   const [amount, setAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState(null);
+  const [currency, setCurrency] = useState<"HTG" | "USDT">("HTG");
 
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 10);
@@ -28,6 +29,8 @@ export default function DepositPanel({ onClose }) {
       color: "#2a9d8f",
     },
   ];
+
+  const usdtAddress = "TRX1234567890abcdef1234567890abcdef12"; // Mock USDT (TRC20) address
 
   return (
     <div
@@ -131,16 +134,34 @@ export default function DepositPanel({ onClose }) {
                 outline: "none",
               }}
             />
-            <span
+            <div
               style={{
-                fontFamily: "Inter, sans-serif",
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#8a8a90",
+                display: "flex",
+                border: "1px solid #2a2a2e",
+                borderRadius: 0,
+                overflow: "hidden",
               }}
             >
-              HTG
-            </span>
+              {(["HTG", "USDT"] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => { setCurrency(c); setSelectedMethod(null); }}
+                  style={{
+                    padding: "8px 12px",
+                    background: currency === c ? "#0ecb81" : "transparent",
+                    border: "none",
+                    borderRadius: 0,
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: currency === c ? "#111" : "#8a8a90",
+                    cursor: "pointer",
+                  }}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -158,92 +179,146 @@ export default function DepositPanel({ onClose }) {
               letterSpacing: "0.04em",
             }}
           >
-            Moyen de paiement
+            {currency === "USDT" ? "Adresse de paiement" : "Moyen de paiement"}
           </label>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {methods.map(({ key, label, color }) => (
-              <button
-                key={key}
-                onClick={() => setSelectedMethod(key)}
+
+          {currency === "USDT" ? (
+            <div
+              style={{
+                padding: "14px 16px",
+                background: "#111",
+                border: "1px solid #2a2a2e",
+                borderRadius: 0,
+              }}
+            >
+              <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "14px 16px",
-                  background: selectedMethod === key ? "#111" : "transparent",
-                  border: `1px solid ${selectedMethod === key ? color : "#2a2a2e"}`,
-                  borderRadius: 0,
-                  cursor: "pointer",
-                  textAlign: "left",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "#8a8a90",
+                  marginBottom: 8,
                 }}
               >
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 0,
-                    background: color,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 11,
-                    fontWeight: 800,
-                    color: "#fff",
-                  }}
-                >
-                  {label === "MonCash" ? "MC" : "NC"}
-                </div>
+                Réseau TRC-20 (Tron)
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span
                   style={{
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 14,
-                    fontWeight: 600,
+                    flex: 1,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 12,
                     color: "#f2f2f2",
+                    wordBreak: "break-all",
                   }}
                 >
-                  {label}
+                  {usdtAddress}
                 </span>
-                <div
+                <button
+                  onClick={() => navigator.clipboard?.writeText(usdtAddress)}
                   style={{
-                    marginLeft: "auto",
-                    width: 18,
-                    height: 18,
+                    border: "none",
+                    background: "#2a2a2e",
                     borderRadius: 0,
-                    border: `2px solid ${selectedMethod === key ? color : "#3a3a3e"}`,
-                    background: selectedMethod === key ? color : "transparent",
+                    width: 32,
+                    height: 32,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    cursor: "pointer",
+                    flexShrink: 0,
                   }}
                 >
-                  {selectedMethod === key && (
-                    <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
+                  <Copy size={14} color="#8a8a90" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {methods.map(({ key, label, color }) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedMethod(key)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "14px 16px",
+                    background: selectedMethod === key ? "#111" : "transparent",
+                    border: `1px solid ${selectedMethod === key ? color : "#2a2a2e"}`,
+                    borderRadius: 0,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 0,
+                      background: color,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: "#fff",
+                    }}
+                  >
+                    {label === "MonCash" ? "MC" : "NC"}
+                  </div>
+                  <span
+                    style={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#f2f2f2",
+                    }}
+                  >
+                    {label}
+                  </span>
+                  <div
+                    style={{
+                      marginLeft: "auto",
+                      width: 18,
+                      height: 18,
+                      borderRadius: 0,
+                      border: `2px solid ${selectedMethod === key ? color : "#3a3a3e"}`,
+                      background: selectedMethod === key ? color : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {selectedMethod === key && (
+                      <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Submit button */}
         <div style={{ padding: "0 16px 24px" }}>
           <button
-            disabled={!amount || !selectedMethod}
+            disabled={!amount}
             style={{
               width: "100%",
               padding: "14px",
-              background: amount && selectedMethod ? "#0ecb81" : "#2a2a2e",
+              background: amount ? "#0ecb81" : "#2a2a2e",
               border: "none",
               borderRadius: 0,
               fontFamily: "Inter, sans-serif",
               fontSize: 14,
               fontWeight: 700,
-              color: amount && selectedMethod ? "#111" : "#5a5a5e",
-              cursor: amount && selectedMethod ? "pointer" : "default",
+              color: amount ? "#111" : "#5a5a5e",
+              cursor: amount ? "pointer" : "default",
             }}
           >
-            Continuer
+            {currency === "USDT" ? "Copier l'adresse" : "Continuer"}
           </button>
         </div>
       </div>
