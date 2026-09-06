@@ -418,18 +418,16 @@ export default function BalanceCard({ accounts, cardWidth = 300, gap = 14, onAct
         gap,
         overflowX: "auto",
         scrollSnapType: "x proximity",
-        scrollPadding: "0 20px",
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
-        padding: "4px 20px 12px",
-        margin: "-4px -20px -12px",
+        padding: "0 16px",
       }}
     >
       {accounts.map((account) => (
         <div
           key={account.id}
           data-card-id={account.id}
-          style={{ display: "flex" }}
+          style={{ flexShrink: 0, width: cardWidth }}
         >
           <BalanceCardItem width={cardWidth} {...account.props} />
         </div>
