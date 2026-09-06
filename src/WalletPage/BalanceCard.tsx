@@ -132,6 +132,7 @@ function getTimeframeStats(baseData: { time: string; value: number }[], timefram
 
 function formatAmount(value, { hidden }) {
   if (hidden) return "••••••";
+  if (value === 0) return "0.00";
   const decimals = Math.abs(value) < 1 ? 6 : 2;
   return value.toLocaleString("en-US", {
     minimumFractionDigits: decimals,
@@ -302,20 +303,23 @@ export function BalanceCardItem({
       >
         {/* header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <CurrencyIcon currency={wallet?.currency} size={14} />
+          <div style={{ display: "flex", alignItems: "center" }}>
             <span
               style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
                 fontSize: 12,
                 fontWeight: 700,
                 color: COLORS.gold,
                 background: COLORS.goldDim,
                 border: `1px solid ${COLORS.borderActive}`,
-                borderRadius: 999,
+                borderRadius: 0,
                 padding: "3px 10px",
                 letterSpacing: "0.04em",
               }}
             >
+              <CurrencyIcon currency={wallet?.currency} size={14} />
               {wallet?.currency || "—"}
             </span>
           </div>
