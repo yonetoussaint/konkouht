@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus, Copy, CheckCircle, Clock } from "lucide-react";
-import { DEPOSIT_METHODS, PAYMENT_METHODS } from "./App";
+import { DEPOSIT_METHODS, PAYMENT_METHODS } from "../App";
 import type { User } from "./types";
 
 interface DepositNumbersCardProps {
