@@ -107,7 +107,7 @@ export default function WalletPage({
         borderColor="#2b3139"
       />
 
-      <div style={{ maxWidth: 600, margin: "0 auto", padding: "16px 12px" }}>
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "16px 0" }}>
         <BalanceCard
           accounts={wallets.map((w) => ({
             id: w.id,
