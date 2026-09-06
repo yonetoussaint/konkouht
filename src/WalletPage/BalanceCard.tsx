@@ -92,6 +92,8 @@ function ensureGlobalStyles() {
     @keyframes bc-spin { to { transform: rotate(360deg); } }
     .bc-scroll::-webkit-scrollbar { display: none; }
     .bc-carousel::-webkit-scrollbar { display: none; }
+    .bc-carousel { cursor: grab; }
+    .bc-carousel:active { cursor: grabbing; }
   `;
   document.head.appendChild(tag);
   stylesInjected = true;
@@ -415,7 +417,7 @@ export default function BalanceCard({ accounts, cardWidth = 300, gap = 14, onAct
         display: "flex",
         gap,
         overflowX: "auto",
-        scrollSnapType: "x mandatory",
+        scrollSnapType: "x proximity",
         scrollPadding: "0 20px",
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
