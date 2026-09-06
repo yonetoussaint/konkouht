@@ -50,6 +50,8 @@ export default function BalanceCard({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [displayBalances, setDisplayBalances] = useState<Record<string, number>>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
 
   const activeWallet = wallets[activeWalletIndex] || wallets[0];
 
@@ -63,6 +65,16 @@ export default function BalanceCard({
       setDisplayBalances(balances);
     }
   }, [wallets, isLoading, isLocked]);
+
+  // Check scroll position for arrows
+  const checkScrollPosition = () => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const { scrollLeft, scrollWidth, clientWidth } = container;
+      setShowLeftArrow(scrollLeft > 10);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
 
   // Handle refresh with animation
   const handleRefresh = async () => {
@@ -94,13 +106,15 @@ export default function BalanceCard({
   // Scroll to next/previous wallet
   const scrollToWallet = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
-      const scrollAmount = scrollContainerRef.current.offsetWidth;
-      const newScrollLeft = direction === 'left' 
-        ? scrollContainerRef.current.scrollLeft - scrollAmount
-        : scrollContainerRef.current.scrollLeft + scrollAmount;
+      const container = scrollContainerRef.current;
+      const cardWidth = container.offsetWidth;
+      const currentScroll = container.scrollLeft;
+      const targetScroll = direction === 'left' 
+        ? currentScroll - cardWidth
+        : currentScroll + cardWidth;
       
-      scrollContainerRef.current.scrollTo({
-        left: newScrollLeft,
+      container.scrollTo({
+        left: targetScroll,
         behavior: 'smooth'
       });
     }
@@ -114,14 +128,24 @@ export default function BalanceCard({
       const cardWidth = container.offsetWidth;
       const newIndex = Math.round(scrollPosition / cardWidth);
       
-      if (newIndex !== activeWalletIndex && newIndex < wallets.length) {
+      if (newIndex !== activeWalletIndex && newIndex < wallets.length && newIndex >= 0) {
         setActiveWalletIndex(newIndex);
         if (onWalletChange) {
           onWalletChange(wallets[newIndex].id);
         }
       }
+      checkScrollPosition();
     }
   };
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      checkScrollPosition();
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Skeleton Loader Component
   const Skeleton = () => (
@@ -209,7 +233,7 @@ export default function BalanceCard({
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <defs>
-              <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={`colorGradient-${activeWallet.id}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={color} stopOpacity={0.2} />
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
@@ -230,7 +254,7 @@ export default function BalanceCard({
               dataKey="value"
               stroke={color}
               strokeWidth={2}
-              fill="url(#colorGradient)"
+              fill={`url(#colorGradient-${activeWallet.id})`}
               dot={false}
             />
             <Line
@@ -290,16 +314,35 @@ export default function BalanceCard({
 
         {/* Header with controls */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <span
-            style={{
-              fontFamily: "Inter, sans-serif",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#848e9c",
-            }}
-          >
-            Total Balance
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span
+              style={{
+                fontFamily: "Inter, sans-serif",
+                fontSize: 13,
+                fontWeight: 500,
+                color: "#848e9c",
+              }}
+            >
+              Total Balance
+            </span>
+            {/* Wallet Indicator Badge */}
+            {wallets.length > 1 && !isLoading && (
+              <span
+                style={{
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "#f0b90b",
+                  background: "rgba(240, 185, 11, 0.1)",
+                  padding: "2px 10px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(240, 185, 11, 0.2)",
+                }}
+              >
+                {activeWallet?.currency || ''}
+              </span>
+            )}
+          </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {/* Lock/Unlock Button */}
             <button
@@ -366,7 +409,7 @@ export default function BalanceCard({
           <Skeleton />
         ) : (
           <>
-            {/* Scrollable Wallets Container */}
+            {/* Scrollable Wallets Container - Isolated Cards */}
             <div
               ref={scrollContainerRef}
               onScroll={handleScroll}
@@ -375,11 +418,13 @@ export default function BalanceCard({
                 overflowX: "auto",
                 scrollSnapType: "x mandatory",
                 scrollBehavior: "smooth",
-                gap: 24,
+                gap: 16,
                 paddingBottom: 8,
                 marginBottom: 8,
                 msOverflowStyle: "none",
                 scrollbarWidth: "none",
+                WebkitOverflowScrolling: "touch",
+                position: "relative",
               }}
               css={{
                 "&::-webkit-scrollbar": {
@@ -387,83 +432,108 @@ export default function BalanceCard({
                 },
               }}
             >
-              {wallets.map((wallet) => (
+              {wallets.map((wallet, index) => (
                 <div
                   key={wallet.id}
                   style={{
                     minWidth: "100%",
                     scrollSnapAlign: "start",
                     flexShrink: 0,
+                    position: "relative",
                   }}
                 >
-                  {/* Balance Display */}
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                    <span
-                      style={{
-                        fontFamily: "'Inter', sans-serif",
-                        fontSize: 32,
-                        fontWeight: 700,
-                        color: "#eaecef",
-                        letterSpacing: "-0.02em",
-                        transition: "opacity 0.3s",
-                      }}
-                    >
-                      {isLocked ? "🔒••••••" : (showBalance ? displayBalances[wallet.id]?.toLocaleString("fr-FR") : "••••••")}
-                    </span>
-                    <span
+                  {/* Isolated Card Content */}
+                  <div
+                    style={{
+                      background: "rgba(30, 35, 41, 0.5)",
+                      borderRadius: 12,
+                      padding: "16px 20px",
+                      border: `1px solid ${index === activeWalletIndex ? 'rgba(240, 185, 11, 0.2)' : 'transparent'}`,
+                      transition: "border-color 0.3s",
+                    }}
+                  >
+                    {/* Currency Name */}
+                    <div
                       style={{
                         fontFamily: "Inter, sans-serif",
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: 500,
                         color: "#848e9c",
+                        marginBottom: 8,
                       }}
                     >
-                      {wallet.symbol}
-                    </span>
-                  </div>
+                      {wallet.currency}
+                    </div>
 
-                  {/* Stats */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      {wallet.dayChange >= 0 ? (
-                        <TrendingUp size={14} color="#0ecb81" />
-                      ) : (
-                        <TrendingDown size={14} color="#f6465d" />
-                      )}
+                    {/* Balance Display */}
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
                       <span
                         style={{
-                          fontFamily: "Inter, sans-serif",
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: wallet.dayChange >= 0 ? "#0ecb81" : "#f6465d",
+                          fontFamily: "'Inter', sans-serif",
+                          fontSize: 28,
+                          fontWeight: 700,
+                          color: "#eaecef",
+                          letterSpacing: "-0.02em",
+                          transition: "opacity 0.3s",
                         }}
                       >
-                        {wallet.dayChange >= 0 ? "+" : ""}{wallet.dayChangePct.toFixed(2)}%
-                      </span>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>
-                        Today
-                      </span>
-                    </div>
-                    <div style={{ width: 1, height: 20, background: "#2b3139" }} />
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>
-                        24h Change
+                        {isLocked ? "🔒••••••" : (showBalance ? displayBalances[wallet.id]?.toLocaleString("fr-FR") : "••••••")}
                       </span>
                       <span
                         style={{
                           fontFamily: "Inter, sans-serif",
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: wallet.dayChange >= 0 ? "#0ecb81" : "#f6465d",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          color: "#848e9c",
                         }}
                       >
-                        {wallet.dayChange >= 0 ? "+" : ""}{wallet.dayChange.toLocaleString("fr-FR")}
+                        {wallet.symbol}
                       </span>
                     </div>
-                  </div>
 
-                  {/* Chart */}
-                  <Chart data={wallet.chartData} isPositive={wallet.dayChange >= 0} />
+                    {/* Stats */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        {wallet.dayChange >= 0 ? (
+                          <TrendingUp size={14} color="#0ecb81" />
+                        ) : (
+                          <TrendingDown size={14} color="#f6465d" />
+                        )}
+                        <span
+                          style={{
+                            fontFamily: "Inter, sans-serif",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: wallet.dayChange >= 0 ? "#0ecb81" : "#f6465d",
+                          }}
+                        >
+                          {wallet.dayChange >= 0 ? "+" : ""}{wallet.dayChangePct.toFixed(2)}%
+                        </span>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>
+                          Today
+                        </span>
+                      </div>
+                      <div style={{ width: 1, height: 20, background: "#2b3139" }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>
+                          24h Change
+                        </span>
+                        <span
+                          style={{
+                            fontFamily: "Inter, sans-serif",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: wallet.dayChange >= 0 ? "#0ecb81" : "#f6465d",
+                          }}
+                        >
+                          {wallet.dayChange >= 0 ? "+" : ""}{wallet.dayChange.toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Chart */}
+                    <Chart data={wallet.chartData} isPositive={wallet.dayChange >= 0} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -481,8 +551,9 @@ export default function BalanceCard({
                     key={wallet.id}
                     onClick={() => {
                       if (scrollContainerRef.current) {
-                        const cardWidth = scrollContainerRef.current.offsetWidth;
-                        scrollContainerRef.current.scrollTo({
+                        const container = scrollContainerRef.current;
+                        const cardWidth = container.offsetWidth;
+                        container.scrollTo({
                           left: index * cardWidth,
                           behavior: 'smooth'
                         });
@@ -495,8 +566,9 @@ export default function BalanceCard({
                       border: "none",
                       cursor: "pointer",
                       background: index === activeWalletIndex ? "#f0b90b" : "#2b3139",
-                      transition: "background 0.3s",
+                      transition: "all 0.3s",
                       padding: 0,
+                      transform: index === activeWalletIndex ? "scale(1.2)" : "scale(1)",
                     }}
                     aria-label={`View ${wallet.currency} wallet`}
                   />
@@ -507,60 +579,62 @@ export default function BalanceCard({
         )}
       </div>
 
-      {/* Navigation Arrows - Only show on hover or with multiple wallets */}
+      {/* Navigation Arrows - Positioned on the edges of the container */}
       {wallets.length > 1 && !isLoading && (
         <>
           <button
             onClick={() => scrollToWallet('left')}
             style={{
               position: "absolute",
-              left: 8,
+              left: -8,
               top: "50%",
               transform: "translateY(-50%)",
               background: "rgba(30, 35, 41, 0.9)",
               border: "1px solid #2b3139",
               borderRadius: "50%",
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
               color: "#eaecef",
               zIndex: 10,
-              transition: "opacity 0.2s",
-              opacity: activeWalletIndex === 0 ? 0.3 : 0.8,
-              pointerEvents: activeWalletIndex === 0 ? "none" : "auto",
+              transition: "all 0.2s",
+              opacity: showLeftArrow ? 0.9 : 0,
+              pointerEvents: showLeftArrow ? "auto" : "none",
+              backdropFilter: "blur(10px)",
             }}
-            disabled={activeWalletIndex === 0}
+            disabled={!showLeftArrow}
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={18} />
           </button>
           <button
             onClick={() => scrollToWallet('right')}
             style={{
               position: "absolute",
-              right: 8,
+              right: -8,
               top: "50%",
               transform: "translateY(-50%)",
               background: "rgba(30, 35, 41, 0.9)",
               border: "1px solid #2b3139",
               borderRadius: "50%",
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
               color: "#eaecef",
               zIndex: 10,
-              transition: "opacity 0.2s",
-              opacity: activeWalletIndex === wallets.length - 1 ? 0.3 : 0.8,
-              pointerEvents: activeWalletIndex === wallets.length - 1 ? "none" : "auto",
+              transition: "all 0.2s",
+              opacity: showRightArrow ? 0.9 : 0,
+              pointerEvents: showRightArrow ? "auto" : "none",
+              backdropFilter: "blur(10px)",
             }}
-            disabled={activeWalletIndex === wallets.length - 1}
+            disabled={!showRightArrow}
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={18} />
           </button>
         </>
       )}
