@@ -4408,6 +4408,7 @@ export default function App() {
           onOpenDeposit={() => setShowBuyModal(true)}
           onOpenWithdraw={() => setShowWithdrawModal(true)}
           onOpenNotifications={() => setActiveTab("notifications")}
+          onOpenSettings={() => showToast?.("Settings coming soon")}
           onUpdateNumber={handleUpdateMobileMoneyNumber}
           onRequireAuth={() => setShowAuthOverlay(true)}
           showToast={showToast}
