@@ -121,11 +121,9 @@ function Skeleton() {
     <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
         <div style={bar(64, 26, { borderRadius: 13 })} />
-        <div style={bar(64, 26, { borderRadius: 13 })} />
       </div>
       <div style={bar(180, 34, { marginBottom: 10 })} />
-      <div style={bar(120, 14, { marginBottom: 20 })} />
-      <div style={bar("100%", 56)} />
+      <div style={bar(120, 14, { marginBottom: 0 })} />
     </div>
   );
 }
@@ -245,117 +243,128 @@ export function BalanceCardItem({
   };
 
   return (
-    <div
-      style={{
-        background: `radial-gradient(120% 140% at 100% -20%, rgba(240,185,11,0.06) 0%, transparent 55%), ${COLORS.surface}`,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 16,
-        overflow: "hidden",
-        fontFamily: FONT_UI,
-        width,
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ padding: "18px 16px 0" }}>
-      {/* header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <CurrencyIcon currency={wallet?.currency} size={14} />
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: COLORS.gold,
-              background: COLORS.goldDim,
-              border: `1px solid ${COLORS.borderActive}`,
-              borderRadius: 999,
-              padding: "3px 10px",
-              letterSpacing: "0.04em",
-            }}
-          >
-            {wallet?.currency || "—"}
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-          <IconButton
-            onClick={() => setIsLocked((v) => !v)}
-            label={isLocked ? "Unlock balance" : "Lock balance"}
-            active={isLocked}
-          >
-            <Lock size={15} />
-          </IconButton>
-          {onRefresh && (
-            <IconButton
-              onClick={handleRefresh}
-              label="Refresh balance"
-              spinning={isRefreshing}
-              disabled={isRefreshing}
+    <div style={{ display: "flex", flexDirection: "column", gap: 0, width, flexShrink: 0 }}>
+      {/* Stats card */}
+      <div
+        style={{
+          background: `radial-gradient(120% 140% at 100% -20%, rgba(240,185,11,0.06) 0%, transparent 55%), ${COLORS.surface}`,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 0,
+          fontFamily: FONT_UI,
+          padding: "18px 16px 16px",
+        }}
+      >
+        {/* header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <CurrencyIcon currency={wallet?.currency} size={14} />
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: COLORS.gold,
+                background: COLORS.goldDim,
+                border: `1px solid ${COLORS.borderActive}`,
+                borderRadius: 999,
+                padding: "3px 10px",
+                letterSpacing: "0.04em",
+              }}
             >
-              <RefreshCw size={15} />
+              {wallet?.currency || "—"}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+            <IconButton
+              onClick={() => setIsLocked((v) => !v)}
+              label={isLocked ? "Unlock balance" : "Lock balance"}
+              active={isLocked}
+            >
+              <Lock size={15} />
             </IconButton>
-          )}
-          <IconButton
-            onClick={onToggleBalance}
-            label={showBalance ? "Hide balance" : "Show balance"}
-          >
-            {showBalance ? <EyeOff size={15} /> : <Eye size={15} />}
-          </IconButton>
+            {onRefresh && (
+              <IconButton
+                onClick={handleRefresh}
+                label="Refresh balance"
+                spinning={isRefreshing}
+                disabled={isRefreshing}
+              >
+                <RefreshCw size={15} />
+              </IconButton>
+            )}
+            <IconButton
+              onClick={onToggleBalance}
+              label={showBalance ? "Hide balance" : "Show balance"}
+            >
+              {showBalance ? <EyeOff size={15} /> : <Eye size={15} />}
+            </IconButton>
+          </div>
         </div>
+
+        {isLoading ? (
+          <Skeleton />
+        ) : (
+          <>
+            {/* balance */}
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+              <span
+                style={{
+                  fontFamily: FONT_NUM,
+                  fontSize: 32,
+                  fontWeight: 600,
+                  color: COLORS.text,
+                  letterSpacing: "-0.01em",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {formatAmount(wallet.balance, { hidden })}
+              </span>
+              <span style={{ fontSize: 14, fontWeight: 500, color: COLORS.textDim }}>
+                {wallet.symbol}
+              </span>
+            </div>
+
+            {/* change row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {isPositive ? (
+                <TrendingUp size={13} color={COLORS.up} />
+              ) : (
+                <TrendingDown size={13} color={COLORS.down} />
+              )}
+              <span
+                style={{
+                  fontFamily: FONT_NUM,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: isPositive ? COLORS.up : COLORS.down,
+                }}
+              >
+                {isPositive ? "+" : ""}
+                {wallet.dayChangePct.toFixed(2)}%
+              </span>
+              <span style={{ fontSize: 13, color: COLORS.textDim }}>
+                ({isPositive ? "+" : ""}
+                {hidden ? "••••" : wallet.dayChange.toLocaleString("en-US")} {wallet.symbol})
+              </span>
+              <span style={{ fontSize: 12, color: COLORS.textDim, marginLeft: "auto" }}>
+                24h
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
-      {isLoading ? (
-        <Skeleton />
-      ) : (
-        <>
-          {/* balance */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-            <span
-              style={{
-                fontFamily: FONT_NUM,
-                fontSize: 32,
-                fontWeight: 600,
-                color: COLORS.text,
-                letterSpacing: "-0.01em",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {formatAmount(wallet.balance, { hidden })}
-            </span>
-            <span style={{ fontSize: 14, fontWeight: 500, color: COLORS.textDim }}>
-              {wallet.symbol}
-            </span>
-          </div>
-
-          {/* change row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
-            {isPositive ? (
-              <TrendingUp size={13} color={COLORS.up} />
-            ) : (
-              <TrendingDown size={13} color={COLORS.down} />
-            )}
-            <span
-              style={{
-                fontFamily: FONT_NUM,
-                fontSize: 13,
-                fontWeight: 600,
-                color: isPositive ? COLORS.up : COLORS.down,
-              }}
-            >
-              {isPositive ? "+" : ""}
-              {wallet.dayChangePct.toFixed(2)}%
-            </span>
-            <span style={{ fontSize: 13, color: COLORS.textDim }}>
-              ({isPositive ? "+" : ""}
-              {hidden ? "••••" : wallet.dayChange.toLocaleString("en-US")} {wallet.symbol})
-            </span>
-            <span style={{ fontSize: 12, color: COLORS.textDim, marginLeft: "auto" }}>
-              24h
-            </span>
-          </div>
-
-          <Sparkline data={wallet.chartData} positive={isPositive} />
-        </>
-      )}
+      {/* Chart card */}
+      <div
+        style={{
+          background: COLORS.surface,
+          border: `1px solid ${COLORS.border}`,
+          borderTop: "none",
+          borderRadius: 0,
+          padding: "0 16px 16px",
+          marginTop: 0,
+        }}
+      >
+        {isLoading ? null : <Sparkline data={wallet.chartData} positive={isPositive} />}
       </div>
     </div>
   );
