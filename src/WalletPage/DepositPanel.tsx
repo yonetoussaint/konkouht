@@ -6,11 +6,22 @@ export default function DepositPanel({ onClose }) {
   const [amount, setAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [currency, setCurrency] = useState<"HTG" | "USDT">("HTG");
+  const [currencyOpen, setCurrencyOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 10);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (!currencyOpen) return;
+    const handle = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest(".currency-dropdown")) setCurrencyOpen(false);
+    };
+    document.addEventListener("click", handle);
+    return () => document.removeEventListener("click", handle);
+  }, [currencyOpen]);
 
   function handleClose() {
     setEntered(false);
@@ -115,7 +126,15 @@ export default function DepositPanel({ onClose }) {
           >
             Montant à déposer
           </label>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "stretch",
+              background: "#111",
+              border: "1px solid #2a2a2e",
+              borderRadius: 0,
+            }}
+          >
             <input
               type="number"
               value={amount}
@@ -123,8 +142,8 @@ export default function DepositPanel({ onClose }) {
               placeholder="0.00"
               style={{
                 flex: 1,
-                background: "#111",
-                border: "1px solid #2a2a2e",
+                background: "transparent",
+                border: "none",
                 borderRadius: 0,
                 padding: "12px 14px",
                 fontFamily: "'IBM Plex Mono', monospace",
@@ -134,33 +153,67 @@ export default function DepositPanel({ onClose }) {
                 outline: "none",
               }}
             />
-            <div
-              style={{
-                display: "flex",
-                border: "1px solid #2a2a2e",
-                borderRadius: 0,
-                overflow: "hidden",
-              }}
-            >
-              {(["HTG", "USDT"] as const).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => { setCurrency(c); setSelectedMethod(null); }}
+            <div style={{ position: "relative", borderLeft: "1px solid #2a2a2e" }}>
+              <button
+                className="currency-dropdown"
+                onClick={() => setCurrencyOpen((v) => !v)}
+                style={{
+                  height: "100%",
+                  padding: "0 12px",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: 0,
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#8a8a90",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                {currency}
+                <span style={{ fontSize: 10 }}>▼</span>
+              </button>
+              {currencyOpen && (
+                <div
                   style={{
-                    padding: "8px 12px",
-                    background: currency === c ? "#0ecb81" : "transparent",
-                    border: "none",
+                    position: "absolute",
+                    top: "100%",
+                    right: 0,
+                    marginTop: 4,
+                    background: "#1c1c1f",
+                    border: "1px solid #2a2a2e",
                     borderRadius: 0,
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: currency === c ? "#111" : "#8a8a90",
-                    cursor: "pointer",
+                    zIndex: 10,
+                    minWidth: 80,
                   }}
                 >
-                  {c}
-                </button>
-              ))}
+                  {(["HTG", "USDT"] as const).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => { setCurrency(c); setSelectedMethod(null); setCurrencyOpen(false); }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "10px 14px",
+                        background: c === currency ? "#0ecb81" : "transparent",
+                        border: "none",
+                        borderBottom: "1px solid #2a2a2e",
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: c === currency ? "#111" : "#f2f2f2",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
