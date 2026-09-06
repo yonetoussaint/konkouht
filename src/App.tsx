@@ -11,6 +11,7 @@ import { shortenEditionUrl } from "./lib/share";
 import { App as CapacitorApp } from "@capacitor/app";
 import { isNative } from "./native";
 import WalletPage from "./WalletPage";
+import PageHeader from "./components/PageHeader";
 import ComitePanel from "./ComitePanel";
 import HomePage from "./HomePage";
 import AuthOverlay from "./AuthOverlay";
@@ -2679,25 +2680,12 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
 
   return (
     <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 80 }}>
-      <header style={{
-        borderBottom: "1px solid #2a2a2e", background: "#1c1c1f",
-        position: "sticky", top: 0, zIndex: 50,
-        padding: "16px 16px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-      }}>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
-          Notifications
-          {unread > 0 && (
-            <span style={{
-              marginLeft: 8,
-              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              background: "#e74c3c", color: "#fff",
-              padding: "2px 7px",
-              verticalAlign: "middle",
-            }}>{unread}</span>
-          )}
-        </span>
-        {unread > 0 && (
+      <PageHeader
+        title="Notifications"
+        badge={unread}
+      />
+      {unread > 0 && (
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: "8px 16px 0", textAlign: "right" }}>
           <button
             onClick={onMarkAllRead}
             style={{
@@ -2707,8 +2695,8 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
               cursor: "pointer", padding: 0,
             }}
           >Tout lire</button>
-        )}
-      </header>
+        </div>
+      )}
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
         {notifications.length === 0 ? (
