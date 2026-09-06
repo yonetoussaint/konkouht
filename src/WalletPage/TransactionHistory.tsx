@@ -192,5 +192,3 @@ export default function TransactionHistory({
     </div>
   );
 }
-
-export default TransactionHistory;
