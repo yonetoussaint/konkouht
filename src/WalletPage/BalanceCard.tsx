@@ -418,7 +418,6 @@ export default function BalanceCard({ accounts, cardWidth = 300, gap = 14, onAct
         scrollSnapType: "x proximity",
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
-        padding: "0 16px",
         width: "100%",
       }}
     >
