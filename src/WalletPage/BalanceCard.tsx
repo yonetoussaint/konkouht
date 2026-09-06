@@ -421,6 +421,7 @@ export default function BalanceCard({ accounts, cardWidth = 300, gap = 14, onAct
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
         padding: "0 16px",
+        outline: "3px dashed red",
       }}
     >
       {accounts.map((account) => (
