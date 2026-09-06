@@ -1,4 +1,3 @@
-export { default as WalletHeader } from "./WalletHeader";
 export { default as BalanceCard } from "./BalanceCard";
 export { default as QuickActions } from "./QuickActions";
 export { default as StatsCards } from "./StatsCards";

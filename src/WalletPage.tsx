@@ -1,5 +1,5 @@
 import { useState } from "react";
-import WalletHeader from "./WalletPage/WalletHeader";
+import PageHeader from "./components/PageHeader";
 import BalanceCard from "./WalletPage/BalanceCard";
 import QuickActions from "./WalletPage/QuickActions";
 import StatsCards from "./WalletPage/StatsCards";
@@ -100,10 +100,14 @@ export default function WalletPage({
 
   return (
     <div style={{ minHeight: "100vh", background: "#181a1e", paddingBottom: 80 }}>
-      <WalletHeader
+      <PageHeader
+        title="Wallet"
+        showBack
         onBack={onBack}
-        onOpenNotifications={onOpenNotifications}
-        showToast={showToast}
+        onNotifications={onOpenNotifications}
+        onMore={() => showToast?.("More options coming soon")}
+        background="#1e2329"
+        borderColor="#2b3139"
       />
 
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "16px 12px" }}>
