@@ -256,7 +256,7 @@ export function BalanceCardItem({
         flexShrink: 0,
       }}
     >
-      <div style={{ padding: "18px 16px 0" }}>
+      <div style={{ paddingTop: 18 }}>
       {/* header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -419,6 +419,7 @@ export default function BalanceCard({ accounts, cardWidth = 300, gap = 14, onAct
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
         width: "100%",
+        padding: "0 16px",
       }}
     >
       {accounts.map((account) => (
