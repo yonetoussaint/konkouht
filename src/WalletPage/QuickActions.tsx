@@ -88,7 +88,7 @@ export default function QuickActions({
     <div
       style={{
         display: "flex",
-        gap: 8,
+        gap: 2,
         overflowX: "auto",
         padding: "4px 0 16px 0",
         marginBottom: 4,
