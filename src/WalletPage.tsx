@@ -108,23 +108,20 @@ export default function WalletPage({
 
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "16px 12px" }}>
         <BalanceCard
-          accounts={[
-            {
-              id: "main",
-              props: {
-                wallets,
-                showBalance,
-                onToggleBalance: () => setShowBalance(!showBalance),
-                isLoading: false,
-                onRefresh: handleRefresh,
-                onWalletChange: (walletId) => {
-                  setActiveWalletId(walletId);
-                  // You could log or track which wallet is active
-                  console.log('Active wallet:', walletId);
-                },
-              },
+          accounts={wallets.map((w) => ({
+            id: w.id,
+            props: {
+              wallet: w,
+              showBalance,
+              onToggleBalance: () => setShowBalance(!showBalance),
+              isLoading: false,
+              onRefresh: handleRefresh,
             },
-          ]}
+          }))}
+          onActiveChange={(walletId) => {
+            setActiveWalletId(walletId);
+            console.log('Active wallet:', walletId);
+          }}
         />
 
         <QuickActions

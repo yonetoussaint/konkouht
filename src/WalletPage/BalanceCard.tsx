@@ -168,35 +168,26 @@ function IconButton({ onClick, label, active, children, spinning, disabled }) {
 }
 
 // ---------------------------------------------------------------------------
-// A single card. Every piece of state here (which wallet is active, whether
-// it's locked, whether it's mid-refresh) lives inside this component, so
-// dropping several of these into a scroller never lets one card's state leak
-// into another.
+// A single card. Every piece of state here (whether it's locked, whether it's
+// mid-refresh) lives inside this component, so dropping several of these into
+// a scroller never lets one card's state leak into another.
 // ---------------------------------------------------------------------------
 export function BalanceCardItem({
-
-  wallets,
+  wallet,
   showBalance,
   onToggleBalance,
   isLoading = false,
   onRefresh,
-  onWalletChange,
+  onActivate,
   width = 340,
 }) {
-  const [activeIndex, setActiveIndex] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(ensureGlobalStyles, []);
 
-  const wallet = wallets[activeIndex] || wallets[0];
   const isPositive = (wallet?.dayChange ?? 0) >= 0;
   const hidden = !showBalance || isLocked;
-
-  const selectWallet = (index) => {
-    setActiveIndex(index);
-    onWalletChange?.(wallets[index].id);
-  };
 
   const handleRefresh = async () => {
     if (!onRefresh || isRefreshing) return;
@@ -216,16 +207,28 @@ export function BalanceCardItem({
         width,
         flexShrink: 0,
         scrollSnapAlign: "start",
-        // isolate this card's own internal scroller (wallet pills) from
-        // whatever scroller it's sitting inside of
         overscrollBehaviorX: "contain",
       }}
     >
       {/* header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.textDim }}>
-          Total balance
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: COLORS.gold,
+              background: COLORS.goldDim,
+              border: `1px solid ${COLORS.borderActive}`,
+              borderRadius: 999,
+              padding: "3px 10px",
+              letterSpacing: "0.04em",
+            }}
+          >
+            {wallet?.currency || "—"}
+          </span>
+          <span style={{ fontSize: 12, color: COLORS.textDim }}>Total balance</span>
+        </div>
         <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
           <IconButton
             onClick={() => setIsLocked((v) => !v)}
@@ -257,44 +260,6 @@ export function BalanceCardItem({
         <Skeleton />
       ) : (
         <>
-          {/* wallet switcher — its own independent horizontal scroller */}
-          {wallets.length > 1 && (
-            <div
-              className="bc-scroll"
-              style={{
-                display: "flex",
-                gap: 6,
-                marginBottom: 16,
-                overflowX: "auto",
-                scrollbarWidth: "none",
-                overscrollBehaviorX: "contain",
-              }}
-            >
-              {wallets.map((w, i) => (
-                <button
-                  key={w.id}
-                  onClick={() => selectWallet(i)}
-                  style={{
-                    border: `1px solid ${i === activeIndex ? COLORS.borderActive : COLORS.border}`,
-                    background: i === activeIndex ? COLORS.goldDim : "transparent",
-                    color: i === activeIndex ? COLORS.gold : COLORS.textDim,
-                    fontFamily: FONT_UI,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    padding: "5px 12px",
-                    borderRadius: 20,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    transition: "all 0.15s",
-                    flexShrink: 0,
-                  }}
-                >
-                  {w.currency}
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* balance */}
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
             <span
@@ -355,10 +320,44 @@ export function BalanceCardItem({
 // row, refreshing one card, or switching a wallet on one card never
 // touches its neighbors.
 // ---------------------------------------------------------------------------
-export default function BalanceCard({ accounts, cardWidth = 340, gap = 14 }) {
+export default function BalanceCard({ accounts, cardWidth = 340, gap = 14, onActiveChange }) {
   const scrollRef = useRef(null);
 
   useEffect(ensureGlobalStyles, []);
+
+  // As the user scrolls/swipes, surface which card is currently "on screen"
+  // so the parent can mirror the active wallet for any side effects (logging,
+  // analytics, future balance-of-record plumbing).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !onActiveChange) return;
+    let frame = 0;
+    const report = () => {
+      const center = el.scrollLeft + el.clientWidth / 2;
+      const cards = el.querySelectorAll("[data-card-id]");
+      let closestId = null;
+      let closestDist = Infinity;
+      cards.forEach((node) => {
+        const nodeCenter = node.offsetLeft + node.clientWidth / 2;
+        const dist = Math.abs(nodeCenter - center);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestId = node.getAttribute("data-card-id");
+        }
+      });
+      if (closestId) onActiveChange(closestId);
+    };
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(report);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    report();
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, [accounts, onActiveChange]);
 
   return (
     <div
@@ -377,7 +376,13 @@ export default function BalanceCard({ accounts, cardWidth = 340, gap = 14 }) {
       }}
     >
       {accounts.map((account) => (
-        <BalanceCardItem key={account.id} width={cardWidth} {...account.props} />
+        <div
+          key={account.id}
+          data-card-id={account.id}
+          style={{ display: "flex" }}
+        >
+          <BalanceCardItem width={cardWidth} {...account.props} />
+        </div>
       ))}
     </div>
   );
