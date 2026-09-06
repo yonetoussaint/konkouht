@@ -178,7 +178,7 @@ function Sparkline({ data, positive }) {
     );
   }
   return (
-    <div style={{ height: 56, marginTop: 12 }}>
+    <div style={{ height: 56, marginTop: 8 }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
           <defs>
@@ -297,11 +297,11 @@ export function BalanceCardItem({
           border: `1px solid ${COLORS.border}`,
           borderRadius: 0,
           fontFamily: FONT_UI,
-          padding: "18px 16px 16px",
+          padding: "8px 16px",
         }}
       >
         {/* header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <CurrencyIcon currency={wallet?.currency} size={14} />
             <span
@@ -351,7 +351,7 @@ export function BalanceCardItem({
         ) : (
           <>
             {/* balance */}
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
               <span
                 style={{
                   fontFamily: FONT_NUM,
@@ -464,7 +464,7 @@ export function BalanceCardItem({
           border: `1px solid ${COLORS.border}`,
           borderTop: "none",
           borderRadius: 0,
-          padding: "0 0 16px",
+          padding: "0 0 8px",
           marginTop: 0,
         }}
       >
