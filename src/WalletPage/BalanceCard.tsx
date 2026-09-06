@@ -6,7 +6,6 @@ import {
   TrendingDown,
   RefreshCw,
   Lock,
-  Wallet,
 } from "lucide-react";
 import {
   AreaChart,
@@ -14,6 +13,45 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+
+// ---- currency icons ------------------------------------------------------
+function UsdtIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="6" fill="#26A17B" />
+      <path
+        d="M17.922 21.948a.84.84 0 0 1-.63.269.8.8 0 0 1-.623-.269l-2.5-3.333h-1.4l2.077 2.769a.84.84 0 0 0 .623.269h.923a.84.84 0 0 0 .63-.269l2.077-2.769h-1.4l-2.5 3.333a.8.8 0 0 1-.623.269.84.84 0 0 1-.63-.269l-2.077-2.769h-1.4l2.923 3.888c.269.345.577.345.846 0l6.154-8.212c.231-.307.038-.5-.423-.5h-1.923a.84.84 0 0 0-.63.269l-4.923 6.577a.8.8 0 0 1-.623.269.84.84 0 0 1-.63-.269l-2.077-2.769h-1.4l2.923 3.888c.269.345.577.345.846 0l6.154-8.212c.231-.307.038-.5-.423-.5H8.615c-.538 0-.654.5-.346.808l8.615 11.487c.192.269.5.269.692 0l8.654-11.538c.307-.346.192-.808-.346-.808h-1.692a.5.5 0 0 0-.423.231l-6.154 8.212z"
+        fill="white"
+      />
+    </svg>
+  );
+}
+
+function HtgIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="6" fill="#002876" />
+      <rect x="0" y="10.67" width="32" height="10.66" fill="#D21034" />
+      <text
+        x="16"
+        y="22"
+        textAnchor="middle"
+        fontSize="14"
+        fontWeight="700"
+        fontFamily="Georgia, serif"
+        fill="white"
+      >
+        G
+      </text>
+    </svg>
+  );
+}
+
+function CurrencyIcon({ currency, size = 14 }) {
+  if (currency === "USDT") return <UsdtIcon size={size} />;
+  if (currency === "HTG" || currency === "Haitian Gourdes") return <HtgIcon size={size} />;
+  return null;
+}
 
 // ---- design tokens -------------------------------------------------------
 const COLORS = {
@@ -214,7 +252,7 @@ export function BalanceCardItem({
       {/* header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Wallet size={14} color={COLORS.gold} strokeWidth={2} />
+          <CurrencyIcon currency={wallet?.currency} size={14} />
           <span
             style={{
               fontSize: 12,
