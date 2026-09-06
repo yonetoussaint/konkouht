@@ -2,7 +2,6 @@ import { useState } from "react";
 import PageHeader from "./components/PageHeader";
 import BalanceCard from "./WalletPage/BalanceCard";
 import QuickActions from "./WalletPage/QuickActions";
-import DepositNumbersCard from "./WalletPage/DepositNumbersCard";
 import DepositPanel from "./WalletPage/DepositPanel";
 import TransactionHistory from "./WalletPage/TransactionHistory";
 import TransactionDetailSheet from "./WalletPage/TransactionDetailSheet";
@@ -129,48 +128,6 @@ export default function WalletPage({
           onOpenSettings={onOpenSettings}
           onRequireAuth={onRequireAuth}
         />
-
-        {isAuthenticated ? (
-          <DepositNumbersCard
-            currentUser={currentUser}
-            onUpdateNumber={onUpdateNumber}
-            showToast={showToast}
-          />
-        ) : (
-          <div
-            style={{
-              border: "1px solid #2b3139",
-              borderRadius: 12,
-              padding: 20,
-              textAlign: "center",
-              marginBottom: 16,
-              background: "#1e2329",
-            }}
-          >
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#848e9c", marginBottom: 12 }}>
-              Connect to manage your wallet and payment methods
-            </div>
-            <button
-              onClick={onRequireAuth}
-              style={{
-                border: "none",
-                borderRadius: 8,
-                background: "#f0b90b",
-                color: "#181a1e",
-                fontFamily: "Inter, sans-serif",
-                fontSize: 14,
-                fontWeight: 700,
-                padding: "10px 24px",
-                cursor: "pointer",
-                transition: "opacity 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-            >
-              Connect Wallet
-            </button>
-          </div>
-        )}
 
         <TransactionHistory
           transactions={dedupedTransactions}
