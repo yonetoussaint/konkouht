@@ -50,7 +50,7 @@ export default function WalletPage({
   // Mock USDT wallet data (you can replace with real data from your backend)
   const usdtWalletData = {
     id: 'usdt',
-    currency: 'USDT',
+    currency: 'USD',
     symbol: 'USDT',
     balance: isAuthenticated ? 2500 : 0, // Example USDT balance
     dayChange: isAuthenticated ? -45 : 0,
@@ -69,7 +69,7 @@ export default function WalletPage({
   // Mock HTG wallet data
   const htgWalletData = {
     id: 'htg',
-    currency: 'Haitian Gourdes',
+    currency: 'Haitian Gourde',
     symbol: 'HTG',
     balance: effectiveBalance,
     dayChange: dayChange,
