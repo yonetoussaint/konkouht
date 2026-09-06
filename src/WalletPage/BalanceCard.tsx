@@ -6,6 +6,7 @@ import {
   TrendingDown,
   RefreshCw,
   Lock,
+  Wallet,
 } from "lucide-react";
 import {
   AreaChart,
@@ -213,6 +214,7 @@ export function BalanceCardItem({
       {/* header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Wallet size={14} color={COLORS.gold} strokeWidth={2} />
           <span
             style={{
               fontSize: 12,
@@ -227,7 +229,6 @@ export function BalanceCardItem({
           >
             {wallet?.currency || "—"}
           </span>
-          <span style={{ fontSize: 12, color: COLORS.textDim }}>Total balance</span>
         </div>
         <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
           <IconButton
