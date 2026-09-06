@@ -1,15 +1,15 @@
-import { Copy, CheckCircle, Clock } from "lucide-react";
+import { Copy, CheckCircle, Clock, ArrowDownLeft, ArrowUpRight, Gift, Trophy, Ticket, Percent } from "lucide-react";
 import { txReference, splitLabelNote, extractCompetitionTitle } from "./utils";
 import type { Transaction } from "./types";
 
 const TX_VISUALS: Record<string, { icon: any; color: string; bg: string }> = {
-  deposit: { icon: require("lucide-react").ArrowDownLeft, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.12)" },
-  withdrawal: { icon: require("lucide-react").ArrowUpRight, color: "#f6465d", bg: "rgba(246, 70, 93, 0.12)" },
-  withdrawal_refund: { icon: require("lucide-react").ArrowDownLeft, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.12)" },
-  gift_sent: { icon: require("lucide-react").Gift, color: "#f0b90b", bg: "rgba(240, 185, 11, 0.12)" },
-  competition_prize: { icon: require("lucide-react").Trophy, color: "#f0b90b", bg: "rgba(240, 185, 11, 0.12)" },
-  registration_fee: { icon: require("lucide-react").Ticket, color: "#1e80ff", bg: "rgba(30, 128, 255, 0.12)" },
-  registration_refund: { icon: require("lucide-react").Percent, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.12)" },
+  deposit: { icon: ArrowDownLeft, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.12)" },
+  withdrawal: { icon: ArrowUpRight, color: "#f6465d", bg: "rgba(246, 70, 93, 0.12)" },
+  withdrawal_refund: { icon: ArrowDownLeft, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.12)" },
+  gift_sent: { icon: Gift, color: "#f0b90b", bg: "rgba(240, 185, 11, 0.12)" },
+  competition_prize: { icon: Trophy, color: "#f0b90b", bg: "rgba(240, 185, 11, 0.12)" },
+  registration_fee: { icon: Ticket, color: "#1e80ff", bg: "rgba(30, 128, 255, 0.12)" },
+  registration_refund: { icon: Percent, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.12)" },
 };
 
 const WITHDRAWAL_STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
@@ -71,7 +71,7 @@ export default function TransactionDetailSheet({
   if (!tx) return null;
 
   const visual = TX_VISUALS[tx.type] || {
-    icon: require("lucide-react").ArrowUpRight,
+    icon: ArrowUpRight,
     color: "#848e9c",
     bg: "rgba(132, 142, 156, 0.1)",
   };
