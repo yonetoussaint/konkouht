@@ -121,7 +121,7 @@ export default function QuickActions({
               gap: 6,
               padding: "12px 16px",
               minWidth: 72,
-              border: isActive ? "1px solid #2b3139" : "none",
+              border: "none",
               borderRadius: 0,
               background: isActive ? "transparent" : "#1e2329",
               cursor: isActive ? "default" : "pointer",
