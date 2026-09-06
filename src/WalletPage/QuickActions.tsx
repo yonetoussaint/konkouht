@@ -174,5 +174,3 @@ export default function QuickActions({
     </div>
   );
 }
-
-export default QuickActions;
