@@ -122,7 +122,7 @@ export default function QuickActions({
               padding: "12px 16px",
               minWidth: 72,
               border: isActive ? "1px solid #2b3139" : "none",
-              borderRadius: 12,
+              borderRadius: 0,
               background: isActive ? "transparent" : "#1e2329",
               cursor: isActive ? "default" : "pointer",
               transition: "all 0.2s",
@@ -143,7 +143,7 @@ export default function QuickActions({
               style={{
                 width: 44,
                 height: 44,
-                borderRadius: "50%",
+                borderRadius: 0,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
