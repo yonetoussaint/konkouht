@@ -119,8 +119,8 @@ export default function QuickActions({
               flexDirection: "column",
               alignItems: "center",
               gap: 6,
-              padding: "8px 12px",
-              minWidth: 64,
+              padding: "10px 14px",
+              minWidth: 68,
               border: "none",
               borderRadius: 0,
               background: "transparent",
@@ -141,8 +141,8 @@ export default function QuickActions({
           >
             <div
               style={{
-                width: 56,
-                height: 56,
+                width: 48,
+                height: 48,
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
@@ -152,7 +152,7 @@ export default function QuickActions({
               }}
             >
               <Icon
-                size={24}
+                size={20}
                 strokeWidth={2}
                 color={isActive ? "#848e9c" : action.color || "#eaecef"}
               />
