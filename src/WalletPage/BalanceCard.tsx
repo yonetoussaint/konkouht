@@ -173,7 +173,8 @@ function IconButton({ onClick, label, active, children, spinning, disabled }) {
 // dropping several of these into a scroller never lets one card's state leak
 // into another.
 // ---------------------------------------------------------------------------
-export function BalanceCard({
+export function BalanceCardItem({
+
   wallets,
   showBalance,
   onToggleBalance,
@@ -348,13 +349,13 @@ export function BalanceCard({
 }
 
 // ---------------------------------------------------------------------------
-// Carousel: lays several BalanceCards side by side in one horizontally
-// scrollable, snapping row. Each card below is a separate BalanceCard
+// BalanceCard: lays several account cards side by side in one horizontally
+// scrollable, snapping row. Each card below is a separate BalanceCardItem
 // instance with its own hook state (see comment above), so scrolling the
 // row, refreshing one card, or switching a wallet on one card never
 // touches its neighbors.
 // ---------------------------------------------------------------------------
-export default function BalanceCardCarousel({ accounts, cardWidth = 340, gap = 14 }) {
+export default function BalanceCard({ accounts, cardWidth = 340, gap = 14 }) {
   const scrollRef = useRef(null);
 
   useEffect(ensureGlobalStyles, []);
@@ -376,7 +377,7 @@ export default function BalanceCardCarousel({ accounts, cardWidth = 340, gap = 1
       }}
     >
       {accounts.map((account) => (
-        <BalanceCard key={account.id} width={cardWidth} {...account.props} />
+        <BalanceCardItem key={account.id} width={cardWidth} {...account.props} />
       ))}
     </div>
   );
