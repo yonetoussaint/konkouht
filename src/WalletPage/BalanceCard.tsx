@@ -536,7 +536,7 @@ export default function BalanceCard({ accounts, cardWidth = 300, gap = 14, onAct
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
         width: "100%",
-        padding: "0 8px",
+        padding: 0,
       }}
     >
       {accounts.map((account) => (
