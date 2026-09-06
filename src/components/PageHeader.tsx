@@ -1,4 +1,4 @@
-import { Bell, MoreHorizontal } from "lucide-react";
+import { Bell, MoreHorizontal, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 
 interface PageHeaderProps {
@@ -8,6 +8,7 @@ interface PageHeaderProps {
   onBack?: () => void;
   onNotifications?: () => void;
   onMore?: () => void;
+  onSettings?: () => void;
   unreadCount?: number;
   background?: string;
   borderColor?: string;
@@ -21,6 +22,7 @@ export default function PageHeader({
   onBack,
   onNotifications,
   onMore,
+  onSettings,
   unreadCount,
   background = "#1c1c1f",
   borderColor = "#2a2a2e",
@@ -144,6 +146,21 @@ export default function PageHeader({
             }}
           >
             <MoreHorizontal size={20} strokeWidth={2} />
+          </button>
+        )}
+        {onSettings && (
+          <button
+            onClick={onSettings}
+            style={{
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              padding: 8,
+              color: "#eaecef",
+              display: "flex",
+            }}
+          >
+            <Settings size={20} strokeWidth={2} />
           </button>
         )}
         {actions}

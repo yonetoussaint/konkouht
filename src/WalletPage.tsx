@@ -102,10 +102,7 @@ export default function WalletPage({
     <div style={{ minHeight: "100vh", background: "#181a1e", paddingBottom: 80 }}>
       <PageHeader
         title="Wallet"
-        showBack
-        onBack={onBack}
-        onNotifications={onOpenNotifications}
-        onMore={() => showToast?.("More options coming soon")}
+        onSettings={onOpenSettings}
         background="#1e2329"
         borderColor="#2b3139"
       />
