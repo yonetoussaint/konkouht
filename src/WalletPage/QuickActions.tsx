@@ -123,19 +123,19 @@ export default function QuickActions({
               minWidth: 72,
               border: "none",
               borderRadius: 0,
-              background: isActive ? "transparent" : "#1e2329",
+              background: "transparent",
               cursor: isActive ? "default" : "pointer",
               transition: "all 0.2s",
               opacity: isActive ? 0.5 : 1,
             }}
             onMouseEnter={(e) => {
               if (!isActive) {
-                e.currentTarget.style.background = "#2b3139";
+                e.currentTarget.style.background = "#1e2329";
               }
             }}
             onMouseLeave={(e) => {
               if (!isActive) {
-                e.currentTarget.style.background = "#1e2329";
+                e.currentTarget.style.background = "transparent";
               }
             }}
           >
