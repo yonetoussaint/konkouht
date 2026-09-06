@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageHeader from "./components/PageHeader";
 import BalanceCard from "./WalletPage/BalanceCard";
 import QuickActions from "./WalletPage/QuickActions";
@@ -25,6 +25,10 @@ export default function WalletPage({
   onBack,
 }: WalletPageProps) {
   const [selectedTx, setSelectedTx] = useState(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, []);
   const [showBalance, setShowBalance] = useState(true);
   const [activeWalletId, setActiveWalletId] = useState('htg');
   const [showDeposit, setShowDeposit] = useState(false);
