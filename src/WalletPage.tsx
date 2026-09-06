@@ -2,7 +2,6 @@ import { useState } from "react";
 import PageHeader from "./components/PageHeader";
 import BalanceCard from "./WalletPage/BalanceCard";
 import QuickActions from "./WalletPage/QuickActions";
-import StatsCards from "./WalletPage/StatsCards";
 import DepositNumbersCard from "./WalletPage/DepositNumbersCard";
 import DepositPanel from "./WalletPage/DepositPanel";
 import TransactionHistory from "./WalletPage/TransactionHistory";
@@ -35,13 +34,6 @@ export default function WalletPage({
   const effectiveTransactions = isAuthenticated ? transactions : [];
 
   const dedupedTransactions = dedupeTransactions(effectiveTransactions);
-
-  const totalDeposited = dedupedTransactions
-    .filter((t) => t.type === "deposit")
-    .reduce((sum, t) => sum + t.amount, 0);
-  const totalGifted = dedupedTransactions
-    .filter((t) => t.type === "gift_sent")
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   const dayChange = dedupedTransactions
     .filter((t) => t.date && t.date.startsWith("Aujourd'hui"))
@@ -136,11 +128,6 @@ export default function WalletPage({
           onOpenSwap={onOpenSwap}
           onOpenSettings={onOpenSettings}
           onRequireAuth={onRequireAuth}
-        />
-
-        <StatsCards
-          totalDeposited={totalDeposited}
-          totalGifted={totalGifted}
         />
 
         {isAuthenticated ? (
