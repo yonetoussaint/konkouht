@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Eye, 
   EyeOff, 
@@ -6,7 +6,9 @@ import {
   TrendingDown, 
   RefreshCw, 
   Lock, 
-  Unlock 
+  Unlock,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   LineChart,
@@ -16,37 +18,51 @@ import {
   Tooltip,
 } from "recharts";
 
-interface BalanceCardProps {
+interface WalletData {
+  id: string;
+  currency: string;
+  symbol: string;
   balance: number;
   dayChange: number;
   dayChangePct: number;
+  chartData: { time: string; value: number }[];
+}
+
+interface BalanceCardProps {
+  wallets: WalletData[];
   showBalance: boolean;
   onToggleBalance: () => void;
   isLoading?: boolean;
-  onRefresh?: () => void;
-  chartData?: { time: string; value: number }[];
+  onRefresh?: () => Promise<void> | void;
+  onWalletChange?: (walletId: string) => void;
 }
 
 export default function BalanceCard({
-  balance,
-  dayChange,
-  dayChangePct,
+  wallets,
   showBalance,
   onToggleBalance,
   isLoading = false,
   onRefresh,
-  chartData = [],
+  onWalletChange,
 }: BalanceCardProps) {
+  const [activeWalletIndex, setActiveWalletIndex] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [displayBalance, setDisplayBalance] = useState(balance);
+  const [displayBalances, setDisplayBalances] = useState<Record<string, number>>({});
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Simulate balance animation when data changes
+  const activeWallet = wallets[activeWalletIndex] || wallets[0];
+
+  // Initialize display balances
   useEffect(() => {
     if (!isLoading && !isLocked) {
-      setDisplayBalance(balance);
+      const balances: Record<string, number> = {};
+      wallets.forEach(w => {
+        balances[w.id] = w.balance;
+      });
+      setDisplayBalances(balances);
     }
-  }, [balance, isLoading, isLocked]);
+  }, [wallets, isLoading, isLocked]);
 
   // Handle refresh with animation
   const handleRefresh = async () => {
@@ -61,9 +77,49 @@ export default function BalanceCard({
   const toggleLock = () => {
     setIsLocked(!isLocked);
     if (!isLocked) {
-      setDisplayBalance(0);
+      const balances: Record<string, number> = {};
+      wallets.forEach(w => {
+        balances[w.id] = 0;
+      });
+      setDisplayBalances(balances);
     } else {
-      setDisplayBalance(balance);
+      const balances: Record<string, number> = {};
+      wallets.forEach(w => {
+        balances[w.id] = w.balance;
+      });
+      setDisplayBalances(balances);
+    }
+  };
+
+  // Scroll to next/previous wallet
+  const scrollToWallet = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = scrollContainerRef.current.offsetWidth;
+      const newScrollLeft = direction === 'left' 
+        ? scrollContainerRef.current.scrollLeft - scrollAmount
+        : scrollContainerRef.current.scrollLeft + scrollAmount;
+      
+      scrollContainerRef.current.scrollTo({
+        left: newScrollLeft,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Handle scroll to detect active wallet
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const scrollPosition = container.scrollLeft;
+      const cardWidth = container.offsetWidth;
+      const newIndex = Math.round(scrollPosition / cardWidth);
+      
+      if (newIndex !== activeWalletIndex && newIndex < wallets.length) {
+        setActiveWalletIndex(newIndex);
+        if (onWalletChange) {
+          onWalletChange(wallets[newIndex].id);
+        }
+      }
     }
   };
 
@@ -78,13 +134,29 @@ export default function BalanceCard({
           borderRadius: 4,
           animation: "pulse 1.5s ease-in-out infinite",
         }} />
-        <div style={{ 
-          width: 24, 
-          height: 24, 
-          background: "#2b3139", 
-          borderRadius: 4,
-          animation: "pulse 1.5s ease-in-out infinite",
-        }} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ 
+            width: 24, 
+            height: 24, 
+            background: "#2b3139", 
+            borderRadius: 4,
+            animation: "pulse 1.5s ease-in-out infinite",
+          }} />
+          <div style={{ 
+            width: 24, 
+            height: 24, 
+            background: "#2b3139", 
+            borderRadius: 4,
+            animation: "pulse 1.5s ease-in-out infinite",
+          }} />
+          <div style={{ 
+            width: 24, 
+            height: 24, 
+            background: "#2b3139", 
+            borderRadius: 4,
+            animation: "pulse 1.5s ease-in-out infinite",
+          }} />
+        </div>
       </div>
       <div style={{ 
         width: "60%", 
@@ -114,8 +186,7 @@ export default function BalanceCard({
   );
 
   // Chart Component
-  const Chart = ({ data }: { data: { time: string; value: number }[] }) => {
-    const isPositive = dayChange >= 0;
+  const Chart = ({ data, isPositive }: { data: { time: string; value: number }[]; isPositive: boolean }) => {
     const color = isPositive ? "#0ecb81" : "#f6465d";
 
     if (data.length === 0) {
@@ -151,7 +222,7 @@ export default function BalanceCard({
                 color: "#eaecef",
                 fontSize: 12,
               }}
-              formatter={(value: any) => [`$${value.toFixed(2)}`, "Balance"]}
+              formatter={(value: any) => [`${value.toFixed(2)} ${activeWallet.symbol}`, "Balance"]}
               labelFormatter={(label) => `Time: ${label}`}
             />
             <Area
@@ -175,7 +246,7 @@ export default function BalanceCard({
     );
   };
 
-  // Add keyframe animation for skeleton
+  // Add keyframe animation for skeleton and spin
   const styleSheet = document.createElement("style");
   styleSheet.textContent = `
     @keyframes pulse {
@@ -183,68 +254,98 @@ export default function BalanceCard({
       50% { opacity: 1; }
       100% { opacity: 0.6; }
     }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
   `;
   document.head.appendChild(styleSheet);
 
   return (
-    <div
-      style={{
-        background: "linear-gradient(135deg, #1e2329 0%, #181a1e 100%)",
-        border: "1px solid #2b3139",
-        borderRadius: 16,
-        padding: "20px 24px",
-        marginBottom: 16,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* Decorative glow */}
+    <div style={{ position: "relative" }}>
+      {/* Main Card Container */}
       <div
         style={{
-          position: "absolute",
-          top: -50,
-          right: -50,
-          width: 200,
-          height: 200,
-          background: "radial-gradient(circle, rgba(240, 185, 11, 0.05) 0%, transparent 70%)",
-          borderRadius: "50%",
+          background: "linear-gradient(135deg, #1e2329 0%, #181a1e 100%)",
+          border: "1px solid #2b3139",
+          borderRadius: 16,
+          padding: "20px 24px",
+          marginBottom: 16,
+          position: "relative",
+          overflow: "hidden",
         }}
-      />
-
-      {/* Header with controls */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <span
+      >
+        {/* Decorative glow */}
+        <div
           style={{
-            fontFamily: "Inter, sans-serif",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "#848e9c",
+            position: "absolute",
+            top: -50,
+            right: -50,
+            width: 200,
+            height: 200,
+            background: "radial-gradient(circle, rgba(240, 185, 11, 0.05) 0%, transparent 70%)",
+            borderRadius: "50%",
           }}
-        >
-          Total Balance
-        </span>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {/* Lock/Unlock Button */}
-          <button
-            onClick={toggleLock}
-            style={{
-              border: "none",
-              background: "none",
-              cursor: "pointer",
-              color: isLocked ? "#f6465d" : "#848e9c",
-              padding: 4,
-              display: "flex",
-              transition: "color 0.2s",
-            }}
-            aria-label={isLocked ? "Unlock balance" : "Lock balance"}
-          >
-            {isLocked ? <Lock size={18} /> : <Unlock size={18} />}
-          </button>
+        />
 
-          {/* Refresh Button */}
-          {onRefresh && (
+        {/* Header with controls */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <span
+            style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#848e9c",
+            }}
+          >
+            Total Balance
+          </span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* Lock/Unlock Button */}
             <button
-              onClick={handleRefresh}
+              onClick={toggleLock}
+              style={{
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                color: isLocked ? "#f6465d" : "#848e9c",
+                padding: 4,
+                display: "flex",
+                transition: "color 0.2s",
+              }}
+              aria-label={isLocked ? "Unlock balance" : "Lock balance"}
+            >
+              {isLocked ? <Lock size={18} /> : <Unlock size={18} />}
+            </button>
+
+            {/* Refresh Button */}
+            {onRefresh && (
+              <button
+                onClick={handleRefresh}
+                style={{
+                  border: "none",
+                  background: "none",
+                  cursor: "pointer",
+                  color: "#848e9c",
+                  padding: 4,
+                  display: "flex",
+                  transition: "transform 0.2s",
+                }}
+                disabled={isRefreshing}
+                aria-label="Refresh balance"
+              >
+                <RefreshCw 
+                  size={18} 
+                  style={{ 
+                    animation: isRefreshing ? "spin 1s linear infinite" : "none",
+                  }}
+                />
+              </button>
+            )}
+
+            {/* Visibility Toggle */}
+            <button
+              onClick={onToggleBalance}
               style={{
                 border: "none",
                 background: "none",
@@ -252,121 +353,217 @@ export default function BalanceCard({
                 color: "#848e9c",
                 padding: 4,
                 display: "flex",
-                transition: "transform 0.2s",
               }}
-              disabled={isRefreshing}
-              aria-label="Refresh balance"
+              aria-label={showBalance ? "Hide balance" : "Show balance"}
             >
-              <RefreshCw 
-                size={18} 
-                style={{ 
-                  animation: isRefreshing ? "spin 1s linear infinite" : "none",
-                }}
-              />
+              {showBalance ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
-          )}
-
-          {/* Visibility Toggle */}
-          <button
-            onClick={onToggleBalance}
-            style={{
-              border: "none",
-              background: "none",
-              cursor: "pointer",
-              color: "#848e9c",
-              padding: 4,
-              display: "flex",
-            }}
-            aria-label={showBalance ? "Hide balance" : "Show balance"}
-          >
-            {showBalance ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
+          </div>
         </div>
+
+        {/* Loading State */}
+        {isLoading ? (
+          <Skeleton />
+        ) : (
+          <>
+            {/* Scrollable Wallets Container */}
+            <div
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              style={{
+                display: "flex",
+                overflowX: "auto",
+                scrollSnapType: "x mandatory",
+                scrollBehavior: "smooth",
+                gap: 24,
+                paddingBottom: 8,
+                marginBottom: 8,
+                msOverflowStyle: "none",
+                scrollbarWidth: "none",
+              }}
+              css={{
+                "&::-webkit-scrollbar": {
+                  display: "none",
+                },
+              }}
+            >
+              {wallets.map((wallet) => (
+                <div
+                  key={wallet.id}
+                  style={{
+                    minWidth: "100%",
+                    scrollSnapAlign: "start",
+                    flexShrink: 0,
+                  }}
+                >
+                  {/* Balance Display */}
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
+                    <span
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontSize: 32,
+                        fontWeight: 700,
+                        color: "#eaecef",
+                        letterSpacing: "-0.02em",
+                        transition: "opacity 0.3s",
+                      }}
+                    >
+                      {isLocked ? "🔒••••••" : (showBalance ? displayBalances[wallet.id]?.toLocaleString("fr-FR") : "••••••")}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: 16,
+                        fontWeight: 500,
+                        color: "#848e9c",
+                      }}
+                    >
+                      {wallet.symbol}
+                    </span>
+                  </div>
+
+                  {/* Stats */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      {wallet.dayChange >= 0 ? (
+                        <TrendingUp size={14} color="#0ecb81" />
+                      ) : (
+                        <TrendingDown size={14} color="#f6465d" />
+                      )}
+                      <span
+                        style={{
+                          fontFamily: "Inter, sans-serif",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: wallet.dayChange >= 0 ? "#0ecb81" : "#f6465d",
+                        }}
+                      >
+                        {wallet.dayChange >= 0 ? "+" : ""}{wallet.dayChangePct.toFixed(2)}%
+                      </span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>
+                        Today
+                      </span>
+                    </div>
+                    <div style={{ width: 1, height: 20, background: "#2b3139" }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>
+                        24h Change
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: "Inter, sans-serif",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: wallet.dayChange >= 0 ? "#0ecb81" : "#f6465d",
+                        }}
+                      >
+                        {wallet.dayChange >= 0 ? "+" : ""}{wallet.dayChange.toLocaleString("fr-FR")}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Chart */}
+                  <Chart data={wallet.chartData} isPositive={wallet.dayChange >= 0} />
+                </div>
+              ))}
+            </div>
+
+            {/* Wallet Indicators */}
+            {wallets.length > 1 && (
+              <div style={{ 
+                display: "flex", 
+                justifyContent: "center", 
+                gap: 8, 
+                marginTop: 4 
+              }}>
+                {wallets.map((wallet, index) => (
+                  <button
+                    key={wallet.id}
+                    onClick={() => {
+                      if (scrollContainerRef.current) {
+                        const cardWidth = scrollContainerRef.current.offsetWidth;
+                        scrollContainerRef.current.scrollTo({
+                          left: index * cardWidth,
+                          behavior: 'smooth'
+                        });
+                      }
+                    }}
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      border: "none",
+                      cursor: "pointer",
+                      background: index === activeWalletIndex ? "#f0b90b" : "#2b3139",
+                      transition: "background 0.3s",
+                      padding: 0,
+                    }}
+                    aria-label={`View ${wallet.currency} wallet`}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Loading State */}
-      {isLoading ? (
-        <Skeleton />
-      ) : (
+      {/* Navigation Arrows - Only show on hover or with multiple wallets */}
+      {wallets.length > 1 && !isLoading && (
         <>
-          {/* Balance Display */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-            <span
-              style={{
-                fontFamily: "'Inter', sans-serif",
-                fontSize: 32,
-                fontWeight: 700,
-                color: "#eaecef",
-                letterSpacing: "-0.02em",
-                transition: "opacity 0.3s",
-              }}
-            >
-              {isLocked ? "🔒••••••" : (showBalance ? displayBalance.toLocaleString("fr-FR") : "••••••")}
-            </span>
-            <span
-              style={{
-                fontFamily: "Inter, sans-serif",
-                fontSize: 16,
-                fontWeight: 500,
-                color: "#848e9c",
-              }}
-            >
-              HTG
-            </span>
-          </div>
-
-          {/* Stats */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              {dayChange >= 0 ? (
-                <TrendingUp size={14} color="#0ecb81" />
-              ) : (
-                <TrendingDown size={14} color="#f6465d" />
-              )}
-              <span
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: dayChange >= 0 ? "#0ecb81" : "#f6465d",
-                }}
-              >
-                {dayChange >= 0 ? "+" : ""}{dayChangePct.toFixed(2)}%
-              </span>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>
-                Today
-              </span>
-            </div>
-            <div style={{ width: 1, height: 20, background: "#2b3139" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>
-                24h Change
-              </span>
-              <span
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: dayChange >= 0 ? "#0ecb81" : "#f6465d",
-                }}
-              >
-                {dayChange >= 0 ? "+" : ""}{dayChange.toLocaleString("fr-FR")}
-              </span>
-            </div>
-          </div>
-
-          {/* Chart */}
-          <Chart data={chartData} />
+          <button
+            onClick={() => scrollToWallet('left')}
+            style={{
+              position: "absolute",
+              left: 8,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "rgba(30, 35, 41, 0.9)",
+              border: "1px solid #2b3139",
+              borderRadius: "50%",
+              width: 36,
+              height: 36,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "#eaecef",
+              zIndex: 10,
+              transition: "opacity 0.2s",
+              opacity: activeWalletIndex === 0 ? 0.3 : 0.8,
+              pointerEvents: activeWalletIndex === 0 ? "none" : "auto",
+            }}
+            disabled={activeWalletIndex === 0}
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button
+            onClick={() => scrollToWallet('right')}
+            style={{
+              position: "absolute",
+              right: 8,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "rgba(30, 35, 41, 0.9)",
+              border: "1px solid #2b3139",
+              borderRadius: "50%",
+              width: 36,
+              height: 36,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "#eaecef",
+              zIndex: 10,
+              transition: "opacity 0.2s",
+              opacity: activeWalletIndex === wallets.length - 1 ? 0.3 : 0.8,
+              pointerEvents: activeWalletIndex === wallets.length - 1 ? "none" : "auto",
+            }}
+            disabled={activeWalletIndex === wallets.length - 1}
+          >
+            <ChevronRight size={20} />
+          </button>
         </>
       )}
-
-      {/* Add spin animation for refresh */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
