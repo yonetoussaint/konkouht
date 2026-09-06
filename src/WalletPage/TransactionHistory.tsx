@@ -33,19 +33,6 @@ export default function TransactionHistory({
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 12,
-        }}
-      >
-        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>
-          {filteredTx.length} transactions
-        </span>
-      </div>
-
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <div
           style={{
