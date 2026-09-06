@@ -27,6 +27,7 @@ export default function WalletPage({
 }: WalletPageProps) {
   const [selectedTx, setSelectedTx] = useState(null);
   const [showBalance, setShowBalance] = useState(true);
+  const [activeWalletId, setActiveWalletId] = useState('htg');
 
   const effectiveBalance = isAuthenticated ? balance : 0;
   const effectiveTransactions = isAuthenticated ? transactions : [];
@@ -46,6 +47,57 @@ export default function WalletPage({
   const priorBalance = effectiveBalance - dayChange;
   const dayChangePct = priorBalance !== 0 ? (dayChange / Math.abs(priorBalance)) * 100 : 0;
 
+  // Mock USDT wallet data (you can replace with real data from your backend)
+  const usdtWalletData = {
+    id: 'usdt',
+    currency: 'USDT',
+    symbol: 'USDT',
+    balance: isAuthenticated ? 2500 : 0, // Example USDT balance
+    dayChange: isAuthenticated ? -45 : 0,
+    dayChangePct: isAuthenticated ? -1.8 : 0,
+    chartData: [
+      { time: '00:00', value: 2550 },
+      { time: '04:00', value: 2530 },
+      { time: '08:00', value: 2520 },
+      { time: '12:00', value: 2510 },
+      { time: '16:00', value: 2500 },
+      { time: '20:00', value: 2490 },
+      { time: '24:00', value: 2455 },
+    ],
+  };
+
+  // Mock HTG wallet data
+  const htgWalletData = {
+    id: 'htg',
+    currency: 'Haitian Gourdes',
+    symbol: 'HTG',
+    balance: effectiveBalance,
+    dayChange: dayChange,
+    dayChangePct: dayChangePct,
+    chartData: [
+      { time: '00:00', value: effectiveBalance - 5000 },
+      { time: '04:00', value: effectiveBalance - 2000 },
+      { time: '08:00', value: effectiveBalance + 3000 },
+      { time: '12:00', value: effectiveBalance + 1000 },
+      { time: '16:00', value: effectiveBalance - 1000 },
+      { time: '20:00', value: effectiveBalance + 2000 },
+      { time: '24:00', value: effectiveBalance },
+    ],
+  };
+
+  // Combine wallets
+  const wallets = isAuthenticated 
+    ? [htgWalletData, usdtWalletData]
+    : [htgWalletData]; // Show only HTG when not authenticated
+
+  // Refresh handler (you can implement actual refresh logic)
+  const handleRefresh = async () => {
+    // In a real app, you'd fetch latest balances here
+    // For now, we'll just simulate a refresh
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    showToast?.('Balances refreshed', 'success');
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#181a1e", paddingBottom: 80 }}>
       <WalletHeader
@@ -56,11 +108,16 @@ export default function WalletPage({
 
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "16px 12px" }}>
         <BalanceCard
-          balance={effectiveBalance}
-          dayChange={dayChange}
-          dayChangePct={dayChangePct}
+          wallets={wallets}
           showBalance={showBalance}
           onToggleBalance={() => setShowBalance(!showBalance)}
+          isLoading={false}
+          onRefresh={handleRefresh}
+          onWalletChange={(walletId) => {
+            setActiveWalletId(walletId);
+            // You could log or track which wallet is active
+            console.log('Active wallet:', walletId);
+          }}
         />
 
         <QuickActions
