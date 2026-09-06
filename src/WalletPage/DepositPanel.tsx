@@ -179,15 +179,15 @@ export default function DepositPanel({ onClose }) {
               {currencyOpen && (
                 <div
                   style={{
-                    position: "absolute",
-                    top: "100%",
-                    right: 0,
-                    marginTop: 4,
+                    position: "fixed",
+                    top: "auto",
+                    bottom: 80,
+                    left: 16,
+                    right: 16,
                     background: "#1c1c1f",
                     border: "1px solid #2a2a2e",
                     borderRadius: 0,
-                    zIndex: 10,
-                    minWidth: 80,
+                    zIndex: 2100,
                   }}
                 >
                   {(["HTG", "USDT"] as const).map((c) => (
@@ -195,18 +195,18 @@ export default function DepositPanel({ onClose }) {
                       key={c}
                       onClick={() => { setCurrency(c); setSelectedMethod(null); setCurrencyOpen(false); }}
                       style={{
-                        display: "block",
+                        display: "flex",
+                        alignItems: "center",
                         width: "100%",
-                        padding: "10px 14px",
+                        padding: "14px 16px",
                         background: c === currency ? "#0ecb81" : "transparent",
                         border: "none",
                         borderBottom: "1px solid #2a2a2e",
                         fontFamily: "Inter, sans-serif",
-                        fontSize: 12,
+                        fontSize: 14,
                         fontWeight: 700,
                         color: c === currency ? "#111" : "#f2f2f2",
                         cursor: "pointer",
-                        textAlign: "left",
                       }}
                     >
                       {c}
