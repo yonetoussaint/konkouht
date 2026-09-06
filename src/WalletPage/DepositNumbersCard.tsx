@@ -300,5 +300,3 @@ export default function DepositNumbersCard({
     </div>
   );
 }
-
-export default DepositNumbersCard;
