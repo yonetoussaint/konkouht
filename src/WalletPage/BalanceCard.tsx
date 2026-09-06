@@ -6,6 +6,7 @@ import {
   TrendingDown,
   RefreshCw,
   Lock,
+  ChevronDown,
 } from "lucide-react";
 import {
   AreaChart,
@@ -94,9 +95,39 @@ function ensureGlobalStyles() {
     .bc-carousel::-webkit-scrollbar { display: none; }
     .bc-carousel { cursor: grab; }
     .bc-carousel:active { cursor: grabbing; }
+    .bc-dropdown { outline: none; }
   `;
   document.head.appendChild(tag);
   stylesInjected = true;
+}
+
+const TIMEFRAMES = ["24h", "1w", "1m", "1y"] as const;
+type Timeframe = typeof TIMEFRAMES[number];
+
+// Derive chart data for a given timeframe by subsampling the base 24h data
+function getChartDataForTimeframe(baseData: { time: string; value: number }[], timeframe: Timeframe, balance: number) {
+  if (!baseData || baseData.length === 0) return [];
+  const multipliers: Record<Timeframe, number> = { "24h": 1, "1w": 7, "1m": 30, "1y": 365 };
+  const mult = multipliers[timeframe];
+  const count = Math.min(Math.round(mult * 1.5), 60);
+  const step = Math.max(1, Math.floor(baseData.length / count));
+  const sampled = baseData.filter((_, i) => i % step === 0);
+  return sampled.map((d, i) => ({
+    ...d,
+    value: d.value + (Math.random() - 0.5) * balance * 0.02 * (i / sampled.length),
+  }));
+}
+
+function getTimeframeStats(baseData: { time: string; value: number }[], timeframe: Timeframe, balance: number) {
+  if (!baseData || baseData.length < 2) return { changePct: 0, changeAbs: 0 };
+  const multipliers: Record<Timeframe, number> = { "24h": 1, "1w": 7, "1m": 30, "1y": 365 };
+  const steps: Record<Timeframe, number> = { "24h": 1, "1w": 4, "1m": 8, "1y": 20 };
+  const step = steps[timeframe];
+  const start = baseData[0];
+  const end = baseData[Math.min(step, baseData.length - 1)];
+  const changeAbs = end.value - start.value;
+  const changePct = (changeAbs / Math.abs(start.value)) * 100;
+  return { changePct, changeAbs };
 }
 
 function formatAmount(value, { hidden }) {
@@ -229,11 +260,26 @@ export function BalanceCardItem({
 }) {
   const [isLocked, setIsLocked] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [timeframe, setTimeframe] = useState<Timeframe>("24h");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(ensureGlobalStyles, []);
 
-  const isPositive = (wallet?.dayChange ?? 0) >= 0;
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".bc-dropdown")) setDropdownOpen(false);
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [dropdownOpen]);
+
   const hidden = !showBalance || isLocked;
+  const { changePct, changeAbs } = getTimeframeStats(wallet?.chartData ?? [], timeframe, wallet?.balance ?? 0);
+  const isPositive = changePct >= 0;
+  const chartData = getChartDataForTimeframe(wallet?.chartData ?? [], timeframe, wallet?.balance ?? 0);
 
   const handleRefresh = async () => {
     if (!onRefresh || isRefreshing) return;
@@ -339,15 +385,73 @@ export function BalanceCardItem({
                 }}
               >
                 {isPositive ? "+" : ""}
-                {wallet.dayChangePct.toFixed(2)}%
+                {changePct.toFixed(2)}%
               </span>
               <span style={{ fontSize: 13, color: COLORS.textDim }}>
                 ({isPositive ? "+" : ""}
-                {hidden ? "••••" : wallet.dayChange.toLocaleString("en-US")} {wallet.symbol})
+                {hidden ? "••••" : changeAbs.toLocaleString("en-US")} {wallet.symbol})
               </span>
-              <span style={{ fontSize: 12, color: COLORS.textDim, marginLeft: "auto" }}>
-                24h
-              </span>
+              <div style={{ marginLeft: "auto", position: "relative" }}>
+                <button
+                  className="bc-dropdown"
+                  onClick={() => setDropdownOpen((v) => !v)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    background: "transparent",
+                    border: `1px solid ${COLORS.border}`,
+                    borderRadius: 0,
+                    color: COLORS.textDim,
+                    fontFamily: FONT_UI,
+                    fontSize: 12,
+                    padding: "3px 8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  {timeframe}
+                  <ChevronDown size={12} style={{ transition: "transform 0.15s", transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+                </button>
+                {dropdownOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      right: 0,
+                      marginTop: 4,
+                      background: COLORS.surfaceRaised,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 0,
+                      zIndex: 50,
+                      minWidth: 60,
+                    }}
+                  >
+                    {TIMEFRAMES.map((tf) => (
+                      <button
+                        key={tf}
+                        onClick={() => { setTimeframe(tf); setDropdownOpen(false); }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          background: tf === timeframe ? COLORS.goldDim : "transparent",
+                          border: "none",
+                          borderBottom: `1px solid ${COLORS.border}`,
+                          color: tf === timeframe ? COLORS.gold : COLORS.text,
+                          fontFamily: FONT_UI,
+                          fontSize: 12,
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => { if (tf !== timeframe) e.currentTarget.style.background = COLORS.border; }}
+                        onMouseLeave={(e) => { if (tf !== timeframe) e.currentTarget.style.background = "transparent"; }}
+                      >
+                        {tf}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
@@ -364,7 +468,7 @@ export function BalanceCardItem({
           marginTop: 0,
         }}
       >
-        {isLoading ? null : <Sparkline data={wallet.chartData} positive={isPositive} />}
+        {isLoading ? null : <Sparkline data={chartData} positive={isPositive} />}
       </div>
     </div>
   );
