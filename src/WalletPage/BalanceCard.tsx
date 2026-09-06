@@ -360,7 +360,7 @@ export function BalanceCardItem({
           border: `1px solid ${COLORS.border}`,
           borderTop: "none",
           borderRadius: 0,
-          padding: "0 16px 16px",
+          padding: "0 0 16px",
           marginTop: 0,
         }}
       >
