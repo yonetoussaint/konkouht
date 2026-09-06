@@ -298,7 +298,7 @@ export function BalanceCardItem({
           border: `1px solid ${COLORS.border}`,
           borderRadius: 0,
           fontFamily: FONT_UI,
-          padding: "8px 16px",
+          padding: "8px",
         }}
       >
         {/* header */}

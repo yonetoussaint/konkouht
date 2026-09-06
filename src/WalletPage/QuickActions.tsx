@@ -90,7 +90,7 @@ export default function QuickActions({
         display: "flex",
         gap: 2,
         overflowX: "auto",
-        padding: "4px 0 16px 0",
+        padding: "8px 0",
         marginBottom: 4,
         scrollbarWidth: "none",
         msOverflowStyle: "none",
