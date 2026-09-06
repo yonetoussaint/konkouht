@@ -298,7 +298,7 @@ export function BalanceCardItem({
           border: `1px solid ${COLORS.border}`,
           borderRadius: 0,
           fontFamily: FONT_UI,
-          padding: 0,
+          padding: "8px",
         }}
       >
         {/* header */}
@@ -536,7 +536,7 @@ export default function BalanceCard({ accounts, cardWidth = 300, gap = 14, onAct
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
         width: "100%",
-        padding: 0,
+        padding: "0 8px",
       }}
     >
       {accounts.map((account) => (
