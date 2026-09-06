@@ -50,7 +50,7 @@ export default function WalletPage({
   // Mock USDT wallet data (you can replace with real data from your backend)
   const usdtWalletData = {
     id: 'usdt',
-    currency: 'USD',
+    currency: 'TetherUSD',
     symbol: 'USDT',
     balance: isAuthenticated ? 2500 : 0, // Example USDT balance
     dayChange: isAuthenticated ? -45 : 0,

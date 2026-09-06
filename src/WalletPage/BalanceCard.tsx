@@ -56,7 +56,7 @@ function HtgIcon({ size = 14 }) {
 }
 
 function CurrencyIcon({ currency, size = 14 }) {
-  if (currency === "USD" || currency === "USDT") return <UsdtIcon size={size} />;
+  if (currency === "TetherUSD" || currency === "USD" || currency === "USDT") return <UsdtIcon size={size} />;
   if (currency === "HTG" || currency === "Haitian Gourde") return <HtgIcon size={size} />;
   return null;
 }
