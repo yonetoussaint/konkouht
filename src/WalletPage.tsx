@@ -118,6 +118,7 @@ export default function WalletPage({
               onRefresh: handleRefresh,
             },
           }))}
+          cardWidth={300}
           onActiveChange={(walletId) => {
             setActiveWalletId(walletId);
             console.log('Active wallet:', walletId);

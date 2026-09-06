@@ -366,7 +366,7 @@ export function BalanceCardItem({
 // row, refreshing one card, or switching a wallet on one card never
 // touches its neighbors.
 // ---------------------------------------------------------------------------
-export default function BalanceCard({ accounts, cardWidth = 340, gap = 14, onActiveChange }) {
+export default function BalanceCard({ accounts, cardWidth = 300, gap = 14, onActiveChange }) {
   const scrollRef = useRef(null);
 
   useEffect(ensureGlobalStyles, []);
