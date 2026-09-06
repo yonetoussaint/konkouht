@@ -2683,20 +2683,20 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
       <PageHeader
         title="Notifications"
         badge={unread}
+        actions={
+          unread > 0 ? (
+            <button
+              onClick={onMarkAllRead}
+              style={{
+                border: "none", background: "none",
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#9a9aa0", letterSpacing: "0.04em", textTransform: "uppercase",
+                cursor: "pointer", padding: "8px",
+              }}
+            >Tout lire</button>
+          ) : undefined
+        }
       />
-      {unread > 0 && (
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "8px 16px 0", textAlign: "right" }}>
-          <button
-            onClick={onMarkAllRead}
-            style={{
-              border: "none", background: "none",
-              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              color: "#9a9aa0", letterSpacing: "0.04em", textTransform: "uppercase",
-              cursor: "pointer", padding: 0,
-            }}
-          >Tout lire</button>
-        </div>
-      )}
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
         {notifications.length === 0 ? (
