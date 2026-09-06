@@ -45,6 +45,7 @@ function ensureGlobalStyles() {
     @keyframes bc-pulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
     @keyframes bc-spin { to { transform: rotate(360deg); } }
     .bc-scroll::-webkit-scrollbar { display: none; }
+    .bc-carousel::-webkit-scrollbar { display: none; }
   `;
   document.head.appendChild(tag);
   stylesInjected = true;
@@ -156,6 +157,7 @@ function IconButton({ onClick, label, active, children, spinning, disabled }) {
         alignItems: "center",
         justifyContent: "center",
         transition: "background 0.15s, color 0.15s",
+        flexShrink: 0,
       }}
     >
       <span style={{ display: "flex", animation: spinning ? "bc-spin 0.8s linear infinite" : "none" }}>
@@ -165,13 +167,20 @@ function IconButton({ onClick, label, active, children, spinning, disabled }) {
   );
 }
 
-export default function BalanceCard({
+// ---------------------------------------------------------------------------
+// A single card. Every piece of state here (which wallet is active, whether
+// it's locked, whether it's mid-refresh) lives inside this component, so
+// dropping several of these into a scroller never lets one card's state leak
+// into another.
+// ---------------------------------------------------------------------------
+export function BalanceCard({
   wallets,
   showBalance,
   onToggleBalance,
   isLoading = false,
   onRefresh,
   onWalletChange,
+  width = 340,
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
@@ -203,7 +212,12 @@ export default function BalanceCard({
         borderRadius: 16,
         padding: "18px 20px 20px",
         fontFamily: FONT_UI,
-        maxWidth: 420,
+        width,
+        flexShrink: 0,
+        scrollSnapAlign: "start",
+        // isolate this card's own internal scroller (wallet pills) from
+        // whatever scroller it's sitting inside of
+        overscrollBehaviorX: "contain",
       }}
     >
       {/* header */}
@@ -242,7 +256,7 @@ export default function BalanceCard({
         <Skeleton />
       ) : (
         <>
-          {/* wallet switcher */}
+          {/* wallet switcher — its own independent horizontal scroller */}
           {wallets.length > 1 && (
             <div
               className="bc-scroll"
@@ -252,6 +266,7 @@ export default function BalanceCard({
                 marginBottom: 16,
                 overflowX: "auto",
                 scrollbarWidth: "none",
+                overscrollBehaviorX: "contain",
               }}
             >
               {wallets.map((w, i) => (
@@ -270,6 +285,7 @@ export default function BalanceCard({
                     cursor: "pointer",
                     whiteSpace: "nowrap",
                     transition: "all 0.15s",
+                    flexShrink: 0,
                   }}
                 >
                   {w.currency}
@@ -327,6 +343,41 @@ export default function BalanceCard({
           <Sparkline data={wallet.chartData} positive={isPositive} />
         </>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Carousel: lays several BalanceCards side by side in one horizontally
+// scrollable, snapping row. Each card below is a separate BalanceCard
+// instance with its own hook state (see comment above), so scrolling the
+// row, refreshing one card, or switching a wallet on one card never
+// touches its neighbors.
+// ---------------------------------------------------------------------------
+export default function BalanceCardCarousel({ accounts, cardWidth = 340, gap = 14 }) {
+  const scrollRef = useRef(null);
+
+  useEffect(ensureGlobalStyles, []);
+
+  return (
+    <div
+      ref={scrollRef}
+      className="bc-carousel"
+      style={{
+        display: "flex",
+        gap,
+        overflowX: "auto",
+        scrollSnapType: "x mandatory",
+        scrollPadding: "0 20px",
+        WebkitOverflowScrolling: "touch",
+        scrollbarWidth: "none",
+        padding: "4px 20px 12px",
+        margin: "-4px -20px -12px",
+      }}
+    >
+      {accounts.map((account) => (
+        <BalanceCard key={account.id} width={cardWidth} {...account.props} />
+      ))}
     </div>
   );
 }
