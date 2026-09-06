@@ -4,6 +4,7 @@ import BalanceCard from "./WalletPage/BalanceCard";
 import QuickActions from "./WalletPage/QuickActions";
 import StatsCards from "./WalletPage/StatsCards";
 import DepositNumbersCard from "./WalletPage/DepositNumbersCard";
+import DepositPanel from "./WalletPage/DepositPanel";
 import TransactionHistory from "./WalletPage/TransactionHistory";
 import TransactionDetailSheet from "./WalletPage/TransactionDetailSheet";
 import { dedupeTransactions } from "./WalletPage/utils";
@@ -28,6 +29,7 @@ export default function WalletPage({
   const [selectedTx, setSelectedTx] = useState(null);
   const [showBalance, setShowBalance] = useState(true);
   const [activeWalletId, setActiveWalletId] = useState('htg');
+  const [showDeposit, setShowDeposit] = useState(false);
 
   const effectiveBalance = isAuthenticated ? balance : 0;
   const effectiveTransactions = isAuthenticated ? transactions : [];
@@ -128,7 +130,7 @@ export default function WalletPage({
 
         <QuickActions
           isAuthenticated={isAuthenticated}
-          onOpenDeposit={onOpenDeposit}
+          onOpenDeposit={() => setShowDeposit(true)}
           onOpenWithdraw={onOpenWithdraw}
           onOpenTransfer={onOpenTransfer}
           onOpenSwap={onOpenSwap}
@@ -195,6 +197,10 @@ export default function WalletPage({
         allTransactions={dedupedTransactions}
         onClose={() => setSelectedTx(null)}
       />
+
+      {showDeposit && (
+        <DepositPanel onClose={() => setShowDeposit(false)} />
+      )}
     </div>
   );
 }
