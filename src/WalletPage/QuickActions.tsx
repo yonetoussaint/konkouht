@@ -91,6 +91,8 @@ export default function QuickActions({
         gap: 2,
         overflowX: "auto",
         padding: 0,
+        marginLeft: -8,
+        marginRight: -8,
         marginBottom: 4,
         scrollbarWidth: "none",
         msOverflowStyle: "none",
