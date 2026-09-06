@@ -41,16 +41,6 @@ export default function TransactionHistory({
           marginBottom: 12,
         }}
       >
-        <span
-          style={{
-            fontFamily: "Inter, sans-serif",
-            fontSize: 16,
-            fontWeight: 600,
-            color: "#eaecef",
-          }}
-        >
-          Transaction History
-        </span>
         <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>
           {filteredTx.length} transactions
         </span>
