@@ -256,7 +256,7 @@ export function BalanceCardItem({
         flexShrink: 0,
       }}
     >
-      <div style={{ padding: "18px 20px 0" }}>
+      <div style={{ padding: "18px 16px 0" }}>
       {/* header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
