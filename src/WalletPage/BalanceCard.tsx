@@ -4,8 +4,6 @@ import {
   EyeOff,
   TrendingUp,
   TrendingDown,
-  RefreshCw,
-  Lock,
   ChevronDown,
 } from "lucide-react";
 import {
@@ -213,8 +211,6 @@ export function BalanceCardItem({
   onActivate,
   width = 340,
 }) {
-  const [isLocked, setIsLocked] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [timeframe, setTimeframe] = useState<Timeframe>("24h");
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -231,21 +227,14 @@ export function BalanceCardItem({
     return () => document.removeEventListener("click", handleClick);
   }, [dropdownOpen]);
 
-  const hidden = !showBalance || isLocked;
+  const hidden = !showBalance;
   const { changePct, changeAbs } = getTimeframeStats(wallet?.chartData ?? [], timeframe, wallet?.balance ?? 0);
   const isPositive = changePct >= 0;
   const chartData = getChartDataForTimeframe(wallet?.chartData ?? [], timeframe, wallet?.balance ?? 0);
 
-  const handleRefresh = async () => {
-    if (!onRefresh || isRefreshing) return;
-    setIsRefreshing(true);
-    await onRefresh();
-    setTimeout(() => setIsRefreshing(false), 500);
-  };
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, width, flexShrink: 0 }}>
-      {/* Flat row: balance on the left, chart on the right, actions on top-right */}
+      {/* Flat row: balance on the left, chart on the right */}
       <div
         style={{
           fontFamily: FONT_UI,
@@ -253,35 +242,6 @@ export function BalanceCardItem({
           borderBottom: "1px solid #2a2a2e",
         }}
       >
-        {/* top row: action buttons (lock, refresh, eye) */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 6 }}>
-          <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-            <IconButton
-              onClick={() => setIsLocked((v) => !v)}
-              label={isLocked ? "Unlock balance" : "Lock balance"}
-              active={isLocked}
-            >
-              <Lock size={15} />
-            </IconButton>
-            {onRefresh && (
-              <IconButton
-                onClick={handleRefresh}
-                label="Refresh balance"
-                spinning={isRefreshing}
-                disabled={isRefreshing}
-              >
-                <RefreshCw size={15} />
-              </IconButton>
-            )}
-            <IconButton
-              onClick={onToggleBalance}
-              label={showBalance ? "Hide balance" : "Show balance"}
-            >
-              {showBalance ? <EyeOff size={15} /> : <Eye size={15} />}
-            </IconButton>
-          </div>
-        </div>
-
         {isLoading ? (
           <Skeleton />
         ) : (
@@ -304,6 +264,12 @@ export function BalanceCardItem({
                 <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.textDim }}>
                   {wallet.symbol}
                 </span>
+                <IconButton
+                  onClick={onToggleBalance}
+                  label={showBalance ? "Hide balance" : "Show balance"}
+                >
+                  {showBalance ? <EyeOff size={15} /> : <Eye size={15} />}
+                </IconButton>
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
