@@ -66,7 +66,7 @@ export function NotificationItem({ notif, onClick }: { notif: Notification; onCl
         display: "flex", alignItems: "flex-start", gap: 12,
         padding: "12px 16px",
         borderTop: "1px solid #2a2a2e",
-        background: notif.read ? "transparent" : colors.bg,
+        background: "transparent",
         cursor: notif.compId ? "pointer" : "default",
         transition: "background 0.2s",
       }}
@@ -75,8 +75,8 @@ export function NotificationItem({ notif, onClick }: { notif: Notification; onCl
       <div style={{ position: "relative", flexShrink: 0, marginTop: 2 }}>
         <div style={{
           width: 34, height: 34,
-          background: notif.read ? "#26262a" : colors.bg,
-          border: `1px solid ${notif.read ? "#2a2a2e" : colors.border}`,
+          background: "#26262a",
+          border: `1px solid #2a2a2e`,
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 17, lineHeight: 1,
         }}>
