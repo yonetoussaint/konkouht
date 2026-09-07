@@ -15,27 +15,6 @@ import {
   Tooltip,
 } from "recharts";
 
-// ---- currency icons ------------------------------------------------------
-function HtgIcon({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
-      <rect width="32" height="32" rx="6" fill="#002876" />
-      <rect x="0" y="10.67" width="32" height="10.66" fill="#D21034" />
-      <text
-        x="16"
-        y="22"
-        textAnchor="middle"
-        fontSize="14"
-        fontWeight="700"
-        fontFamily="Georgia, serif"
-        fill="white"
-      >
-        G
-      </text>
-    </svg>
-  );
-}
-
 // ---- design tokens -------------------------------------------------------
 const COLORS = {
   bg: "#0d0f12",
@@ -154,7 +133,7 @@ function Sparkline({ data, positive }) {
     );
   }
   return (
-    <div style={{ height: 56, marginTop: 8 }}>
+    <div style={{ height: 44, marginTop: 0 }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
           <defs>
@@ -266,31 +245,16 @@ export function BalanceCardItem({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, width, flexShrink: 0 }}>
-      {/* Stats section */}
+      {/* Flat row: balance on the left, chart on the right, actions on top-right */}
       <div
         style={{
           fontFamily: FONT_UI,
           padding: "12px 0 10px",
+          borderBottom: "1px solid #2a2a2e",
         }}
       >
-        {/* header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <span
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 700,
-                color: COLORS.gold,
-                letterSpacing: "0.04em",
-              }}
-            >
-              <HtgIcon size={14} />
-              {wallet?.currency || "—"}
-            </span>
-          </div>
+        {/* top row: action buttons (lock, refresh, eye) */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 6 }}>
           <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
             <IconButton
               onClick={() => setIsLocked((v) => !v)}
@@ -321,124 +285,118 @@ export function BalanceCardItem({
         {isLoading ? (
           <Skeleton />
         ) : (
-          <>
-            {/* balance */}
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-              <span
-                style={{
-                  fontFamily: FONT_NUM,
-                  fontSize: 32,
-                  fontWeight: 600,
-                  color: COLORS.text,
-                  letterSpacing: "-0.01em",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {formatAmount(wallet.balance, { hidden })}
-              </span>
-              <span style={{ fontSize: 14, fontWeight: 500, color: COLORS.textDim }}>
-                {wallet.symbol}
-              </span>
-            </div>
-
-            {/* change row */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {isPositive ? (
-                <TrendingUp size={13} color={COLORS.up} />
-              ) : (
-                <TrendingDown size={13} color={COLORS.down} />
-              )}
-              <span
-                style={{
-                  fontFamily: FONT_NUM,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: isPositive ? COLORS.up : COLORS.down,
-                }}
-              >
-                {isPositive ? "+" : ""}
-                {changePct.toFixed(2)}%
-              </span>
-              <span style={{ fontSize: 13, color: COLORS.textDim }}>
-                ({isPositive ? "+" : ""}
-                {hidden ? "••••" : changeAbs.toLocaleString("en-US")} {wallet.symbol})
-              </span>
-              <div style={{ marginLeft: "auto", position: "relative" }}>
-                <button
-                  className="bc-dropdown"
-                  onClick={() => setDropdownOpen((v) => !v)}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* Left: balance + change */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
+                <span
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    background: "transparent",
-                    border: "1px solid #2a2a2e",
-                    borderRadius: 0,
-                    color: COLORS.textDim,
-                    fontFamily: FONT_UI,
-                    fontSize: 12,
-                    padding: "3px 8px",
-                    cursor: "pointer",
+                    fontFamily: FONT_NUM,
+                    fontSize: 26,
+                    fontWeight: 600,
+                    color: COLORS.text,
+                    letterSpacing: "-0.01em",
+                    fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  {timeframe}
-                  <ChevronDown size={12} style={{ transition: "transform 0.15s", transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
-                </button>
-                {dropdownOpen && (
-                  <div
+                  {formatAmount(wallet.balance, { hidden })}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.textDim }}>
+                  {wallet.symbol}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {isPositive ? (
+                  <TrendingUp size={12} color={COLORS.up} />
+                ) : (
+                  <TrendingDown size={12} color={COLORS.down} />
+                )}
+                <span
+                  style={{
+                    fontFamily: FONT_NUM,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: isPositive ? COLORS.up : COLORS.down,
+                  }}
+                >
+                  {isPositive ? "+" : ""}
+                  {changePct.toFixed(2)}%
+                </span>
+                <span style={{ fontSize: 11, color: COLORS.textDim }}>
+                  ({isPositive ? "+" : ""}
+                  {hidden ? "••••" : changeAbs.toLocaleString("en-US")} {wallet.symbol})
+                </span>
+                <div style={{ marginLeft: "auto", position: "relative" }}>
+                  <button
+                    className="bc-dropdown"
+                    onClick={() => setDropdownOpen((v) => !v)}
                     style={{
-                      position: "absolute",
-                      top: "100%",
-                      right: 0,
-                      marginTop: 4,
-                      background: "#1c1c1f",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      background: "transparent",
                       border: "1px solid #2a2a2e",
                       borderRadius: 0,
-                      zIndex: 50,
-                      minWidth: 60,
+                      color: COLORS.textDim,
+                      fontFamily: FONT_UI,
+                      fontSize: 11,
+                      padding: "2px 6px",
+                      cursor: "pointer",
                     }}
                   >
-                    {TIMEFRAMES.map((tf) => (
-                      <button
-                        key={tf}
-                        onClick={() => { setTimeframe(tf); setDropdownOpen(false); }}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          background: tf === timeframe ? COLORS.goldDim : "transparent",
-                          border: "none",
-                          borderBottom: "1px solid #2a2a2e",
-                          color: tf === timeframe ? COLORS.gold : COLORS.text,
-                          fontFamily: FONT_UI,
-                          fontSize: 12,
-                          padding: "6px 12px",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                        onMouseEnter={(e) => { if (tf !== timeframe) e.currentTarget.style.background = "#2a2a2e"; }}
-                        onMouseLeave={(e) => { if (tf !== timeframe) e.currentTarget.style.background = "transparent"; }}
-                      >
-                        {tf}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                    {timeframe}
+                    <ChevronDown size={11} style={{ transition: "transform 0.15s", transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+                  </button>
+                  {dropdownOpen && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        right: 0,
+                        marginTop: 4,
+                        background: "#1c1c1f",
+                        border: "1px solid #2a2a2e",
+                        borderRadius: 0,
+                        zIndex: 50,
+                        minWidth: 60,
+                      }}
+                    >
+                      {TIMEFRAMES.map((tf) => (
+                        <button
+                          key={tf}
+                          onClick={() => { setTimeframe(tf); setDropdownOpen(false); }}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            background: tf === timeframe ? COLORS.goldDim : "transparent",
+                            border: "none",
+                            borderBottom: "1px solid #2a2a2e",
+                            color: tf === timeframe ? COLORS.gold : COLORS.text,
+                            fontFamily: FONT_UI,
+                            fontSize: 12,
+                            padding: "6px 12px",
+                            cursor: "pointer",
+                            textAlign: "left",
+                          }}
+                          onMouseEnter={(e) => { if (tf !== timeframe) e.currentTarget.style.background = "#2a2a2e"; }}
+                          onMouseLeave={(e) => { if (tf !== timeframe) e.currentTarget.style.background = "transparent"; }}
+                        >
+                          {tf}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </>
-        )}
-      </div>
 
-      {/* Chart section */}
-      <div
-        style={{
-          borderTop: "1px solid #2a2a2e",
-          borderBottom: "1px solid #2a2a2e",
-          padding: "8px 0 4px",
-          marginTop: 0,
-        }}
-      >
-        {isLoading ? null : <Sparkline data={chartData} positive={isPositive} />}
+            {/* Right: compact chart on the same row */}
+            <div style={{ width: 110, flexShrink: 0 }}>
+              <Sparkline data={chartData} positive={isPositive} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

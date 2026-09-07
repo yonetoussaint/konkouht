@@ -88,9 +88,11 @@ export default function QuickActions({
     <div
       style={{
         display: "flex",
+        gap: 2,
         overflowX: "auto",
         padding: 0,
-        borderBottom: "1px solid #2a2a2e",
+        marginLeft: -16,
+        marginRight: -16,
         scrollbarWidth: "none",
         msOverflowStyle: "none",
         WebkitOverflowScrolling: "touch",
@@ -104,7 +106,7 @@ export default function QuickActions({
           }
         `}
       </style>
-      {actions.map((action, i) => {
+      {actions.map((action) => {
         const Icon = action.icon;
         const isActive = action.requiresAuth && !isAuthenticated;
 
@@ -114,22 +116,22 @@ export default function QuickActions({
             onClick={() => handleAction(action.onClick, action.requiresAuth)}
             style={{
               flexShrink: 0,
-              flex: 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: 6,
-              padding: "14px 8px",
+              padding: "10px 14px",
+              minWidth: 68,
               border: "none",
-              borderLeft: i > 0 ? "1px solid #2a2a2e" : "none",
+              borderRadius: "50%",
               background: "transparent",
               cursor: isActive ? "default" : "pointer",
-              transition: "all 0.15s",
-              opacity: isActive ? 0.4 : 1,
+              transition: "all 0.2s",
+              opacity: isActive ? 0.5 : 1,
             }}
             onMouseEnter={(e) => {
               if (!isActive) {
-                e.currentTarget.style.background = "#1a1a1a";
+                e.currentTarget.style.background = "#1e2329";
               }
             }}
             onMouseLeave={(e) => {
@@ -138,17 +140,30 @@ export default function QuickActions({
               }
             }}
           >
-            <Icon
-              size={20}
-              strokeWidth={2}
-              color={isActive ? "#8a8a90" : action.color || "#eaecef"}
-            />
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: isActive ? "#2b3139" : `rgba(255, 255, 255, 0.06)`,
+                transition: "background 0.2s",
+              }}
+            >
+              <Icon
+                size={20}
+                strokeWidth={2}
+                color={isActive ? "#848e9c" : action.color || "#eaecef"}
+              />
+            </div>
             <span
               style={{
                 fontFamily: "Inter, sans-serif",
                 fontSize: 11,
                 fontWeight: 600,
-                color: isActive ? "#8a8a90" : "#eaecef",
+                color: isActive ? "#848e9c" : "#eaecef",
                 whiteSpace: "nowrap",
               }}
             >

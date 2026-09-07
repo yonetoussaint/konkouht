@@ -33,63 +33,71 @@ export default function TransactionHistory({
 
   return (
     <div>
-      {/* Search bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          borderBottom: "1px solid #2a2a2e",
-          padding: "0 0 12px",
-        }}
-      >
-        <Search size={16} color="#8a8a90" strokeWidth={2} />
-        <input
-          type="text"
-          placeholder="Search transactions..."
-          value={txQuery}
-          onChange={(e) => setTxQuery(e.target.value)}
-          onFocus={() => setSearchFocused(true)}
-          onBlur={() => setSearchFocused(false)}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <div
           style={{
             flex: 1,
-            border: "none",
-            outline: "none",
-            fontFamily: "Inter, sans-serif",
-            fontSize: 14,
-            color: "#eaecef",
-            background: "transparent",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            border: `1px solid ${searchFocused ? "#f0b90b" : "#2a2a2e"}`,
+            background: "#1e2329",
+            borderRadius: 8,
+            padding: "0 12px",
+            height: 40,
+            transition: "border-color 0.2s",
           }}
-        />
+        >
+          <Search size={16} color="#848e9c" strokeWidth={2} />
+          <input
+            type="text"
+            placeholder="Search transactions..."
+            value={txQuery}
+            onChange={(e) => setTxQuery(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            style={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              fontFamily: "Inter, sans-serif",
+              fontSize: 14,
+              color: "#eaecef",
+              background: "transparent",
+              height: "100%",
+            }}
+          />
+        </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #2a2a2e", paddingBottom: 12, marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
         {TX_FILTERS.map((f) => (
           <button
             key={f.id}
             onClick={() => setTxFilter(f.id)}
             style={{
               flexShrink: 0,
-              border: "none",
-              background: "transparent",
+              border: txFilter === f.id ? "1px solid #f0b90b" : "1px solid #2a2a2e",
+              borderRadius: 8,
+              background: txFilter === f.id ? "rgba(240, 185, 11, 0.1)" : "transparent",
               color: txFilter === f.id ? "#f0b90b" : "#8a8a90",
               fontFamily: "Inter, sans-serif",
               fontWeight: 600,
               fontSize: 13,
-              padding: "6px 12px",
+              padding: "6px 16px",
               cursor: "pointer",
-              transition: "color 0.15s",
+              transition: "all 0.2s",
               whiteSpace: "nowrap",
-              borderRight: "1px solid #2a2a2e",
             }}
             onMouseEnter={(e) => {
               if (txFilter !== f.id) {
+                e.currentTarget.style.borderColor = "#3b434c";
                 e.currentTarget.style.color = "#eaecef";
               }
             }}
             onMouseLeave={(e) => {
               if (txFilter !== f.id) {
+                e.currentTarget.style.borderColor = "#2a2a2e";
                 e.currentTarget.style.color = "#8a8a90";
               }
             }}
@@ -104,7 +112,9 @@ export default function TransactionHistory({
           style={{
             textAlign: "center",
             padding: "48px 20px",
-            color: "#8a8a90",
+            border: "1px solid #2a2a2e",
+            borderRadius: 12,
+            background: "#1e2329",
           }}
         >
           <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#8a8a90" }}>
@@ -115,29 +125,38 @@ export default function TransactionHistory({
           </div>
         </div>
       ) : (
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {groups.map((g) => (
-            <div key={g.day}>
-              {/* Day header */}
+            <div
+              key={g.day}
+              style={{
+                border: "1px solid #2a2a2e",
+                borderRadius: 12,
+                overflow: "hidden",
+                background: "#1e2329",
+              }}
+            >
               <div
                 style={{
                   fontFamily: "Inter, sans-serif",
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 600,
-                  letterSpacing: "0.06em",
+                  letterSpacing: "0.05em",
                   textTransform: "uppercase",
                   color: "#8a8a90",
-                  padding: "8px 0 6px",
-                  borderTop: "1px solid #2a2a2e",
+                  padding: "10px 16px",
+                  background: "#181a1e",
+                  borderBottom: "1px solid #2a2a2e",
                 }}
               >
                 {g.day}
               </div>
               <div>
-                {g.items.map((tx) => (
+                {g.items.map((tx, i) => (
                   <TransactionRow
                     key={tx.id}
                     tx={tx}
+                    isLast={i === g.items.length - 1}
                     showToast={showToast}
                     onSelect={onSelectTransaction}
                   />
