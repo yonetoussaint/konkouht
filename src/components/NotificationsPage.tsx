@@ -64,7 +64,7 @@ export function NotificationItem({ notif, onClick }: { notif: Notification; onCl
       onClick={onClick}
       style={{
         display: "flex", alignItems: "flex-start", gap: 12,
-        padding: "12px 0",
+        padding: "12px 16px",
         borderTop: "1px solid #2a2a2e",
         background: notif.read ? "transparent" : colors.bg,
         cursor: notif.compId ? "pointer" : "default",
@@ -120,7 +120,7 @@ export function NotificationList({ notifications, onItemClick }: { notifications
     return <NotificationEmptyState />;
   }
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "4px 16px 0" }}>
+    <div style={{ maxWidth: 800, margin: "0 auto", padding: "4px 0 0" }}>
       {notifications.map((notif) => (
         <NotificationItem key={notif.id} notif={notif} onClick={() => onItemClick(notif.id)} />
       ))}
