@@ -85,7 +85,6 @@ export default function QuickActions({
             key={action.id}
             onClick={() => handleAction(action.onClick, action.requiresAuth)}
             style={{
-              flex: 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
