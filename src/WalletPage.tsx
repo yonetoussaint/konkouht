@@ -57,51 +57,45 @@ export default function WalletPage({
         borderColor="#2a2a2e"
       />
 
-      <div style={{ maxWidth: 600, margin: "0 auto", paddingLeft: 16, paddingRight: 16, paddingTop: 0, paddingBottom: 16 }}>
-        <div style={{ padding: "8px 0" }}>
-          <BalanceCard
-            wallet={{
-              currency: 'Haitian Gourde',
-              symbol: 'HTG',
-              balance: effectiveBalance,
-              dayChange: dayChange,
-              dayChangePct: dayChangePct,
-              chartData: [
-                { time: '00:00', value: effectiveBalance - 5000 },
-                { time: '04:00', value: effectiveBalance - 2000 },
-                { time: '08:00', value: effectiveBalance + 3000 },
-                { time: '12:00', value: effectiveBalance + 1000 },
-                { time: '16:00', value: effectiveBalance - 1000 },
-                { time: '20:00', value: effectiveBalance + 2000 },
-                { time: '24:00', value: effectiveBalance },
-              ],
-            }}
-            showBalance={showBalance}
-            onToggleBalance={() => setShowBalance(!showBalance)}
-            isLoading={false}
-            onRefresh={handleRefresh}
-            width="100%"
-          />
-        </div>
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: 8 }}>
+        <BalanceCard
+          wallet={{
+            currency: 'Haitian Gourde',
+            symbol: 'HTG',
+            balance: effectiveBalance,
+            dayChange: dayChange,
+            dayChangePct: dayChangePct,
+            chartData: [
+              { time: '00:00', value: effectiveBalance - 5000 },
+              { time: '04:00', value: effectiveBalance - 2000 },
+              { time: '08:00', value: effectiveBalance + 3000 },
+              { time: '12:00', value: effectiveBalance + 1000 },
+              { time: '16:00', value: effectiveBalance - 1000 },
+              { time: '20:00', value: effectiveBalance + 2000 },
+              { time: '24:00', value: effectiveBalance },
+            ],
+          }}
+          showBalance={showBalance}
+          onToggleBalance={() => setShowBalance(!showBalance)}
+          isLoading={false}
+          onRefresh={handleRefresh}
+          width="100%"
+        />
 
-        <div style={{ padding: "8px 0" }}>
-          <QuickActions
-            isAuthenticated={isAuthenticated}
-            onOpenDeposit={() => setShowDeposit(true)}
-            onOpenWithdraw={onOpenWithdraw}
-            onOpenTransfer={onOpenTransfer}
-            onOpenSettings={onOpenSettings}
-            onRequireAuth={onRequireAuth}
-          />
-        </div>
+        <QuickActions
+          isAuthenticated={isAuthenticated}
+          onOpenDeposit={() => setShowDeposit(true)}
+          onOpenWithdraw={onOpenWithdraw}
+          onOpenTransfer={onOpenTransfer}
+          onOpenSettings={onOpenSettings}
+          onRequireAuth={onRequireAuth}
+        />
 
-        <div style={{ padding: "8px 0" }}>
-          <TransactionHistory
-            transactions={dedupedTransactions}
-            onSelectTransaction={setSelectedTx}
-            showToast={showToast}
-          />
-        </div>
+        <TransactionHistory
+          transactions={dedupedTransactions}
+          onSelectTransaction={setSelectedTx}
+          showToast={showToast}
+        />
       </div>
 
       <TransactionDetailSheet
