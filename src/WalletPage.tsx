@@ -55,10 +55,10 @@ export default function WalletPage({
         title="Portefeuille"
         onSettings={onOpenSettings}
         background="#111"
-        borderColor="#2b3139"
+        borderColor="#2a2a2e"
       />
 
-      <div style={{ maxWidth: 600, margin: "0 auto", paddingLeft: 8, paddingRight: 8, paddingTop: 16, paddingBottom: 16 }}>
+      <div style={{ maxWidth: 600, margin: "0 auto", paddingLeft: 16, paddingRight: 16, paddingTop: 16, paddingBottom: 16 }}>
         <BalanceCard
           wallet={{
             currency: 'Haitian Gourde',
@@ -80,7 +80,7 @@ export default function WalletPage({
           onToggleBalance={() => setShowBalance(!showBalance)}
           isLoading={false}
           onRefresh={handleRefresh}
-          width={340}
+          width="100%"
         />
 
         <QuickActions

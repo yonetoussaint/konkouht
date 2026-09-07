@@ -19,12 +19,11 @@ const WITHDRAWAL_STATUS_LABELS: Record<string, { label: string; color: string; b
 
 interface TransactionRowProps {
   tx: Transaction;
-  isLast: boolean;
   showToast?: (message: string) => void;
   onSelect?: (tx: Transaction) => void;
 }
 
-export default function TransactionRow({ tx, isLast, showToast, onSelect }: TransactionRowProps) {
+export default function TransactionRow({ tx, showToast, onSelect }: TransactionRowProps) {
   const isCredit = tx.amount != null ? tx.amount > 0 : tx.type === "deposit";
   const visual = TX_VISUALS[tx.type] || {
     icon: ArrowUpRight,
@@ -52,12 +51,12 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "12px 16px",
-        borderBottom: isLast ? "none" : "1px solid #2b3139",
+        padding: "12px 0",
+        borderTop: "1px solid #2a2a2e",
         cursor: onSelect ? "pointer" : "default",
         transition: "background 0.15s",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "#2b3139")}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1a1a")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       <div
@@ -100,7 +99,7 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>{time}</span>
-          <span style={{ color: "#2b3139" }}>·</span>
+          <span style={{ color: "#2a2a2e" }}>·</span>
           <span
             onClick={copyReference}
             style={{

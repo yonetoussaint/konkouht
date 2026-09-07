@@ -266,14 +266,11 @@ export function BalanceCardItem({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, width, flexShrink: 0 }}>
-      {/* Stats card */}
+      {/* Stats section */}
       <div
         style={{
-          background: `${COLORS.surface}`,
-          border: `1px solid ${COLORS.border}`,
-          borderRadius: 0,
           fontFamily: FONT_UI,
-          padding: "8px",
+          padding: "12px 0 10px",
         }}
       >
         {/* header */}
@@ -287,10 +284,6 @@ export function BalanceCardItem({
                 fontSize: 12,
                 fontWeight: 700,
                 color: COLORS.gold,
-                background: COLORS.goldDim,
-                border: `1px solid ${COLORS.borderActive}`,
-                borderRadius: 0,
-                padding: "3px 10px",
                 letterSpacing: "0.04em",
               }}
             >
@@ -379,7 +372,7 @@ export function BalanceCardItem({
                     alignItems: "center",
                     gap: 4,
                     background: "transparent",
-                    border: `1px solid ${COLORS.border}`,
+                    border: "1px solid #2a2a2e",
                     borderRadius: 0,
                     color: COLORS.textDim,
                     fontFamily: FONT_UI,
@@ -398,8 +391,8 @@ export function BalanceCardItem({
                       top: "100%",
                       right: 0,
                       marginTop: 4,
-                      background: COLORS.surfaceRaised,
-                      border: `1px solid ${COLORS.border}`,
+                      background: "#1c1c1f",
+                      border: "1px solid #2a2a2e",
                       borderRadius: 0,
                       zIndex: 50,
                       minWidth: 60,
@@ -414,7 +407,7 @@ export function BalanceCardItem({
                           width: "100%",
                           background: tf === timeframe ? COLORS.goldDim : "transparent",
                           border: "none",
-                          borderBottom: `1px solid ${COLORS.border}`,
+                          borderBottom: "1px solid #2a2a2e",
                           color: tf === timeframe ? COLORS.gold : COLORS.text,
                           fontFamily: FONT_UI,
                           fontSize: 12,
@@ -422,7 +415,7 @@ export function BalanceCardItem({
                           cursor: "pointer",
                           textAlign: "left",
                         }}
-                        onMouseEnter={(e) => { if (tf !== timeframe) e.currentTarget.style.background = COLORS.border; }}
+                        onMouseEnter={(e) => { if (tf !== timeframe) e.currentTarget.style.background = "#2a2a2e"; }}
                         onMouseLeave={(e) => { if (tf !== timeframe) e.currentTarget.style.background = "transparent"; }}
                       >
                         {tf}
@@ -436,14 +429,12 @@ export function BalanceCardItem({
         )}
       </div>
 
-      {/* Chart card */}
+      {/* Chart section */}
       <div
         style={{
-          background: COLORS.surface,
-          border: `1px solid ${COLORS.border}`,
-          borderTop: "none",
-          borderRadius: 0,
-          padding: "0 0 8px",
+          borderTop: "1px solid #2a2a2e",
+          borderBottom: "1px solid #2a2a2e",
+          padding: "8px 0 4px",
           marginTop: 0,
         }}
       >

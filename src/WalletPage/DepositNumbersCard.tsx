@@ -53,7 +53,7 @@ export default function DepositNumbersCard({
   return (
     <div
       style={{
-        border: "1px solid #2b3139",
+        border: "1px solid #2a2a2e",
         background: "#181a1e",
         borderRadius: 12,
         marginBottom: 16,
@@ -74,7 +74,7 @@ export default function DepositNumbersCard({
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                border: active ? `1px solid ${m.accent}` : "1px solid #2b3139",
+                border: active ? `1px solid ${m.accent}` : "1px solid #2a2a2e",
                 borderRadius: 8,
                 background: active ? m.accent : "transparent",
                 color: active ? "#fff" : "#848e9c",
@@ -130,7 +130,7 @@ export default function DepositNumbersCard({
             style={{
               display: "flex",
               alignItems: "center",
-              border: "1px solid #2b3139",
+              border: "1px solid #2a2a2e",
               borderRadius: 8,
               marginBottom: 12,
               overflow: "hidden",
@@ -141,7 +141,7 @@ export default function DepositNumbersCard({
               style={{
                 flexShrink: 0,
                 padding: "10px 12px",
-                background: "#2b3139",
+                background: "#2a2a2e",
                 fontFamily: "'Inter', sans-serif",
                 fontSize: 14,
                 fontWeight: 600,
@@ -197,7 +197,7 @@ export default function DepositNumbersCard({
               disabled={saving}
               style={{
                 flex: 1,
-                border: "1px solid #2b3139",
+                border: "1px solid #2a2a2e",
                 borderRadius: 8,
                 background: "transparent",
                 color: "#848e9c",
@@ -257,7 +257,7 @@ export default function DepositNumbersCard({
             onClick={startEditing}
             style={{
               flexShrink: 0,
-              border: "1px solid #2b3139",
+              border: "1px solid #2a2a2e",
               borderRadius: 8,
               background: "transparent",
               color: "#eaecef",
@@ -271,7 +271,7 @@ export default function DepositNumbersCard({
               alignItems: "center",
               gap: 6,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#2b3139")}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#2a2a2e")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             {userNumber ? <Copy size={14} strokeWidth={2} /> : <Plus size={14} strokeWidth={2} />}

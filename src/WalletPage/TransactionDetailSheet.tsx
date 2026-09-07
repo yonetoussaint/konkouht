@@ -27,7 +27,7 @@ function EquationRow({ label, value, bold }: { label: string; value: number; bol
         alignItems: "center",
         gap: 10,
         padding: "8px 12px",
-        borderBottom: "1px solid #2b3139",
+        borderBottom: "1px solid #2a2a2e",
         background: bold ? "#1e2329" : "transparent",
       }}
     >
@@ -118,7 +118,7 @@ export default function TransactionDetailSheet({
           overflowY: "auto",
         }}
       >
-        <div style={{ width: 40, height: 4, borderRadius: 2, background: "#2b3139", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "#2a2a2e", margin: "0 auto 20px" }} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
           <div
@@ -143,7 +143,7 @@ export default function TransactionDetailSheet({
           </div>
         </div>
 
-        <div style={{ textAlign: "center", padding: "12px 0 20px", borderBottom: "1px solid #2b3139", marginBottom: 20 }}>
+        <div style={{ textAlign: "center", padding: "12px 0 20px", borderBottom: "1px solid #2a2a2e", marginBottom: 20 }}>
           <div
             style={{
               fontFamily: "'Inter', sans-serif",
@@ -232,7 +232,7 @@ export default function TransactionDetailSheet({
             >
               Calculation
             </div>
-            <div style={{ border: "1px solid #2b3139", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ border: "1px solid #2a2a2e", borderRadius: 8, overflow: "hidden" }}>
               <EquationRow label="Registration fee paid" value={feeTx.amount} />
               <EquationRow label="Early bird discount (received)" value={discountTx.amount} />
               <EquationRow label="Refund" value={tx.amount} bold />
@@ -250,7 +250,7 @@ export default function TransactionDetailSheet({
             justifyContent: "space-between",
             alignItems: "center",
             paddingTop: 16,
-            borderTop: "1px solid #2b3139",
+            borderTop: "1px solid #2a2a2e",
           }}
         >
           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#848e9c" }}>Reference</span>
