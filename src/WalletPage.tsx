@@ -16,7 +16,6 @@ export default function WalletPage({
   onOpenDeposit,
   onOpenWithdraw,
   onOpenTransfer,
-  onOpenSwap,
   onOpenSettings,
   onOpenNotifications,
   onUpdateNumber,
@@ -88,7 +87,6 @@ export default function WalletPage({
           onOpenDeposit={() => setShowDeposit(true)}
           onOpenWithdraw={onOpenWithdraw}
           onOpenTransfer={onOpenTransfer}
-          onOpenSwap={onOpenSwap}
           onOpenSettings={onOpenSettings}
           onRequireAuth={onRequireAuth}
         />

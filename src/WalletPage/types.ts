@@ -23,7 +23,6 @@ export interface WalletPageProps {
   onOpenDeposit: () => void;
   onOpenWithdraw: () => void;
   onOpenTransfer: () => void;
-  onOpenSwap: () => void;
   onOpenSettings: () => void;
   onOpenNotifications: () => void;
   onUpdateNumber: (method: string, number: string) => Promise<void>;

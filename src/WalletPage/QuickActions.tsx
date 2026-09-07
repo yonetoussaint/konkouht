@@ -1,10 +1,4 @@
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Send,
-  RefreshCw,
-  Settings,
-} from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Send, Settings } from "lucide-react";
 
 interface QuickAction {
   id: string;
@@ -20,7 +14,6 @@ interface QuickActionsProps {
   onOpenDeposit: () => void;
   onOpenWithdraw: () => void;
   onOpenTransfer: () => void;
-  onOpenSwap: () => void;
   onOpenSettings: () => void;
   onRequireAuth: () => void;
 }
@@ -30,7 +23,6 @@ export default function QuickActions({
   onOpenDeposit,
   onOpenWithdraw,
   onOpenTransfer,
-  onOpenSwap,
   onOpenSettings,
   onRequireAuth,
 }: QuickActionsProps) {
@@ -65,15 +57,6 @@ export default function QuickActions({
       icon: Send,
       onClick: onOpenTransfer,
       requiresAuth: true,
-      color: "#f0b90b",
-    },
-    {
-      id: "swap",
-      label: "Swap",
-      icon: RefreshCw,
-      onClick: onOpenSwap,
-      requiresAuth: true,
-      color: "#1e80ff",
     },
     {
       id: "settings",
@@ -88,7 +71,7 @@ export default function QuickActions({
     <div
       style={{
         display: "flex",
-        gap: 2,
+        gap: 0,
         overflowX: "auto",
         padding: 0,
         marginLeft: -16,
@@ -140,24 +123,11 @@ export default function QuickActions({
               }
             }}
           >
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: isActive ? "#2b3139" : `rgba(255, 255, 255, 0.06)`,
-                transition: "background 0.2s",
-              }}
-            >
-              <Icon
-                size={20}
-                strokeWidth={2}
-                color={isActive ? "#848e9c" : action.color || "#eaecef"}
-              />
-            </div>
+            <Icon
+              size={20}
+              strokeWidth={2}
+              color={isActive ? "#848e9c" : "#ffffff"}
+            />
             <span
               style={{
                 fontFamily: "Inter, sans-serif",
