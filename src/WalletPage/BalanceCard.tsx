@@ -103,7 +103,7 @@ function Skeleton() {
   });
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <div style={bar(64, 26, { borderRadius: 13 })} />
       </div>
       <div style={bar(180, 34, { marginBottom: 10 })} />
@@ -238,7 +238,7 @@ export function BalanceCardItem({
       <div
         style={{
           fontFamily: FONT_UI,
-          padding: "12px 16px 10px",
+          padding: "14px 16px 14px",
           marginLeft: -16,
           marginRight: -16,
           borderBottom: "1px solid #2a2a2e",
