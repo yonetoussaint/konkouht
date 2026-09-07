@@ -32,7 +32,6 @@ export default function PageHeader({
     <header
       style={{
         background,
-        borderBottom: `1px solid ${borderColor}`,
         padding: "0 16px",
         height: 56,
         display: "flex",
