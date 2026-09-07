@@ -43,32 +43,8 @@ export default function WalletPage({
   const priorBalance = effectiveBalance - dayChange;
   const dayChangePct = priorBalance !== 0 ? (dayChange / Math.abs(priorBalance)) * 100 : 0;
 
-  // Mock HTG wallet data
-  const htgWalletData = {
-    id: 'htg',
-    currency: 'Haitian Gourde',
-    symbol: 'HTG',
-    balance: effectiveBalance,
-    dayChange: dayChange,
-    dayChangePct: dayChangePct,
-    chartData: [
-      { time: '00:00', value: effectiveBalance - 5000 },
-      { time: '04:00', value: effectiveBalance - 2000 },
-      { time: '08:00', value: effectiveBalance + 3000 },
-      { time: '12:00', value: effectiveBalance + 1000 },
-      { time: '16:00', value: effectiveBalance - 1000 },
-      { time: '20:00', value: effectiveBalance + 2000 },
-      { time: '24:00', value: effectiveBalance },
-    ],
-  };
-
-  // Combine wallets
-  const wallets = [htgWalletData];
-
-  // Refresh handler (you can implement actual refresh logic)
+  // Refresh handler
   const handleRefresh = async () => {
-    // In a real app, you'd fetch latest balances here
-    // For now, we'll just simulate a refresh
     await new Promise(resolve => setTimeout(resolve, 1000));
     showToast?.('Balances refreshed', 'success');
   };
@@ -84,17 +60,27 @@ export default function WalletPage({
 
       <div style={{ maxWidth: 600, margin: "0 auto", paddingLeft: 8, paddingRight: 8, paddingTop: 16, paddingBottom: 16 }}>
         <BalanceCard
-          accounts={wallets.map((w) => ({
-            id: w.id,
-            props: {
-              wallet: w,
-              showBalance,
-              onToggleBalance: () => setShowBalance(!showBalance),
-              isLoading: false,
-              onRefresh: handleRefresh,
-            },
-          }))}
-          cardWidth={300}
+          wallet={{
+            currency: 'Haitian Gourde',
+            symbol: 'HTG',
+            balance: effectiveBalance,
+            dayChange: dayChange,
+            dayChangePct: dayChangePct,
+            chartData: [
+              { time: '00:00', value: effectiveBalance - 5000 },
+              { time: '04:00', value: effectiveBalance - 2000 },
+              { time: '08:00', value: effectiveBalance + 3000 },
+              { time: '12:00', value: effectiveBalance + 1000 },
+              { time: '16:00', value: effectiveBalance - 1000 },
+              { time: '20:00', value: effectiveBalance + 2000 },
+              { time: '24:00', value: effectiveBalance },
+            ],
+          }}
+          showBalance={showBalance}
+          onToggleBalance={() => setShowBalance(!showBalance)}
+          isLoading={false}
+          onRefresh={handleRefresh}
+          width={340}
         />
 
         <QuickActions

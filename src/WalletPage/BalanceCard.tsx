@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Eye,
   EyeOff,
@@ -16,25 +16,6 @@ import {
 } from "recharts";
 
 // ---- currency icons ------------------------------------------------------
-function UsdtIcon({ size = 14 }) {
-  // Official Tether/USDT logo, sourced from cryptologos.cc (Tether brand kit).
-  // ViewBox 339.43 × 295.27 — preserved here so the icon scales cleanly.
-  return (
-    <svg width={size} height={size} viewBox="0 0 339.43 295.27" fill="none">
-      <path
-        d="M62.15,1.45l-61.89,130a2.52,2.52,0,0,0,.54,2.94L167.95,294.56a2.55,2.55,0,0,0,3.53,0L338.63,134.4a2.52,2.52,0,0,0,.54-2.94l-61.89-130A2.5,2.5,0,0,0,275,0H64.45a2.5,2.5,0,0,0-2.3,1.45Z"
-        fill="#50af95"
-        fillRule="evenodd"
-      />
-      <path
-        d="M191.19,144.8v0c-1.2.09-7.4,0.46-21.23,0.46-11,0-18.81-.33-21.55-0.46v0c-42.51-1.87-74.24-9.27-74.24-18.13s31.73-16.25,74.24-18.15v28.91c2.78,0.2,10.74,0.67,21.74,0.67,13.2,0,19.81-.55,21-0.66v-28.9c42.42,1.89,74.08,9.29,74.08,18.13s-31.65,16.24-74.08,18.12h0Zm0-39.25V79.68h59.2V40.23H89.21V79.68H148.4v25.86c-48.11,2.21-84.29,11.74-84.29,23.16s36.18,20.94,84.29,23.16v82.9h42.78V151.83c48-2.21,84.12-11.73,84.12-23.14s-36.09-20.93-84.12-23.15h0Zm0,0h0Z"
-        fill="#fff"
-        fillRule="evenodd"
-      />
-    </svg>
-  );
-}
-
 function HtgIcon({ size = 14 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
@@ -53,12 +34,6 @@ function HtgIcon({ size = 14 }) {
       </text>
     </svg>
   );
-}
-
-function CurrencyIcon({ currency, size = 14 }) {
-  if (currency === "TetherUSD" || currency === "USD" || currency === "USDT") return <UsdtIcon size={size} />;
-  if (currency === "HTG" || currency === "Haitian Gourde") return <HtgIcon size={size} />;
-  return null;
 }
 
 // ---- design tokens -------------------------------------------------------
@@ -319,7 +294,7 @@ export function BalanceCardItem({
                 letterSpacing: "0.04em",
               }}
             >
-              <CurrencyIcon currency={wallet?.currency} size={14} />
+              <HtgIcon size={14} />
               {wallet?.currency || "—"}
             </span>
           </div>
@@ -479,75 +454,10 @@ export function BalanceCardItem({
 }
 
 // ---------------------------------------------------------------------------
-// BalanceCard: lays several account cards side by side in one horizontally
-// scrollable, snapping row. Each card below is a separate BalanceCardItem
-// instance with its own hook state (see comment above), so scrolling the
-// row, refreshing one card, or switching a wallet on one card never
-// touches its neighbors.
+// BalanceCard: a single balance card, rendered directly. No carousel / no
+// horizontal scroller — there is only one currency to display.
 // ---------------------------------------------------------------------------
-export default function BalanceCard({ accounts, cardWidth = 300, gap = 14, onActiveChange }) {
-  const scrollRef = useRef(null);
-
+export default function BalanceCard(props) {
   useEffect(ensureGlobalStyles, []);
-
-  // As the user scrolls/swipes, surface which card is currently "on screen"
-  // so the parent can mirror the active wallet for any side effects (logging,
-  // analytics, future balance-of-record plumbing).
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || !onActiveChange) return;
-    let frame = 0;
-    const report = () => {
-      const center = el.scrollLeft + el.clientWidth / 2;
-      const cards = el.querySelectorAll("[data-card-id]");
-      let closestId = null;
-      let closestDist = Infinity;
-      cards.forEach((node) => {
-        const nodeCenter = node.offsetLeft + node.clientWidth / 2;
-        const dist = Math.abs(nodeCenter - center);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closestId = node.getAttribute("data-card-id");
-        }
-      });
-      if (closestId) onActiveChange(closestId);
-    };
-    const onScroll = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(report);
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    report();
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      cancelAnimationFrame(frame);
-    };
-  }, [accounts, onActiveChange]);
-
-  return (
-    <div
-      ref={scrollRef}
-      className="bc-carousel"
-      style={{
-        display: "flex",
-        gap,
-        overflowX: "auto",
-        scrollSnapType: "x proximity",
-        WebkitOverflowScrolling: "touch",
-        scrollbarWidth: "none",
-        width: "100%",
-        padding: 0,
-      }}
-    >
-      {accounts.map((account) => (
-        <div
-          key={account.id}
-          data-card-id={account.id}
-          style={{ flexShrink: 0, flexBasis: cardWidth, width: cardWidth }}
-        >
-          <BalanceCardItem width={cardWidth} {...account.props} />
-        </div>
-      ))}
-    </div>
-  );
+  return <BalanceCardItem {...props} />;
 }
