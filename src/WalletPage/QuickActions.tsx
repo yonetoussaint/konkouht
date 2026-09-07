@@ -71,7 +71,7 @@ export default function QuickActions({
     <div
       style={{
         display: "flex",
-        justifyContent: "space-between",
+        justifyContent: "space-evenly",
         gap: 0,
         padding: 0,
       }}
