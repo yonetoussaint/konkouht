@@ -120,7 +120,7 @@ export function NotificationList({ notifications, onItemClick }: { notifications
     return <NotificationEmptyState />;
   }
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "4px 0 0" }}>
+    <div style={{ maxWidth: 800, margin: "0 auto" }}>
       {notifications.map((notif) => (
         <NotificationItem key={notif.id} notif={notif} onClick={() => onItemClick(notif.id)} />
       ))}
