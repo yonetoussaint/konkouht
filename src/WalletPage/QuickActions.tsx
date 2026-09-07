@@ -73,7 +73,7 @@ export default function QuickActions({
         display: "flex",
         justifyContent: "space-between",
         gap: 0,
-        padding: 0,
+        padding: 8,
       }}
     >
       {actions.map((action) => {
