@@ -89,6 +89,7 @@ export default function WalletPage({
           onOpenTransfer={onOpenTransfer}
           onOpenSettings={onOpenSettings}
           onRequireAuth={onRequireAuth}
+          showToast={showToast}
         />
 
         <TransactionHistory

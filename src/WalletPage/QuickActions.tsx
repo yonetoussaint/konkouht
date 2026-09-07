@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowUpRight, Send, Settings } from "lucide-react";
+import { ArrowDownLeft, ArrowDownToLine, ArrowUpRight, Send, Settings } from "lucide-react";
 
 interface QuickAction {
   id: string;
@@ -16,6 +16,7 @@ interface QuickActionsProps {
   onOpenTransfer: () => void;
   onOpenSettings: () => void;
   onRequireAuth: () => void;
+  showToast?: (message: string, type?: string) => void;
 }
 
 export default function QuickActions({
@@ -25,6 +26,7 @@ export default function QuickActions({
   onOpenTransfer,
   onOpenSettings,
   onRequireAuth,
+  showToast,
 }: QuickActionsProps) {
   const handleAction = (action: () => void, requiresAuth?: boolean) => {
     if (requiresAuth && !isAuthenticated) {
@@ -56,6 +58,13 @@ export default function QuickActions({
       label: "Transfer",
       icon: Send,
       onClick: onOpenTransfer,
+      requiresAuth: true,
+    },
+    {
+      id: "request",
+      label: "Request",
+      icon: ArrowDownToLine,
+      onClick: () => showToast?.("Request coming soon"),
       requiresAuth: true,
     },
     {
