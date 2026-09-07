@@ -30,7 +30,6 @@ export default function WalletPage({
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
   const [showBalance, setShowBalance] = useState(true);
-  const [activeWalletId, setActiveWalletId] = useState('htg');
   const [showDeposit, setShowDeposit] = useState(false);
 
   const effectiveBalance = isAuthenticated ? balance : 0;
@@ -43,25 +42,6 @@ export default function WalletPage({
     .reduce((sum, t) => sum + t.amount, 0);
   const priorBalance = effectiveBalance - dayChange;
   const dayChangePct = priorBalance !== 0 ? (dayChange / Math.abs(priorBalance)) * 100 : 0;
-
-  // Mock USDT wallet data (you can replace with real data from your backend)
-  const usdtWalletData = {
-    id: 'usdt',
-    currency: 'TetherUSD',
-    symbol: 'USDT',
-    balance: isAuthenticated ? 2500 : 0, // Example USDT balance
-    dayChange: isAuthenticated ? -45 : 0,
-    dayChangePct: isAuthenticated ? -1.8 : 0,
-    chartData: [
-      { time: '00:00', value: 2550 },
-      { time: '04:00', value: 2530 },
-      { time: '08:00', value: 2520 },
-      { time: '12:00', value: 2510 },
-      { time: '16:00', value: 2500 },
-      { time: '20:00', value: 2490 },
-      { time: '24:00', value: 2455 },
-    ],
-  };
 
   // Mock HTG wallet data
   const htgWalletData = {
@@ -83,9 +63,7 @@ export default function WalletPage({
   };
 
   // Combine wallets
-  const wallets = isAuthenticated 
-    ? [htgWalletData, usdtWalletData]
-    : [htgWalletData]; // Show only HTG when not authenticated
+  const wallets = [htgWalletData];
 
   // Refresh handler (you can implement actual refresh logic)
   const handleRefresh = async () => {
@@ -117,10 +95,6 @@ export default function WalletPage({
             },
           }))}
           cardWidth={300}
-          onActiveChange={(walletId) => {
-            setActiveWalletId(walletId);
-            console.log('Active wallet:', walletId);
-          }}
         />
 
         <QuickActions
