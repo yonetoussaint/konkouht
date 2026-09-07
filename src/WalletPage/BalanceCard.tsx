@@ -238,7 +238,9 @@ export function BalanceCardItem({
       <div
         style={{
           fontFamily: FONT_UI,
-          padding: "12px 0 10px",
+          padding: "12px 16px 10px",
+          marginLeft: -16,
+          marginRight: -16,
           borderBottom: "1px solid #2a2a2e",
         }}
       >

@@ -145,6 +145,8 @@ export default function TransactionHistory({
                   textTransform: "uppercase",
                   color: "#8a8a90",
                   padding: "10px 16px",
+                  marginLeft: -16,
+                  marginRight: -16,
                   background: "#181a1e",
                   borderBottom: "1px solid #2a2a2e",
                 }}

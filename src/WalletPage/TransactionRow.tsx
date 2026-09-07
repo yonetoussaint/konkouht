@@ -53,6 +53,8 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
         alignItems: "center",
         gap: 12,
         padding: "12px 16px",
+        marginLeft: -16,
+        marginRight: -16,
         borderBottom: isLast ? "none" : "1px solid #2a2a2e",
         cursor: onSelect ? "pointer" : "default",
         transition: "background 0.15s",
