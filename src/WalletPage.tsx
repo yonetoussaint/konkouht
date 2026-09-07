@@ -58,7 +58,7 @@ export default function WalletPage({
         borderColor="#2a2a2e"
       />
 
-      <div style={{ maxWidth: 600, margin: "0 auto", paddingLeft: 16, paddingRight: 16, paddingTop: 16, paddingBottom: 16 }}>
+      <div style={{ maxWidth: 600, margin: "0 auto", paddingLeft: 16, paddingRight: 16, paddingTop: 0, paddingBottom: 16 }}>
         <BalanceCard
           wallet={{
             currency: 'Haitian Gourde',
