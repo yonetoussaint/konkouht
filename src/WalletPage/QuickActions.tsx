@@ -81,7 +81,7 @@ export default function QuickActions({
         const isActive = action.requiresAuth && !isAuthenticated;
 
         return (
-          <button
+          <div
             key={action.id}
             onClick={() => handleAction(action.onClick, action.requiresAuth)}
             style={{
@@ -89,24 +89,9 @@ export default function QuickActions({
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 6,
-              padding: "10px 14px",
-              border: "none",
-              borderRadius: 12,
-              background: "transparent",
+              gap: 8,
               cursor: isActive ? "default" : "pointer",
-              transition: "all 0.2s",
               opacity: isActive ? 0.5 : 1,
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive) {
-                e.currentTarget.style.background = "#1e2329";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive) {
-                e.currentTarget.style.background = "transparent";
-              }
             }}
           >
             <div
@@ -118,7 +103,6 @@ export default function QuickActions({
                 alignItems: "center",
                 justifyContent: "center",
                 background: isActive ? "#2b3139" : "rgba(255, 255, 255, 0.06)",
-                transition: "background 0.2s",
               }}
             >
               <Icon
@@ -138,7 +122,7 @@ export default function QuickActions({
             >
               {action.label}
             </span>
-          </button>
+          </div>
         );
       })}
     </div>
