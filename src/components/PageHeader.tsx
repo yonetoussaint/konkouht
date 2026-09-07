@@ -1,4 +1,4 @@
-import { Bell, MoreHorizontal, Settings } from "lucide-react";
+import { Bell, MoreHorizontal, Search } from "lucide-react";
 import type { ReactNode } from "react";
 
 interface PageHeaderProps {
@@ -160,7 +160,7 @@ export default function PageHeader({
               display: "flex",
             }}
           >
-            <Settings size={20} strokeWidth={2} />
+            <Search size={20} strokeWidth={2} />
           </button>
         )}
         {actions}

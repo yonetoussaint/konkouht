@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Search } from "lucide-react";
 import TransactionRow from "./TransactionRow";
 import { groupTransactionsByDay } from "./utils";
 import type { Transaction } from "./types";
@@ -23,51 +22,25 @@ export default function TransactionHistory({
   showToast,
 }: TransactionHistoryProps) {
   const [txFilter, setTxFilter] = useState("all");
-  const [txQuery, setTxQuery] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
 
-  const filteredTx = transactions
-    .filter((t) => txFilter === "all" || t.type === txFilter)
-    .filter((t) => !txQuery.trim() || t.label.toLowerCase().includes(txQuery.trim().toLowerCase()));
+  const filteredTx = transactions.filter(
+    (t) => txFilter === "all" || t.type === txFilter
+  );
   const groups = groupTransactionsByDay(filteredTx);
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            border: `1px solid ${searchFocused ? "#f0b90b" : "#2a2a2e"}`,
-            background: "#1e2329",
-            borderRadius: 8,
-            padding: "0 12px",
-            height: 40,
-            transition: "border-color 0.2s",
-          }}
-        >
-          <Search size={16} color="#848e9c" strokeWidth={2} />
-          <input
-            type="text"
-            placeholder="Search transactions..."
-            value={txQuery}
-            onChange={(e) => setTxQuery(e.target.value)}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            style={{
-              flex: 1,
-              border: "none",
-              outline: "none",
-              fontFamily: "Inter, sans-serif",
-              fontSize: 14,
-              color: "#eaecef",
-              background: "transparent",
-              height: "100%",
-            }}
-          />
-        </div>
+      <div
+        style={{
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontSize: 18,
+          fontWeight: 700,
+          color: "#f2f2f2",
+          letterSpacing: "-0.01em",
+          marginBottom: 12,
+        }}
+      >
+        Transactions
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
