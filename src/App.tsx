@@ -2698,7 +2698,7 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
         }
       />
 
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "4px 16px 0" }}>
         {notifications.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 8px" }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>🔔</div>
@@ -2709,7 +2709,7 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
               Les activités de vos compétitions apparaîtront ici.
             </div>
           </div>
-        ) : notifications.map((notif) => {
+        ) : notifications.map((notif, idx) => {
           const colors = NOTIF_TYPE_COLOR[notif.type] ?? NOTIF_TYPE_COLOR.action;
           return (
             <div
@@ -2720,28 +2720,28 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
               }}
               style={{
                 display: "flex", alignItems: "flex-start", gap: 12,
-                background: notif.read ? "#1c1c1f" : colors.bg,
-                border: `1px solid ${notif.read ? "#2a2a2e" : colors.border}`,
-                padding: "12px 14px",
+                padding: "12px 0",
+                borderTop: idx === 0 ? "none" : "1px solid #2a2a2e",
+                background: notif.read ? "transparent" : colors.bg,
                 cursor: notif.compId ? "pointer" : "default",
-                transition: "background 0.2s, border-color 0.2s",
+                transition: "background 0.2s",
               }}
             >
               {/* Icon + unread dot */}
-              <div style={{ position: "relative", flexShrink: 0 }}>
+              <div style={{ position: "relative", flexShrink: 0, marginTop: 2 }}>
                 <div style={{
-                  width: 38, height: 38,
+                  width: 34, height: 34,
                   background: notif.read ? "#26262a" : colors.bg,
                   border: `1px solid ${notif.read ? "#2a2a2e" : colors.border}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 18, lineHeight: 1,
+                  fontSize: 17, lineHeight: 1,
                 }}>
                   {notif.icon}
                 </div>
                 {!notif.read && (
                   <div style={{
-                    position: "absolute", top: -3, right: -3,
-                    width: 8, height: 8, borderRadius: "50%",
+                    position: "absolute", top: -2, right: -2,
+                    width: 7, height: 7, borderRadius: "50%",
                     background: colors.dot,
                     border: "2px solid #111",
                   }} />
@@ -2769,7 +2769,7 @@ function NotificationsPage({ notifications, onMarkAllRead, onMarkRead, onOpen })
                 }}>{notif.body}</span>
                 {notif.compId && (
                   <span style={{
-                    display: "inline-block", marginTop: 6,
+                    display: "inline-block", marginTop: 4,
                     fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
                     letterSpacing: "0.06em", textTransform: "uppercase",
                     color: colors.dot,
