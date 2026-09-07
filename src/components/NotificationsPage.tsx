@@ -1,5 +1,6 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Trophy, Flame, Zap, Gem, Crown, Medal, ClipboardList, Bell } from "lucide-react";
 import PageHeader from "./PageHeader";
+import type { LucideIcon } from "lucide-react";
 
 // Types
 export interface Notification {
@@ -7,7 +8,7 @@ export interface Notification {
   type: "result" | "activity" | "registration" | "system" | "action";
   read: boolean;
   ts: number;
-  icon: string;
+  icon: LucideIcon;
   title: string;
   body: string;
   compId?: string;
@@ -23,13 +24,13 @@ export const NOTIF_TYPE_COLOR = {
 };
 
 export const INITIAL_NOTIFS: Notification[] = [
-  { id: "n1", type: "result",       read: false, ts: Date.now() - 1000 * 60 * 8,    icon: "🏆", title: "Résultats disponibles",     body: "Miss Élégance — la demi-finale est terminée. Découvrez le classement final.", compId: "b2" },
-  { id: "n2", type: "activity",     read: false, ts: Date.now() - 1000 * 60 * 23,   icon: "🔥", title: "Concours de Beauté s'emballe", body: "6 240 votes en moins de 2 jours — la compétition est très active.", compId: "b1" },
-  { id: "n3", type: "registration", read: true,  ts: Date.now() - 1000 * 60 * 61,   icon: "⚡", title: "Plus que 13 places",          body: "Top Model Open — il ne reste que 13 inscriptions disponibles.", compId: "b3" },
-  { id: "n4", type: "system",       read: true,  ts: Date.now() - 1000 * 60 * 60 * 5, icon: "💎", title: "550 crédits ajoutés",       body: "Votre achat a été confirmé. Solde actuel : 425 crédits." },
-  { id: "n5", type: "activity",     read: true,  ts: Date.now() - 1000 * 60 * 60 * 9, icon: "👑", title: "Couronne envoyée",          body: "Votre cadeau a été remis à un participant de Concours de Beauté." },
-  { id: "n6", type: "result",       read: true,  ts: Date.now() - 1000 * 60 * 60 * 22, icon: "🥇", title: "Miss Élégance — Top 3",     body: "Le classement de mi-parcours est disponible. 4 810 votes comptabilisés.", compId: "b2" },
-  { id: "n7", type: "registration", read: true,  ts: Date.now() - 1000 * 60 * 60 * 26, icon: "📋", title: "Top Model Open ouvert", body: "Les inscriptions pour Top Model Open viennent d'ouvrir. 20 places.", compId: "b3" },
+  { id: "n1", type: "result",       read: false, ts: Date.now() - 1000 * 60 * 8,    icon: Trophy, title: "Résultats disponibles",     body: "Miss Élégance — la demi-finale est terminée. Découvrez le classement final.", compId: "b2" },
+  { id: "n2", type: "activity",     read: false, ts: Date.now() - 1000 * 60 * 23,   icon: Flame, title: "Concours de Beauté s'emballe", body: "6 240 votes en moins de 2 jours — la compétition est très active.", compId: "b1" },
+  { id: "n3", type: "registration", read: true,  ts: Date.now() - 1000 * 60 * 61,   icon: Zap, title: "Plus que 13 places",          body: "Top Model Open — il ne reste que 13 inscriptions disponibles.", compId: "b3" },
+  { id: "n4", type: "system",       read: true,  ts: Date.now() - 1000 * 60 * 60 * 5, icon: Gem, title: "550 crédits ajoutés",       body: "Votre achat a été confirmé. Solde actuel : 425 crédits." },
+  { id: "n5", type: "activity",     read: true,  ts: Date.now() - 1000 * 60 * 60 * 9, icon: Crown, title: "Couronne envoyée",          body: "Votre cadeau a été remis à un participant de Concours de Beauté." },
+  { id: "n6", type: "result",       read: true,  ts: Date.now() - 1000 * 60 * 60 * 22, icon: Medal, title: "Miss Élégance — Top 3",     body: "Le classement de mi-parcours est disponible. 4 810 votes comptabilisés.", compId: "b2" },
+  { id: "n7", type: "registration", read: true,  ts: Date.now() - 1000 * 60 * 60 * 26, icon: ClipboardList, title: "Top Model Open ouvert", body: "Les inscriptions pour Top Model Open viennent d'ouvrir. 20 places.", compId: "b3" },
 ];
 
 export function fmtNotifTime(ts: number): string {
@@ -46,7 +47,7 @@ export function fmtNotifTime(ts: number): string {
 export function NotificationEmptyState() {
   return (
     <div style={{ textAlign: "center", padding: "60px 8px" }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>🔔</div>
+      <div style={{ marginBottom: 12, color: "#8a8a90" }}><Bell size={36} /></div>
       <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#f2f2f2", marginBottom: 6 }}>
         Aucune notification
       </div>
@@ -78,9 +79,9 @@ export function NotificationItem({ notif, onClick }: { notif: Notification; onCl
           background: notif.read ? "#26262a" : colors.bg,
           border: `1px solid ${notif.read ? "#2a2a2e" : colors.border}`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 17, lineHeight: 1,
+          color: notif.read ? "#8a8a90" : colors.dot,
         }}>
-          {notif.icon}
+          <notif.icon size={17} />
         </div>
         {!notif.read && (
           <div style={{
