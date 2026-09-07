@@ -71,24 +71,11 @@ export default function QuickActions({
     <div
       style={{
         display: "flex",
+        justifyContent: "space-between",
         gap: 0,
-        overflowX: "auto",
         padding: 0,
-        marginLeft: -16,
-        marginRight: -16,
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-        WebkitOverflowScrolling: "touch",
       }}
-      className="quick-actions-scroll"
     >
-      <style>
-        {`
-          .quick-actions-scroll::-webkit-scrollbar {
-            display: none;
-          }
-        `}
-      </style>
       {actions.map((action) => {
         const Icon = action.icon;
         const isActive = action.requiresAuth && !isAuthenticated;
@@ -98,15 +85,14 @@ export default function QuickActions({
             key={action.id}
             onClick={() => handleAction(action.onClick, action.requiresAuth)}
             style={{
-              flexShrink: 0,
+              flex: 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: 6,
               padding: "10px 14px",
-              minWidth: 68,
               border: "none",
-              borderRadius: "50%",
+              borderRadius: 12,
               background: "transparent",
               cursor: isActive ? "default" : "pointer",
               transition: "all 0.2s",
@@ -123,11 +109,24 @@ export default function QuickActions({
               }
             }}
           >
-            <Icon
-              size={20}
-              strokeWidth={2}
-              color={isActive ? "#848e9c" : "#ffffff"}
-            />
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: isActive ? "#2b3139" : "rgba(255, 255, 255, 0.06)",
+                transition: "background 0.2s",
+              }}
+            >
+              <Icon
+                size={20}
+                strokeWidth={2}
+                color={isActive ? "#848e9c" : "#ffffff"}
+              />
+            </div>
             <span
               style={{
                 fontFamily: "Inter, sans-serif",
