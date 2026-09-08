@@ -2440,4 +2440,2036 @@ function WithdrawalActionPinModal({ action, onClose, onDone, showToast }) {
     const { error: rpcError } = isReject
       ? await rejectWithdrawal({ transactionId: action.txId, pin })
       : await confirmWithdrawal({ transactionId: action.txId, pin });
-    
+    setSubmitting(false);
+    if (rpcError) {
+      setError(
+        rpcError.message?.includes("invalid_pin")
+          ? "Code PIN incorrect."
+          : rpcError.message?.includes("pin_not_set")
+          ? "Aucun code PIN n'a encore été créé."
+          : rpcError.message?.includes("not_pending")
+          ? "Ce retrait a déjà été traité."
+          : "Une erreur est survenue. Réessaie."
+      );
+      return;
+    }
+    showToast && showToast(isReject ? "Retrait rejeté — montant remboursé" : "Retrait confirmé");
+    onDone && onDone();
+  }
+
+  return (
+    <AdminPinSheetShell title={isReject ? "Rejeter le retrait" : "Confirmer le retrait"} onClose={onClose}>
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#c9c9c9", lineHeight: 1.6, marginBottom: 16 }}>
+        {isReject
+          ? <>Rejeter le retrait de <strong>{action.amount.toLocaleString("fr-FR")} HTG</strong> pour {action.name} ? Le montant sera immédiatement recrédité sur son solde.</>
+          : <>Confirmer que <strong>{action.amount.toLocaleString("fr-FR")} HTG</strong> ont bien été envoyés à {action.name} ?</>}
+      </div>
+
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9aa0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+        Code PIN administrateur
+      </div>
+      <PinField value={pin} onChange={(v) => { setPin(v); setError(""); }} autoFocus error={!!error} />
+      {error && (
+        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#ff6b5e", fontWeight: 600, marginBottom: 8 }}>
+          {error}
+        </div>
+      )}
+
+      <button
+        onClick={handleSubmit}
+        disabled={pin.length < 4 || submitting}
+        style={{
+          width: "100%", border: "none",
+          background: pin.length >= 4 && !submitting ? (isReject ? "#e55737" : "#fff") : "#3a3a3e",
+          color: pin.length >= 4 && !submitting ? (isReject ? "#fff" : "#111") : "#8a8a90",
+          fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 14,
+          letterSpacing: "0.06em", textTransform: "uppercase",
+          padding: "14px 20px", cursor: pin.length >= 4 && !submitting ? "pointer" : "not-allowed",
+          marginTop: 8,
+        }}
+      >
+        {submitting ? "Traitement…" : isReject ? "Rejeter et rembourser" : "Confirmer l'envoi"}
+      </button>
+    </AdminPinSheetShell>
+  );
+}
+
+export function WithdrawalsPanel({ showToast }) {
+  const [pinExists, setPinExists] = useState(null); // null = loading
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [action, setAction] = useState(null); // { txId, kind, amount, name }
+
+  async function refresh() {
+    setLoading(true);
+    const [{ exists }, { withdrawals: list }] = await Promise.all([
+      adminPinExists(),
+      listPendingWithdrawals(),
+    ]);
+    setPinExists(exists);
+    setWithdrawals(list);
+    setLoading(false);
+  }
+
+  useEffect(() => { refresh(); }, []);
+
+  function destinationNumber(w) {
+    if (!w.method) return null;
+    const m = w.method.toLowerCase();
+    if (m.includes("moncash")) return w.moncash_number;
+    if (m.includes("natcash")) return w.natcash_number;
+    return null;
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9a9aa0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          {withdrawals.length} retrait{withdrawals.length > 1 ? "s" : ""} en attente
+        </span>
+        {pinExists && (
+          <button
+            onClick={() => setShowPinSetup(true)}
+            style={{ border: "none", background: "none", color: "#c9c9c9", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+          >
+            <Lock size={12} strokeWidth={2.5} /> Changer le code PIN
+          </button>
+        )}
+      </div>
+
+      {pinExists === false && (
+        <div style={{ border: "1px solid #2a2a2e", background: "#3d311a", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#c9c9c9", lineHeight: 1.5, marginBottom: 10 }}>
+            Aucun code PIN administrateur n'est encore configuré. Crée-en un pour pouvoir confirmer ou rejeter des retraits.
+          </div>
+          <button
+            onClick={() => setShowPinSetup(true)}
+            style={{
+              border: "none", borderRadius: 999, background: "#fff", color: "#111",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+              padding: "10px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+            }}
+          >
+            <Lock size={13} strokeWidth={2.5} /> Créer un code PIN
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "40px 8px", color: "#8a8a90", fontFamily: "Inter, sans-serif", fontSize: 13 }}>
+          Chargement…
+        </div>
+      ) : withdrawals.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 8px", border: "1px solid #2a2a2e", background: "#1c1c1f", color: "#8a8a90", fontFamily: "Inter, sans-serif", fontSize: 13, borderRadius: 12 }}>
+          Aucun retrait en attente.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {withdrawals.map((w) => {
+            const dest = destinationNumber(w);
+            return (
+              <div key={w.id} style={{ border: "1px solid #2a2a2e", background: "#1c1c1f", borderRadius: 14, padding: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#eaeaea" }}>
+                      {w.full_name || "Utilisateur"}
+                    </div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#8a8a90" }}>
+                      {new Date(w.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#FF5252", flexShrink: 0 }}>
+                    {Number(w.amount).toLocaleString("fr-FR")} HTG
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: "#c9c9c9", background: "#26262a", borderRadius: 999, padding: "3px 9px" }}>
+                    {w.method || "—"}
+                  </span>
+                  {dest && (
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: "#c9c9c9" }}>
+                      → {dest}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => pinExists && setAction({ txId: w.id, kind: "confirm", amount: Number(w.amount), name: w.full_name || "cet utilisateur" })}
+                    disabled={!pinExists}
+                    style={{
+                      flex: 1, border: "none", borderRadius: 8, padding: "10px 12px",
+                      background: pinExists ? "#00B894" : "#3a3a3e", color: pinExists ? "#fff" : "#8a8a90",
+                      fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, cursor: pinExists ? "pointer" : "not-allowed",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    }}
+                  >
+                    <Check size={14} strokeWidth={2.5} /> Confirmer
+                  </button>
+                  <button
+                    onClick={() => pinExists && setAction({ txId: w.id, kind: "reject", amount: Number(w.amount), name: w.full_name || "cet utilisateur" })}
+                    disabled={!pinExists}
+                    style={{
+                      flex: 1, border: "1px solid #2a2a2e", borderRadius: 8, padding: "10px 12px",
+                      background: "#1c1c1f", color: pinExists ? "#ff6b5e" : "#8a8a90",
+                      fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, cursor: pinExists ? "pointer" : "not-allowed",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    }}
+                  >
+                    <X size={14} strokeWidth={2.5} /> Rejeter
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showPinSetup && (
+        <AdminPinSetupModal
+          hasExistingPin={!!pinExists}
+          onClose={() => setShowPinSetup(false)}
+          onSaved={() => { setShowPinSetup(false); refresh(); }}
+          showToast={showToast}
+        />
+      )}
+
+      {action && (
+        <WithdrawalActionPinModal
+          action={action}
+          onClose={() => setAction(null)}
+          onDone={() => { setAction(null); refresh(); }}
+          showToast={showToast}
+        />
+      )}
+    </div>
+  );
+}
+
+
+
+export default function App() {
+  const [activeFilter, setActiveFilter] = useState("Tous");
+  const [toast, setToast] = useState(null);
+  const [query, setQuery] = useState("");
+  const [homeSearchFocused, setHomeSearchFocused] = useState(false);
+  const [bannerIndex, setBannerIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState("home");
+  const [selectedComp, setSelectedComp] = useState(null);
+  const [commentsSheetComp, setCommentsSheetComp] = useState(null);
+  const [shareSheetState, setShareSheetState] = useState(null); // { comp, onShared }
+  const [balance, setBalance] = useState(0);
+  const [transactions, setTransactions] = useState([]);
+  const [showBuyModal, setShowBuyModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [lastDepositMethod, setLastDepositMethod] = useState(null);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [registrationComp, setRegistrationComp] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Load real balance + transaction history from Supabase once authenticated.
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    let cancelled = false;
+
+    supabase
+      .from("wallet_balances")
+      .select("balance")
+      .eq("user_id", currentUser.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) console.error("wallet_balances fetch error:", error);
+        setBalance(data?.balance || 0);
+      });
+
+    supabase
+      .from("wallet_transactions")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(50)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.error("wallet_transactions fetch error:", error);
+          return;
+        }
+        setTransactions(
+          (data || []).map((t) => ({
+            id: t.id,
+            type: t.type,
+            label: t.label,
+            amount: Number(t.amount),
+            status: t.status || "completed",
+            rawDate: t.created_at,
+            date: new Date(t.created_at).toLocaleString("fr-FR", {
+              day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+            }),
+          }))
+        );
+      });
+
+    return () => { cancelled = true; };
+  }, [currentUser?.id]);
+
+  // Real-time: the moment the SMS server auto-credits a matching deposit,
+  // push it straight into the wallet — no user action, no page refresh.
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const channel = supabase
+      .channel(`wallet-${currentUser.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "wallet_transactions", filter: `user_id=eq.${currentUser.id}` },
+        (payload) => {
+          const t = payload.new;
+          const amt = Number(t.amount);
+          let wasReconciled = false;
+          setTransactions((tx) => {
+            if (tx.some((existing) => existing.id === t.id)) return tx;
+            // The server row for a registration/early-bird discount lands
+            // here right after handleRegister already pushed an optimistic
+            // local entry (same type + amount) with the contest name baked
+            // into its label, and already set the authoritative post-fee
+            // balance from the RPC response. wallet_transactions has no
+            // edition_id column, so the server-side label never includes
+            // the title — replace the pending optimistic row in place
+            // (keeping its richer label) instead of appending the real row
+            // as a second entry, otherwise every registration shows up
+            // twice, and skip the balance delta below since it was already
+            // applied.
+            const pendingMatch = tx.find((existing) => existing.pending && existing.type === t.type && existing.amount === amt);
+            if (pendingMatch) {
+              wasReconciled = true;
+              return tx.map((existing) =>
+                existing === pendingMatch
+                  ? { ...existing, id: t.id, pending: false }
+                  : existing
+              );
+            }
+            return [
+              { id: t.id, type: t.type, label: t.label, amount: amt, status: t.status || "completed", date: "À l'instant" },
+              ...tx,
+            ];
+          });
+          if (wasReconciled) return;
+          // Only a *completed* credit actually moves money — a freshly
+          // inserted 'pending' MonCash deposit row should show up in the
+          // list but must not bump the balance or claim it's been
+          // credited yet (wallet_balances only changes once the webhook
+          // confirms payment and the wallet_balances UPDATE below fires).
+          if (t.status && t.status !== "completed") {
+            if (t.type === "deposit") {
+              showToast(`Dépôt de ${amt.toLocaleString("fr-FR")} HTG en attente de confirmation`);
+            }
+            return;
+          }
+          setBalance((b) => b + amt);
+          if (amt > 0) {
+            showToast(`+${amt.toLocaleString("fr-FR")} HTG crédités`);
+            pushNotif({ type: "action", icon: "💰", title: "Dépôt reçu", body: t.label });
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "wallet_transactions", filter: `user_id=eq.${currentUser.id}` },
+        (payload) => {
+          // Fires when the organizer confirms/rejects one of this user's
+          // pending withdrawals — flips the row's status in place so the
+          // "En attente" badge in the wallet updates live, no refresh
+          // needed. The balance itself (for a rejection's refund) comes
+          // through as its own INSERT + wallet_balances UPDATE, handled
+          // above/below.
+          const t = payload.new;
+          setTransactions((tx) => tx.map((existing) => (existing.id === t.id ? { ...existing, status: t.status } : existing)));
+          if (t.type === "withdrawal" && t.status === "completed") {
+            showToast(`Retrait de ${Math.abs(Number(t.amount)).toLocaleString("fr-FR")} HTG confirmé`);
+            pushNotif({ type: "action", icon: "✅", title: "Retrait confirmé", body: t.label });
+          } else if (t.type === "withdrawal" && t.status === "rejected") {
+            showToast(`Retrait de ${Math.abs(Number(t.amount)).toLocaleString("fr-FR")} HTG rejeté — montant remboursé`);
+            pushNotif({ type: "action", icon: "⚠️", title: "Retrait rejeté", body: t.label });
+          } else if (t.type === "deposit" && t.status === "completed") {
+            // MonCash webhook just confirmed this deposit — the actual
+            // balance bump comes from the wallet_balances UPDATE handler
+            // below, this just announces it.
+            showToast(`+${Number(t.amount).toLocaleString("fr-FR")} HTG crédités`);
+            pushNotif({ type: "action", icon: "💰", title: "Dépôt confirmé", body: t.label });
+          } else if (t.type === "deposit" && t.status === "failed") {
+            showToast(`Le dépôt de ${Number(t.amount).toLocaleString("fr-FR")} HTG a échoué`);
+            pushNotif({ type: "action", icon: "⚠️", title: "Dépôt échoué", body: t.label });
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "wallet_balances", filter: `user_id=eq.${currentUser.id}` },
+        (payload) => {
+          // Authoritative: whatever the balance row says now, use it
+          // directly instead of trying to derive it from a transaction
+          // delta. This is what makes admin-triggered refunds/removals
+          // (or any other server-side balance change not initiated by
+          // this session) show up live instead of needing a refresh.
+          const newBalance = Number(payload.new.balance);
+          if (!Number.isNaN(newBalance)) setBalance(newBalance);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser?.id]);
+  const [registeredCompIds, setRegisteredCompIds] = useState(() => new Set());
+  const [followedCompIds, setFollowedCompIds] = useState(() => new Set());
+  const [showAuthOverlay, setShowAuthOverlay] = useState(false);
+  const [pendingRegistrationComp, setPendingRegistrationComp] = useState(null);
+  const [notifications, setNotifications] = useState(INITIAL_NOTIFS);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const [editionsByComp, setEditionsByComp] = useState({}); // { [competitionId]: [edition, ...] }
+  const [compImages, setCompImages] = useState({});
+  const [compRegCounts, setCompRegCounts] = useState({}); // keyed by edition_id now
+  const [compEditIntent, setCompEditIntent] = useState(false);
+  // True only while the admin is filling in the create-edition form for an
+  // edition that doesn't exist in the database yet — see
+  // handleCreateDraftEdition / handleCreateEditionSave below. Never true
+  // for editing an existing edition.
+  const [pendingNewEdition, setPendingNewEdition] = useState(false);
+  const [draftEditionTarget, setDraftEditionTarget] = useState(null); // { competitionId, niche } while creating a new edition
+
+  useEffect(() => {
+    fetchCompetitionEditions().then(setEditionsByComp);
+    fetchAllCompetitionImages().then(setCompImages);
+    fetchAllRegistrationCounts().then(setCompRegCounts);
+  }, []);
+
+  // Deep link from a shared competition: the share edge function (see
+  // netlify/edge-functions/share.js) redirects real visitors to
+  // `/?comp=<editionId>` after showing them the link-preview page. Nothing
+  // was reading that query param, so people landed on the home feed instead
+  // of the competition itself — this opens it as soon as the editions have
+  // loaded, then strips the param so back/forward navigation doesn't keep
+  // reopening it.
+  const deepLinkHandledRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandledRef.current) return;
+    if (Object.keys(editionsByComp).length === 0) return; // editions not loaded yet
+    const params = new URLSearchParams(window.location.search);
+    const compId = params.get("comp");
+    if (compId) {
+      const result = findEditionWithNiche(compId);
+      if (result) {
+        setCompEditIntent(false);
+        setSelectedComp({ ...result.comp, accent: result.niche.accent, niche: result.niche.label });
+      }
+      params.delete("comp");
+      const rest = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    }
+    deepLinkHandledRef.current = true;
+  }, [editionsByComp]);
+
+  // Deep link from a MonCash deposit return: the moncash-create-deposit
+  // edge function sets APP_DEPOSIT_RETURN_URL to `<app>/?tab=wallet`, so
+  // MonCash's checkout sends the user straight back to the wallet tab
+  // instead of the home feed. The wallet balance itself updates on its own
+  // via the wallet_transactions realtime subscription once the webhook
+  // credits it — this effect only handles which tab is showing.
+  const depositReturnHandledRef = useRef(false);
+  useEffect(() => {
+    if (depositReturnHandledRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === "wallet") {
+      setActiveTab("wallet");
+      params.delete("tab");
+      const rest = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    }
+    depositReturnHandledRef.current = true;
+  }, []);
+
+  // ── Live sync for competition_editions ───────────────────────────────────
+  // Closing a competition (flipping phase → "completed", picking the
+  // winner, paying out the prize) now happens entirely server-side: a
+  // Postgres procedure, `close_expired_competitions`, runs on pg_cron and
+  // does all three atomically, whether or not anyone has a board open.
+  // This subscription is the client's only remaining job — reflect that
+  // result everywhere the moment it's committed, instead of the old
+  // approach where the one browser that happened to have the board open
+  // did the work itself and everyone else waited for a reload.
+  // Keeps both the homepage cards (via `editionsByComp`, consumed by
+  // `editionsForComp`/`allNichesWithEdits` below) and any currently-open
+  // `CompetitionBoard` (via `selectedComp`) in sync from a single channel.
+  // Unlike the old single-row-per-competition subscription, this one has to
+  // handle INSERT too — a brand-new draft (or a freshly published edition)
+  // showing up mid-session, not just an update to a row already in state.
+  const notifiedCompletionsRef = useRef(new Set());
+  useEffect(() => {
+    const channel = supabase
+      .channel("competition-editions-global")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "competition_editions" },
+        (payload) => {
+          const row = payload.new;
+          if (!row?.competition_id) return;
+          // Maps snake_case DB columns to the camelCase shape used
+          // throughout the client (same shape `saveEditionEdit` writes
+          // and `fetchCompetitionEditions` returns).
+          const edits = {
+            id: row.id,
+            competitionId: row.competition_id,
+            title: row.title,
+            edition: row.edition,
+            ends: row.ends,
+            phase: row.phase,
+            endsAt: row.ends_at,
+            contestants: row.contestants,
+            description: row.description,
+            prizeAmount: row.prize_amount,
+            fee: row.fee,
+            rewardExtra: row.reward_extra,
+            rules: row.rules,
+            bannerUrl: row.banner_url,
+            active: row.active,
+            winnerUserId: row.winner_user_id,
+            winnerName: row.winner_name,
+            winnerPrize: row.winner_prize,
+            closedAt: row.closed_at,
+            createdBy: row.created_by ?? null,
+            organisateur: row.organisateur ?? null,
+          };
+          setEditionsByComp((prev) => {
+            const existing = prev[row.competition_id] || [];
+            const idx = existing.findIndex((e) => e.id === row.id);
+            const nextList =
+              idx === -1
+                ? [...existing, edits] // brand-new row (a fresh draft, or an edition created directly)
+                : existing.map((e, i) => (i === idx ? { ...e, ...edits } : e));
+            return { ...prev, [row.competition_id]: nextList };
+          });
+          setSelectedComp((prev) =>
+            prev && prev.id === row.id ? { ...prev, ...edits } : prev
+          );
+          // Announce a fresh result once per edition per session — a ref
+          // (not editionsByComp state) so this isn't tied to a stale closure
+          // and doesn't fire again on later, unrelated edits to the same row.
+          if (edits.phase === "completed" && !notifiedCompletionsRef.current.has(row.id)) {
+            notifiedCompletionsRef.current.add(row.id);
+            const label = edits.title || "Une compétition";
+            if (edits.winnerUserId) {
+              const prizeTxt = Number(edits.winnerPrize || 0).toLocaleString("fr-FR");
+              showToast(`${label} est terminée — ${edits.winnerName || "le gagnant"} remporte ${prizeTxt} HTG`);
+              pushNotif({
+                type: "action",
+                icon: "🏆",
+                title: "Compétition terminée",
+                body: `${edits.winnerName || "Le gagnant"} remporte ${prizeTxt} HTG dans ${label}`,
+              });
+            } else {
+              showToast(`${label} est terminée — aucun gagnant, frais d'inscription remboursés`);
+              pushNotif({
+                type: "action",
+                icon: "↩️",
+                title: "Compétition terminée sans gagnant",
+                body: `${label} s'est terminée sans qu'aucun participant ne reçoive de cadeaux. Les frais d'inscription ont été remboursés.`,
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  // Resolves a stored id (a notification's compId, a registeredCompIds /
+  // followedCompIds entry) back to its full card + niche. Ids stored
+  // anywhere in the app are edition ids now, not the static seed id, so
+  // this has to search each seed competition's editions rather than the
+  // static NICHES data directly (the old module-level findCompWithNiche
+  // could get away with that when there was only ever one edition per
+  // competition).
+  function findEditionWithNiche(editionId) {
+    for (const niche of NICHES) {
+      for (const seedComp of niche.competitions) {
+        const ed = (editionsByComp[seedComp.id] || []).find((e) => e.id === editionId);
+        if (ed) return { comp: editionToCard(seedComp, ed), niche };
+      }
+    }
+    return null;
+  }
+
+  const registeredEntries = useMemo(
+    () => Array.from(registeredCompIds).map((id) => findEditionWithNiche(id)).filter(Boolean),
+    [registeredCompIds, editionsByComp, compImages, compRegCounts]
+  );
+  const followedEntries = useMemo(
+    () => Array.from(followedCompIds).map((id) => findEditionWithNiche(id)).filter(Boolean),
+    [followedCompIds, editionsByComp, compImages, compRegCounts]
+  );
+
+  // Merges one competition_editions row into its static seed data (the
+  // NICHES entry, e.g. "m1") to produce a renderable card. Unlike the old
+  // `withEdits`, this takes the edition explicitly rather than looking one
+  // up by competition_id, because a seed competition can now have several.
+  function editionToCard(comp, e) {
+    return {
+      ...comp,
+      // `id` becomes this edition's own id — every downstream table
+      // (gifts, registrations, comments, participant_media) and every
+      // realtime subscription in CompetitionBoard is scoped by comp.id,
+      // so this one line is what makes all of that edition-scoped.
+      id: e.id,
+      // The seed id is kept separately — it's still what the shared image
+      // gallery, the niche grouping, and "which series is this a season
+      // of" are keyed by.
+      competitionId: comp.id,
+      // A cleared field — or a field never set at all — saves/loads as
+      // null. Fall back to the seed value in every case rather than let
+      // a blank silently wipe out real data.
+      title: e.title != null ? e.title : comp.title,
+      edition: e.edition != null ? e.edition : comp.edition,
+      ends: e.ends != null ? e.ends : comp.ends,
+      phase: e.phase != null ? e.phase : comp.phase,
+      endsAt: e.endsAt != null ? e.endsAt : comp.endsAt,
+      contestants: e.contestants != null ? e.contestants : comp.contestants,
+      bannerUrl: e.bannerUrl != null ? e.bannerUrl : comp.bannerUrl,
+      description: e.description != null ? e.description : comp.description,
+      prizeAmount: e.prizeAmount != null ? e.prizeAmount : comp.prizeAmount,
+      fee: e.fee != null ? e.fee : comp.fee,
+      rewardExtra: e.rewardExtra != null ? e.rewardExtra : comp.rewardExtra,
+      rules: (e.rules && e.rules.length > 0) ? e.rules : comp.rules,
+      // Whoever created THIS edition owns it — falls back to the seed's
+      // organisateur (always the platform, "FNCH") for editions with no
+      // owner of their own, i.e. every pre-existing competition.
+      createdBy: e.createdBy ?? null,
+      organisateur: e.organisateur || comp.organisateur,
+      // Real count from the registrations table always wins over any
+      // seeded placeholder — 0 until someone actually registers for THIS
+      // edition (a new season starts back at 0, it doesn't inherit the
+      // previous season's registrants).
+      registeredCount: compRegCounts[e.id] ?? 0,
+      // The gallery is shared across every edition of a series.
+      images: compImages[comp.id] || [],
+      // Falling back to the shared gallery's first photo as an implicit
+      // "banner" only makes sense when there's a single edition — with
+      // several editions sharing one pool, that first photo could well be
+      // the one another edition's admin just tagged as *their* banner, so
+      // it would visually "leak" onto every sibling edition that hasn't
+      // set its own. Only offer this fallback when there's no ambiguity.
+      thumbnailUrl: (editionsByComp[comp.id] || []).length <= 1
+        ? (compImages[comp.id] || [])[0]?.url || null
+        : null,
+      active: e.active !== false,
+      winnerUserId: e.winnerUserId,
+      winnerName: e.winnerName,
+      winnerPrize: e.winnerPrize,
+      closedAt: e.closedAt,
+      createdAt: e.createdAt,
+    };
+  }
+
+  // One card per PUBLISHED (non-draft) edition of this seed competition —
+  // zero cards if none have been published yet. This is the direct
+  // replacement for the old `withEdits`, which always produced exactly one
+  // card per seed competition (there was only ever one edit row to merge).
+  // Newest edition first, so a freshly-published season surfaces above an
+  // older, wrapping-up one.
+  function publishedEditionsForComp(comp) {
+    return (editionsByComp[comp.id] || [])
+      .filter((e) => e.phase !== "draft")
+      .slice()
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .map((e) => editionToCard(comp, e));
+  }
+
+  // A row that's never actually been through the create/edit flow — every
+  // overridable field is still null, so editionToCard falls all the way
+  // back and renders nothing but the hardcoded NICHES seed data (its
+  // title, contestant count, votes, etc. straight out of this file). That
+  // only happens for placeholder rows that were never really "created" as
+  // an edition, and it's also why they can't be deleted (they're not
+  // meant to be — they exist purely so the seed has something to show).
+  // A genuine in-progress draft is exempt: it's real, it's just empty so
+  // far, and hiding it here would make it un-findable after the admin
+  // navigates away from the edit form before filling it in.
+  function isUncustomizedMockEdition(e) {
+    if (e.phase === "draft") return false;
+    const fields = [
+      e.title, e.edition, e.ends, e.contestants, e.bannerUrl,
+      e.description, e.prizeAmount, e.fee, e.rewardExtra,
+    ];
+    const rulesEmpty = !e.rules || e.rules.length === 0;
+    return fields.every((f) => f == null) && rulesEmpty;
+  }
+
+  // Every edition of this seed competition, drafts included — powers the
+  // admin page, which needs to see (and finish) drafts too, not just what's
+  // already live on the homepage. Mock rows that only ever carried the
+  // hardcoded seed data (never actually created/edited through the app)
+  // are left out — they aren't real editions and admins can't delete them
+  // anyway.
+  function allEditionsForComp(comp) {
+    return (editionsByComp[comp.id] || [])
+      .filter((e) => !isUncustomizedMockEdition(e))
+      .slice()
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .map((e) => editionToCard(comp, e));
+  }
+
+  // Quick on/off toggle from the admin list. `comp` here is one edition
+  // card (from allNichesWithEdits), so this only ever touches the one
+  // edition row the admin clicked — its siblings (other seasons of the
+  // same series) are untouched.
+  async function handleToggleCompActive(comp) {
+    const nextActive = !comp.active;
+    const { error } = await saveEditionEdit({
+      editionId: comp.id,
+      active: nextActive,
+      updatedBy: currentUser?.id,
+    });
+    if (error) {
+      console.error("saveEditionEdit error:", error);
+      showToast("Impossible de mettre à jour le statut.");
+      return;
+    }
+    setEditionsByComp((prev) => {
+      const list = prev[comp.competitionId] || [];
+      return {
+        ...prev,
+        [comp.competitionId]: list.map((e) => (e.id === comp.id ? { ...e, active: nextActive } : e)),
+      };
+    });
+    showToast(nextActive ? "Compétition activée." : "Compétition désactivée — masquée de l'accueil.");
+  }
+
+  // Admin page → jump straight to an edition's edit panel, regardless of
+  // the homepage's current filter/search state. `comp` here already has
+  // edits/images applied (it comes from allNichesWithEdits). This is
+  // always an EXISTING edition, never the new-edition form.
+  function handleAdminOpenComp(comp, niche) {
+    setPendingNewEdition(false);
+    setCompEditIntent(true);
+    setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label });
+  }
+
+  // Opens a blank create-edition form for a seed competition, but doesn't
+  // touch the database at all — nothing is written until the admin
+  // actually presses "Enregistrer" (see handleCreateEditionSave). Backing
+  // out of the form at this point leaves nothing behind, unlike the old
+  // flow which inserted a bare empty "draft" row the instant a template
+  // was picked, before the admin had typed anything.
+  //
+  // `id` is a client-only placeholder — never sent to the database, just
+  // enough of a stand-in so the competition screen underneath the form
+  // (registrations/comments/gallery lookups, realtime channels) has
+  // something to key off of instead of `undefined`; it harmlessly finds
+  // nothing until the real row exists.
+  function handleCreateDraftEdition(comp, niche) {
+    const placeholderId =
+      typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `pending-${Date.now()}`;
+    const blankEdition = {
+      id: placeholderId,
+      competitionId: comp.id,
+      title: null,
+      edition: null,
+      ends: null,
+      endsAt: null,
+      phase: "registration", // every edition starts open for registration — no draft state
+      contestants: null,
+      bannerUrl: null,
+      description: null,
+      prizeAmount: null,
+      fee: null,
+      rewardExtra: null,
+      rules: [],
+      active: true,
+      winnerUserId: null,
+      winnerName: null,
+      winnerPrize: null,
+      closedAt: null,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser?.id ?? null,
+      organisateur: currentUser?.isOrganizer ? PLATFORM_ORGANIZER_SIGLE : (currentUser?.fullName || "Organisateur"),
+    };
+    setPendingNewEdition(true);
+    setCompEditIntent(true);
+    setSelectedComp(editionToCard({ ...comp, accent: niche.accent, niche: niche.label }, blankEdition));
+  }
+
+  // First real save of a brand-new edition — this is an INSERT (the row
+  // never existed before), always forced to phase "registration" inside
+  // createEdition itself, not an update to an existing row.
+  async function handleCreateEditionSave({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
+    const { data, error } = await createEdition({
+      competitionId,
+      title,
+      edition,
+      ends,
+      endsAt,
+      contestants,
+      description,
+      prizeAmount,
+      fee,
+      rewardExtra,
+      rules,
+      bannerUrl,
+      liveDurationSeconds,
+      updatedBy: currentUser?.id,
+      createdBy: currentUser?.id,
+      organisateur: currentUser?.isOrganizer ? PLATFORM_ORGANIZER_SIGLE : (currentUser?.fullName || "Organisateur"),
+    });
+    if (error) {
+      console.error("createEdition error:", error);
+      showToast(`Impossible de créer cette édition${error.message ? ` : ${error.message}` : "."}`);
+      return { success: false };
+    }
+    setEditionsByComp((prev) => ({
+      ...prev,
+      [competitionId]: [...(prev[competitionId] || []), data],
+    }));
+    setPendingNewEdition(false);
+    setSelectedComp((prev) => (prev ? { ...prev, id: data.id, phase: data.phase, active: data.active, createdAt: data.createdAt } : prev));
+    showToast(`« ${data.title || title} » créé et ouvert aux inscriptions.`);
+    return { success: true, data };
+  }
+
+  // Publishes a draft edition — flips it to "registration" phase and marks
+  // it active, so it starts showing up on the homepage/admin list as a
+  // real, open competition instead of a hidden draft.
+  async function handlePublishEdition(comp) {
+    const publishedEndsAt = new Date(Date.now() + WEEK_SECONDS * 1000).toISOString();
+    const { error } = await saveEditionEdit({
+      editionId: comp.id,
+      phase: "registration",
+      active: true,
+      // Auto-created drafts (from close_expired_competitions) never had a
+      // deadline set, so publishing is what starts their 1-week clock.
+      endsAt: publishedEndsAt,
+      liveDurationSeconds: WEEK_SECONDS,
+      updatedBy: currentUser?.id,
+    });
+    if (error) {
+      console.error("saveEditionEdit (publish) error:", error);
+      showToast("Impossible de publier cette édition.");
+      return;
+    }
+    setEditionsByComp((prev) => {
+      const list = prev[comp.competitionId] || [];
+      return {
+        ...prev,
+        [comp.competitionId]: list.map((e) =>
+          e.id === comp.id ? { ...e, phase: "registration", active: true, endsAt: publishedEndsAt, liveDurationSeconds: WEEK_SECONDS } : e
+        ),
+      };
+    });
+    showToast(`« ${comp.title} » publié — ouvert aux inscriptions !`);
+  }
+
+  // Permanently deletes an edition (draft or published) from the admin
+  // list. `comp` is an edition card, so competitionId tells us which
+  // seed's bucket in editionsByComp to update locally after the delete.
+  //
+  // An edition with real activity (registrations, gifts, comments,
+  // participant media, gallery images) can't just be deleted outright —
+  // `registrations`/`gifts`/`comments`/`participant_media`/
+  // `competition_images` all reference it and the DB rejects an orphaning
+  // delete. So: refund every registrant's fee first (real money, has to
+  // go back before the record of it disappears), then remove the
+  // dependent rows, then the edition itself.
+  async function handleDeleteEdition(comp) {
+    const registrants = await fetchRegistrations(comp.id);
+
+    for (const r of registrants) {
+      if (!r.fee_paid || r.fee_paid <= 0) continue;
+      // Early-bird registrants already got EARLY_BIRD_DISCOUNT of their fee
+      // credited back as a separate registration_refund row at signup time
+      // (see register_for_competition). Refunding the full fee_paid here on
+      // top of that discount would hand them fee_paid * (1 + discount) —
+      // e.g. 150 back on a 100 fee — instead of making them whole. Refund
+      // only what they actually still have at risk: fee_paid minus the
+      // discount already paid out.
+      const refundAmount = r.is_early_bird
+        ? r.fee_paid * (1 - EARLY_BIRD_DISCOUNT)
+        : r.fee_paid;
+      const { error: refundError } = await refundRegistrationFee({
+        userId: r.user_id,
+        amount: refundAmount,
+        competitionTitle: comp.title,
+        isEarlyBird: r.is_early_bird,
+      });
+      if (refundError) {
+        console.error("refundRegistrationFee error:", refundError);
+        showToast(`Remboursement échoué pour ${r.full_name || "un participant"} — suppression annulée.`);
+        return;
+      }
+    }
+
+    // participant_media used to rely on a BEFORE DELETE trigger to remove
+    // the matching storage file (trigger_delete_participant_media_storage),
+    // but it called storage.delete(...) — not a real SQL function — so
+    // every delete on this table errored and aborted the whole edition
+    // deletion. That trigger's gone now; storage cleanup happens here
+    // instead, the same fetch-then-remove pattern deleteCompetitionImage
+    // already uses for gallery images. A storage-removal failure is
+    // logged but doesn't block the deletion — an orphaned file in
+    // storage is recoverable later, an edition stuck forever isn't.
+    const { data: mediaRows, error: mediaFetchError } = await supabase
+      .from("participant_media")
+      .select("media_url")
+      .eq("edition_id", comp.id);
+    if (mediaFetchError) {
+      console.error("participant_media fetch error:", mediaFetchError);
+    } else if (mediaRows?.length) {
+      const paths = mediaRows
+        .map((r) => r.media_url?.replace(/^.*\/participant-media\//, ""))
+        .filter(Boolean);
+      if (paths.length) {
+        const { error: mediaStorageError } = await supabase.storage.from("participant-media").remove(paths);
+        if (mediaStorageError) {
+          console.error("participant_media storage cleanup error:", mediaStorageError);
+        }
+      }
+    }
+
+    const cleanupTables = ["comments", "gifts", "participant_media", "competition_images", "registrations"];
+    for (const table of cleanupTables) {
+      const { error: cleanupError } = await supabase.from(table).delete().eq("edition_id", comp.id);
+      if (cleanupError) {
+        console.error(`cleanup error (${table}):`, cleanupError);
+        showToast(`Échec de la suppression des données liées (${table}). Édition non supprimée.`);
+        return;
+      }
+    }
+
+    const { error } = await deleteDraftEdition(comp.id);
+    if (error) {
+      console.error("deleteDraftEdition error:", error);
+      showToast("Impossible de supprimer cette édition.");
+      return;
+    }
+    // A Supabase/PostgREST delete can come back with no `error` even when
+    // zero rows were actually removed — most commonly an RLS policy on
+    // `competition_editions` silently filtering the row out of the delete's
+    // WHERE clause. That's exactly what made deletions "stick" locally but
+    // reappear after a refresh: we were trusting the absence of an error
+    // instead of confirming the row was actually gone server-side. So
+    // re-fetch the truth from the DB before touching local state, and
+    // surface an honest failure immediately instead of a false success.
+    const freshEditions = await fetchCompetitionEditions();
+    const stillExists = (freshEditions[comp.competitionId] || []).some((e) => e.id === comp.id);
+    if (stillExists) {
+      console.error("deleteDraftEdition: row still present after delete — likely blocked by an RLS policy.");
+      showToast("Suppression refusée par le serveur (droits insuffisants). Rien n'a été supprimé.");
+      setEditionsByComp(freshEditions);
+      return;
+    }
+    setEditionsByComp(freshEditions);
+    // Registration counts and gallery images are cached separately from
+    // editionsByComp — refresh both so the admin list's "inscrits" count
+    // and any shared gallery view don't keep referencing rows we just
+    // wiped out.
+    fetchAllRegistrationCounts().then(setCompRegCounts);
+    fetchAllCompetitionImages().then(setCompImages);
+    const refundedCount = registrants.filter((r) => r.fee_paid > 0).length;
+    showToast(
+      refundedCount > 0
+        ? `« ${comp.title} » supprimée — ${refundedCount} participant${refundedCount > 1 ? "s" : ""} remboursé${refundedCount > 1 ? "s" : ""}.`
+        : `« ${comp.title} » supprimée.`
+    );
+  }
+
+
+  // Home banner slides: any published edition with a dedicated banner (set
+  // from the edit screen's "Bannière" section) is shown on the homepage —
+  // that's the whole point of that control. Editions without a banner fall
+  // back to their series' first gallery image, but only via c.thumbnailUrl,
+  // which is already null whenever that series has more than one edition —
+  // otherwise a photo one admin tagged as edition A's banner could silently
+  // surface as edition B's homepage image too, since the gallery itself is
+  // shared across every edition of a series. Nothing fake or unintentional
+  // ever shows up here. Drafts never appear — publishedEditionsForComp
+  // already excludes them.
+  const homeBannerSlides = useMemo(() => {
+    return NICHES.flatMap((niche) =>
+      niche.competitions.flatMap((seed) =>
+        publishedEditionsForComp(seed)
+          .filter((c) => c.active !== false)
+          .filter((c) => c.bannerUrl || (c.hot && c.thumbnailUrl))
+          .map((c) => ({
+            ...c,
+            niche,
+            color: niche.accent,
+            image: c.bannerUrl || c.thumbnailUrl,
+          }))
+      )
+    ).slice(0, 6);
+  }, [compImages, editionsByComp, compRegCounts]);
+
+
+  async function handleEditComp({ editionId, competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
+    // TEMP DEBUG — remove once we've confirmed the session is attached.
+    const { data: debugSession } = await supabase.auth.getSession();
+    console.log("[DEBUG] session email:", debugSession.session?.user?.email, "has token:", !!debugSession.session?.access_token);
+    const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds };
+    const { data, error } = await saveEditionEdit({
+      editionId,
+      ...edits,
+      updatedBy: currentUser?.id,
+    });
+    if (error) {
+      console.error("saveEditionEdit error:", error);
+      // TEMPORARY DIAGNOSTIC — remove once the RLS 403 is resolved.
+      // Surfaces the session state on-screen (via the existing toast) since
+      // devtools/console isn't available in this testing environment.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessEmail = sessionData?.session?.user?.email || "none";
+      const hasToken = !!sessionData?.session?.access_token;
+      showToast(`Échec: ${error.message} | session=${sessEmail} | token=${hasToken}`);
+      return { success: false };
+    }
+    setEditionsByComp((prev) => {
+      const list = prev[competitionId] || [];
+      const idx = list.findIndex((e) => e.id === editionId);
+      const nextList = idx === -1 ? [...list, data] : list.map((e, i) => (i === idx ? { ...e, ...data } : e));
+      return { ...prev, [competitionId]: nextList };
+    });
+    setSelectedComp((prev) => (prev && prev.id === editionId ? {
+      ...prev,
+      ...edits,
+      contestants: edits.contestants != null ? edits.contestants : prev.contestants,
+      endsAt: edits.endsAt != null ? edits.endsAt : prev.endsAt,
+      fee: edits.fee != null ? edits.fee : prev.fee,
+    } : prev));
+    showToast(phase === "draft" ? "Brouillon enregistré." : "Compétition mise à jour.");
+    return { success: true, data };
+  }
+
+  // Uploads a dedicated banner file for ONE edition (see uploadEditionBanner
+  // above for why this is kept separate from the shared gallery). Nothing
+  // is written to competition_editions here — CompetitionBoard just stores
+  // the returned URL in its local editBannerUrl state, same as every other
+  // field in the edit form, and it's only persisted once "Enregistrer" is
+  // pressed (handleEditComp / handleCreateEditionSave).
+  async function handleUploadBanner(editionId, file) {
+    const { url, error } = await uploadEditionBanner({ editionId, file });
+    if (error) {
+      console.error("uploadEditionBanner error:", error);
+      showToast("Échec de l'envoi de la bannière.");
+      return null;
+    }
+    return url;
+  }
+
+  async function handleAddCompImage(competitionId, file) {
+    const position = (compImages[competitionId] || []).length;
+    const { data, error } = await addCompetitionImage({ competitionId, file, position });
+    if (error) {
+      console.error("addCompetitionImage error:", error);
+      showToast("Échec de l'envoi de l'image.");
+      return null;
+    }
+    setCompImages((prev) => ({ ...prev, [competitionId]: [...(prev[competitionId] || []), data] }));
+    setSelectedComp((prev) => (prev && prev.competitionId === competitionId ? { ...prev, images: [...(prev.images || []), data] } : prev));
+    return data;
+  }
+
+  async function handleRemoveCompImage(competitionId, imageId) {
+    const { error } = await deleteCompetitionImage(imageId);
+    if (error) {
+      console.error("deleteCompetitionImage error:", error);
+      showToast("Échec de la suppression de l'image.");
+      return;
+    }
+    setCompImages((prev) => ({ ...prev, [competitionId]: (prev[competitionId] || []).filter((i) => i.id !== imageId) }));
+    setSelectedComp((prev) => (prev && prev.competitionId === competitionId ? { ...prev, images: (prev.images || []).filter((i) => i.id !== imageId) } : prev));
+  }
+
+  function pushNotif(notif) {
+    setNotifications((prev) => [
+      { id: `n-${Date.now()}`, read: false, ts: Date.now(), ...notif },
+      ...prev,
+    ]);
+  }
+
+  function markAllRead() {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }
+
+  function markRead(id) {
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+  }
+
+  useEffect(() => {
+    if (homeBannerSlides.length === 0) return;
+    const t = setInterval(() => {
+      setBannerIndex((i) => (i + 1) % homeBannerSlides.length);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [homeBannerSlides.length]);
+
+  // Background activity: push a notif for a random hot comp every ~45s
+  useEffect(() => {
+    const ACTIVITY_NOTIFS = [
+      (c, n) => ({ type: "activity", icon: "🔥", title: `${c.title} s'emballe`, body: `${fmtVotes(c.votes + Math.floor(Math.random() * 500))} votes comptabilisés — la compétition est très active.`, compId: c.id }),
+      (c, n) => ({ type: "result",   icon: "🏆", title: `Nouveau leader — ${c.title}`, body: `${fakeName(Math.floor(Math.random() * 10))} prend la tête du classement.`, compId: c.id }),
+      (c, n) => ({ type: "activity", icon: "⚡", title: `Dernières heures — ${c.title}`, body: `La compétition se termine dans ${c.ends}. Votez maintenant !`, compId: c.id }),
+    ];
+    function scheduleNext() {
+      const delay = 40000 + Math.random() * 20000;
+      return setTimeout(() => {
+        const hotComps = NICHES.flatMap((n) =>
+          n.competitions.flatMap((seed) => publishedEditionsForComp(seed).filter((c) => c.hot && c.active !== false))
+        );
+        const comp = hotComps[Math.floor(Math.random() * hotComps.length)];
+        const template = ACTIVITY_NOTIFS[Math.floor(Math.random() * ACTIVITY_NOTIFS.length)];
+        pushNotif(template(comp));
+        timerRef.current = scheduleNext();
+      }, delay);
+    }
+    const timerRef = { current: scheduleNext() };
+    return () => clearTimeout(timerRef.current);
+  }, []);
+
+  // Rebuild the registered-competitions set from the database whenever we
+  // know who the current user is — this runs both after a fresh login and
+  // after the session is restored on page refresh, so registration state
+  // survives a reload instead of resetting to an empty Set.
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setRegisteredCompIds(new Set());
+      return;
+    }
+    console.log("Fetching registrations for user:", currentUser.id); // debug
+    let cancelled = false;
+    fetchUserRegistrations(currentUser.id).then((rows) => {
+      if (cancelled) return;
+      console.log("Registrations returned:", rows); // debug
+      setRegisteredCompIds(new Set(rows.map((r) => r.edition_id).filter(Boolean)));
+    });
+    return () => { cancelled = true; };
+  }, [currentUser?.id]);
+
+  const nichesByFilter = NICHES
+    .map((niche) => ({
+      ...niche,
+      // Homepage only ever shows published editions the admin has left
+      // switched on — one card per non-draft edition, zero if none exist —
+      // and NEVER a terminated/completed one; once an edition closes it
+      // belongs in the archive, not the homepage. The active tab is now
+      // TYPE-based rather than category-based: every niche can contribute
+      // to every tab, and the tab just narrows which competitions (by
+      // phase/trend) make it into the flattened list below.
+      competitions: niche.competitions
+        .flatMap(publishedEditionsForComp)
+        .filter((c) => c.active)
+        // "Terminé" is the one tab that specifically wants completed
+        // editions — every other tab keeps excluding them, since a closed
+        // edition belongs in the archive, not the rest of the homepage.
+        .filter((c) => activeFilter === "Terminé" ? c.phase === "completed" : c.phase !== "completed")
+        .filter((c) => {
+          if (activeFilter === "Favoris") return followedCompIds.has(c.id);
+          if (activeFilter === "Live") return c.phase === "live";
+          if (activeFilter === "Inscriptions") return c.phase === "registration";
+          if (activeFilter === "Bientôt") return estimateEndTimestamp(c) - Date.now() <= 48 * 3600 * 1000;
+          if (activeFilter === "En hausse") return c.hot;
+          if (activeFilter === "Nouveautés") return c.phase === "registration";
+          return true; // "Tous" and "Terminé" (already narrowed above)
+        }),
+    }))
+    // A niche with nothing matching the active tab (or everything switched
+    // off) shouldn't appear as an empty section on the homepage at all.
+    .filter((niche) => niche.competitions.length > 0);
+
+  // Full, unfiltered list (every niche, every edition — drafts included) —
+  // powers the admin page so the platform organizer can find, edit, and
+  // finish anything regardless of the homepage's current filter/search
+  // state or publish status.
+  const allNichesWithEdits = NICHES.map((niche) => ({
+    ...niche,
+    competitions: niche.competitions.flatMap(allEditionsForComp),
+  }));
+
+  // Every seed competition, flat — powers the admin "new edition" picker.
+  // Unlike allNichesWithEdits, this always includes a seed competition even
+  // if it has zero editions yet, since that's the only way to create its
+  // very first one.
+  const seedCompetitionsList = NICHES.flatMap((niche) =>
+    niche.competitions.map((comp) => ({ key: comp.id, comp, niche }))
+  );
+
+  const visibleNiches = query.trim() === ""
+    ? nichesByFilter
+    : nichesByFilter
+        .map((niche) => ({
+          ...niche,
+          competitions: niche.competitions.filter((c) =>
+            c.title.toLowerCase().includes(query.toLowerCase()) ||
+            c.edition.toLowerCase().includes(query.toLowerCase())
+          ),
+        }))
+        .filter((niche) => niche.competitions.length > 0);
+
+  // ── TYPE-BASED HOMEPAGE SECTIONS ────────────────────────────────────────
+  // The homepage groups by type (Top, En direct, ...) rather than by niche.
+  // Every visible (category-filter + search matched) competition is
+  // flattened once, with its originating niche's accent/label baked
+  // directly onto it, so a single row can mix competitions from every
+  // niche while each card still renders in its own brand color.
+  const visibleCompsFlat = useMemo(
+    () => visibleNiches.flatMap((niche) =>
+      niche.competitions.map((comp) => ({ ...comp, accent: niche.accent, niche: niche.label }))
+    ),
+    [visibleNiches]
+  );
+
+  // ── HOMEPAGE SECTIONS, DEDUPED ──────────────────────────────────────────
+  // Every section used to be filtered independently, so the same edition
+  // could easily land in "Top compétitions" AND "En direct" AND "Se termine
+  // bientôt" at once. Instead, sections now claim competitions in priority
+  // order (top to bottom, matching render order below) — once an edition
+  // is placed in an earlier section it's removed from the pool for every
+  // section after it, so it shows up exactly once on the page.
+  const homeSections = useMemo(() => {
+    const usedIds = new Set();
+    const takeUnique = (list, limit = 10) => {
+      const picked = [];
+      for (const c of list) {
+        if (usedIds.has(c.id)) continue;
+        picked.push(c);
+        usedIds.add(c.id);
+        if (picked.length >= limit) break;
+      }
+      return picked;
+    };
+
+    const top = takeUnique([...visibleCompsFlat].sort((a, b) => b.votes - a.votes));
+    const live = takeUnique(visibleCompsFlat.filter((c) => c.phase === "live").sort((a, b) => b.votes - a.votes));
+    const registration = takeUnique(visibleCompsFlat.filter((c) => c.phase === "registration").sort((a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)));
+    const endingSoon = takeUnique(visibleCompsFlat.filter((c) => c.phase !== "completed").sort((a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)));
+    // "Rising" reuses the old EN VUE flag (comp.hot) — competitions the
+    // platform has marked as gaining momentum — now as its own discovery
+    // row instead of a badge stamped on every card.
+    const rising = takeUnique(visibleCompsFlat.filter((c) => c.hot).sort((a, b) => b.votes - a.votes));
+    // No real "createdAt" field exists in the mock data, so freshly-opened
+    // registration competitions (few signups so far) stand in for "new".
+    const fresh = takeUnique(visibleCompsFlat.filter((c) => c.phase === "registration").sort((a, b) => a.registeredCount - b.registeredCount));
+    const followed = takeUnique(followedEntries.map(({ comp, niche }) => ({ ...comp, accent: niche.accent, niche: niche.label })));
+    const registered = takeUnique(registeredEntries.map(({ comp, niche }) => ({ ...comp, accent: niche.accent, niche: niche.label })));
+
+    // Spotlight rows per organizer — only surfaces organizers with enough
+    // of a presence (3+ still-unclaimed competitions) so it doesn't create
+    // a near-empty row for a one-off organizer.
+    const byOrg = new Map();
+    visibleCompsFlat.forEach((c) => {
+      if (usedIds.has(c.id)) return;
+      if (!byOrg.has(c.organisateur)) byOrg.set(c.organisateur, []);
+      byOrg.get(c.organisateur).push(c);
+    });
+    const organizers = Array.from(byOrg.entries())
+      .filter(([, comps]) => comps.length >= 3)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 2)
+      .map(([organisateur, comps]) => ({
+        organisateur,
+        comps: takeUnique([...comps].sort((a, b) => b.votes - a.votes)),
+      }));
+
+    return { top, live, registration, endingSoon, rising, fresh, followed, registered, organizers };
+  }, [visibleCompsFlat, followedEntries, registeredEntries]);
+
+  const topComps = homeSections.top;
+  const liveComps = homeSections.live;
+  const registrationComps = homeSections.registration;
+  const endingSoonComps = homeSections.endingSoon;
+  const risingComps = homeSections.rising;
+  const newComps = homeSections.fresh;
+  const followedTypeItems = homeSections.followed;
+  const registeredTypeItems = homeSections.registered;
+  const organizerGroups = homeSections.organizers;
+
+  // Shared open/register handlers for type rows — items already carry
+  // their own accent/niche (baked in above), so unlike NicheRow's per-row
+  // closure these don't need to re-attach anything.
+  const handleOpenTypeComp = (comp) => { setCompEditIntent(false); setSelectedComp(comp); };
+  const handleRegisterTypeComp = (comp) => requestRegistration(comp);
+  const handleOpenComments = (comp) => setCommentsSheetComp(comp);
+  const handleOpenShare = (comp, onShared) => setShareSheetState({ comp, onShared });
+
+  function showToast(msg) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }
+
+  function handleDeposit(methodId) {
+    setLastDepositMethod(methodId);
+    setShowBuyModal(false);
+  }
+
+  async function handleWithdraw(amount, methodLabel) {
+    if (amount > balance) {
+      showToast("Solde insuffisant");
+      return;
+    }
+    const { newBalance, error } = await withdrawFromWallet({ amount, methodLabel });
+    if (error) {
+      showToast(
+        error.message?.includes("insufficient_balance")
+          ? "Solde insuffisant"
+          : "Une erreur est survenue. Réessaie."
+      );
+      return;
+    }
+    // Trust the DB's balance over recomputing it locally, same as registration.
+    // The balance is already debited server-side, but the withdrawal itself
+    // sits "pending" until an admin confirms it from the admin panel — see
+    // withdraw_from_wallet in wallet_rpc_migration.sql.
+    setBalance(newBalance);
+    setTransactions((tx) => [
+      { id: `t-${Date.now()}`, type: "withdrawal", label: `Retrait — ${methodLabel}`, amount: -amount, status: "pending", date: "À l'instant", pending: true },
+      ...tx,
+    ]);
+    setShowWithdrawModal(false);
+    showToast(`Retrait de ${amount.toLocaleString("fr-FR")} HTG en attente de confirmation`);
+  }
+
+
+  async function handleSendGift(gift, comp) {
+    if (!currentUser?.id) {
+      setShowAuthOverlay(true);
+      return;
+    }
+    const price = comp?.priceHTG ?? gift.cost;
+    if (balance < price) {
+      showToast("Crédits insuffisants");
+      return;
+    }
+    const recipient = comp?.recipientName;
+    const label = comp ? `${gift.name} envoyé à ${recipient || "un participant"} — ${comp.title}` : `${gift.name} envoyé`;
+    const { newBalance, error } = await debitWalletForGift({ amount: price, label });
+    if (error) {
+      showToast(
+        error.message?.includes("insufficient_balance")
+          ? "Crédits insuffisants"
+          : "Une erreur est survenue. Réessaie."
+      );
+      return;
+    }
+    // Trust the DB's balance over recomputing it locally, same as registration.
+    setBalance(newBalance);
+    setTransactions((tx) => [
+      { id: `t-${Date.now()}`, type: "gift_sent", label, amount: -price, date: "À l'instant" },
+      ...tx,
+    ]);
+    if (comp) pushNotif({ type: "action", icon: gift.icon, title: `${gift.name} envoyé`, body: `Votre cadeau a été remis à ${recipient || "un participant"} de ${comp.title}.`, compId: comp.id });
+    showToast(comp ? `${gift.icon} ${gift.name} → ${recipient || "participant"}` : `${gift.icon} ${gift.name} envoyé`);
+  }
+
+  async function handleRegister(comp, fee, pendingMediaFiles = []) {
+    if (!currentUser?.id) {
+      return { success: false, error: "Vous devez être connecté pour vous inscrire." };
+    }
+    if (isCompOwner(comp, currentUser)) {
+      return { success: false, error: "Vous ne pouvez pas vous inscrire à votre propre compétition." };
+    }
+    // Hard guarantee: never let someone register without a presentation
+    // media. The modal already enforces this, but defending in depth here
+    // means a future call site can't accidentally skip the rule.
+    if (!Array.isArray(pendingMediaFiles) || pendingMediaFiles.length === 0) {
+      return { success: false, error: "Ajoute au moins une photo ou vidéo pour t'inscrire." };
+    }
+
+    // ── Step 1: upload the required media FIRST, so a failed upload never
+    // produces a registrant with no album. We track every storage path +
+    // inserted media row id so we can roll them back if the registration
+    // insert itself fails on the next step. ────────────────────────────
+    const uploadedRows = []; // { id, storagePath, publicUrl, mediaType }
+    for (const item of pendingMediaFiles) {
+      const file = item?.file;
+      if (!file) continue;
+      const ext = (file.name?.split(".").pop() || (file.type.startsWith("video/") ? "mp4" : "jpg")).toLowerCase();
+      const path = `${comp.id}/${currentUser.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("participant-media")
+        .upload(path, file);
+      if (uploadError) {
+        console.error("registration media upload error:", uploadError);
+        // Best-effort cleanup of anything we already pushed before bailing.
+        await rollbackRegistrationMedia(uploadedRows);
+        return { success: false, error: "Échec de l'envoi du média. Réessaie." };
+      }
+
+      const { data: pub } = supabase.storage.from("participant-media").getPublicUrl(path);
+      const mediaType = file.type.startsWith("video/") ? "video" : "photo";
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("participant_media")
+        .insert({
+          competition_id: comp.competitionId,
+          edition_id: comp.id,
+          uploader_id: currentUser.id,
+          uploader_name: currentUser.fullName,
+          media_url: pub.publicUrl,
+          media_type: mediaType,
+          status: "pending",
+        })
+        .select()
+        .single();
+      if (insertError || !inserted) {
+        console.error("registration media insert error:", insertError);
+        // Try to remove the storage object we just uploaded (silent if it
+        // 404s — the bucket might have been wiped between calls).
+        await supabase.storage.from("participant-media").remove([path]).catch(() => {});
+        await rollbackRegistrationMedia(uploadedRows);
+        return { success: false, error: "Échec de l'enregistrement du média. Réessaie." };
+      }
+
+      uploadedRows.push({ id: inserted.id, storagePath: path });
+    }
+
+    // ── Step 2: insert the registration row. The fee debit, the balance
+    // check, and the early-bird tag/discount all happen server-side inside
+    // this one call now (register_for_competition) — see
+    // wallet_rpc_migration.sql. Nothing here writes wallet_transactions/
+    // wallet_balances directly, and `balance` is set from the DB's
+    // authoritative post-transaction value, not a local subtraction. ────
+    const { data: registrationResult, error } = await insertRegistration({
+      editionId: comp.id,
+      competitionId: comp.competitionId,
+      fullName: currentUser.fullName,
+      avatarUrl: currentUser.avatarUrl,
+      fee: fee || 0,
+    });
+
+    if (error) {
+      // Roll back the media we just uploaded — otherwise we'd have orphan
+      // rows whose uploader is not in `registrations`, which would show up
+      // on the organizer's review queue and on CompetitionBoard's gallery
+      // as media from a "ghost" participant.
+      await rollbackRegistrationMedia(uploadedRows);
+      const alreadyRegistered = error.code === "23505"; // unique(edition_id, user_id) violation
+      const insufficientFunds = error.message?.includes("insufficient_balance");
+      return {
+        success: false,
+        error: alreadyRegistered
+          ? "Vous êtes déjà inscrit à cette compétition."
+          : insufficientFunds
+          ? "Solde insuffisant pour payer les frais d'inscription."
+          : "Une erreur est survenue. Réessayez.",
+      };
+    }
+
+    const {
+      is_early_bird: isEarlyBird,
+      early_bird_discount: discountAmount,
+      new_balance: newBalance,
+    } = registrationResult || {};
+
+    // Trust the DB's balance over recomputing it locally — it already
+    // reflects both the fee debit and any early-bird discount atomically.
+    if (newBalance != null) setBalance(newBalance);
+
+    // Two separate wallet lines for the registration, matching the split
+    // done server-side in register_for_competition: the fee debit and the
+    // early-bird discount (when it applies) are their own transactions
+    // instead of being netted into one amount. Types/amounts must match
+    // what the RPC inserts (registration_fee / registration_refund) so the
+    // realtime reconciliation above can pair each optimistic row with its
+    // real one instead of appending a duplicate.
+    const newTx = [];
+    if (fee > 0) {
+      newTx.push({
+        id: `t-${Date.now()}-fee`,
+        type: "registration_fee",
+        label: `Inscription — ${comp.title}`,
+        amount: -fee,
+        date: "À l'instant",
+        pending: true,
+      });
+    }
+    if (isEarlyBird && discountAmount > 0) {
+      newTx.push({
+        id: `t-${Date.now()}-discount`,
+        type: "registration_refund",
+        label: `Réduction early bird — ${comp.title}`,
+        amount: discountAmount,
+        date: "À l'instant",
+        pending: true,
+      });
+    }
+    if (newTx.length) {
+      setTransactions((tx) => [...newTx, ...tx]);
+    }
+
+    setRegisteredCompIds((prev) => new Set(prev).add(comp.id));
+    // Keep the App-level registration count (which CompCard reads via
+    // editionToCard's registeredCount) in sync immediately — it's only
+    // otherwise refreshed from the DB on mount / draft-edition deletion,
+    // so without this a fresh registration wouldn't show up on the card
+    // until a full reload even though CompetitionBoard (which fetches
+    // registrants live) would already reflect it.
+    setCompRegCounts((prev) => ({ ...prev, [comp.id]: (prev[comp.id] || 0) + 1 }));
+    pushNotif({
+      type: "action",
+      icon: "✅",
+      title: `Inscription confirmée`,
+      body: isEarlyBird
+        ? `Vous êtes inscrit à ${comp.title} et avez reçu la réduction early-bird. Bonne chance !`
+        : `Vous êtes inscrit à ${comp.title}. Bonne chance !`,
+      compId: comp.id,
+    });
+    showToast(isEarlyBird ? `Inscrit à ${comp.title} — réduction early-bird appliquée !` : `Inscrit à ${comp.title}!`);
+    return { success: true, isEarlyBird };
+  }
+
+  // Removes every storage object + participant_media row pushed by a
+  // registration that didn't end up going through. Best-effort: a failure
+  // here is logged but never blocks the user-facing error path — orphan
+  // media is far less bad than a stuck spinner.
+  async function rollbackRegistrationMedia(rows) {
+    if (!rows?.length) return;
+    const storagePaths = rows.map((r) => r.storagePath).filter(Boolean);
+    const rowIds = rows.map((r) => r.id).filter(Boolean);
+    await Promise.all([
+      storagePaths.length
+        ? supabase.storage.from("participant-media").remove(storagePaths).catch((e) => console.error("rollback storage remove:", e))
+        : Promise.resolve(),
+      rowIds.length
+        ? supabase.from("participant_media").delete().in("id", rowIds).catch((e) => console.error("rollback media delete:", e))
+        : Promise.resolve(),
+    ]);
+  }
+
+  function toggleFollowComp(comp) {
+    if (!isAuthenticated) {
+      setPendingRegistrationComp({ ...comp, _pendingAction: "follow" });
+      setShowAuthOverlay(true);
+      return;
+    }
+    setFollowedCompIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(comp.id)) {
+        next.delete(comp.id);
+        showToast(`Suivi retiré — ${comp.title}`);
+      } else {
+        next.add(comp.id);
+        pushNotif({ type: "registration", icon: "🔔", title: `Vous suivez ${comp.title}`, body: `Vous recevrez des notifications sur l'évolution des inscriptions et des votes.`, compId: comp.id });
+        showToast(`${comp.title} ajouté aux suivis`);
+      }
+      return next;
+    });
+  }
+
+  function requestRegistration(comp) {
+    if (registeredCompIds.has(comp.id)) {
+      showToast(`Vous êtes déjà inscrit à ${comp.title}`);
+      return;
+    }
+    if (isCompOwner(comp, currentUser)) {
+      showToast("Vous ne pouvez pas vous inscrire à votre propre compétition");
+      return;
+    }
+    if (!isAuthenticated) {
+      setPendingRegistrationComp(comp);
+      setShowAuthOverlay(true);
+    } else {
+      setRegistrationComp(comp);
+      setShowRegistrationModal(true);
+    }
+  }
+
+  async function handleAuthenticated(user) {
+    const rawName = user.user_metadata?.full_name;
+    const isPlatformOrganizer = user.email?.toLowerCase() === PLATFORM_ORGANIZER_EMAIL.toLowerCase();
+
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("full_name, avatar_url, moncash_verified, natcash_verified")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    // A custom name set via the in-app editor lives in `profiles.full_name`,
+    // not in the OAuth provider's metadata — Google (and other providers)
+    // re-sync `user_metadata.full_name` from the provider's own profile on
+    // every sign-in, which would silently clobber a custom name if we read
+    // from there first. `profiles.full_name` always wins when present.
+    const fullName = isPlatformOrganizer
+      ? PLATFORM_ORGANIZER_SIGLE
+      : profileRow?.full_name || rawName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+    // Same reasoning for the picture: a photo the person uploaded themselves
+    // (profiles.avatar_url) always wins over the OAuth provider's photo, so
+    // it survives future Google/Facebook sign-ins instead of being clobbered.
+    const avatarUrl = profileRow?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+
+    setIsAuthenticated(true);
+    setCurrentUser({
+      id: user.id,
+      email: user.email,
+      fullName,
+      avatarUrl,
+      isOrganizer: isPlatformOrganizer,
+      organizerStatus: isPlatformOrganizer ? "approved" : null,
+      moncashNumber: user.user_metadata?.moncash_number || null,
+      natcashNumber: user.user_metadata?.natcash_number || null,
+      moncashVerified: !!profileRow?.moncash_verified,
+      natcashVerified: !!profileRow?.natcash_verified,
+    });
+    setShowAuthOverlay(false);
+    if (pendingRegistrationComp) {
+      const pending = pendingRegistrationComp;
+      setPendingRegistrationComp(null);
+      if (pending._pendingAction === "follow") {
+        setFollowedCompIds((prev) => {
+          const next = new Set(prev);
+          next.add(pending.id);
+          return next;
+        });
+        showToast(`${pending.title} ajouté aux suivis`);
+      } else {
+        setRegistrationComp(pending);
+        setShowRegistrationModal(true);
+      }
+    }
+  }
+
+  // Restore an existing Supabase session on load, and keep state in sync
+  // with sign-in / sign-out / token refresh events from anywhere in the app.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) handleAuthenticated(session.user);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      } else if (session?.user) {
+        handleAuthenticated(session.user);
+      }
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    showToast && showToast("Déconnecté");
+  }
+
+  async function handleUpdateMobileMoneyNumber(method, number) {
+    const metadataKey = method === "moncash" ? "moncash_number" : "natcash_number";
+    const verifiedKey = method === "moncash" ? "moncash_verified" : "natcash_verified";
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      throw new Error("Votre session a expiré. Reconnectez-vous et réessayez.");
+    }
+    const userId = sessionData.session.user.id;
+
+    const { error } = await supabase.auth.updateUser({ data: { [metadataKey]: number } });
+    if (error) {
+      console.error("supabase.auth.updateUser error:", error);
+      throw error;
+    }
+
+    // If the number is actually changing, it goes back to unverified —
+    // it only becomes verified again once a real deposit arrives from it.
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select(metadataKey)
+      .eq("id", userId)
+      .maybeSingle();
+    const numberChanged = existingProfile?.[metadataKey] !== number;
+
+    // Also mirror into `profiles` so the SMS server can match this number
+    // with a simple queryable column (auth.users metadata isn't queryable
+    // from the backend without the admin API).
+    const patch = {
+      id: userId,
+      user_id: userId, // keep both in sync while it exists
+      [metadataKey]: number,
+      updated_at: new Date().toISOString(),
+    };
+    if (numberChanged) {
+      patch[verifiedKey] = false;
+    }
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert(patch, { onConflict: "id" });
+    if (profileError) {
+      console.error("profiles upsert error:", profileError);
+      if (profileError.code === "23505") {
+        throw new Error("Ce numéro est déjà vérifié et lié à un autre compte.");
+      }
+      throw profileError;
+    }
+    setCurrentUser((prev) =>
+      prev
+        ? {
+            ...prev,
+            moncashNumber: method === "moncash" ? number : prev.moncashNumber,
+            natcashNumber: method === "natcash" ? number : prev.natcashNumber,
+            moncashVerified: method === "moncash" && numberChanged ? false : prev.moncashVerified,
+            natcashVerified: method === "natcash" && numberChanged ? false : prev.natcashVerified,
+          }
+        : prev
+    );
+  }
+
+  async function handleUpdateFullName(newName) {
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      throw new Error("Le nom ne peut pas être vide.");
+    }
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      throw new Error("Votre session a expiré. Reconnectez-vous et réessayez.");
+    }
+    const userId = sessionData.session.user.id;
+
+    const { error } = await supabase.auth.updateUser({ data: { full_name: trimmed } });
+    if (error) {
+      console.error("supabase.auth.updateUser error:", error);
+      throw error;
+    }
+
+    // Source of truth for display purposes going forward — this is what
+    // survives the next Google (or other OAuth) login, since that flow
+    // re-syncs user_metadata.full_name from the provider and would
+    // otherwise overwrite a custom name.
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert({ id: userId, user_id: userId, full_name: trimmed, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    if (profileError) {
+      console.error("profiles full_name upsert error:", profileError);
+      throw new Error("Le nom a été mis à jour, mais n'a pas pu être enregistré pour la prochaine connexion.");
+    }
+
+    // The name is also copied (denormalized) onto the user's own existing
+    // rows in a few tables — backfill those too so the new name is visible
+    // to every user, not just reflected locally in this session.
+    const [regResult, comResult, mediaResult] = await Promise.all([
+      supabase.from("registrations").update({ full_name: trimmed }).eq("user_id", userId),
+      supabase.from("comments").update({ full_name: trimmed }).eq("user_id", userId),
+      supabase.from("participant_media").update({ uploader_name: trimmed }).eq("uploader_id", userId),
+    ]);
+    if (regResult.error) console.error("registrations name backfill error:", regResult.error);
+    if (comResult.error) console.error("comments name backfill error:", comResult.error);
+    if (mediaResult.error) console.error("participant_media name backfill error:", mediaResult.error);
+
+    setCurrentUser((prev) => (prev ? { ...prev, fullName: trimmed } : prev));
+  }
+
+  // Lets a signed-in user change their profile picture. Uploads to a public
+  // "avatars" Storage bucket (create it in the Supabase dashboard if it
+  // doesn't exist yet, with public read access), then persists the URL to
+  // `profiles.avatar_url` and backfills it onto the user's own existing rows
+  // so the new picture shows up everywhere in the app — comments they've
+  // posted, their registration entries, and their donateur history — not
+  // just in their account page.
+  async function handleUpdateAvatar(file) {
+    if (!file) return;
+    if (!file.type?.startsWith("image/")) {
+      throw new Error("Choisissez un fichier image (JPG, PNG, etc.).");
+    }
+    const MAX_BYTES = 5 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      throw new Error("L'image est trop grande (5 Mo maximum).");
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      throw new Error("Votre session a expiré. Reconnectez-vous et réessayez.");
+    }
+    const userId = sessionData.session.user.id;
+
+    // Always the same path per user (upsert) so we don't accumulate orphaned
+    // files on every change — just overwrite the one avatar they have.
+    const path = `${userId}/avatar`;
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (uploadError) {
+      console.error("avatar upload error:", uploadError);
+      throw new Error("Échec de l'envoi de l'image. Réessayez.");
+    }
+
+    const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(path);
+    // Cache-bust so the new photo shows immediately instead of a stale CDN
+    // copy at the same URL.
+    const avatarUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`;
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert({ id: userId, user_id: userId, avatar_url: avatarUrl, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    if (profileError) {
+      console.error("profiles avatar_url upsert error:", profileError);
+      throw new Error("La photo a été envoyée, mais n'a pas pu être enregistrée pour la prochaine connexion.");
+    }
+
+    // Denormalized copies elsewhere, same pattern as the name backfill above.
+    const [regResult, comResult, mediaResult, giftResult] = await Promise.all([
+      supabase.from("registrations").update({ avatar_url: avatarUrl }).eq("user_id", userId),
+      supabase.from("comments").update({ avatar_url: avatarUrl }).eq("user_id", userId),
+      supabase.from("participant_media").update({ uploader_avatar_url: avatarUrl }).eq("uploader_id", userId),
+      supabase.from("gifts").update({ sender_avatar_url: avatarUrl }).eq("sender_id", userId),
+    ]);
+    if (regResult.error) console.error("registrations avatar backfill error:", regResult.error);
+    if (comResult.error) console.error("comments avatar backfill error:", comResult.error);
+    if (mediaResult.error) console.error("participant_media avatar backfill error:", mediaResult.error);
+    if (giftResult.error) console.error("gifts avatar backfill error:", giftResult.error);
+
+    setCurrentUser((prev) => (prev ? { ...prev, avatarUrl } : prev));
+  }
+
+  // ── Hardware back button (Android) ────────────────────────────────────
+  // In the compiled native app there's no browser chrome to fall back on —
+  // without this, the back button would exit the app straight out of
+  // whatever sheet/modal happens to be open. Close the top-most overlay
+  // first, then fall back to the Home tab, and only actually exit once
+  // there's truly nothing left to back out of. No-op on web (isNative
+  // guards it, and the listener is simply never attached there).
+  const backButtonStateRef = useRef(null);
+  backButtonStateRef.current = {
+    showAuthOverlay, showRegistrationModal, showWithdrawModal, showBuyModal,
+    shareSheetState, commentsSheetComp, selectedComp, activeTab,
+  };
+  useEffect(() => {
+    if (!isNative) return;
+    const listenerPromise = CapacitorApp.addListener("backButton", () => {
+      const s = backButtonStateRef.current;
+      if (s.showAuthOverlay) { setShowAuthOverlay(false); return; }
+      if (s.showRegistrationModal) { setShowRegistrationModal(false); setRegistrationComp(null); return; }
+      if (s.showWithdrawModal) { setShowWithdrawModal(false); return; }
+      if (s.showBuyModal) { setShowBuyModal(false); return; }
+      if (s.shareSheetState) { setShareSheetState(null); return; }
+      if (s.commentsSheetComp) { setCommentsSheetComp(null); return; }
+      if (s.selectedComp) { setSelectedComp(null); setCompEditIntent(false); setPendingNewEdition(false); return; }
+      if (s.activeTab !== "home") { setActiveTab("home"); return; }
+      CapacitorApp.exitApp();
+    });
+    return () => { listenerPromise.then((handle) => handle.remove()); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { background: #111; }
+        @keyframes toast-up {
+          0%   { opacity: 0; transform: translateX(-50%) translateY(12px); }
+          12%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+          80%  { opacity: 1; }
+          100% { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+        }
+        @keyframes bar-shimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        .bar-shimmer {
+          background-size: 200% 100%;
+          animation: bar-shimmer 1.6s linear infinite;
+        }
+      `}</style>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 28,
+            left: "50%",
+            zIndex: 9999,
+            background: "#444",
+            color: "#fff",
+            fontFamily: "Inter, sans-serif",
+            fontWeight: 600,
+            fontSize: 13,
+            letterSpacing: "0.04em",
+            padding: "10px 22px",
+            border: "1px solid #2a2a2e",
+            animation: "toast-up 2.5s ease forwards",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {toast}
+        </div>
+      )}
+
+      {activeTab === "wallet" ? (
+        <WalletPage
+          balance={balance}
+          transactions={transactions}
+          currentUser={currentUser}
+          isAuthenticated={isAuthenticated}
+          onOpenDeposit={() => setShowBuyModal(true)}
+          onOpenWithdraw={() => setShowWithdrawModal(true)}
+          onOpenNotifications={() => setActiveTab("notifications")}
+          onOpenSettings={() => showToast?.("Settings coming soon")}
+          onUpdateNumber={handleUpdateMobileMoneyNumber}
+          onRequireAuth={() => setShowAuthOverlay(true)}
+          showToast={showToast}
+          onBack={() => setActiveTab("home")}
+        />
+      ) : activeTab === "notifications" ? (
+        <NotificationsPage
+          notifications={notifications}
+          onMarkAllRead={markAllRead}
+          onMarkRead={markRead}
+          onOpen={(compId) => {
+            const result = findEditionWithNiche(compId);
+            if (result) { setCompEditIntent(false); setSelectedComp({ ...result.comp, accent: result.niche.accent, niche: result.niche.label }); }
+          }}
+        />
+      ) : activeTab === "mycomps" ? (
+        <MyCompetitionsPage
+          registeredEntries={registeredEntries}
+          followedEntries={followedEntries}
+          onOpen={(comp) => { setCompEditIntent(false); setSelectedComp(comp); }}
+        />
+      ) : activeTab === "account" ? (
+        <AccountPage
+          currentUser={currentUser}
+          balance={balance}
+          onOpenWallet={() => setActiveTab("wallet")}
+          onLoginRequest={() => setShowAuthOverlay(true)}
+          onLogout={handleLogout}
+          onOpenAdmin={() => setActiveTab("admin")}
+          onUpdateFullName={handleUpdateFullName}
+          onUpdateAvatar={handleUpdateAvatar}
+          showToast={showToast}
+        />
+      ) : activeTab === "admin" && currentUser ? (
+        <AdminPage
+          currentUser={currentUser}
+          niches={allNichesWithEdits}
+          seedCompetitions={seedCompetitionsList}
+          onOpenComp={handleAdminOpenComp}
+          onToggleActive={handleToggleCompActive}
+          onCreateEdition={handleCreateDraftEdition}
+          onPublishEdition={handlePublishEdition}
+          onDeleteEdition={handleDeleteEdition}
+          onBack={() => setActiveTab("account")}
+          showToast={showToast}
+        />
+      ) : (
+        <HomePage
+          query={query}
+          onQueryChange={setQuery}
+          homeSearchFocused={homeSearchFocused}
+          onSearchFocusChange={setHomeSearchFocused}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+          homeBannerSlides={homeBannerSlides}
+          bannerIndex={bannerIndex}
+          onBannerIndexChange={setBannerIndex}
+          visibleCompsFlat={visibleCompsFlat}
+          topComps={topComps}
+          liveComps={liveComps}
+          registrationComps={registrationComps}
+          endingSoonComps={endingSoonComps}
+          risingComps={risingComps}
+          newComps={newComps}
+          followedTypeItems={followedTypeItems}
+          registeredTypeItems={registeredTypeItems}
+          organizerGroups={organizerGroups}
+          registeredCompIds={registeredCompIds}
+          currentUser={currentUser}
+          onOpenTypeComp={handleOpenTypeComp}
+          onOpenComments={handleOpenComments}
+          onOpenShare={handleOpenShare}
+          onRegisterTypeComp={handleRegisterTypeComp}
+        />
+      )}
+
+      {showBuyModal && (
+        <DepositModal onClose={() => setShowBuyModal(false)} onDeposit={handleDeposit} lastMethod={lastDepositMethod} />
+      )}
+      {showWithdrawModal && (
+        <WithdrawModal balance={balance} onClose={() => setShowWithdrawModal(false)} onWithdraw={handleWithdraw} />
+      )}
+      {showRegistrationModal && registrationComp && (
+        <RegistrationModal 
+          comp={registrationComp} 
+          currentUser={currentUser}
+          balance={balance}
+          onOpenBuy={() => setShowBuyModal(true)}
+          onClose={() => {
+            setShowRegistrationModal(false);
+            setRegistrationComp(null);
+          }}
+          onRegister={handleRegister}
+          showToast={showToast}
+        />
+      )}
+
+      {commentsSheetComp && (
+        <CommentsSheet
+          comp={commentsSheetComp}
+          accent={commentsSheetComp.accent}
+          currentUser={currentUser}
+          onRequestAuth={() => setShowAuthOverlay(true)}
+          onClose={() => setCommentsSheetComp(null)}
+        />
+      )}
+
+      {shareSheetState && (
+        <ShareSheet
+          comp={shareSheetState.comp}
+          accent={shareSheetState.comp?.accent}
+          onShared={shareSheetState.onShared}
+          onClose={() => setShareSheetState(null)}
+        />
+      )}
+
+      {showAuthOverlay && (
+        <AuthOverlay
+          compTitle={pendingRegistrationComp?._pendingAction !== "follow" ? pendingRegistrationComp?.title : undefined}
+          followIntent={pendingRegistrationComp?._pendingAction === "follow" ? pendingRegistrationComp?.title : undefined}
+          onClose={() => {
+            setShowAuthOverlay(false);
+            setPendingRegistrationComp(null);
+          }}
+          onAuthenticated={handleAuthenticated}
+        />
+      )}
+
+      <BottomTabBar active={activeTab} onChange={setActiveTab} unreadCount={unreadCount} currentUser={currentUser} dark />
+
+      {selectedComp && (
+        <CompetitionBoard
+          key={selectedComp.id}
+          comp={selectedComp}
+          onClose={() => { setSelectedComp(null); setCompEditIntent(false); setPendingNewEdition(false); }}
+          balance={balance}
+          onSendGift={handleSendGift}
+          onOpenBuy={() => setShowBuyModal(true)}
+          onRegister={requestRegistration}
+          showToast={showToast}
+          isRegistered={registeredCompIds.has(selectedComp.id)}
+          isFollowed={followedCompIds.has(selectedComp.id)}
+          onToggleFollow={toggleFollowComp}
+          currentUser={currentUser}
+          onRequestAuth={() => setShowAuthOverlay(true)}
+          onEditComp={handleEditComp}
+          onCreateComp={handleCreateEditionSave}
+          onAddImage={handleAddCompImage}
+          onRemoveImage={handleRemoveCompImage}
+          onUploadBanner={handleUploadBanner}
+          startInEditMode={compEditIntent}
+          isNewEdition={pendingNewEdition}
+          onParticipantRemoved={(editionId) =>
+            setCompRegCounts((prev) => ({ ...prev, [editionId]: Math.max(0, (prev[editionId] || 0) - 1) }))
+          }
+        />
+      )}
+    </>
+  );
+}
