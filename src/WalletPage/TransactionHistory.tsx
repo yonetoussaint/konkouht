@@ -67,6 +67,9 @@ export default function TransactionHistory({
     return { label: day, isToday: false };
   };
 
+  // Get container padding from parent (assuming 12px from WalletPage)
+  const CONTAINER_PADDING = 12;
+
   return (
     <div>
       {/* Filter buttons - clean, minimal */}
@@ -136,14 +139,13 @@ export default function TransactionHistory({
             
             return (
               <div key={g.day}>
-                {/* Day header with enhanced visual hierarchy */}
+                {/* Day header with separator */}
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
                     paddingBottom: SPACING.sm,
-                    borderBottom: "1px solid rgba(255,255,255,0.06)",
                     marginBottom: SPACING.sm,
                   }}
                 >
@@ -185,6 +187,16 @@ export default function TransactionHistory({
                     {dayTotal.toLocaleString("fr-FR")}
                   </span>
                 </div>
+
+                {/* Separator under day header - full width edge to edge */}
+                <div
+                  style={{
+                    height: 1,
+                    background: "rgba(255,255,255,0.06)",
+                    margin: `0 -${CONTAINER_PADDING}px`,
+                    marginBottom: SPACING.sm,
+                  }}
+                />
 
                 {/* Transaction list container with subtle background */}
                 <div
