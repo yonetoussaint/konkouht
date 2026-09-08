@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { X, Copy } from "lucide-react";
+import { supabase } from "../lib/supabaseClient";
 
-export default function DepositPanel({ onClose }) {
+export default function DepositPanel({ onClose, showToast }) {
   const [entered, setEntered] = useState(false);
   const [amount, setAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [currency, setCurrency] = useState<"HTG" | "USDT">("HTG");
   const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 10);
@@ -42,6 +44,44 @@ export default function DepositPanel({ onClose }) {
   ];
 
   const usdtAddress = "TRX1234567890abcdef1234567890abcdef12"; // Mock USDT (TRC20) address
+
+  async function handleSubmit() {
+    if (currency === "USDT") {
+      navigator.clipboard?.writeText(usdtAddress);
+      showToast?.("Address copied");
+      return;
+    }
+
+    if (selectedMethod !== "moncash") {
+      showToast?.("This deposit method isn't available yet");
+      return;
+    }
+
+    const numericAmount = Number(amount);
+    if (!numericAmount || numericAmount <= 0) return;
+
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("moncash-create-deposit", {
+        body: { amount: numericAmount },
+      });
+
+      if (error || !data?.paymentUrl) {
+        throw error || new Error("No payment URL returned");
+      }
+
+      // Hands off to MonCash's hosted checkout. When the user finishes (or
+      // cancels), MonCash redirects to APP_DEPOSIT_RETURN_URL (configured
+      // as a Supabase secret) and the webhook credits the wallet in the
+      // background once payment.completed fires.
+      window.location.href = data.paymentUrl;
+    } catch (err) {
+      console.error("MonCash deposit failed:", err);
+      showToast?.("Could not start the MonCash deposit. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div
@@ -357,21 +397,22 @@ export default function DepositPanel({ onClose }) {
         {/* Submit button */}
         <div style={{ padding: "0 16px 24px" }}>
           <button
-            disabled={!amount}
+            disabled={!amount || submitting || (currency === "HTG" && !selectedMethod)}
+            onClick={handleSubmit}
             style={{
               width: "100%",
               padding: "14px",
-              background: amount ? "#0ecb81" : "#2a2a2e",
+              background: amount && !submitting ? "#0ecb81" : "#2a2a2e",
               border: "none",
               borderRadius: 0,
               fontFamily: "Inter, sans-serif",
               fontSize: 14,
               fontWeight: 700,
-              color: amount ? "#111" : "#5a5a5e",
-              cursor: amount ? "pointer" : "default",
+              color: amount && !submitting ? "#111" : "#5a5a5e",
+              cursor: amount && !submitting ? "pointer" : "default",
             }}
           >
-            {currency === "USDT" ? "Copier l'adresse" : "Continuer"}
+            {currency === "USDT" ? "Copier l'adresse" : submitting ? "Redirection..." : "Continuer"}
           </button>
         </div>
       </div>
