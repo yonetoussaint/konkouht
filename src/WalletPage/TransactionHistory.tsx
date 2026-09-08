@@ -67,7 +67,7 @@ export default function TransactionHistory({
     return { label: day, isToday: false };
   };
 
-  // Get container padding from parent (assuming 12px from WalletPage)
+  // Get container padding from parent (12px from WalletPage)
   const CONTAINER_PADDING = 12;
 
   return (
@@ -139,14 +139,13 @@ export default function TransactionHistory({
             
             return (
               <div key={g.day}>
-                {/* Day header with separator */}
+                {/* Day header with padding bottom */}
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    paddingBottom: SPACING.sm,
-                    marginBottom: SPACING.sm,
+                    paddingBottom: SPACING.sm, // Keep the padding
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: SPACING.sm }}>
