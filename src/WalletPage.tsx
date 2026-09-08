@@ -16,9 +16,8 @@ const SPACING = {
   lg: 16,
   xl: 20,
   xxl: 24,
+  xxxl: 32,
 };
-
-const BORDER_RADIUS = 12;
 
 export default function WalletPage({
   balance,
@@ -78,9 +77,8 @@ export default function WalletPage({
       }}>
         {/* Balance Card Section */}
         <div style={{ 
-          paddingTop: SPACING.lg,
-          paddingBottom: SPACING.lg,
-          borderBottom: "1px solid #2a2a2e"
+          padding: `${SPACING.lg}px 0 ${SPACING.md}px 0`,
+          borderBottom: `1px solid #2a2a2e`
         }}>
           <BalanceCard
             wallet={{
@@ -103,15 +101,13 @@ export default function WalletPage({
             onToggleBalance={() => setShowBalance(!showBalance)}
             isLoading={false}
             onRefresh={handleRefresh}
-            width="100%"
           />
         </div>
 
         {/* Quick Actions Section */}
         <div style={{ 
-          paddingTop: SPACING.lg,
-          paddingBottom: SPACING.lg,
-          borderBottom: "1px solid #2a2a2e"
+          padding: `${SPACING.md}px 0 ${SPACING.md}px 0`,
+          borderBottom: `1px solid #2a2a2e`
         }}>
           <QuickActions
             isAuthenticated={isAuthenticated}
@@ -126,8 +122,8 @@ export default function WalletPage({
 
         {/* Transactions Section */}
         <div style={{ 
-          paddingTop: SPACING.xl,
-          paddingBottom: SPACING.xxl
+          paddingTop: SPACING.lg,
+          paddingBottom: SPACING.xxxl
         }}>
           <TransactionHistory
             transactions={dedupedTransactions}
