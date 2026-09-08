@@ -12,9 +12,10 @@ const TX_VISUALS: Record<string, { icon: any; color: string; bg: string }> = {
   registration_refund: { icon: Percent, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.12)" },
 };
 
-const WITHDRAWAL_STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: "Pending", color: "#f0b90b", bg: "rgba(240, 185, 11, 0.15)" },
   rejected: { label: "Rejected", color: "#f6465d", bg: "rgba(246, 70, 93, 0.15)" },
+  failed: { label: "Failed", color: "#f6465d", bg: "rgba(246, 70, 93, 0.15)" },
 };
 
 interface TransactionRowProps {
@@ -35,7 +36,10 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
   const time = tx.date.includes(",") ? tx.date.split(",").slice(1).join(",").trim() : tx.date;
   const reference = txReference(tx.id);
   const { main: labelMain, note: labelNote } = splitLabelNote(tx.label);
-  const statusPill = tx.type === "withdrawal" ? WITHDRAWAL_STATUS_LABELS[tx.status] : null;
+  // Show a status pill for anything not in its final "completed" state —
+  // covers withdrawals (pending/rejected) and now MonCash deposits
+  // (pending while waiting on the webhook, failed if MonCash rejects it).
+  const statusPill = tx.status && tx.status !== "completed" ? STATUS_LABELS[tx.status] : null;
 
   function copyReference(e: React.MouseEvent) {
     e.stopPropagation();
