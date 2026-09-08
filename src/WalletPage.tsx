@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ChevronRight } from "lucide-react";
 import PageHeader from "./components/PageHeader";
 import BalanceCard from "./WalletPage/BalanceCard";
 import QuickActions from "./WalletPage/QuickActions";
@@ -18,6 +19,61 @@ const SPACING = {
   xxl: 24,
   xxxl: 32,
 };
+
+// Section heading component for consistency
+function SectionHeader({ title, actionLabel, onAction }: { title: string; actionLabel: string; onAction: () => void }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: SPACING.md,
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "'Inter', sans-serif",
+          fontSize: 16,
+          fontWeight: 600,
+          color: "#f2f2f2",
+          letterSpacing: "-0.01em",
+        }}
+      >
+        {title}
+      </span>
+      <button
+        onClick={onAction}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          background: "transparent",
+          border: "none",
+          color: "#848e9c",
+          fontFamily: "'Inter', sans-serif",
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: "pointer",
+          padding: "4px 8px",
+          borderRadius: 6,
+          transition: "all 0.15s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = "#f2f2f2";
+          e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = "#848e9c";
+          e.currentTarget.style.background = "transparent";
+        }}
+      >
+        {actionLabel}
+        <ChevronRight size={16} strokeWidth={2} />
+      </button>
+    </div>
+  );
+}
 
 export default function WalletPage({
   balance,
@@ -57,6 +113,15 @@ export default function WalletPage({
     showToast?.('Balances refreshed', 'success');
   };
 
+  // Section action handlers
+  const handleViewAllActions = () => {
+    showToast?.('View all quick actions');
+  };
+
+  const handleViewAllTransactions = () => {
+    showToast?.('View all transactions');
+  };
+
   return (
     <div style={{ 
       minHeight: "100vh", 
@@ -73,15 +138,15 @@ export default function WalletPage({
       <div style={{ 
         maxWidth: 600, 
         margin: "0 auto", 
-        padding: `0 ${SPACING.md}px` // Changed from sm (8px) to md (12px)
+        padding: `0 ${SPACING.md}px`
       }}>
-        {/* Balance Card Section - border spans full width */}
+        {/* Balance Card Section - no heading */}
         <div style={{ 
           padding: `${SPACING.lg}px 0 ${SPACING.md}px 0`,
           borderBottom: `1px solid #2a2a2e`,
-          margin: `0 -${SPACING.md}px`, // Updated to match new padding
-          paddingLeft: SPACING.md,      // Updated to match new padding
-          paddingRight: SPACING.md,     // Updated to match new padding
+          margin: `0 -${SPACING.md}px`,
+          paddingLeft: SPACING.md,
+          paddingRight: SPACING.md,
         }}>
           <BalanceCard
             wallet={{
@@ -107,14 +172,19 @@ export default function WalletPage({
           />
         </div>
 
-        {/* Quick Actions Section - border spans full width */}
+        {/* Quick Actions Section - with heading */}
         <div style={{ 
           padding: `${SPACING.md}px 0 ${SPACING.md}px 0`,
           borderBottom: `1px solid #2a2a2e`,
-          margin: `0 -${SPACING.md}px`, // Updated to match new padding
-          paddingLeft: SPACING.md,      // Updated to match new padding
-          paddingRight: SPACING.md,     // Updated to match new padding
+          margin: `0 -${SPACING.md}px`,
+          paddingLeft: SPACING.md,
+          paddingRight: SPACING.md,
         }}>
+          <SectionHeader
+            title="Quick Actions"
+            actionLabel="View all"
+            onAction={handleViewAllActions}
+          />
           <QuickActions
             isAuthenticated={isAuthenticated}
             onOpenDeposit={() => setShowDeposit(true)}
@@ -126,14 +196,19 @@ export default function WalletPage({
           />
         </div>
 
-        {/* Transactions Section - no bottom border needed */}
+        {/* Transactions Section - with heading */}
         <div style={{ 
           paddingTop: SPACING.lg,
           paddingBottom: SPACING.xxxl,
-          margin: `0 -${SPACING.md}px`, // Updated to match new padding
-          paddingLeft: SPACING.md,      // Updated to match new padding
-          paddingRight: SPACING.md,     // Updated to match new padding
+          margin: `0 -${SPACING.md}px`,
+          paddingLeft: SPACING.md,
+          paddingRight: SPACING.md,
         }}>
+          <SectionHeader
+            title="Recent Transactions"
+            actionLabel="View all"
+            onAction={handleViewAllTransactions}
+          />
           <TransactionHistory
             transactions={dedupedTransactions}
             onSelectTransaction={setSelectedTx}
