@@ -14,14 +14,12 @@ interface TransactionHistoryProps {
   transactions: Transaction[];
   onSelectTransaction: (tx: Transaction) => void;
   showToast?: (message: string) => void;
-  showHeader?: boolean; // New prop to control header visibility
 }
 
 export default function TransactionHistory({
   transactions,
   onSelectTransaction,
   showToast,
-  showHeader = true, // Default to true for backward compatibility
 }: TransactionHistoryProps) {
   const [txFilter, setTxFilter] = useState("all");
 
@@ -32,37 +30,42 @@ export default function TransactionHistory({
 
   return (
     <div>
-      {/* Removed the internal "Transactions" header */}
-      {/* Filter buttons now appear directly */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
+      {/* Filter buttons - clean, minimal */}
+      <div style={{ 
+        display: "flex", 
+        gap: SPACING.sm, 
+        marginBottom: SPACING.lg,
+        overflowX: "auto",
+        paddingBottom: SPACING.xs,
+      }}>
         {TX_FILTERS.map((f) => (
           <button
             key={f.id}
             onClick={() => setTxFilter(f.id)}
             style={{
               flexShrink: 0,
-              border: txFilter === f.id ? "1px solid #f0b90b" : "1px solid #2a2a2e",
-              borderRadius: 8,
-              background: txFilter === f.id ? "rgba(240, 185, 11, 0.1)" : "transparent",
-              color: txFilter === f.id ? "#f0b90b" : "#8a8a90",
+              border: "none",
+              background: txFilter === f.id ? "rgba(255,255,255,0.08)" : "transparent",
+              color: txFilter === f.id ? "#f2f2f2" : "#848e9c",
               fontFamily: "Inter, sans-serif",
-              fontWeight: 600,
+              fontWeight: 500,
               fontSize: 13,
-              padding: "6px 16px",
+              padding: "6px 12px",
               cursor: "pointer",
               transition: "all 0.2s",
               whiteSpace: "nowrap",
+              borderRadius: 6,
             }}
             onMouseEnter={(e) => {
               if (txFilter !== f.id) {
-                e.currentTarget.style.borderColor = "#3b434c";
-                e.currentTarget.style.color = "#eaecef";
+                e.currentTarget.style.color = "#f2f2f2";
+                e.currentTarget.style.background = "rgba(255,255,255,0.04)";
               }
             }}
             onMouseLeave={(e) => {
               if (txFilter !== f.id) {
-                e.currentTarget.style.borderColor = "#2a2a2e";
-                e.currentTarget.style.color = "#8a8a90";
+                e.currentTarget.style.color = "#848e9c";
+                e.currentTarget.style.background = "transparent";
               }
             }}
           >
@@ -76,30 +79,20 @@ export default function TransactionHistory({
           style={{
             textAlign: "center",
             padding: "48px 20px",
-            border: "1px solid #2a2a2e",
-            borderRadius: 12,
-            background: "#1e2329",
           }}
         >
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#8a8a90" }}>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#848e9c" }}>
             No transactions yet
           </div>
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#8a8a90", marginTop: 4 }}>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c", marginTop: 4 }}>
             Your transactions will appear here
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: SPACING.xl }}>
           {groups.map((g) => (
-            <div
-              key={g.day}
-              style={{
-                border: "1px solid #2a2a2e",
-                borderRadius: 12,
-                overflow: "hidden",
-                background: "#1e2329",
-              }}
-            >
+            <div key={g.day}>
+              {/* Day header - clean, minimal */}
               <div
                 style={{
                   fontFamily: "Inter, sans-serif",
@@ -107,10 +100,10 @@ export default function TransactionHistory({
                   fontWeight: 600,
                   letterSpacing: "0.05em",
                   textTransform: "uppercase",
-                  color: "#8a8a90",
-                  padding: "10px 16px",
-                  background: "#181a1e",
-                  borderBottom: "1px solid #2a2a2e",
+                  color: "#848e9c",
+                  paddingBottom: SPACING.sm,
+                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  marginBottom: SPACING.sm,
                 }}
               >
                 {g.day}
