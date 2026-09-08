@@ -82,7 +82,10 @@ export default function QuickActions({
         display: "flex",
         justifyContent: "space-between",
         gap: 0,
-        padding: 0, // Removed internal padding
+        padding: 0,
+        marginLeft: -16,
+        marginRight: -16,
+        borderBottom: "1px solid #2a2a2e",
       }}
     >
       {actions.map((action) => {
