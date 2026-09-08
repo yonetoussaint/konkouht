@@ -14,12 +14,14 @@ interface TransactionHistoryProps {
   transactions: Transaction[];
   onSelectTransaction: (tx: Transaction) => void;
   showToast?: (message: string) => void;
+  showHeader?: boolean; // New prop to control header visibility
 }
 
 export default function TransactionHistory({
   transactions,
   onSelectTransaction,
   showToast,
+  showHeader = true, // Default to true for backward compatibility
 }: TransactionHistoryProps) {
   const [txFilter, setTxFilter] = useState("all");
 
@@ -30,19 +32,8 @@ export default function TransactionHistory({
 
   return (
     <div>
-      <div
-        style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontSize: 18,
-          fontWeight: 700,
-          color: "#f2f2f2",
-          letterSpacing: "-0.01em",
-          marginBottom: 12,
-        }}
-      >
-        Transactions
-      </div>
-
+      {/* Removed the internal "Transactions" header */}
+      {/* Filter buttons now appear directly */}
       <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
         {TX_FILTERS.map((f) => (
           <button
