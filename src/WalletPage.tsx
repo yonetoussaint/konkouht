@@ -205,7 +205,7 @@ export default function WalletPage({
           paddingRight: SPACING.md,
         }}>
           <SectionHeader
-            title="Recent Transactions"
+            title="Transactions"
             actionLabel="View all"
             onAction={handleViewAllTransactions}
           />
@@ -213,6 +213,7 @@ export default function WalletPage({
             transactions={dedupedTransactions}
             onSelectTransaction={setSelectedTx}
             showToast={showToast}
+            showHeader={false} // Tell component to hide its internal header
           />
         </div>
       </div>
