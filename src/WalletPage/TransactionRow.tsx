@@ -2,6 +2,17 @@ import { Copy, ArrowDownLeft, ArrowUpRight, Gift, Trophy, Ticket, Percent } from
 import { txReference, splitLabelNote } from "./utils";
 import type { Transaction } from "./types";
 
+// Design tokens for consistency
+const SPACING = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+};
+
 const TX_VISUALS: Record<string, { icon: any; color: string; bg: string }> = {
   deposit: { icon: ArrowDownLeft, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.08)" },
   withdrawal: { icon: ArrowUpRight, color: "#f6465d", bg: "rgba(246, 70, 93, 0.08)" },
