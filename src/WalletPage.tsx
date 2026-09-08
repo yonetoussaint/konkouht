@@ -73,15 +73,15 @@ export default function WalletPage({
       <div style={{ 
         maxWidth: 600, 
         margin: "0 auto", 
-        padding: `0 ${SPACING.lg}px`
+        padding: `0 ${SPACING.sm}px` // Changed from lg (16px) to sm (8px)
       }}>
         {/* Balance Card Section - border spans full width */}
         <div style={{ 
           padding: `${SPACING.lg}px 0 ${SPACING.md}px 0`,
           borderBottom: `1px solid #2a2a2e`,
-          margin: `0 -${SPACING.lg}px`,
-          paddingLeft: SPACING.lg,
-          paddingRight: SPACING.lg,
+          margin: `0 -${SPACING.sm}px`, // Updated to match new padding
+          paddingLeft: SPACING.sm,      // Updated to match new padding
+          paddingRight: SPACING.sm,     // Updated to match new padding
         }}>
           <BalanceCard
             wallet={{
@@ -111,9 +111,9 @@ export default function WalletPage({
         <div style={{ 
           padding: `${SPACING.md}px 0 ${SPACING.md}px 0`,
           borderBottom: `1px solid #2a2a2e`,
-          margin: `0 -${SPACING.lg}px`,
-          paddingLeft: SPACING.lg,
-          paddingRight: SPACING.lg,
+          margin: `0 -${SPACING.sm}px`, // Updated to match new padding
+          paddingLeft: SPACING.sm,      // Updated to match new padding
+          paddingRight: SPACING.sm,     // Updated to match new padding
         }}>
           <QuickActions
             isAuthenticated={isAuthenticated}
@@ -130,9 +130,9 @@ export default function WalletPage({
         <div style={{ 
           paddingTop: SPACING.lg,
           paddingBottom: SPACING.xxxl,
-          margin: `0 -${SPACING.lg}px`,
-          paddingLeft: SPACING.lg,
-          paddingRight: SPACING.lg,
+          margin: `0 -${SPACING.sm}px`, // Updated to match new padding
+          paddingLeft: SPACING.sm,      // Updated to match new padding
+          paddingRight: SPACING.sm,     // Updated to match new padding
         }}>
           <TransactionHistory
             transactions={dedupedTransactions}
