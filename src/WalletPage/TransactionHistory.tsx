@@ -3,6 +3,17 @@ import TransactionRow from "./TransactionRow";
 import { groupTransactionsByDay } from "./utils";
 import type { Transaction } from "./types";
 
+// Design tokens for consistency
+const SPACING = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+};
+
 const TX_FILTERS = [
   { id: "all", label: "All" },
   { id: "deposit", label: "Deposits" },
