@@ -36,9 +36,6 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
   const time = tx.date.includes(",") ? tx.date.split(",").slice(1).join(",").trim() : tx.date;
   const reference = txReference(tx.id);
   const { main: labelMain, note: labelNote } = splitLabelNote(tx.label);
-  // Show a status pill for anything not in its final "completed" state —
-  // covers withdrawals (pending/rejected) and now MonCash deposits
-  // (pending while waiting on the webhook, failed if MonCash rejects it).
   const statusPill = tx.status && tx.status !== "completed" ? STATUS_LABELS[tx.status] : null;
 
   function copyReference(e: React.MouseEvent) {
@@ -56,9 +53,7 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "12px 16px",
-        marginLeft: -16,
-        marginRight: -16,
+        padding: "12px 16px", // Keep internal padding for row items
         borderBottom: isLast ? "none" : "1px solid #2a2a2e",
         cursor: onSelect ? "pointer" : "default",
         transition: "background 0.15s",
