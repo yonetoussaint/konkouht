@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { createClient } from "@supabase/supabase-js";
@@ -2670,51 +2670,118 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Pulls the authoritative balance + transaction history straight from
+  // Supabase. Used on initial auth, and again by the deposit-return polling
+  // effect below so a confirmed MonCash deposit shows up immediately even
+  // if the realtime postgres_changes subscription missed it (e.g. its
+  // websocket got dropped while the browser was off on MonCash's hosted
+  // checkout page).
+  const refreshWalletData = useCallback(async (userId) => {
+    const uid = userId || currentUser?.id;
+    if (!uid) return;
+
+    const { data: balanceRow, error: balanceError } = await supabase
+      .from("wallet_balances")
+      .select("balance")
+      .eq("user_id", uid)
+      .maybeSingle();
+    if (balanceError) console.error("wallet_balances fetch error:", balanceError);
+    else setBalance(balanceRow?.balance || 0);
+
+    const { data: txRows, error: txError } = await supabase
+      .from("wallet_transactions")
+      .select("*")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (txError) {
+      console.error("wallet_transactions fetch error:", txError);
+      return;
+    }
+    setTransactions(
+      (txRows || []).map((t) => ({
+        id: t.id,
+        type: t.type,
+        label: t.label,
+        amount: Number(t.amount),
+        status: t.status || "completed",
+        rawDate: t.created_at,
+        date: new Date(t.created_at).toLocaleString("fr-FR", {
+          day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+        }),
+      }))
+    );
+  }, [currentUser?.id]);
+
   // Load real balance + transaction history from Supabase once authenticated.
   useEffect(() => {
     if (!currentUser?.id) return;
     let cancelled = false;
-
-    supabase
-      .from("wallet_balances")
-      .select("balance")
-      .eq("user_id", currentUser.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) console.error("wallet_balances fetch error:", error);
-        setBalance(data?.balance || 0);
-      });
-
-    supabase
-      .from("wallet_transactions")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) {
-          console.error("wallet_transactions fetch error:", error);
-          return;
-        }
-        setTransactions(
-          (data || []).map((t) => ({
-            id: t.id,
-            type: t.type,
-            label: t.label,
-            amount: Number(t.amount),
-            status: t.status || "completed",
-            rawDate: t.created_at,
-            date: new Date(t.created_at).toLocaleString("fr-FR", {
-              day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
-            }),
-          }))
-        );
-      });
-
+    refreshWalletData(currentUser.id).then(() => {
+      if (cancelled) return;
+    });
     return () => { cancelled = true; };
   }, [currentUser?.id]);
+
+  // Deposit-return polling: right after DepositPanel redirects to MonCash's
+  // hosted checkout, it stashes the deposit's referenceId in localStorage
+  // (see DepositPanel.tsx). The moment we're back (currentUser is loaded
+  // again post-redirect) and see that stashed reference, poll for its
+  // wallet_transactions row to land as 'completed' every few seconds —
+  // rather than only waiting on the realtime subscription, whose websocket
+  // may not have reconnected yet (or may have silently dropped while the
+  // tab was backgrounded on MonCash's page) right when the webhook fires.
+  // Falls back to the realtime subscription/a manual refresh if the
+  // webhook still hasn't landed after ~90s.
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    let pendingRef;
+    try {
+      pendingRef = localStorage.getItem("pendingMoncashDeposit");
+    } catch {
+      return;
+    }
+    if (!pendingRef) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 30; // ~90s at 3s intervals
+
+    const clearPending = () => {
+      try { localStorage.removeItem("pendingMoncashDeposit"); } catch {}
+    };
+
+    const poll = async () => {
+      if (cancelled) return;
+      attempts += 1;
+      const { data, error } = await supabase
+        .from("wallet_transactions")
+        .select("id")
+        .eq("txn_id", pendingRef)
+        .eq("status", "completed")
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        console.error("Deposit-return poll error:", error);
+      }
+      if (data) {
+        clearPending();
+        await refreshWalletData(currentUser.id);
+        return;
+      }
+      if (attempts >= maxAttempts) {
+        // Give up actively polling — the realtime subscription (or a
+        // manual pull-to-refresh) will still pick it up whenever the
+        // webhook does land.
+        clearPending();
+        return;
+      }
+      setTimeout(poll, 3000);
+    };
+
+    poll();
+    return () => { cancelled = true; };
+  }, [currentUser?.id, refreshWalletData]);
 
   // Real-time: the moment the SMS server auto-credits a matching deposit,
   // push it straight into the wallet — no user action, no page refresh.
