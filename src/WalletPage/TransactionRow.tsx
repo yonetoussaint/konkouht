@@ -64,17 +64,16 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: `${SPACING.sm}px 0`,
+        padding: `${SPACING.sm}px ${SPACING.sm}px`,
         borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)",
         cursor: onSelect ? "pointer" : "default",
         transition: "background 0.15s",
-        borderRadius: 6,
-        paddingLeft: SPACING.xs,
-        paddingRight: SPACING.xs,
+        borderRadius: 4,
+        margin: `0 ${SPACING.xs}px`,
       }}
       onMouseEnter={(e) => {
         if (onSelect) {
-          e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+          e.currentTarget.style.background = "rgba(255,255,255,0.04)";
         }
       }}
       onMouseLeave={(e) => {
