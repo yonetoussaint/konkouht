@@ -39,6 +39,34 @@ export default function TransactionHistory({
   );
   const groups = groupTransactionsByDay(filteredTx);
 
+  // Helper to format day display
+  const getDayDisplay = (day: string) => {
+    const today = new Date().toLocaleDateString('fr-FR', { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'long' 
+    });
+    
+    if (day === "Aujourd'hui") {
+      return { label: "Aujourd'hui", isToday: true };
+    }
+    
+    // Check if it's yesterday
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toLocaleDateString('fr-FR', { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'long' 
+    });
+    
+    if (day === yesterdayStr) {
+      return { label: "Hier", isToday: false };
+    }
+    
+    return { label: day, isToday: false };
+  };
+
   return (
     <div>
       {/* Filter buttons - clean, minimal */}
@@ -101,37 +129,84 @@ export default function TransactionHistory({
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: SPACING.xl }}>
-          {groups.map((g) => (
-            <div key={g.day}>
-              {/* Day header - clean, minimal */}
-              <div
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: "0.05em",
-                  textTransform: "uppercase",
-                  color: "#848e9c",
-                  paddingBottom: SPACING.sm,
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
-                  marginBottom: SPACING.sm,
-                }}
-              >
-                {g.day}
+          {groups.map((g) => {
+            const dayInfo = getDayDisplay(g.day);
+            const dayTotal = g.items.reduce((sum, tx) => sum + tx.amount, 0);
+            const isPositive = dayTotal >= 0;
+            
+            return (
+              <div key={g.day}>
+                {/* Day header with enhanced visual hierarchy */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingBottom: SPACING.sm,
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                    marginBottom: SPACING.sm,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACING.sm }}>
+                    <span
+                      style={{
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: dayInfo.isToday ? "#0ecb81" : "#eaecef",
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      {dayInfo.label}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: 11,
+                        fontWeight: 500,
+                        color: "#848e9c",
+                        background: "rgba(255,255,255,0.06)",
+                        padding: "2px 8px",
+                        borderRadius: 4,
+                      }}
+                    >
+                      {g.items.length} {g.items.length === 1 ? "tx" : "txs"}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontFamily: "'Inter', sans-serif",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: isPositive ? "#0ecb81" : "#f6465d",
+                    }}
+                  >
+                    {isPositive ? "+" : ""}
+                    {dayTotal.toLocaleString("fr-FR")}
+                  </span>
+                </div>
+
+                {/* Transaction list container with subtle background */}
+                <div
+                  style={{
+                    background: "rgba(255,255,255,0.02)",
+                    borderRadius: 8,
+                    padding: `${SPACING.xs}px 0`,
+                  }}
+                >
+                  {g.items.map((tx, i) => (
+                    <TransactionRow
+                      key={tx.id}
+                      tx={tx}
+                      isLast={i === g.items.length - 1}
+                      showToast={showToast}
+                      onSelect={onSelectTransaction}
+                    />
+                  ))}
+                </div>
               </div>
-              <div>
-                {g.items.map((tx, i) => (
-                  <TransactionRow
-                    key={tx.id}
-                    tx={tx}
-                    isLast={i === g.items.length - 1}
-                    showToast={showToast}
-                    onSelect={onSelectTransaction}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
