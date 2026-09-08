@@ -8,15 +8,15 @@ import TransactionDetailSheet from "./WalletPage/TransactionDetailSheet";
 import { dedupeTransactions } from "./WalletPage/utils";
 import type { WalletPageProps } from "./WalletPage/types";
 
-// Design tokens based on 8px grid system
+// Design tokens for consistency
 const SPACING = {
   xs: 4,
   sm: 8,
   md: 12,
-  lg: 16,   // Standard horizontal padding
-  xl: 24,   // Section spacing
-  xxl: 32,  // Major separation
-  xxxl: 48, // Large separation
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
 };
 
 export default function WalletPage({
@@ -73,15 +73,15 @@ export default function WalletPage({
       <div style={{ 
         maxWidth: 600, 
         margin: "0 auto", 
-        padding: `0 ${SPACING.lg}px` // 16px - standard screen padding
+        padding: `0 ${SPACING.md}px` // Changed from sm (8px) to md (12px)
       }}>
-        {/* Balance Card Section */}
+        {/* Balance Card Section - border spans full width */}
         <div style={{ 
-          padding: `${SPACING.lg}px 0 ${SPACING.sm}px 0`, // 16px top, 8px bottom
+          padding: `${SPACING.lg}px 0 ${SPACING.md}px 0`,
           borderBottom: `1px solid #2a2a2e`,
-          margin: `0 -${SPACING.lg}px`, // -16px for full-width border
-          paddingLeft: SPACING.lg,      // 16px content padding
-          paddingRight: SPACING.lg,     // 16px content padding
+          margin: `0 -${SPACING.md}px`, // Updated to match new padding
+          paddingLeft: SPACING.md,      // Updated to match new padding
+          paddingRight: SPACING.md,     // Updated to match new padding
         }}>
           <BalanceCard
             wallet={{
@@ -107,13 +107,13 @@ export default function WalletPage({
           />
         </div>
 
-        {/* Quick Actions Section */}
+        {/* Quick Actions Section - border spans full width */}
         <div style={{ 
-          padding: `${SPACING.sm}px 0 ${SPACING.sm}px 0`, // 8px top & bottom
+          padding: `${SPACING.md}px 0 ${SPACING.md}px 0`,
           borderBottom: `1px solid #2a2a2e`,
-          margin: `0 -${SPACING.lg}px`, // -16px for full-width border
-          paddingLeft: SPACING.lg,      // 16px content padding
-          paddingRight: SPACING.lg,     // 16px content padding
+          margin: `0 -${SPACING.md}px`, // Updated to match new padding
+          paddingLeft: SPACING.md,      // Updated to match new padding
+          paddingRight: SPACING.md,     // Updated to match new padding
         }}>
           <QuickActions
             isAuthenticated={isAuthenticated}
@@ -126,13 +126,13 @@ export default function WalletPage({
           />
         </div>
 
-        {/* Transactions Section */}
+        {/* Transactions Section - no bottom border needed */}
         <div style={{ 
-          paddingTop: SPACING.xl,       // 24px - section spacing
-          paddingBottom: SPACING.xxxl,  // 48px - large bottom spacing
-          margin: `0 -${SPACING.lg}px`, // -16px for full-width content
-          paddingLeft: SPACING.lg,      // 16px content padding
-          paddingRight: SPACING.lg,     // 16px content padding
+          paddingTop: SPACING.lg,
+          paddingBottom: SPACING.xxxl,
+          margin: `0 -${SPACING.md}px`, // Updated to match new padding
+          paddingLeft: SPACING.md,      // Updated to match new padding
+          paddingRight: SPACING.md,     // Updated to match new padding
         }}>
           <TransactionHistory
             transactions={dedupedTransactions}
