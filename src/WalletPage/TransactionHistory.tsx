@@ -192,14 +192,14 @@ export default function TransactionHistory({
                     background: "rgba(255,255,255,0.02)",
                     borderRadius: 8,
                     padding: `${SPACING.xs}px ${SPACING.xs}px`,
-                    overflow: "hidden", // Ensures border-radius clips children
+                    overflow: "hidden",
                   }}
                 >
                   {g.items.map((tx, i) => (
                     <TransactionRow
                       key={tx.id}
                       tx={tx}
-                      isLast={i === g.items.length - 1}
+                      showSeparator={i < g.items.length - 1}
                       showToast={showToast}
                       onSelect={onSelectTransaction}
                     />
