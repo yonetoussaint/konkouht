@@ -70,6 +70,15 @@ export default function DepositPanel({ onClose, showToast }) {
         throw error || new Error("No payment URL returned");
       }
 
+      // Stashed so that on return, App.tsx can actively poll for this
+      // exact deposit's completion instead of only waiting on the
+      // realtime subscription (whose websocket may not have reconnected
+      // yet right when the webhook fires, since the tab was off on
+      // MonCash's hosted page in between).
+      if (data.referenceId) {
+        try { localStorage.setItem("pendingMoncashDeposit", data.referenceId); } catch {}
+      }
+
       // Hands off to MonCash's hosted checkout. When the user finishes (or
       // cancels), MonCash redirects to APP_DEPOSIT_RETURN_URL (configured
       // as a Supabase secret) and the webhook credits the wallet in the
