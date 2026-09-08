@@ -110,7 +110,7 @@ export default function WalletPage({
       />
 
       {showDeposit && (
-        <DepositPanel onClose={() => setShowDeposit(false)} />
+        <DepositPanel onClose={() => setShowDeposit(false)} showToast={showToast} />
       )}
     </div>
   );
