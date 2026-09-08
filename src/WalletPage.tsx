@@ -75,10 +75,13 @@ export default function WalletPage({
         margin: "0 auto", 
         padding: `0 ${SPACING.lg}px`
       }}>
-        {/* Balance Card Section */}
+        {/* Balance Card Section - border spans full width */}
         <div style={{ 
           padding: `${SPACING.lg}px 0 ${SPACING.md}px 0`,
-          borderBottom: `1px solid #2a2a2e`
+          borderBottom: `1px solid #2a2a2e`,
+          margin: `0 -${SPACING.lg}px`,
+          paddingLeft: SPACING.lg,
+          paddingRight: SPACING.lg,
         }}>
           <BalanceCard
             wallet={{
@@ -104,10 +107,13 @@ export default function WalletPage({
           />
         </div>
 
-        {/* Quick Actions Section */}
+        {/* Quick Actions Section - border spans full width */}
         <div style={{ 
           padding: `${SPACING.md}px 0 ${SPACING.md}px 0`,
-          borderBottom: `1px solid #2a2a2e`
+          borderBottom: `1px solid #2a2a2e`,
+          margin: `0 -${SPACING.lg}px`,
+          paddingLeft: SPACING.lg,
+          paddingRight: SPACING.lg,
         }}>
           <QuickActions
             isAuthenticated={isAuthenticated}
@@ -120,10 +126,13 @@ export default function WalletPage({
           />
         </div>
 
-        {/* Transactions Section */}
+        {/* Transactions Section - no bottom border needed */}
         <div style={{ 
           paddingTop: SPACING.lg,
-          paddingBottom: SPACING.xxxl
+          paddingBottom: SPACING.xxxl,
+          margin: `0 -${SPACING.lg}px`,
+          paddingLeft: SPACING.lg,
+          paddingRight: SPACING.lg,
         }}>
           <TransactionHistory
             transactions={dedupedTransactions}
