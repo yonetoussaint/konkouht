@@ -69,7 +69,9 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
         cursor: onSelect ? "pointer" : "default",
         transition: "background 0.15s",
         borderRadius: 4,
-        margin: `0 ${SPACING.xs}px`,
+        margin: `0 -${SPACING.xs}px`, // Full width by extending beyond container padding
+        paddingLeft: SPACING.sm + SPACING.xs, // Compensate for negative margin
+        paddingRight: SPACING.sm + SPACING.xs, // Compensate for negative margin
       }}
       onMouseEnter={(e) => {
         if (onSelect) {
