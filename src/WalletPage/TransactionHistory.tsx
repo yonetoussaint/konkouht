@@ -191,7 +191,8 @@ export default function TransactionHistory({
                   style={{
                     background: "rgba(255,255,255,0.02)",
                     borderRadius: 8,
-                    padding: `${SPACING.xs}px 0`,
+                    padding: `${SPACING.xs}px ${SPACING.xs}px`,
+                    overflow: "hidden", // Ensures border-radius clips children
                   }}
                 >
                   {g.items.map((tx, i) => (
