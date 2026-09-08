@@ -8,6 +8,18 @@ import TransactionDetailSheet from "./WalletPage/TransactionDetailSheet";
 import { dedupeTransactions } from "./WalletPage/utils";
 import type { WalletPageProps } from "./WalletPage/types";
 
+// Design tokens for consistency
+const SPACING = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+};
+
+const BORDER_RADIUS = 12;
+
 export default function WalletPage({
   balance,
   transactions,
@@ -24,16 +36,15 @@ export default function WalletPage({
   onBack,
 }: WalletPageProps) {
   const [selectedTx, setSelectedTx] = useState(null);
+  const [showBalance, setShowBalance] = useState(true);
+  const [showDeposit, setShowDeposit] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
-  const [showBalance, setShowBalance] = useState(true);
-  const [showDeposit, setShowDeposit] = useState(false);
 
   const effectiveBalance = isAuthenticated ? balance : 0;
   const effectiveTransactions = isAuthenticated ? transactions : [];
-
   const dedupedTransactions = dedupeTransactions(effectiveTransactions);
 
   const dayChange = dedupedTransactions
@@ -42,14 +53,17 @@ export default function WalletPage({
   const priorBalance = effectiveBalance - dayChange;
   const dayChangePct = priorBalance !== 0 ? (dayChange / Math.abs(priorBalance)) * 100 : 0;
 
-  // Refresh handler
   const handleRefresh = async () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     showToast?.('Balances refreshed', 'success');
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 80 }}>
+    <div style={{ 
+      minHeight: "100vh", 
+      background: "#111", 
+      paddingBottom: 80 
+    }}>
       <PageHeader
         title="Portefeuille"
         onSettings={onOpenSettings}
@@ -57,8 +71,17 @@ export default function WalletPage({
         borderColor="#2a2a2e"
       />
 
-      <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 8px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ borderBottom: "1px solid #2a2a2e" }}>
+      <div style={{ 
+        maxWidth: 600, 
+        margin: "0 auto", 
+        padding: `0 ${SPACING.lg}px`
+      }}>
+        {/* Balance Card Section */}
+        <div style={{ 
+          paddingTop: SPACING.lg,
+          paddingBottom: SPACING.lg,
+          borderBottom: "1px solid #2a2a2e"
+        }}>
           <BalanceCard
             wallet={{
               currency: 'Haitian Gourde',
@@ -84,7 +107,12 @@ export default function WalletPage({
           />
         </div>
 
-        <div style={{ borderBottom: "1px solid #2a2a2e" }}>
+        {/* Quick Actions Section */}
+        <div style={{ 
+          paddingTop: SPACING.lg,
+          paddingBottom: SPACING.lg,
+          borderBottom: "1px solid #2a2a2e"
+        }}>
           <QuickActions
             isAuthenticated={isAuthenticated}
             onOpenDeposit={() => setShowDeposit(true)}
@@ -96,11 +124,17 @@ export default function WalletPage({
           />
         </div>
 
-        <TransactionHistory
-          transactions={dedupedTransactions}
-          onSelectTransaction={setSelectedTx}
-          showToast={showToast}
-        />
+        {/* Transactions Section */}
+        <div style={{ 
+          paddingTop: SPACING.xl,
+          paddingBottom: SPACING.xxl
+        }}>
+          <TransactionHistory
+            transactions={dedupedTransactions}
+            onSelectTransaction={setSelectedTx}
+            showToast={showToast}
+          />
+        </div>
       </div>
 
       <TransactionDetailSheet
