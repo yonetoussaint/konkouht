@@ -56,7 +56,6 @@ function ensureGlobalStyles() {
 const TIMEFRAMES = ["24h", "1w", "1m", "1y"] as const;
 type Timeframe = typeof TIMEFRAMES[number];
 
-// Derive chart data for a given timeframe by subsampling the base 24h data
 function getChartDataForTimeframe(baseData: { time: string; value: number }[], timeframe: Timeframe, balance: number) {
   if (!baseData || baseData.length === 0) return [];
   const multipliers: Record<Timeframe, number> = { "24h": 1, "1w": 7, "1m": 30, "1y": 365 };
@@ -197,11 +196,6 @@ function IconButton({ onClick, label, active, children, spinning, disabled }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// A single card. Every piece of state here (whether it's locked, whether it's
-// mid-refresh) lives inside this component, so dropping several of these into
-// a scroller never lets one card's state leak into another.
-// ---------------------------------------------------------------------------
 export function BalanceCardItem({
   wallet,
   showBalance,
@@ -209,14 +203,12 @@ export function BalanceCardItem({
   isLoading = false,
   onRefresh,
   onActivate,
-  width = 340,
 }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("24h");
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(ensureGlobalStyles, []);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     if (!dropdownOpen) return;
     const handleClick = (e: MouseEvent) => {
@@ -233,15 +225,11 @@ export function BalanceCardItem({
   const chartData = getChartDataForTimeframe(wallet?.chartData ?? [], timeframe, wallet?.balance ?? 0);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0, width, flexShrink: 0 }}>
-      {/* Flat row: balance on the left, chart on the right */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      {/* Removed padding and border - now controlled by parent */}
       <div
         style={{
           fontFamily: FONT_UI,
-          padding: "16px 16px 14px",
-          marginLeft: -16,
-          marginRight: -16,
-          borderBottom: "1px solid #2a2a2e",
         }}
       >
         {isLoading ? (
@@ -370,10 +358,6 @@ export function BalanceCardItem({
   );
 }
 
-// ---------------------------------------------------------------------------
-// BalanceCard: a single balance card, rendered directly. No carousel / no
-// horizontal scroller — there is only one currency to display.
-// ---------------------------------------------------------------------------
 export default function BalanceCard(props) {
   useEffect(ensureGlobalStyles, []);
   return <BalanceCardItem {...props} />;
