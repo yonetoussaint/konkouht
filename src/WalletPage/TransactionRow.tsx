@@ -3,19 +3,19 @@ import { txReference, splitLabelNote } from "./utils";
 import type { Transaction } from "./types";
 
 const TX_VISUALS: Record<string, { icon: any; color: string; bg: string }> = {
-  deposit: { icon: ArrowDownLeft, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.12)" },
-  withdrawal: { icon: ArrowUpRight, color: "#f6465d", bg: "rgba(246, 70, 93, 0.12)" },
-  withdrawal_refund: { icon: ArrowDownLeft, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.12)" },
-  gift_sent: { icon: Gift, color: "#f0b90b", bg: "rgba(240, 185, 11, 0.12)" },
-  competition_prize: { icon: Trophy, color: "#f0b90b", bg: "rgba(240, 185, 11, 0.12)" },
-  registration_fee: { icon: Ticket, color: "#1e80ff", bg: "rgba(30, 128, 255, 0.12)" },
-  registration_refund: { icon: Percent, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.12)" },
+  deposit: { icon: ArrowDownLeft, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.08)" },
+  withdrawal: { icon: ArrowUpRight, color: "#f6465d", bg: "rgba(246, 70, 93, 0.08)" },
+  withdrawal_refund: { icon: ArrowDownLeft, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.08)" },
+  gift_sent: { icon: Gift, color: "#f0b90b", bg: "rgba(240, 185, 11, 0.08)" },
+  competition_prize: { icon: Trophy, color: "#f0b90b", bg: "rgba(240, 185, 11, 0.08)" },
+  registration_fee: { icon: Ticket, color: "#1e80ff", bg: "rgba(30, 128, 255, 0.08)" },
+  registration_refund: { icon: Percent, color: "#0ecb81", bg: "rgba(14, 203, 129, 0.08)" },
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  pending: { label: "Pending", color: "#f0b90b", bg: "rgba(240, 185, 11, 0.15)" },
-  rejected: { label: "Rejected", color: "#f6465d", bg: "rgba(246, 70, 93, 0.15)" },
-  failed: { label: "Failed", color: "#f6465d", bg: "rgba(246, 70, 93, 0.15)" },
+  pending: { label: "Pending", color: "#f0b90b", bg: "rgba(240, 185, 11, 0.12)" },
+  rejected: { label: "Rejected", color: "#f6465d", bg: "rgba(246, 70, 93, 0.12)" },
+  failed: { label: "Failed", color: "#f6465d", bg: "rgba(246, 70, 93, 0.12)" },
 };
 
 interface TransactionRowProps {
@@ -30,7 +30,7 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
   const visual = TX_VISUALS[tx.type] || {
     icon: ArrowUpRight,
     color: "#848e9c",
-    bg: "rgba(132, 142, 156, 0.1)",
+    bg: "rgba(132, 142, 156, 0.08)",
   };
   const Icon = visual.icon;
   const time = tx.date.includes(",") ? tx.date.split(",").slice(1).join(",").trim() : tx.date;
@@ -53,18 +53,27 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "12px 16px", // Keep internal padding for row items
-        borderBottom: isLast ? "none" : "1px solid #2a2a2e",
+        padding: `${SPACING.sm}px 0`,
+        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)",
         cursor: onSelect ? "pointer" : "default",
         transition: "background 0.15s",
+        borderRadius: 6,
+        paddingLeft: SPACING.xs,
+        paddingRight: SPACING.xs,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1a1a")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+      onMouseEnter={(e) => {
+        if (onSelect) {
+          e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+      }}
     >
       <div
         style={{
-          width: 40,
-          height: 40,
+          width: 36,
+          height: 36,
           flexShrink: 0,
           borderRadius: "50%",
           display: "flex",
@@ -73,11 +82,17 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
           background: visual.bg,
         }}
       >
-        <Icon size={18} color={visual.color} strokeWidth={2} />
+        <Icon size={16} color={visual.color} strokeWidth={2} />
       </div>
+      
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 500, color: "#eaecef" }}>
+          <span style={{ 
+            fontFamily: "Inter, sans-serif", 
+            fontSize: 14, 
+            fontWeight: 500, 
+            color: "#eaecef" 
+          }}>
             {labelMain}
           </span>
           {statusPill && (
@@ -99,9 +114,10 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
             </span>
           )}
         </div>
+        
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c" }}>{time}</span>
-          <span style={{ color: "#2a2a2e" }}>·</span>
+          <span style={{ color: "rgba(255,255,255,0.08)" }}>·</span>
           <span
             onClick={copyReference}
             style={{
@@ -118,6 +134,7 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
             <Copy size={11} strokeWidth={2} />
           </span>
         </div>
+        
         {labelNote && (
           <span
             style={{
@@ -139,6 +156,7 @@ export default function TransactionRow({ tx, isLast, showToast, onSelect }: Tran
           </span>
         )}
       </div>
+      
       <span
         style={{
           fontFamily: "'Inter', sans-serif",
