@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, CheckCircle, ArrowLeft, ChevronRight, Info, Star } from "lucide-react";
+import { X, CheckCircle, ArrowLeft, ChevronRight, Info, Star, TrendingUp, Clock } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import type { Transaction } from "./types";
 
@@ -89,6 +89,15 @@ export default function DepositPanel({
     }
   }, [step]);
 
+  // Debug: Log quick amounts when transactions change
+  useEffect(() => {
+    if (userTransactions.length > 0) {
+      const amounts = getQuickAmountsWithMetadata();
+      console.log("🔍 Quick amounts with metadata:", amounts);
+      console.log("📊 Total deposits:", userTransactions.filter(t => t.type === "deposit").length);
+    }
+  }, [userTransactions]);
+
   function handleClose() {
     setEntered(false);
     setTimeout(() => onClose?.(), 200);
@@ -127,8 +136,11 @@ export default function DepositPanel({
       .filter(t => t.type === "deposit" && t.amount > 0)
       .map(t => t.amount);
     
+    console.log("💰 Deposit history:", deposits);
+    
     // 2. If no history, return sensible defaults based on balance
     if (deposits.length === 0) {
+      console.log("📭 No deposit history, using defaults");
       // Suggest amounts relative to balance
       const baseAmount = Math.min(userBalance || 10000, 10000);
       const amounts: number[] = [];
@@ -160,6 +172,8 @@ export default function DepositPanel({
       frequencyMap[rounded].lastUsed = Math.max(frequencyMap[rounded].lastUsed, index);
     });
     
+    console.log("📊 Frequency map:", frequencyMap);
+    
     // 4. Score each amount: frequency (70%) + recency (30%)
     const maxCount = Math.max(...Object.values(frequencyMap).map(v => v.count));
     const maxLastUsed = Math.max(...Object.values(frequencyMap).map(v => v.lastUsed));
@@ -172,11 +186,15 @@ export default function DepositPanel({
       return { amount: Number(amount), score: totalScore };
     });
     
+    console.log("🎯 Scored amounts:", scored);
+    
     // 5. Sort by score and get top amounts
     const sorted = scored
       .sort((a, b) => b.score - a.score)
       .slice(0, 5)
       .map(({ amount }) => amount);
+    
+    console.log("🏆 Top amounts:", sorted);
     
     // 6. If we got less than 5, add some defaults
     const defaults = [500, 1000, 2500, 5000, 10000];
@@ -208,14 +226,20 @@ export default function DepositPanel({
       const isMostRecent = deposits.length > 0 && 
         Math.round(deposits[deposits.length - 1] / 100) * 100 === amount;
       
-      // Check if it's a frequent amount (used 3+ times)
-      const isFrequent = count >= 3;
+      // Check if it's a frequent amount (used 2+ times)
+      const isFrequent = count >= 2;
+      
+      // Calculate percentage of total deposits
+      const percentage = deposits.length > 0 
+        ? Math.round((count / deposits.length) * 100) 
+        : 0;
       
       return {
         amount,
         isFrequent,
         isMostRecent,
         count,
+        percentage,
       };
     });
   };
@@ -585,7 +609,7 @@ export default function DepositPanel({
                 </div>
               )}
 
-              {/* Dynamic Quick Amount Presets */}
+              {/* Dynamic Quick Amount Presets with Enhanced Visuals */}
               <div
                 style={{
                   display: "flex",
@@ -594,7 +618,7 @@ export default function DepositPanel({
                   marginTop: SPACING.md,
                 }}
               >
-                {quickAmounts.map(({ amount: amt, isFrequent, isMostRecent, count }) => {
+                {quickAmounts.map(({ amount: amt, isFrequent, isMostRecent, count, percentage }) => {
                   const isSelected = parseFloat(amount) === amt;
                   const showBadge = isFrequent || isMostRecent;
                   
@@ -604,21 +628,41 @@ export default function DepositPanel({
                       onClick={() => handleQuickAmount(amt)}
                       style={{
                         flex: 1,
-                        minWidth: 70,
+                        minWidth: 65,
                         padding: `${SPACING.sm}px ${SPACING.md}px`,
-                        background: isSelected ? COLORS.accentDim : COLORS.surface,
-                        border: `1px solid ${isSelected ? COLORS.accent : COLORS.border}`,
+                        paddingTop: isFrequent ? `${SPACING.md}px` : `${SPACING.sm}px`,
+                        paddingBottom: isFrequent ? `${SPACING.sm}px` : `${SPACING.sm}px`,
+                        background: isSelected 
+                          ? COLORS.accentDim 
+                          : isFrequent 
+                            ? COLORS.accentSubtle
+                            : COLORS.surface,
+                        border: `1px solid ${
+                          isSelected 
+                            ? COLORS.accent 
+                            : isFrequent 
+                              ? COLORS.accentDim 
+                              : COLORS.border
+                        }`,
                         borderRadius: 8,
-                        color: isSelected ? COLORS.accent : COLORS.textDim,
+                        color: isSelected 
+                          ? COLORS.accent 
+                          : isFrequent 
+                            ? COLORS.accent 
+                            : COLORS.textDim,
                         fontFamily: TYPOGRAPHY.fontFamily,
-                        fontSize: TYPOGRAPHY.size.lg,
+                        fontSize: isSelected ? TYPOGRAPHY.size.xl : TYPOGRAPHY.size.lg,
                         fontWeight: isSelected ? TYPOGRAPHY.weight.semibold : TYPOGRAPHY.weight.medium,
                         cursor: "pointer",
-                        transition: "all 0.2s",
+                        transition: "all 0.2s ease",
                         textAlign: "center",
                         transform: "scale(1)",
                         WebkitTapHighlightColor: "transparent",
-                        boxShadow: isSelected ? `0 0 0 2px ${COLORS.accent}33` : "none",
+                        boxShadow: isSelected 
+                          ? `0 0 0 2px ${COLORS.accent}33` 
+                          : isFrequent 
+                            ? `0 0 0 1px ${COLORS.accent}22` 
+                            : "none",
                         position: "relative",
                       }}
                       onMouseEnter={(e) => {
@@ -630,9 +674,9 @@ export default function DepositPanel({
                       }}
                       onMouseLeave={(e) => {
                         if (!isSelected) {
-                          e.currentTarget.style.color = COLORS.textDim;
-                          e.currentTarget.style.background = COLORS.surface;
-                          e.currentTarget.style.borderColor = COLORS.border;
+                          e.currentTarget.style.color = isFrequent ? COLORS.accent : COLORS.textDim;
+                          e.currentTarget.style.background = isFrequent ? COLORS.accentSubtle : COLORS.surface;
+                          e.currentTarget.style.borderColor = isFrequent ? COLORS.accentDim : COLORS.border;
                         }
                       }}
                       onTouchStart={(e) => {
@@ -642,38 +686,137 @@ export default function DepositPanel({
                         e.currentTarget.style.transform = "scale(1)";
                       }}
                     >
-                      {amt.toLocaleString("fr-FR")}
-                      {showBadge && (
-                        <span
+                      {/* Amount */}
+                      <div style={{ position: "relative", zIndex: 1 }}>
+                        {amt.toLocaleString("fr-FR")}
+                      </div>
+                      
+                      {/* Percentage bar for frequent amounts */}
+                      {isFrequent && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 2,
+                            background: COLORS.accentDim,
+                            borderRadius: "0 0 8px 8px",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${Math.min(percentage, 100)}%`,
+                              height: "100%",
+                              background: COLORS.accent,
+                              transition: "width 0.5s ease",
+                            }}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Frequent badge with star */}
+                      {isFrequent && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: -8,
+                            right: -8,
+                            background: COLORS.accent,
+                            color: "#111",
+                            fontSize: TYPOGRAPHY.size.xs,
+                            fontWeight: TYPOGRAPHY.weight.bold,
+                            padding: "2px 8px",
+                            borderRadius: 12,
+                            lineHeight: 1.6,
+                            boxShadow: "0 2px 8px rgba(14,203,129,0.3)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 3,
+                            zIndex: 2,
+                          }}
+                        >
+                          <Star size={10} fill={COLORS.accent} /> {count}x
+                        </div>
+                      )}
+                      
+                      {/* Most recent badge */}
+                      {isMostRecent && !isFrequent && (
+                        <div
                           style={{
                             position: "absolute",
                             top: -6,
                             right: -6,
+                            background: COLORS.warningDim,
+                            color: COLORS.warning,
                             fontSize: TYPOGRAPHY.size.xs,
-                            background: isFrequent ? COLORS.accentDim : COLORS.warningDim,
-                            color: isFrequent ? COLORS.accent : COLORS.warning,
-                            padding: "1px 6px",
-                            borderRadius: 4,
-                            fontWeight: TYPOGRAPHY.weight.bold,
+                            fontWeight: TYPOGRAPHY.weight.semibold,
+                            padding: "1px 8px",
+                            borderRadius: 10,
                             lineHeight: 1.4,
+                            zIndex: 2,
                             display: "flex",
                             alignItems: "center",
                             gap: 2,
                           }}
                         >
-                          {isFrequent ? (
-                            <>
-                              <Star size={10} /> {count}x
-                            </>
-                          ) : isMostRecent ? (
-                            "🔄"
-                          ) : null}
-                        </span>
+                          <Clock size={10} /> Récent
+                        </div>
                       )}
                     </button>
                   );
                 })}
               </div>
+
+              {/* Legend - Explain the badges */}
+              {userTransactions.filter(t => t.type === "deposit").length > 0 && (
+                <div
+                  style={{
+                    marginTop: SPACING.sm,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: SPACING.lg,
+                    flexWrap: "wrap",
+                    padding: `${SPACING.xs}px 0`,
+                    borderTop: `1px solid ${COLORS.borderLight}`,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACING.xs }}>
+                    <div
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: 4,
+                        background: COLORS.accentSubtle,
+                        border: `1px solid ${COLORS.accentDim}`,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: TYPOGRAPHY.fontFamily,
+                        fontSize: TYPOGRAPHY.size.sm,
+                        color: COLORS.textDim,
+                      }}
+                    >
+                      Utilisé fréquemment
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACING.xs }}>
+                    <Clock size={12} color={COLORS.warning} />
+                    <span
+                      style={{
+                        fontFamily: TYPOGRAPHY.fontFamily,
+                        fontSize: TYPOGRAPHY.size.sm,
+                        color: COLORS.textDim,
+                      }}
+                    >
+                      Dernier dépôt
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Show hint when there's deposit history */}
               {userTransactions.filter(t => t.type === "deposit").length > 0 && (
@@ -687,7 +830,8 @@ export default function DepositPanel({
                     opacity: 0.6,
                   }}
                 >
-                  ⚡ Basé sur vos dépôts récents
+                  <TrendingUp size={12} style={{ display: "inline", marginRight: 4 }} />
+                  Basé sur vos {userTransactions.filter(t => t.type === "deposit").length} dépôts récents
                 </div>
               )}
 
