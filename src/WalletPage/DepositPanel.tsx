@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { X, CheckCircle, ArrowLeft, ChevronRight, Info } from "lucide-react";
+import { X, CheckCircle, ArrowLeft, ChevronRight, Info, Star } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
+import type { Transaction } from "./types";
 
 // Design tokens - Consistent throughout
 const SPACING = {
@@ -57,9 +58,16 @@ type Step = "amount" | "method" | "confirm" | "processing" | "success";
 interface DepositPanelProps {
   onClose: () => void;
   showToast?: (message: string) => void;
+  userTransactions?: Transaction[];
+  userBalance?: number;
 }
 
-export default function DepositPanel({ onClose, showToast }: DepositPanelProps) {
+export default function DepositPanel({ 
+  onClose, 
+  showToast, 
+  userTransactions = [], 
+  userBalance = 0 
+}: DepositPanelProps) {
   const [entered, setEntered] = useState(false);
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState("");
@@ -112,7 +120,105 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
     note: "Aucun frais pour les dépôts",
   });
 
-  const getQuickAmounts = () => [500, 1000, 2500, 5000, 10000];
+  // Hybrid dynamic quick amounts
+  const getSmartQuickAmounts = (): number[] => {
+    // 1. Get user's deposit history
+    const deposits = userTransactions
+      .filter(t => t.type === "deposit" && t.amount > 0)
+      .map(t => t.amount);
+    
+    // 2. If no history, return sensible defaults based on balance
+    if (deposits.length === 0) {
+      // Suggest amounts relative to balance
+      const baseAmount = Math.min(userBalance || 10000, 10000);
+      const amounts: number[] = [];
+      
+      // Generate 5 evenly spaced amounts up to ~30% of balance
+      for (let i = 1; i <= 5; i++) {
+        const percentage = 0.05 + (i - 1) * 0.05; // 5%, 10%, 15%, 20%, 25%
+        const amount = Math.round(baseAmount * percentage / 100) * 100;
+        if (amount > 0) amounts.push(Math.min(amount, 10000));
+      }
+      
+      // Ensure we have at least some defaults
+      if (amounts.length === 0 || amounts.every(a => a === 0)) {
+        return [500, 1000, 2500, 5000, 10000];
+      }
+      
+      // Dedupe and sort
+      return [...new Set(amounts)].sort((a, b) => a - b).slice(0, 5);
+    }
+    
+    // 3. Analyze frequency of deposit amounts (rounded to nearest 100)
+    const frequencyMap: Record<number, { count: number; lastUsed: number }> = {};
+    deposits.forEach((amount, index) => {
+      const rounded = Math.round(amount / 100) * 100;
+      if (!frequencyMap[rounded]) {
+        frequencyMap[rounded] = { count: 0, lastUsed: index };
+      }
+      frequencyMap[rounded].count += 1;
+      frequencyMap[rounded].lastUsed = Math.max(frequencyMap[rounded].lastUsed, index);
+    });
+    
+    // 4. Score each amount: frequency (70%) + recency (30%)
+    const maxCount = Math.max(...Object.values(frequencyMap).map(v => v.count));
+    const maxLastUsed = Math.max(...Object.values(frequencyMap).map(v => v.lastUsed));
+    
+    const scored = Object.entries(frequencyMap).map(([amount, data]) => {
+      const frequencyScore = maxCount > 0 ? data.count / maxCount : 0;
+      const recencyScore = maxLastUsed > 0 ? data.lastUsed / maxLastUsed : 0;
+      // Weight: 70% frequency, 30% recency
+      const totalScore = (frequencyScore * 0.7) + (recencyScore * 0.3);
+      return { amount: Number(amount), score: totalScore };
+    });
+    
+    // 5. Sort by score and get top amounts
+    const sorted = scored
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(({ amount }) => amount);
+    
+    // 6. If we got less than 5, add some defaults
+    const defaults = [500, 1000, 2500, 5000, 10000];
+    const result = [...sorted];
+    let defaultIndex = 0;
+    while (result.length < 5 && defaultIndex < defaults.length) {
+      if (!result.includes(defaults[defaultIndex])) {
+        result.push(defaults[defaultIndex]);
+      }
+      defaultIndex++;
+    }
+    
+    // 7. Sort for better visual presentation
+    return result.sort((a, b) => a - b).slice(0, 5);
+  };
+
+  // Get quick amounts with metadata for display
+  const getQuickAmountsWithMetadata = () => {
+    const amounts = getSmartQuickAmounts();
+    const deposits = userTransactions
+      .filter(t => t.type === "deposit" && t.amount > 0)
+      .map(t => t.amount);
+    
+    return amounts.map(amount => {
+      // Count how many times this amount was used (rounded)
+      const count = deposits.filter(d => Math.round(d / 100) * 100 === amount).length;
+      
+      // Check if it's the most recent deposit
+      const isMostRecent = deposits.length > 0 && 
+        Math.round(deposits[deposits.length - 1] / 100) * 100 === amount;
+      
+      // Check if it's a frequent amount (used 3+ times)
+      const isFrequent = count >= 3;
+      
+      return {
+        amount,
+        isFrequent,
+        isMostRecent,
+        count,
+      };
+    });
+  };
 
   // Format number with thousand separators
   const formatNumber = (value: string): string => {
@@ -227,6 +333,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
   const currentStepIndex = steps.indexOf(step);
   const fees = getFeesAndLimits();
   const amountStatus = getAmountStatus();
+  const quickAmounts = getQuickAmountsWithMetadata();
 
   return (
     <div
@@ -413,7 +520,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 </button>
               </div>
 
-              {/* Clean Input Field - No ugly divider */}
+              {/* Clean Input Field */}
               <div
                 style={{
                   display: "flex",
@@ -478,7 +585,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 </div>
               )}
 
-              {/* Quick Amount Presets */}
+              {/* Dynamic Quick Amount Presets */}
               <div
                 style={{
                   display: "flex",
@@ -487,8 +594,10 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                   marginTop: SPACING.md,
                 }}
               >
-                {getQuickAmounts().map((amt) => {
+                {quickAmounts.map(({ amount: amt, isFrequent, isMostRecent, count }) => {
                   const isSelected = parseFloat(amount) === amt;
+                  const showBadge = isFrequent || isMostRecent;
+                  
                   return (
                     <button
                       key={amt}
@@ -510,6 +619,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                         transform: "scale(1)",
                         WebkitTapHighlightColor: "transparent",
                         boxShadow: isSelected ? `0 0 0 2px ${COLORS.accent}33` : "none",
+                        position: "relative",
                       }}
                       onMouseEnter={(e) => {
                         if (!isSelected) {
@@ -533,10 +643,53 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                       }}
                     >
                       {amt.toLocaleString("fr-FR")}
+                      {showBadge && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: -6,
+                            right: -6,
+                            fontSize: TYPOGRAPHY.size.xs,
+                            background: isFrequent ? COLORS.accentDim : COLORS.warningDim,
+                            color: isFrequent ? COLORS.accent : COLORS.warning,
+                            padding: "1px 6px",
+                            borderRadius: 4,
+                            fontWeight: TYPOGRAPHY.weight.bold,
+                            lineHeight: 1.4,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 2,
+                          }}
+                        >
+                          {isFrequent ? (
+                            <>
+                              <Star size={10} /> {count}x
+                            </>
+                          ) : isMostRecent ? (
+                            "🔄"
+                          ) : null}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
+
+              {/* Show hint when there's deposit history */}
+              {userTransactions.filter(t => t.type === "deposit").length > 0 && (
+                <div
+                  style={{
+                    marginTop: SPACING.xs,
+                    fontFamily: TYPOGRAPHY.fontFamily,
+                    fontSize: TYPOGRAPHY.size.sm,
+                    color: COLORS.textDim,
+                    textAlign: "center",
+                    opacity: 0.6,
+                  }}
+                >
+                  ⚡ Basé sur vos dépôts récents
+                </div>
+              )}
 
               {/* Fees & Limits */}
               <div
