@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { DepositHeader } from "./DepositPanel/DepositHeader";
 import { DepositProgress } from "./DepositPanel/DepositProgress";
 import { AmountStep } from "./DepositPanel/AmountStep";
