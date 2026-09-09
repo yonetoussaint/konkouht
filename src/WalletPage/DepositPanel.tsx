@@ -22,6 +22,7 @@ const COLORS = {
   textDim: "#848e9c",
   accent: "#0ecb81",
   accentDim: "rgba(14, 203, 129, 0.12)",
+  accentSubtle: "rgba(14, 203, 129, 0.06)",
   error: "#f6465d",
   warning: "#f0b90b",
   warningDim: "rgba(240, 185, 11, 0.1)",
@@ -494,7 +495,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 </div>
               )}
 
-              {/* Quick Amount Presets */}
+              {/* Quick Amount Presets - Compact, no borders, subtle active state */}
               <div
                 style={{
                   display: "flex",
@@ -511,27 +512,29 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                       onClick={() => setAmount(amt.toString())}
                       style={{
                         flex: 1,
-                        minWidth: 60,
-                        padding: `${SPACING.sm}px ${SPACING.md}px`,
-                        background: isSelected ? COLORS.accent : COLORS.surface,
-                        border: `1px solid ${isSelected ? COLORS.accent : COLORS.border}`,
-                        borderRadius: 6,
-                        color: isSelected ? "#111" : COLORS.text,
+                        minWidth: 50,
+                        padding: `${SPACING.xs}px ${SPACING.sm}px`,
+                        background: isSelected ? COLORS.accentSubtle : "transparent",
+                        border: "none",
+                        borderRadius: 4,
+                        color: isSelected ? COLORS.accent : COLORS.textDim,
                         fontFamily: "Inter, sans-serif",
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: isSelected ? 600 : 500,
                         cursor: "pointer",
-                        transition: "all 0.2s",
+                        transition: "all 0.15s",
                         textAlign: "center",
                       }}
                       onMouseEnter={(e) => {
                         if (!isSelected) {
-                          e.currentTarget.style.borderColor = COLORS.textDim;
+                          e.currentTarget.style.color = COLORS.text;
+                          e.currentTarget.style.background = "rgba(255,255,255,0.04)";
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!isSelected) {
-                          e.currentTarget.style.borderColor = COLORS.border;
+                          e.currentTarget.style.color = COLORS.textDim;
+                          e.currentTarget.style.background = "transparent";
                         }
                       }}
                     >
