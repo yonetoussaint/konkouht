@@ -436,11 +436,11 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 </div>
               )}
 
-              {/* Quick Amount Presets */}
+              {/* Quick Amount Presets - Better proportioned */}
               <div
                 style={{
                   display: "flex",
-                  gap: SPACING.xs,
+                  gap: SPACING.sm,
                   flexWrap: "wrap",
                   marginTop: SPACING.md,
                 }}
@@ -453,42 +453,41 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                       onClick={() => setAmount(amt.toString())}
                       style={{
                         flex: 1,
-                        minWidth: 50,
-                        padding: `${SPACING.xs}px ${SPACING.sm}px`,
+                        minWidth: 70,
+                        padding: `${SPACING.sm}px ${SPACING.md}px`,
                         background: isSelected ? COLORS.accentDim : COLORS.surface,
-                        border: "none",
-                        borderRadius: 6,
+                        border: `1px solid ${isSelected ? COLORS.accent : COLORS.border}`,
+                        borderRadius: 8,
                         color: isSelected ? COLORS.accent : COLORS.textDim,
                         fontFamily: TYPOGRAPHY.fontFamily,
-                        fontSize: TYPOGRAPHY.size.md,
+                        fontSize: TYPOGRAPHY.size.lg,
                         fontWeight: isSelected ? TYPOGRAPHY.weight.semibold : TYPOGRAPHY.weight.medium,
                         cursor: "pointer",
-                        transition: "all 0.15s",
+                        transition: "all 0.2s",
                         textAlign: "center",
                         transform: "scale(1)",
                         WebkitTapHighlightColor: "transparent",
+                        boxShadow: isSelected ? `0 0 0 2px ${COLORS.accent}33` : "none",
                       }}
                       onMouseEnter={(e) => {
                         if (!isSelected) {
                           e.currentTarget.style.color = COLORS.text;
                           e.currentTarget.style.background = COLORS.surfaceHover;
+                          e.currentTarget.style.borderColor = COLORS.textDim;
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!isSelected) {
                           e.currentTarget.style.color = COLORS.textDim;
                           e.currentTarget.style.background = COLORS.surface;
+                          e.currentTarget.style.borderColor = COLORS.border;
                         }
                       }}
                       onTouchStart={(e) => {
-                        e.currentTarget.style.transform = "scale(0.95)";
-                        e.currentTarget.style.background = COLORS.surfaceHover;
+                        e.currentTarget.style.transform = "scale(0.96)";
                       }}
                       onTouchEnd={(e) => {
                         e.currentTarget.style.transform = "scale(1)";
-                        if (!isSelected) {
-                          e.currentTarget.style.background = COLORS.surface;
-                        }
                       }}
                     >
                       {amt.toLocaleString("fr-FR")}
