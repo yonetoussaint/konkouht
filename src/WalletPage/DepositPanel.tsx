@@ -1226,8 +1226,8 @@ export default function DepositPanel({
               }
               disabled={
                 (step === "amount" && (!amount || parseFloat(amount) <= 0)) ||
-                (step === "method" && !selectedMethod) ||
-                (step === "confirm")
+                (step === "method" && !selectedMethod)
+                // Removed the (step === "confirm") condition
               }
               style={{
                 width: "100%",
