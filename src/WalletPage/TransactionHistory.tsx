@@ -71,6 +71,7 @@ export default function TransactionHistory({
   const CONTAINER_PADDING = 12;
 
   return (
+<<<<<<< HEAD
     <div>
       {/* Filter buttons - clean, minimal */}
       <div style={{ 
@@ -80,6 +81,23 @@ export default function TransactionHistory({
         overflowX: "auto",
         paddingBottom: SPACING.xs,
       }}>
+=======
+    <div style={{ marginTop: 8 }}>
+      <div
+        style={{
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontSize: 18,
+          fontWeight: 700,
+          color: "#f2f2f2",
+          letterSpacing: "-0.01em",
+          marginBottom: 12,
+        }}
+      >
+        Transactions
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
+>>>>>>> 4be5101 (Supprimer le séparateur sous l'en-tête du panneau de dépôt)
         {TX_FILTERS.map((f) => (
           <button
             key={f.id}
