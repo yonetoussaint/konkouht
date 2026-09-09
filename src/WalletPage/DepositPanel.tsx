@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { X, Copy, CheckCircle, ArrowLeft, ChevronRight, Info } from "lucide-react";
+import { X, CheckCircle, ArrowLeft, ChevronRight, Info } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
-// Design tokens
+// Design tokens - Consistent throughout
 const SPACING = {
   xs: 4,
   sm: 8,
@@ -14,18 +14,42 @@ const SPACING = {
 };
 
 const COLORS = {
-  bg: "#111",
-  surface: "#1a1a1e",
-  surfaceRaised: "#22262d",
+  bg: "#0d0f12",
+  surface: "#14171c",
+  surfaceHover: "#1a1e24",
+  surfaceRaised: "#1e2329",
   border: "#2a2a2e",
-  text: "#f2f2f2",
-  textDim: "#848e9c",
+  borderLight: "rgba(255,255,255,0.06)",
+  text: "#eef0f2",
+  textDim: "#7d8590",
+  textMuted: "#5a5e66",
   accent: "#0ecb81",
   accentDim: "rgba(14, 203, 129, 0.12)",
   accentSubtle: "rgba(14, 203, 129, 0.06)",
   error: "#f6465d",
   warning: "#f0b90b",
   warningDim: "rgba(240, 185, 11, 0.1)",
+};
+
+const TYPOGRAPHY = {
+  fontFamily: "'Inter', -apple-system, sans-serif",
+  fontMono: "'IBM Plex Mono', 'SF Mono', monospace",
+  size: {
+    xs: 10,
+    sm: 11,
+    md: 12,
+    lg: 13,
+    xl: 14,
+    xxl: 16,
+    xxxl: 18,
+    display: 24,
+  },
+  weight: {
+    regular: 400,
+    medium: 500,
+    semibold: 600,
+    bold: 700,
+  },
 };
 
 type Step = "amount" | "method" | "confirm" | "processing" | "success";
@@ -40,7 +64,6 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
-  const [currency, setCurrency] = useState<"HTG" | "USDT">("HTG");
   const [submitting, setSubmitting] = useState(false);
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [showFeesInfo, setShowFeesInfo] = useState(false);
@@ -61,79 +84,39 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
       label: "MonCash",
       color: "#e63946",
       icon: "MC",
-      description: "Pay with MonCash mobile money",
+      description: "Payez avec MonCash",
     },
     {
       key: "natcash",
       label: "NatCash",
       color: "#2a9d8f",
       icon: "NC",
-      description: "Pay with NatCash mobile money",
+      description: "Payez avec NatCash",
     },
   ];
 
-  const usdtAddress = "TRX1234567890abcdef1234567890abcdef12";
+  const getFeesAndLimits = () => ({
+    fee: "Gratuit",
+    feePercentage: "0%",
+    min: "100 HTG",
+    max: "500,000 HTG",
+    processingTime: "Instantané",
+    note: "Aucun frais pour les dépôts",
+  });
 
-  // Fees and limits configuration
-  const getFeesAndLimits = () => {
-    if (currency === "USDT") {
-      return {
-        fee: "0.5 USDT",
-        feePercentage: "0.5%",
-        min: "10 USDT",
-        max: "10,000 USDT",
-        processingTime: "5-30 minutes",
-        note: "Les frais sont prélevés sur le montant du dépôt",
-      };
-    }
-    return {
-      fee: "Gratuit",
-      feePercentage: "0%",
-      min: "100 HTG",
-      max: "500,000 HTG",
-      processingTime: "Instantané",
-      note: "Aucun frais pour les dépôts MonCash",
-    };
-  };
+  const getQuickAmounts = () => [500, 1000, 2500, 5000, 10000];
 
-  // Quick amounts based on currency
-  const getQuickAmounts = () => {
-    if (currency === "USDT") {
-      return [10, 25, 50, 100, 250];
-    }
-    return [500, 1000, 2500, 5000, 10000];
-  };
-
-  // Get fee for current amount
-  const getFeeForAmount = () => {
-    const numAmount = Number(amount);
-    if (!numAmount || numAmount <= 0) return null;
-    
-    if (currency === "USDT") {
-      return (numAmount * 0.005).toFixed(2);
-    }
-    return "0.00";
-  };
-
-  // Check if amount is within limits
   const getAmountStatus = () => {
     const numAmount = Number(amount);
     if (!numAmount || numAmount <= 0) return null;
-    
     const limits = getFeesAndLimits();
     const min = Number(limits.min.replace(/[^0-9.]/g, ''));
     const max = Number(limits.max.replace(/[^0-9.]/g, ''));
-    
-    if (numAmount < min) {
-      return { status: "min", message: `Minimum: ${limits.min}` };
-    }
-    if (numAmount > max) {
-      return { status: "max", message: `Maximum: ${limits.max}` };
-    }
+    if (numAmount < min) return { status: "min", message: `Minimum: ${limits.min}` };
+    if (numAmount > max) return { status: "max", message: `Maximum: ${limits.max}` };
     return { status: "ok", message: "Montant valide" };
   };
 
-  // Step handlers
   const handleAmountNext = () => {
     if (!amount || Number(amount) <= 0) return;
     const status = getAmountStatus();
@@ -141,11 +124,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
       showToast?.(status.message);
       return;
     }
-    if (currency === "USDT") {
-      setStep("confirm");
-    } else {
-      setStep("method");
-    }
+    setStep("method");
   };
 
   const handleMethodNext = () => {
@@ -154,15 +133,8 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
   };
 
   const handleConfirm = async () => {
-    if (currency === "USDT") {
-      navigator.clipboard?.writeText(usdtAddress);
-      showToast?.("Address copied");
-      setStep("success");
-      return;
-    }
-
     if (selectedMethod !== "moncash") {
-      showToast?.("This deposit method isn't available yet");
+      showToast?.("Cette méthode n'est pas encore disponible");
       return;
     }
 
@@ -187,13 +159,12 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
       }
 
       setStep("success");
-      
       setTimeout(() => {
         window.location.href = data.paymentUrl;
       }, 1500);
     } catch (err) {
       console.error("MonCash deposit failed:", err);
-      showToast?.("Could not start the MonCash deposit. Please try again.");
+      showToast?.("Erreur lors du dépôt MonCash. Veuillez réessayer.");
       setStep("confirm");
     } finally {
       setSubmitting(false);
@@ -202,10 +173,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
 
   const handleBack = () => {
     if (step === "method") setStep("amount");
-    else if (step === "confirm") {
-      if (currency === "USDT") setStep("amount");
-      else setStep("method");
-    }
+    else if (step === "confirm") setStep("method");
   };
 
   const resetAndClose = () => {
@@ -215,16 +183,10 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
     handleClose();
   };
 
-  // Step indicators
-  const steps = currency === "USDT" 
-    ? ["amount", "confirm"] 
-    : ["amount", "method", "confirm"];
-
+  const steps = ["amount", "method", "confirm"];
   const currentStepIndex = steps.indexOf(step);
-
   const fees = getFeesAndLimits();
   const amountStatus = getAmountStatus();
-  const feeAmount = getFeeForAmount();
 
   return (
     <div
@@ -288,9 +250,9 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
             )}
             <span
               style={{
-                fontFamily: "Inter, sans-serif",
-                fontSize: 16,
-                fontWeight: 600,
+                fontFamily: TYPOGRAPHY.fontFamily,
+                fontSize: TYPOGRAPHY.size.xxl,
+                fontWeight: TYPOGRAPHY.weight.semibold,
                 color: COLORS.text,
               }}
             >
@@ -315,7 +277,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
               cursor: "pointer",
               transition: "background 0.15s",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.border; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = COLORS.surface; }}
           >
             <X size={18} color={COLORS.textDim} />
@@ -349,28 +311,26 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 display: "flex",
                 justifyContent: "space-between",
                 marginTop: SPACING.xs,
-                fontFamily: "Inter, sans-serif",
-                fontSize: 10,
+                fontFamily: TYPOGRAPHY.fontFamily,
+                fontSize: TYPOGRAPHY.size.xs,
                 color: COLORS.textDim,
-                fontWeight: 500,
+                fontWeight: TYPOGRAPHY.weight.medium,
               }}
             >
               <span style={{ color: currentStepIndex >= 0 ? COLORS.accent : COLORS.textDim }}>
                 Montant
               </span>
-              {currency !== "USDT" && (
-                <span style={{ color: currentStepIndex >= 1 ? COLORS.accent : COLORS.textDim }}>
-                  Méthode
-                </span>
-              )}
-              <span style={{ color: currentStepIndex >= steps.length - 1 ? COLORS.accent : COLORS.textDim }}>
+              <span style={{ color: currentStepIndex >= 1 ? COLORS.accent : COLORS.textDim }}>
+                Méthode
+              </span>
+              <span style={{ color: currentStepIndex >= 2 ? COLORS.accent : COLORS.textDim }}>
                 Confirmer
               </span>
             </div>
           </div>
         )}
 
-        {/* Content - Scrollable */}
+        {/* Content */}
         <div
           style={{
             flex: 1,
@@ -384,9 +344,9 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: SPACING.sm }}>
                 <label
                   style={{
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 12,
-                    fontWeight: 600,
+                    fontFamily: TYPOGRAPHY.fontFamily,
+                    fontSize: TYPOGRAPHY.size.md,
+                    fontWeight: TYPOGRAPHY.weight.semibold,
                     color: COLORS.textDim,
                     textTransform: "uppercase",
                     letterSpacing: "0.04em",
@@ -404,8 +364,8 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                     display: "flex",
                     alignItems: "center",
                     gap: SPACING.xs,
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 11,
+                    fontFamily: TYPOGRAPHY.fontFamily,
+                    fontSize: TYPOGRAPHY.size.sm,
                   }}
                 >
                   <Info size={14} />
@@ -428,16 +388,6 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                   overflow: "hidden",
                   transition: "border-color 0.2s",
                 }}
-                onFocus={(e) => {
-                  if (!amountStatus || amountStatus.status === "ok") {
-                    e.currentTarget.style.borderColor = COLORS.accent;
-                  }
-                }}
-                onBlur={(e) => {
-                  if (!amountStatus || amountStatus.status === "ok") {
-                    e.currentTarget.style.borderColor = COLORS.border;
-                  }
-                }}
               >
                 <input
                   type="number"
@@ -450,44 +400,35 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                     background: "transparent",
                     border: "none",
                     padding: `14px ${SPACING.md}px`,
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: 24,
-                    fontWeight: 600,
+                    fontFamily: TYPOGRAPHY.fontMono,
+                    fontSize: TYPOGRAPHY.size.display,
+                    fontWeight: TYPOGRAPHY.weight.semibold,
                     color: COLORS.text,
                     outline: "none",
                   }}
                 />
-                <div style={{ position: "relative", borderLeft: `1px solid ${COLORS.border}` }}>
-                  <button
-                    onClick={() => setCurrency(c => c === "HTG" ? "USDT" : "HTG")}
-                    style={{
-                      height: "100%",
-                      padding: `0 ${SPACING.md}px`,
-                      background: "transparent",
-                      border: "none",
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: COLORS.textDim,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    {currency}
-                    <span style={{ fontSize: 10, opacity: 0.5 }}>↻</span>
-                  </button>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: `0 ${SPACING.md}px`,
+                    borderLeft: `1px solid ${COLORS.border}`,
+                    fontFamily: TYPOGRAPHY.fontFamily,
+                    fontSize: TYPOGRAPHY.size.lg,
+                    fontWeight: TYPOGRAPHY.weight.semibold,
+                    color: COLORS.textDim,
+                  }}
+                >
+                  HTG
                 </div>
               </div>
 
-              {/* Amount validation message */}
               {amount && amountStatus && amountStatus.status !== "ok" && (
                 <div
                   style={{
                     marginTop: SPACING.xs,
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 12,
+                    fontFamily: TYPOGRAPHY.fontFamily,
+                    fontSize: TYPOGRAPHY.size.md,
                     color: COLORS.error,
                   }}
                 >
@@ -495,7 +436,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 </div>
               )}
 
-              {/* Quick Amount Presets - Gray background, subtle touch */}
+              {/* Quick Amount Presets */}
               <div
                 style={{
                   display: "flex",
@@ -518,20 +459,19 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                         border: "none",
                         borderRadius: 6,
                         color: isSelected ? COLORS.accent : COLORS.textDim,
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: 12,
-                        fontWeight: isSelected ? 600 : 500,
+                        fontFamily: TYPOGRAPHY.fontFamily,
+                        fontSize: TYPOGRAPHY.size.md,
+                        fontWeight: isSelected ? TYPOGRAPHY.weight.semibold : TYPOGRAPHY.weight.medium,
                         cursor: "pointer",
                         transition: "all 0.15s",
                         textAlign: "center",
-                        // Touch feedback - subtle scale
                         transform: "scale(1)",
                         WebkitTapHighlightColor: "transparent",
                       }}
                       onMouseEnter={(e) => {
                         if (!isSelected) {
                           e.currentTarget.style.color = COLORS.text;
-                          e.currentTarget.style.background = COLORS.surfaceRaised;
+                          e.currentTarget.style.background = COLORS.surfaceHover;
                         }
                       }}
                       onMouseLeave={(e) => {
@@ -542,7 +482,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                       }}
                       onTouchStart={(e) => {
                         e.currentTarget.style.transform = "scale(0.95)";
-                        e.currentTarget.style.background = COLORS.surfaceRaised;
+                        e.currentTarget.style.background = COLORS.surfaceHover;
                       }}
                       onTouchEnd={(e) => {
                         e.currentTarget.style.transform = "scale(1)";
@@ -557,7 +497,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 })}
               </div>
 
-              {/* Fees & Limits Information */}
+              {/* Fees & Limits */}
               <div
                 style={{
                   marginTop: SPACING.md,
@@ -566,7 +506,6 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                   overflow: "hidden",
                 }}
               >
-                {/* Fee display - always visible */}
                 <div
                   style={{
                     display: "flex",
@@ -576,14 +515,14 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                     borderBottom: showFeesInfo ? `1px solid ${COLORS.border}` : "none",
                   }}
                 >
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: COLORS.textDim }}>
+                  <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.lg, color: COLORS.textDim }}>
                     Frais
                   </span>
                   <span
                     style={{
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: 13,
-                      fontWeight: 600,
+                      fontFamily: TYPOGRAPHY.fontFamily,
+                      fontSize: TYPOGRAPHY.size.lg,
+                      fontWeight: TYPOGRAPHY.weight.semibold,
                       color: fees.fee === "Gratuit" ? COLORS.accent : COLORS.text,
                     }}
                   >
@@ -591,7 +530,6 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                   </span>
                 </div>
 
-                {/* Expanded fees info */}
                 {showFeesInfo && (
                   <div style={{ padding: `${SPACING.sm}px ${SPACING.md}px ${SPACING.md}px` }}>
                     <div
@@ -601,10 +539,10 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                         padding: `${SPACING.xs}px 0`,
                       }}
                     >
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.textDim }}>
+                      <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.md, color: COLORS.textDim }}>
                         Taux
                       </span>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.text }}>
+                      <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.md, color: COLORS.text }}>
                         {fees.feePercentage}
                       </span>
                     </div>
@@ -615,10 +553,10 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                         padding: `${SPACING.xs}px 0`,
                       }}
                     >
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.textDim }}>
+                      <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.md, color: COLORS.textDim }}>
                         Minimum
                       </span>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.text }}>
+                      <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.md, color: COLORS.text }}>
                         {fees.min}
                       </span>
                     </div>
@@ -629,10 +567,10 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                         padding: `${SPACING.xs}px 0`,
                       }}
                     >
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.textDim }}>
+                      <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.md, color: COLORS.textDim }}>
                         Maximum
                       </span>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.text }}>
+                      <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.md, color: COLORS.text }}>
                         {fees.max}
                       </span>
                     </div>
@@ -643,10 +581,10 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                         padding: `${SPACING.xs}px 0`,
                       }}
                     >
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.textDim }}>
-                        Temps de traitement
+                      <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.md, color: COLORS.textDim }}>
+                        Traitement
                       </span>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.text }}>
+                      <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.md, color: COLORS.text }}>
                         {fees.processingTime}
                       </span>
                     </div>
@@ -656,8 +594,8 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                         padding: SPACING.xs,
                         background: COLORS.warningDim,
                         borderRadius: 4,
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: 11,
+                        fontFamily: TYPOGRAPHY.fontFamily,
+                        fontSize: TYPOGRAPHY.size.sm,
                         color: COLORS.warning,
                       }}
                     >
@@ -666,37 +604,6 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                   </div>
                 )}
               </div>
-
-              {/* Fee preview for current amount */}
-              {amount && Number(amount) > 0 && feeAmount && fees.fee !== "Gratuit" && (
-                <div
-                  style={{
-                    marginTop: SPACING.xs,
-                    textAlign: "right",
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 12,
-                    color: COLORS.textDim,
-                  }}
-                >
-                  Frais estimés: {feeAmount} {currency}
-                </div>
-              )}
-
-              {currency === "USDT" && (
-                <div
-                  style={{
-                    marginTop: SPACING.sm,
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 12,
-                    color: COLORS.textDim,
-                    background: COLORS.surface,
-                    padding: `${SPACING.sm}px ${SPACING.md}px`,
-                    borderRadius: 6,
-                  }}
-                >
-                  ⚡ Vous déposerez en USDT sur le réseau TRC-20
-                </div>
-              )}
             </div>
           )}
 
@@ -706,9 +613,9 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
               <label
                 style={{
                   display: "block",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 12,
-                  fontWeight: 600,
+                  fontFamily: TYPOGRAPHY.fontFamily,
+                  fontSize: TYPOGRAPHY.size.md,
+                  fontWeight: TYPOGRAPHY.weight.semibold,
                   color: COLORS.textDim,
                   marginBottom: SPACING.sm,
                   textTransform: "uppercase",
@@ -727,7 +634,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                       alignItems: "center",
                       gap: SPACING.md,
                       padding: `${SPACING.md}px ${SPACING.lg}px`,
-                      background: selectedMethod === key ? COLORS.surfaceRaised : "transparent",
+                      background: selectedMethod === key ? COLORS.surfaceHover : "transparent",
                       border: `1px solid ${selectedMethod === key ? color : COLORS.border}`,
                       borderRadius: 8,
                       cursor: "pointer",
@@ -744,9 +651,9 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: 12,
-                        fontWeight: 700,
+                        fontFamily: TYPOGRAPHY.fontFamily,
+                        fontSize: TYPOGRAPHY.size.md,
+                        fontWeight: TYPOGRAPHY.weight.bold,
                         color: "#fff",
                         flexShrink: 0,
                       }}
@@ -756,9 +663,9 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                     <div style={{ flex: 1 }}>
                       <div
                         style={{
-                          fontFamily: "Inter, sans-serif",
-                          fontSize: 14,
-                          fontWeight: 600,
+                          fontFamily: TYPOGRAPHY.fontFamily,
+                          fontSize: TYPOGRAPHY.size.xl,
+                          fontWeight: TYPOGRAPHY.weight.semibold,
                           color: COLORS.text,
                         }}
                       >
@@ -766,8 +673,8 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                       </div>
                       <div
                         style={{
-                          fontFamily: "Inter, sans-serif",
-                          fontSize: 12,
+                          fontFamily: TYPOGRAPHY.fontFamily,
+                          fontSize: TYPOGRAPHY.size.md,
                           color: COLORS.textDim,
                         }}
                       >
@@ -811,9 +718,9 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
               >
                 <div
                   style={{
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 12,
-                    fontWeight: 600,
+                    fontFamily: TYPOGRAPHY.fontFamily,
+                    fontSize: TYPOGRAPHY.size.md,
+                    fontWeight: TYPOGRAPHY.weight.semibold,
                     color: COLORS.textDim,
                     textTransform: "uppercase",
                     letterSpacing: "0.04em",
@@ -831,18 +738,18 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                     borderBottom: `1px solid ${COLORS.border}`,
                   }}
                 >
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: COLORS.textDim }}>
+                  <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.xl, color: COLORS.textDim }}>
                     Montant
                   </span>
                   <span
                     style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: 18,
-                      fontWeight: 600,
+                      fontFamily: TYPOGRAPHY.fontMono,
+                      fontSize: TYPOGRAPHY.size.xxxl,
+                      fontWeight: TYPOGRAPHY.weight.semibold,
                       color: COLORS.text,
                     }}
                   >
-                    {Number(amount).toLocaleString("fr-FR")} {currency}
+                    {Number(amount).toLocaleString("fr-FR")} HTG
                   </span>
                 </div>
                 <div
@@ -854,21 +761,21 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                     borderBottom: `1px solid ${COLORS.border}`,
                   }}
                 >
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: COLORS.textDim }}>
+                  <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.xl, color: COLORS.textDim }}>
                     Frais
                   </span>
                   <span
                     style={{
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: 14,
-                      fontWeight: 500,
+                      fontFamily: TYPOGRAPHY.fontFamily,
+                      fontSize: TYPOGRAPHY.size.xl,
+                      fontWeight: TYPOGRAPHY.weight.medium,
                       color: fees.fee === "Gratuit" ? COLORS.accent : COLORS.text,
                     }}
                   >
                     {fees.fee}
                   </span>
                 </div>
-                {currency === "HTG" && selectedMethod && (
+                {selectedMethod && (
                   <div
                     style={{
                       display: "flex",
@@ -877,14 +784,14 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                       paddingTop: SPACING.sm,
                     }}
                   >
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: COLORS.textDim }}>
+                    <span style={{ fontFamily: TYPOGRAPHY.fontFamily, fontSize: TYPOGRAPHY.size.xl, color: COLORS.textDim }}>
                       Méthode
                     </span>
                     <span
                       style={{
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: 14,
-                        fontWeight: 500,
+                        fontFamily: TYPOGRAPHY.fontFamily,
+                        fontSize: TYPOGRAPHY.size.xl,
+                        fontWeight: TYPOGRAPHY.weight.medium,
                         color: COLORS.text,
                       }}
                     >
@@ -892,34 +799,16 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                     </span>
                   </div>
                 )}
-                {currency === "USDT" && (
-                  <div
-                    style={{
-                      marginTop: SPACING.sm,
-                      padding: SPACING.sm,
-                      background: COLORS.accentDim,
-                      borderRadius: 6,
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: 12,
-                      color: COLORS.accent,
-                    }}
-                  >
-                    ⚠️ Assurez-vous d'envoyer sur le réseau TRC-20
-                  </div>
-                )}
               </div>
               <div
                 style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 12,
+                  fontFamily: TYPOGRAPHY.fontFamily,
+                  fontSize: TYPOGRAPHY.size.md,
                   color: COLORS.textDim,
                   textAlign: "center",
                 }}
               >
-                {currency === "USDT" 
-                  ? "L'adresse sera copiée pour le paiement"
-                  : "Vous serez redirigé vers le paiement"
-                }
+                Vous serez redirigé vers le paiement
               </div>
             </div>
           )}
@@ -948,9 +837,9 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
               <div
                 style={{
                   marginTop: SPACING.lg,
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 16,
-                  fontWeight: 600,
+                  fontFamily: TYPOGRAPHY.fontFamily,
+                  fontSize: TYPOGRAPHY.size.xxl,
+                  fontWeight: TYPOGRAPHY.weight.semibold,
                   color: COLORS.text,
                 }}
               >
@@ -959,8 +848,8 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
               <div
                 style={{
                   marginTop: SPACING.sm,
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
+                  fontFamily: TYPOGRAPHY.fontFamily,
+                  fontSize: TYPOGRAPHY.size.lg,
                   color: COLORS.textDim,
                 }}
               >
@@ -996,27 +885,24 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
               <div
                 style={{
                   marginTop: SPACING.lg,
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 18,
-                  fontWeight: 700,
+                  fontFamily: TYPOGRAPHY.fontFamily,
+                  fontSize: TYPOGRAPHY.size.xxxl,
+                  fontWeight: TYPOGRAPHY.weight.bold,
                   color: COLORS.text,
                 }}
               >
-                {currency === "USDT" ? "Adresse copiée !" : "Commande créée !"}
+                Commande créée !
               </div>
               <div
                 style={{
                   marginTop: SPACING.sm,
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
+                  fontFamily: TYPOGRAPHY.fontFamily,
+                  fontSize: TYPOGRAPHY.size.lg,
                   color: COLORS.textDim,
                   textAlign: "center",
                 }}
               >
-                {currency === "USDT" 
-                  ? "Vous pouvez maintenant effectuer le paiement"
-                  : "Vous allez être redirigé vers MonCash"
-                }
+                Vous allez être redirigé vers MonCash
               </div>
               {referenceId && (
                 <div
@@ -1025,8 +911,8 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                     padding: `${SPACING.sm}px ${SPACING.md}px`,
                     background: COLORS.surface,
                     borderRadius: 6,
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 12,
+                    fontFamily: TYPOGRAPHY.fontFamily,
+                    fontSize: TYPOGRAPHY.size.md,
                     color: COLORS.textDim,
                   }}
                 >
@@ -1037,7 +923,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
           )}
         </div>
 
-        {/* Footer - Action Button */}
+        {/* Footer */}
         {step !== "processing" && step !== "success" && (
           <div
             style={{
@@ -1067,14 +953,14 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 ) ? COLORS.accent : COLORS.border,
                 border: "none",
                 borderRadius: 8,
-                fontFamily: "Inter, sans-serif",
-                fontSize: 14,
-                fontWeight: 600,
+                fontFamily: TYPOGRAPHY.fontFamily,
+                fontSize: TYPOGRAPHY.size.xl,
+                fontWeight: TYPOGRAPHY.weight.semibold,
                 color: (
                   (step === "amount" && amount && Number(amount) > 0 && amountStatus?.status === "ok") ||
                   (step === "method" && selectedMethod) ||
                   (step === "confirm")
-                ) ? "#111" : COLORS.textDim,
+                ) ? "#111" : COLORS.textMuted,
                 cursor: (
                   (step === "amount" && amount && Number(amount) > 0 && amountStatus?.status === "ok") ||
                   (step === "method" && selectedMethod) ||
@@ -1097,7 +983,6 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
           </div>
         )}
 
-        {/* Footer - Close button for success/processing */}
         {(step === "processing" || step === "success") && (
           <div
             style={{
@@ -1114,14 +999,14 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                   background: COLORS.border,
                   border: "none",
                   borderRadius: 8,
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 14,
-                  fontWeight: 600,
+                  fontFamily: TYPOGRAPHY.fontFamily,
+                  fontSize: TYPOGRAPHY.size.xl,
+                  fontWeight: TYPOGRAPHY.weight.semibold,
                   color: COLORS.text,
                   cursor: "pointer",
                   transition: "background 0.15s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceRaised; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = COLORS.border; }}
               >
                 Fermer
@@ -1131,7 +1016,6 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
         )}
       </div>
 
-      {/* Spin animation */}
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
