@@ -74,7 +74,6 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
   const handleAmountNext = () => {
     if (!amount || Number(amount) <= 0) return;
     if (currency === "USDT") {
-      // Skip to confirm for USDT
       setStep("confirm");
     } else {
       setStep("method");
@@ -121,7 +120,6 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
 
       setStep("success");
       
-      // Redirect after showing success briefly
       setTimeout(() => {
         window.location.href = data.paymentUrl;
       }, 1500);
@@ -715,12 +713,11 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
           )}
         </div>
 
-        {/* Footer - Action Button */}
+        {/* Footer - Action Button (no separator) */}
         {step !== "processing" && step !== "success" && (
           <div
             style={{
               padding: `${SPACING.lg}px ${SPACING.lg}px`,
-              borderTop: `1px solid ${COLORS.border}`,
               flexShrink: 0,
             }}
           >
@@ -776,12 +773,11 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
           </div>
         )}
 
-        {/* Footer - Close button for success/processing */}
+        {/* Footer - Close button for success/processing (no separator) */}
         {(step === "processing" || step === "success") && (
           <div
             style={{
               padding: `${SPACING.lg}px ${SPACING.lg}px`,
-              borderTop: `1px solid ${COLORS.border}`,
               flexShrink: 0,
             }}
           >
