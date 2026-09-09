@@ -70,6 +70,14 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
 
   const usdtAddress = "TRX1234567890abcdef1234567890abcdef12";
 
+  // Quick amounts based on currency
+  const getQuickAmounts = () => {
+    if (currency === "USDT") {
+      return [10, 25, 50, 100, 250];
+    }
+    return [500, 1000, 2500, 5000, 10000];
+  };
+
   // Step handlers
   const handleAmountNext = () => {
     if (!amount || Number(amount) <= 0) return;
@@ -381,6 +389,54 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                   </button>
                 </div>
               </div>
+
+              {/* Quick Amount Presets */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: SPACING.xs,
+                  flexWrap: "wrap",
+                  marginTop: SPACING.md,
+                }}
+              >
+                {getQuickAmounts().map((amt) => {
+                  const isSelected = Number(amount) === amt;
+                  return (
+                    <button
+                      key={amt}
+                      onClick={() => setAmount(amt.toString())}
+                      style={{
+                        flex: 1,
+                        minWidth: 60,
+                        padding: `${SPACING.sm}px ${SPACING.md}px`,
+                        background: isSelected ? COLORS.accent : COLORS.surface,
+                        border: `1px solid ${isSelected ? COLORS.accent : COLORS.border}`,
+                        borderRadius: 6,
+                        color: isSelected ? "#111" : COLORS.text,
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: 13,
+                        fontWeight: isSelected ? 600 : 500,
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                        textAlign: "center",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.borderColor = COLORS.textDim;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.borderColor = COLORS.border;
+                        }
+                      }}
+                    >
+                      {amt.toLocaleString("fr-FR")}
+                    </button>
+                  );
+                })}
+              </div>
+
               {currency === "USDT" && (
                 <div
                   style={{
@@ -713,7 +769,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
           )}
         </div>
 
-        {/* Footer - Action Button (no separator) */}
+        {/* Footer - Action Button */}
         {step !== "processing" && step !== "success" && (
           <div
             style={{
@@ -773,7 +829,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
           </div>
         )}
 
-        {/* Footer - Close button for success/processing (no separator) */}
+        {/* Footer - Close button for success/processing */}
         {(step === "processing" || step === "success") && (
           <div
             style={{
