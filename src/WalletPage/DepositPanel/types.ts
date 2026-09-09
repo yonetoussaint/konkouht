@@ -1,4 +1,4 @@
-import type { Transaction } from "../../types";
+import type { Transaction } from "@/components/WalletPage/types";
 
 export type Step = "amount" | "method" | "confirm" | "processing" | "success";
 
