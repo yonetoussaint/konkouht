@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, CheckCircle, ArrowLeft, ChevronRight, Info } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -63,15 +63,23 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
   const [entered, setEntered] = useState(false);
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState("");
+  const [displayAmount, setDisplayAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [showFeesInfo, setShowFeesInfo] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 10);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (step === "amount" && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [step]);
 
   function handleClose() {
     setEntered(false);
@@ -106,19 +114,50 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
 
   const getQuickAmounts = () => [500, 1000, 2500, 5000, 10000];
 
+  // Format number with thousand separators
+  const formatNumber = (value: string): string => {
+    if (!value) return "";
+    const num = parseFloat(value.replace(/,/g, ""));
+    if (isNaN(num)) return "";
+    return num.toLocaleString("fr-FR");
+  };
+
+  // Handle amount input change
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/,/g, "").replace(/[^0-9.]/g, "");
+    if (raw === "") {
+      setAmount("");
+      setDisplayAmount("");
+      return;
+    }
+    setAmount(raw);
+    setDisplayAmount(formatNumber(raw));
+  };
+
+  // Handle quick amount selection
+  const handleQuickAmount = (value: number) => {
+    const strValue = value.toString();
+    setAmount(strValue);
+    setDisplayAmount(formatNumber(strValue));
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
   const getAmountStatus = () => {
-    const numAmount = Number(amount);
+    const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) return null;
     const limits = getFeesAndLimits();
-    const min = Number(limits.min.replace(/[^0-9.]/g, ''));
-    const max = Number(limits.max.replace(/[^0-9.]/g, ''));
+    const min = Number(limits.min.replace(/[^0-9.]/g, ""));
+    const max = Number(limits.max.replace(/[^0-9.]/g, ""));
     if (numAmount < min) return { status: "min", message: `Minimum: ${limits.min}` };
     if (numAmount > max) return { status: "max", message: `Maximum: ${limits.max}` };
     return { status: "ok", message: "Montant valide" };
   };
 
   const handleAmountNext = () => {
-    if (!amount || Number(amount) <= 0) return;
+    const numAmount = parseFloat(amount);
+    if (!numAmount || numAmount <= 0) return;
     const status = getAmountStatus();
     if (status && status.status !== "ok") {
       showToast?.(status.message);
@@ -138,7 +177,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
       return;
     }
 
-    const numericAmount = Number(amount);
+    const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0) return;
 
     setSubmitting(true);
@@ -179,6 +218,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
   const resetAndClose = () => {
     setStep("amount");
     setAmount("");
+    setDisplayAmount("");
     setSelectedMethod(null);
     handleClose();
   };
@@ -373,10 +413,11 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 </button>
               </div>
 
+              {/* Clean Input Field - No ugly divider */}
               <div
                 style={{
                   display: "flex",
-                  alignItems: "stretch",
+                  alignItems: "center",
                   background: COLORS.surface,
                   border: `1px solid ${
                     amountStatus && amountStatus.status === "min" ? COLORS.error :
@@ -385,42 +426,43 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                     COLORS.border
                   }`,
                   borderRadius: 8,
-                  overflow: "hidden",
+                  padding: `0 ${SPACING.md}px`,
                   transition: "border-color 0.2s",
                 }}
               >
                 <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  ref={inputRef}
+                  type="text"
+                  inputMode="decimal"
+                  value={displayAmount}
+                  onChange={handleAmountChange}
                   placeholder="0.00"
-                  autoFocus
                   style={{
                     flex: 1,
                     background: "transparent",
                     border: "none",
-                    padding: `14px ${SPACING.md}px`,
+                    padding: `14px 0`,
                     fontFamily: TYPOGRAPHY.fontMono,
                     fontSize: TYPOGRAPHY.size.display,
                     fontWeight: TYPOGRAPHY.weight.semibold,
                     color: COLORS.text,
                     outline: "none",
+                    minWidth: 0,
                   }}
                 />
-                <div
+                <span
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: `0 ${SPACING.md}px`,
-                    borderLeft: `1px solid ${COLORS.border}`,
                     fontFamily: TYPOGRAPHY.fontFamily,
                     fontSize: TYPOGRAPHY.size.lg,
-                    fontWeight: TYPOGRAPHY.weight.semibold,
+                    fontWeight: TYPOGRAPHY.weight.medium,
                     color: COLORS.textDim,
+                    paddingLeft: SPACING.sm,
+                    flexShrink: 0,
+                    userSelect: "none",
                   }}
                 >
                   HTG
-                </div>
+                </span>
               </div>
 
               {amount && amountStatus && amountStatus.status !== "ok" && (
@@ -436,7 +478,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 </div>
               )}
 
-              {/* Quick Amount Presets - Better proportioned */}
+              {/* Quick Amount Presets */}
               <div
                 style={{
                   display: "flex",
@@ -446,11 +488,11 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 }}
               >
                 {getQuickAmounts().map((amt) => {
-                  const isSelected = Number(amount) === amt;
+                  const isSelected = parseFloat(amount) === amt;
                   return (
                     <button
                       key={amt}
-                      onClick={() => setAmount(amt.toString())}
+                      onClick={() => handleQuickAmount(amt)}
                       style={{
                         flex: 1,
                         minWidth: 70,
@@ -748,7 +790,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                       color: COLORS.text,
                     }}
                   >
-                    {Number(amount).toLocaleString("fr-FR")} HTG
+                    {parseFloat(amount).toLocaleString("fr-FR")} HTG
                   </span>
                 </div>
                 <div
@@ -938,7 +980,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 undefined
               }
               disabled={
-                (step === "amount" && (!amount || Number(amount) <= 0)) ||
+                (step === "amount" && (!amount || parseFloat(amount) <= 0)) ||
                 (step === "method" && !selectedMethod) ||
                 (step === "confirm" && submitting)
               }
@@ -946,7 +988,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 width: "100%",
                 padding: `14px`,
                 background: (
-                  (step === "amount" && amount && Number(amount) > 0 && amountStatus?.status === "ok") ||
+                  (step === "amount" && amount && parseFloat(amount) > 0 && amountStatus?.status === "ok") ||
                   (step === "method" && selectedMethod) ||
                   (step === "confirm")
                 ) ? COLORS.accent : COLORS.border,
@@ -956,12 +998,12 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 fontSize: TYPOGRAPHY.size.xl,
                 fontWeight: TYPOGRAPHY.weight.semibold,
                 color: (
-                  (step === "amount" && amount && Number(amount) > 0 && amountStatus?.status === "ok") ||
+                  (step === "amount" && amount && parseFloat(amount) > 0 && amountStatus?.status === "ok") ||
                   (step === "method" && selectedMethod) ||
                   (step === "confirm")
                 ) ? "#111" : COLORS.textMuted,
                 cursor: (
-                  (step === "amount" && amount && Number(amount) > 0 && amountStatus?.status === "ok") ||
+                  (step === "amount" && amount && parseFloat(amount) > 0 && amountStatus?.status === "ok") ||
                   (step === "method" && selectedMethod) ||
                   (step === "confirm")
                 ) ? "pointer" : "default",
