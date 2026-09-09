@@ -53,7 +53,7 @@ const TYPOGRAPHY = {
   },
 };
 
-type Step = "amount" | "method" | "confirm" | "processing" | "success";
+type Step = "amount" | "method" | "confirm" | "processing";
 
 interface DepositPanelProps {
   onClose: () => void;
@@ -327,7 +327,7 @@ export default function DepositPanel({
         setReferenceId(data.referenceId);
       }
 
-      setStep("success");
+      // Redirect to MonCash immediately after getting the URL
       setTimeout(() => {
         window.location.href = data.paymentUrl;
       }, 1500);
@@ -335,7 +335,6 @@ export default function DepositPanel({
       console.error("MonCash deposit failed:", err);
       showToast?.("Erreur lors du dépôt MonCash. Veuillez réessayer.");
       setStep("confirm");
-    } finally {
       setSubmitting(false);
     }
   };
@@ -431,7 +430,6 @@ export default function DepositPanel({
               {step === "method" && "Méthode de paiement"}
               {step === "confirm" && "Confirmation"}
               {step === "processing" && "Traitement en cours"}
-              {step === "success" && "Succès !"}
             </span>
           </div>
           <button
@@ -455,8 +453,8 @@ export default function DepositPanel({
           </button>
         </div>
 
-        {/* Step Progress */}
-        {step !== "processing" && step !== "success" && (
+        {/* Step Progress - Hide during processing */}
+        {step !== "processing" && (
           <div
             style={{
               padding: `${SPACING.md}px ${SPACING.lg}px 0`,
@@ -1150,7 +1148,7 @@ export default function DepositPanel({
             </div>
           )}
 
-          {/* Step 4: Processing */}
+          {/* Step 4: Processing - Final Screen */}
           {step === "processing" && (
             <div
               style={{
@@ -1159,6 +1157,7 @@ export default function DepositPanel({
                 alignItems: "center",
                 justifyContent: "center",
                 padding: `${SPACING.xxxl}px 0`,
+                minHeight: 300,
               }}
             >
               <div
@@ -1188,58 +1187,10 @@ export default function DepositPanel({
                   fontFamily: TYPOGRAPHY.fontFamily,
                   fontSize: TYPOGRAPHY.size.lg,
                   color: COLORS.textDim,
-                }}
-              >
-                Veuillez patienter...
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Success */}
-          {step === "success" && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: `${SPACING.xxxl}px 0`,
-              }}
-            >
-              <div
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: "50%",
-                  background: COLORS.accentDim,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <CheckCircle size={32} color={COLORS.accent} />
-              </div>
-              <div
-                style={{
-                  marginTop: SPACING.lg,
-                  fontFamily: TYPOGRAPHY.fontFamily,
-                  fontSize: TYPOGRAPHY.size.xxxl,
-                  fontWeight: TYPOGRAPHY.weight.bold,
-                  color: COLORS.text,
-                }}
-              >
-                Commande créée !
-              </div>
-              <div
-                style={{
-                  marginTop: SPACING.sm,
-                  fontFamily: TYPOGRAPHY.fontFamily,
-                  fontSize: TYPOGRAPHY.size.lg,
-                  color: COLORS.textDim,
                   textAlign: "center",
                 }}
               >
-                Vous allez être redirigé vers MonCash
+                Redirection vers MonCash...
               </div>
               {referenceId && (
                 <div
@@ -1261,7 +1212,7 @@ export default function DepositPanel({
         </div>
 
         {/* Footer */}
-        {step !== "processing" && step !== "success" && (
+        {step !== "processing" && (
           <div
             style={{
               padding: `${SPACING.lg}px ${SPACING.lg}px`,
@@ -1317,38 +1268,6 @@ export default function DepositPanel({
                 <ChevronRight size={18} />
               )}
             </button>
-          </div>
-        )}
-
-        {(step === "processing" || step === "success") && (
-          <div
-            style={{
-              padding: `${SPACING.lg}px ${SPACING.lg}px`,
-              flexShrink: 0,
-            }}
-          >
-            {step === "success" && (
-              <button
-                onClick={resetAndClose}
-                style={{
-                  width: "100%",
-                  padding: `14px`,
-                  background: COLORS.border,
-                  border: "none",
-                  borderRadius: 8,
-                  fontFamily: TYPOGRAPHY.fontFamily,
-                  fontSize: TYPOGRAPHY.size.xl,
-                  fontWeight: TYPOGRAPHY.weight.semibold,
-                  color: COLORS.text,
-                  cursor: "pointer",
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = COLORS.border; }}
-              >
-                Fermer
-              </button>
-            )}
           </div>
         )}
       </div>
