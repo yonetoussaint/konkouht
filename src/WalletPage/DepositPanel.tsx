@@ -129,7 +129,7 @@ export default function DepositPanel({
     note: "Aucun frais pour les dépôts",
   });
 
-  // Hybrid dynamic quick amounts
+  // Hybrid dynamic quick amounts - NOW RETURNS 4 AMOUNTS
   const getSmartQuickAmounts = (): number[] => {
     // 1. Get user's deposit history
     const deposits = userTransactions
@@ -145,20 +145,20 @@ export default function DepositPanel({
       const baseAmount = Math.min(userBalance || 10000, 10000);
       const amounts: number[] = [];
       
-      // Generate 5 evenly spaced amounts up to ~30% of balance
-      for (let i = 1; i <= 5; i++) {
-        const percentage = 0.05 + (i - 1) * 0.05; // 5%, 10%, 15%, 20%, 25%
+      // Generate 4 evenly spaced amounts up to ~30% of balance
+      for (let i = 1; i <= 4; i++) {
+        const percentage = 0.05 + (i - 1) * 0.05; // 5%, 10%, 15%, 20%
         const amount = Math.round(baseAmount * percentage / 100) * 100;
         if (amount > 0) amounts.push(Math.min(amount, 10000));
       }
       
       // Ensure we have at least some defaults
       if (amounts.length === 0 || amounts.every(a => a === 0)) {
-        return [500, 1000, 2500, 5000, 10000];
+        return [500, 1000, 2500, 5000];
       }
       
       // Dedupe and sort
-      return [...new Set(amounts)].sort((a, b) => a - b).slice(0, 5);
+      return [...new Set(amounts)].sort((a, b) => a - b).slice(0, 4);
     }
     
     // 3. Analyze frequency of deposit amounts (rounded to nearest 100)
@@ -188,19 +188,19 @@ export default function DepositPanel({
     
     console.log("🎯 Scored amounts:", scored);
     
-    // 5. Sort by score and get top amounts
+    // 5. Sort by score and get top amounts - NOW ONLY 4
     const sorted = scored
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
+      .slice(0, 4)
       .map(({ amount }) => amount);
     
     console.log("🏆 Top amounts:", sorted);
     
-    // 6. If we got less than 5, add some defaults
-    const defaults = [500, 1000, 2500, 5000, 10000];
+    // 6. If we got less than 4, add some defaults
+    const defaults = [500, 1000, 2500, 5000];
     const result = [...sorted];
     let defaultIndex = 0;
-    while (result.length < 5 && defaultIndex < defaults.length) {
+    while (result.length < 4 && defaultIndex < defaults.length) {
       if (!result.includes(defaults[defaultIndex])) {
         result.push(defaults[defaultIndex]);
       }
@@ -208,7 +208,7 @@ export default function DepositPanel({
     }
     
     // 7. Sort for better visual presentation
-    return result.sort((a, b) => a - b).slice(0, 5);
+    return result.sort((a, b) => a - b).slice(0, 4);
   };
 
   // Get quick amounts with metadata for display
@@ -609,7 +609,7 @@ export default function DepositPanel({
                 </div>
               )}
 
-              {/* Dynamic Quick Amount Presets with Enhanced Visuals */}
+              {/* Dynamic Quick Amount Presets with Enhanced Visuals - NOW 4 BUTTONS */}
               <div
                 style={{
                   display: "flex",
@@ -620,7 +620,6 @@ export default function DepositPanel({
               >
                 {quickAmounts.map(({ amount: amt, isFrequent, isMostRecent, count, percentage }) => {
                   const isSelected = parseFloat(amount) === amt;
-                  const showBadge = isFrequent || isMostRecent;
                   
                   return (
                     <button
@@ -628,7 +627,7 @@ export default function DepositPanel({
                       onClick={() => handleQuickAmount(amt)}
                       style={{
                         flex: 1,
-                        minWidth: 65,
+                        minWidth: 60,
                         padding: `${SPACING.sm}px ${SPACING.md}px`,
                         paddingTop: isFrequent ? `${SPACING.md}px` : `${SPACING.sm}px`,
                         paddingBottom: isFrequent ? `${SPACING.sm}px` : `${SPACING.sm}px`,
