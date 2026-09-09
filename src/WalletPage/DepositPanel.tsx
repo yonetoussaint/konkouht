@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Copy, CheckCircle, ArrowLeft, ChevronRight } from "lucide-react";
+import { X, Copy, CheckCircle, ArrowLeft, ChevronRight, Info } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
 // Design tokens
@@ -23,6 +23,8 @@ const COLORS = {
   accent: "#0ecb81",
   accentDim: "rgba(14, 203, 129, 0.12)",
   error: "#f6465d",
+  warning: "#f0b90b",
+  warningDim: "rgba(240, 185, 11, 0.1)",
 };
 
 type Step = "amount" | "method" | "confirm" | "processing" | "success";
@@ -40,6 +42,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
   const [currency, setCurrency] = useState<"HTG" | "USDT">("HTG");
   const [submitting, setSubmitting] = useState(false);
   const [referenceId, setReferenceId] = useState<string | null>(null);
+  const [showFeesInfo, setShowFeesInfo] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 10);
@@ -70,6 +73,28 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
 
   const usdtAddress = "TRX1234567890abcdef1234567890abcdef12";
 
+  // Fees and limits configuration
+  const getFeesAndLimits = () => {
+    if (currency === "USDT") {
+      return {
+        fee: "0.5 USDT",
+        feePercentage: "0.5%",
+        min: "10 USDT",
+        max: "10,000 USDT",
+        processingTime: "5-30 minutes",
+        note: "Les frais sont prélevés sur le montant du dépôt",
+      };
+    }
+    return {
+      fee: "Gratuit",
+      feePercentage: "0%",
+      min: "100 HTG",
+      max: "500,000 HTG",
+      processingTime: "Instantané",
+      note: "Aucun frais pour les dépôts MonCash",
+    };
+  };
+
   // Quick amounts based on currency
   const getQuickAmounts = () => {
     if (currency === "USDT") {
@@ -78,9 +103,43 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
     return [500, 1000, 2500, 5000, 10000];
   };
 
+  // Get fee for current amount
+  const getFeeForAmount = () => {
+    const numAmount = Number(amount);
+    if (!numAmount || numAmount <= 0) return null;
+    
+    if (currency === "USDT") {
+      return (numAmount * 0.005).toFixed(2);
+    }
+    return "0.00";
+  };
+
+  // Check if amount is within limits
+  const getAmountStatus = () => {
+    const numAmount = Number(amount);
+    if (!numAmount || numAmount <= 0) return null;
+    
+    const limits = getFeesAndLimits();
+    const min = Number(limits.min.replace(/[^0-9.]/g, ''));
+    const max = Number(limits.max.replace(/[^0-9.]/g, ''));
+    
+    if (numAmount < min) {
+      return { status: "min", message: `Minimum: ${limits.min}` };
+    }
+    if (numAmount > max) {
+      return { status: "max", message: `Maximum: ${limits.max}` };
+    }
+    return { status: "ok", message: "Montant valide" };
+  };
+
   // Step handlers
   const handleAmountNext = () => {
     if (!amount || Number(amount) <= 0) return;
+    const status = getAmountStatus();
+    if (status && status.status !== "ok") {
+      showToast?.(status.message);
+      return;
+    }
     if (currency === "USDT") {
       setStep("confirm");
     } else {
@@ -161,6 +220,10 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
     : ["amount", "method", "confirm"];
 
   const currentStepIndex = steps.indexOf(step);
+
+  const fees = getFeesAndLimits();
+  const amountStatus = getAmountStatus();
+  const feeAmount = getFeeForAmount();
 
   return (
     <div
@@ -317,35 +380,62 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
           {/* Step 1: Amount */}
           {step === "amount" && (
             <div>
-              <label
-                style={{
-                  display: "block",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: COLORS.textDim,
-                  marginBottom: SPACING.sm,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.04em",
-                }}
-              >
-                Montant à déposer
-              </label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: SPACING.sm }}>
+                <label
+                  style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: COLORS.textDim,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Montant à déposer
+                </label>
+                <button
+                  onClick={() => setShowFeesInfo(!showFeesInfo)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: COLORS.textDim,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: SPACING.xs,
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 11,
+                  }}
+                >
+                  <Info size={14} />
+                  Frais
+                </button>
+              </div>
+
               <div
                 style={{
                   display: "flex",
                   alignItems: "stretch",
                   background: COLORS.surface,
-                  border: `1px solid ${COLORS.border}`,
+                  border: `1px solid ${
+                    amountStatus && amountStatus.status === "min" ? COLORS.error :
+                    amountStatus && amountStatus.status === "max" ? COLORS.error :
+                    amount && amountStatus?.status === "ok" ? COLORS.accent :
+                    COLORS.border
+                  }`,
                   borderRadius: 8,
                   overflow: "hidden",
                   transition: "border-color 0.2s",
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.accent;
+                  if (!amountStatus || amountStatus.status === "ok") {
+                    e.currentTarget.style.borderColor = COLORS.accent;
+                  }
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.border;
+                  if (!amountStatus || amountStatus.status === "ok") {
+                    e.currentTarget.style.borderColor = COLORS.border;
+                  }
                 }}
               >
                 <input
@@ -389,6 +479,20 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                   </button>
                 </div>
               </div>
+
+              {/* Amount validation message */}
+              {amount && amountStatus && amountStatus.status !== "ok" && (
+                <div
+                  style={{
+                    marginTop: SPACING.xs,
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 12,
+                    color: COLORS.error,
+                  }}
+                >
+                  {amountStatus.message}
+                </div>
+              )}
 
               {/* Quick Amount Presets */}
               <div
@@ -436,6 +540,131 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                   );
                 })}
               </div>
+
+              {/* Fees & Limits Information */}
+              <div
+                style={{
+                  marginTop: SPACING.md,
+                  background: COLORS.surface,
+                  borderRadius: 8,
+                  overflow: "hidden",
+                }}
+              >
+                {/* Fee display - always visible */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: `${SPACING.sm}px ${SPACING.md}px`,
+                    borderBottom: showFeesInfo ? `1px solid ${COLORS.border}` : "none",
+                  }}
+                >
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: COLORS.textDim }}>
+                    Frais
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: fees.fee === "Gratuit" ? COLORS.accent : COLORS.text,
+                    }}
+                  >
+                    {fees.fee}
+                  </span>
+                </div>
+
+                {/* Expanded fees info */}
+                {showFeesInfo && (
+                  <div style={{ padding: `${SPACING.sm}px ${SPACING.md}px ${SPACING.md}px` }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        padding: `${SPACING.xs}px 0`,
+                      }}
+                    >
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.textDim }}>
+                        Taux
+                      </span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.text }}>
+                        {fees.feePercentage}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        padding: `${SPACING.xs}px 0`,
+                      }}
+                    >
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.textDim }}>
+                        Minimum
+                      </span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.text }}>
+                        {fees.min}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        padding: `${SPACING.xs}px 0`,
+                      }}
+                    >
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.textDim }}>
+                        Maximum
+                      </span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.text }}>
+                        {fees.max}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        padding: `${SPACING.xs}px 0`,
+                      }}
+                    >
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.textDim }}>
+                        Temps de traitement
+                      </span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.text }}>
+                        {fees.processingTime}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        marginTop: SPACING.xs,
+                        padding: SPACING.xs,
+                        background: COLORS.warningDim,
+                        borderRadius: 4,
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: 11,
+                        color: COLORS.warning,
+                      }}
+                    >
+                      ℹ️ {fees.note}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Fee preview for current amount */}
+              {amount && Number(amount) > 0 && feeAmount && fees.fee !== "Gratuit" && (
+                <div
+                  style={{
+                    marginTop: SPACING.xs,
+                    textAlign: "right",
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 12,
+                    color: COLORS.textDim,
+                  }}
+                >
+                  Frais estimés: {feeAmount} {currency}
+                </div>
+              )}
 
               {currency === "USDT" && (
                 <div
@@ -598,6 +827,29 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                     }}
                   >
                     {Number(amount).toLocaleString("fr-FR")} {currency}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: `${SPACING.sm}px 0`,
+                    borderBottom: `1px solid ${COLORS.border}`,
+                  }}
+                >
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: COLORS.textDim }}>
+                    Frais
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: fees.fee === "Gratuit" ? COLORS.accent : COLORS.text,
+                    }}
+                  >
+                    {fees.fee}
                   </span>
                 </div>
                 {currency === "HTG" && selectedMethod && (
@@ -793,7 +1045,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 width: "100%",
                 padding: `14px`,
                 background: (
-                  (step === "amount" && amount && Number(amount) > 0) ||
+                  (step === "amount" && amount && Number(amount) > 0 && amountStatus?.status === "ok") ||
                   (step === "method" && selectedMethod) ||
                   (step === "confirm")
                 ) ? COLORS.accent : COLORS.border,
@@ -803,12 +1055,12 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 fontSize: 14,
                 fontWeight: 600,
                 color: (
-                  (step === "amount" && amount && Number(amount) > 0) ||
+                  (step === "amount" && amount && Number(amount) > 0 && amountStatus?.status === "ok") ||
                   (step === "method" && selectedMethod) ||
                   (step === "confirm")
                 ) ? "#111" : COLORS.textDim,
                 cursor: (
-                  (step === "amount" && amount && Number(amount) > 0) ||
+                  (step === "amount" && amount && Number(amount) > 0 && amountStatus?.status === "ok") ||
                   (step === "method" && selectedMethod) ||
                   (step === "confirm")
                 ) ? "pointer" : "default",
