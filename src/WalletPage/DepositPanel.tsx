@@ -73,6 +73,7 @@ export default function DepositPanel({
   const [amount, setAmount] = useState("");
   const [displayAmount, setDisplayAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [showFeesInfo, setShowFeesInfo] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -309,8 +310,8 @@ export default function DepositPanel({
     const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0) return;
 
-    // Go to processing screen immediately
-    setStep("processing");
+    // Start submitting
+    setIsSubmitting(true);
 
     try {
       const { data, error } = await supabase.functions.invoke("moncash-create-deposit", {
@@ -326,6 +327,9 @@ export default function DepositPanel({
         setReferenceId(data.referenceId);
       }
 
+      // Only go to processing screen AFTER successful API call
+      setStep("processing");
+
       // Redirect to MonCash after a short delay to show the processing screen
       setTimeout(() => {
         window.location.href = data.paymentUrl;
@@ -333,7 +337,7 @@ export default function DepositPanel({
     } catch (err) {
       console.error("MonCash deposit failed:", err);
       showToast?.("Erreur lors du dépôt MonCash. Veuillez réessayer.");
-      setStep("confirm");
+      setIsSubmitting(false);
     }
   };
 
@@ -347,6 +351,7 @@ export default function DepositPanel({
     setAmount("");
     setDisplayAmount("");
     setSelectedMethod(null);
+    setIsSubmitting(false);
     handleClose();
   };
 
@@ -1226,8 +1231,8 @@ export default function DepositPanel({
               }
               disabled={
                 (step === "amount" && (!amount || parseFloat(amount) <= 0)) ||
-                (step === "method" && !selectedMethod)
-                // Removed the (step === "confirm") condition
+                (step === "method" && !selectedMethod) ||
+                (step === "confirm" && isSubmitting)
               }
               style={{
                 width: "100%",
@@ -1261,7 +1266,7 @@ export default function DepositPanel({
             >
               {step === "amount" && "Continuer"}
               {step === "method" && "Continuer"}
-              {step === "confirm" && "Confirmer le dépôt"}
+              {step === "confirm" && (isSubmitting ? "Traitement..." : "Confirmer le dépôt")}
               {(step === "amount" || step === "method") && (
                 <ChevronRight size={18} />
               )}
