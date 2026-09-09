@@ -73,7 +73,6 @@ export default function DepositPanel({
   const [amount, setAmount] = useState("");
   const [displayAmount, setDisplayAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [showFeesInfo, setShowFeesInfo] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -310,7 +309,7 @@ export default function DepositPanel({
     const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0) return;
 
-    setSubmitting(true);
+    // Go to processing screen immediately
     setStep("processing");
 
     try {
@@ -327,7 +326,7 @@ export default function DepositPanel({
         setReferenceId(data.referenceId);
       }
 
-      // Redirect to MonCash immediately after getting the URL
+      // Redirect to MonCash after a short delay to show the processing screen
       setTimeout(() => {
         window.location.href = data.paymentUrl;
       }, 1500);
@@ -335,7 +334,6 @@ export default function DepositPanel({
       console.error("MonCash deposit failed:", err);
       showToast?.("Erreur lors du dépôt MonCash. Veuillez réessayer.");
       setStep("confirm");
-      setSubmitting(false);
     }
   };
 
@@ -1211,7 +1209,7 @@ export default function DepositPanel({
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer - Hide during processing */}
         {step !== "processing" && (
           <div
             style={{
@@ -1229,7 +1227,7 @@ export default function DepositPanel({
               disabled={
                 (step === "amount" && (!amount || parseFloat(amount) <= 0)) ||
                 (step === "method" && !selectedMethod) ||
-                (step === "confirm" && submitting)
+                (step === "confirm")
               }
               style={{
                 width: "100%",
@@ -1263,7 +1261,7 @@ export default function DepositPanel({
             >
               {step === "amount" && "Continuer"}
               {step === "method" && "Continuer"}
-              {step === "confirm" && (submitting ? "Traitement..." : "Confirmer le dépôt")}
+              {step === "confirm" && "Confirmer le dépôt"}
               {(step === "amount" || step === "method") && (
                 <ChevronRight size={18} />
               )}
