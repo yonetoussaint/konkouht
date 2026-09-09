@@ -310,8 +310,9 @@ export default function DepositPanel({
     const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0) return;
 
-    // Start submitting
+    // Set submitting state and switch to processing screen
     setIsSubmitting(true);
+    setStep("processing");
 
     try {
       const { data, error } = await supabase.functions.invoke("moncash-create-deposit", {
@@ -327,9 +328,6 @@ export default function DepositPanel({
         setReferenceId(data.referenceId);
       }
 
-      // Only go to processing screen AFTER successful API call
-      setStep("processing");
-
       // Redirect to MonCash after a short delay to show the processing screen
       setTimeout(() => {
         window.location.href = data.paymentUrl;
@@ -337,6 +335,8 @@ export default function DepositPanel({
     } catch (err) {
       console.error("MonCash deposit failed:", err);
       showToast?.("Erreur lors du dépôt MonCash. Veuillez réessayer.");
+      // Go back to confirm on error
+      setStep("confirm");
       setIsSubmitting(false);
     }
   };
@@ -352,6 +352,7 @@ export default function DepositPanel({
     setDisplayAmount("");
     setSelectedMethod(null);
     setIsSubmitting(false);
+    setReferenceId(null);
     handleClose();
   };
 
