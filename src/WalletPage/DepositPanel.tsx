@@ -495,7 +495,7 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                 </div>
               )}
 
-              {/* Quick Amount Presets - Compact, no borders, subtle active state */}
+              {/* Quick Amount Presets - Gray background, subtle touch */}
               <div
                 style={{
                   display: "flex",
@@ -514,9 +514,9 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                         flex: 1,
                         minWidth: 50,
                         padding: `${SPACING.xs}px ${SPACING.sm}px`,
-                        background: isSelected ? COLORS.accentSubtle : "transparent",
+                        background: isSelected ? COLORS.accentDim : COLORS.surface,
                         border: "none",
-                        borderRadius: 4,
+                        borderRadius: 6,
                         color: isSelected ? COLORS.accent : COLORS.textDim,
                         fontFamily: "Inter, sans-serif",
                         fontSize: 12,
@@ -524,17 +524,30 @@ export default function DepositPanel({ onClose, showToast }: DepositPanelProps) 
                         cursor: "pointer",
                         transition: "all 0.15s",
                         textAlign: "center",
+                        // Touch feedback - subtle scale
+                        transform: "scale(1)",
+                        WebkitTapHighlightColor: "transparent",
                       }}
                       onMouseEnter={(e) => {
                         if (!isSelected) {
                           e.currentTarget.style.color = COLORS.text;
-                          e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                          e.currentTarget.style.background = COLORS.surfaceRaised;
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!isSelected) {
                           e.currentTarget.style.color = COLORS.textDim;
-                          e.currentTarget.style.background = "transparent";
+                          e.currentTarget.style.background = COLORS.surface;
+                        }
+                      }}
+                      onTouchStart={(e) => {
+                        e.currentTarget.style.transform = "scale(0.95)";
+                        e.currentTarget.style.background = COLORS.surfaceRaised;
+                      }}
+                      onTouchEnd={(e) => {
+                        e.currentTarget.style.transform = "scale(1)";
+                        if (!isSelected) {
+                          e.currentTarget.style.background = COLORS.surface;
                         }
                       }}
                     >
