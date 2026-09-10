@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import CompCard from "./CompCard";
+import SectionHeader from "./components/SectionHeader";
 import { isCompOwner } from "./App";
 
 /* ─── HOME NEWS TICKER ─────────────────────────────────────────────────── */
@@ -88,32 +89,30 @@ const HOME_TABS = [
 
 /* ─── TYPE ROW (horizontally-scrollable rail of one competition "type") ── */
 
-function TypeRow({ icon: Icon, label, accent, items, onOpen, onOpenComments, onOpenShare, onRegister, registeredCompIds, currentUser }) {
+function TypeRow({
+  icon,
+  label,
+  accent,
+  items,
+  onOpen,
+  onOpenComments,
+  onOpenShare,
+  onRegister,
+  registeredCompIds,
+  currentUser,
+}) {
   if (!items || items.length === 0) return null;
   return (
-    <section style={{ marginBottom: 0, borderBottom: "2px solid #2a2a2e", paddingBottom: 8, paddingTop: 8 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          paddingLeft: 8,
-          paddingRight: 8,
-          marginBottom: 2,
-        }}
-      >
-        {Icon && <Icon size={16} strokeWidth={2.5} color={accent} style={{ flexShrink: 0 }} />}
-        <span
-          style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 15,
-            fontWeight: 700,
-            color: "#f2f2f2",
-            letterSpacing: "-0.01em",
-          }}
-        >
-          {label}
-        </span>
+    <section
+      style={{
+        marginBottom: 0,
+        borderBottom: "2px solid #2a2a2e",
+        paddingBottom: 8,
+        paddingTop: 8,
+      }}
+    >
+      <div style={{ paddingLeft: 8, paddingRight: 8 }}>
+        <SectionHeader icon={icon} title={label} accent={accent} />
       </div>
 
       <div
@@ -130,7 +129,17 @@ function TypeRow({ icon: Icon, label, accent, items, onOpen, onOpenComments, onO
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {items.map((comp) => (
-          <CompCard key={comp.id} comp={comp} accent={comp.accent} onOpen={onOpen} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={isCompOwner(comp, currentUser)} />
+          <CompCard
+            key={comp.id}
+            comp={comp}
+            accent={comp.accent}
+            onOpen={onOpen}
+            onOpenComments={onOpenComments}
+            onOpenShare={onOpenShare}
+            onRegister={onRegister}
+            isRegistered={registeredCompIds?.has(comp.id)}
+            isOwnCompetition={isCompOwner(comp, currentUser)}
+          />
         ))}
       </div>
     </section>
@@ -173,7 +182,6 @@ export default function HomePage({
 }) {
   return (
     <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 64 }}>
-
       {/* ── HEADER ── */}
       <header
         style={{
@@ -200,7 +208,12 @@ export default function HomePage({
               transition: "border-color 0.15s",
             }}
           >
-            <Search size={15} color={homeSearchFocused ? "#f5f5f5" : "#7a7a80"} strokeWidth={2.25} style={{ flexShrink: 0 }} />
+            <Search
+              size={15}
+              color={homeSearchFocused ? "#f5f5f5" : "#7a7a80"}
+              strokeWidth={2.25}
+              style={{ flexShrink: 0 }}
+            />
             <input
               type="text"
               placeholder="Rechercher une compétition..."
@@ -225,7 +238,15 @@ export default function HomePage({
         </div>
 
         {/* Chips row — edge to edge */}
-        <div style={{ display: "flex", gap: 8, padding: "0 8px 8px", overflowX: "auto", scrollbarWidth: "none" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            padding: "0 8px 8px",
+            overflowX: "auto",
+            scrollbarWidth: "none",
+          }}
+        >
           {HOME_TABS.map(({ key, label, icon: Icon, live }) => {
             const active = activeFilter === key;
             return (
@@ -275,86 +296,86 @@ export default function HomePage({
 
       {/* ── BANNER SLIDER (2:1, real uploaded images only) ── */}
       {homeBannerSlides.length > 0 && (
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: "2.2 / 1",
-          overflow: "hidden",
-          borderBottom: "2px solid #2a2a2e",
-        }}
-      >
-        {homeBannerSlides.map((slide, i) => (
-          <div
-            key={slide.id}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              opacity: i === bannerIndex ? 1 : 0,
-              transition: "opacity 0.8s ease",
-            }}
-          >
-            <img
-              src={slide.image}
-              alt={slide.title}
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            aspectRatio: "2.2 / 1",
+            overflow: "hidden",
+            borderBottom: "2px solid #2a2a2e",
+          }}
+        >
+          {homeBannerSlides.map((slide, i) => (
+            <div
+              key={slide.id}
               style={{
                 position: "absolute",
                 inset: 0,
                 width: "100%",
                 height: "100%",
-                objectFit: "cover",
-                background: slide.color,
+                opacity: i === bannerIndex ? 1 : 0,
+                transition: "opacity 0.8s ease",
               }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: `linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.65) 100%)`,
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: `linear-gradient(90deg, ${slide.color}55 0%, transparent 60%)`,
-                mixBlendMode: "multiply",
-              }}
-            />
-          </div>
-        ))}
-
-        {/* Dots */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 16,
-            left: "50%",
-            transform: "translateX(-50%)",
-            display: "flex",
-            gap: 8,
-            zIndex: 2,
-          }}
-        >
-          {homeBannerSlides.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => onBannerIndexChange(i)}
-              style={{
-                width: i === bannerIndex ? 28 : 8,
-                height: 8,
-                border: "1px solid rgba(255,255,255,0.6)",
-                background: i === bannerIndex ? "#fff" : "transparent",
-                cursor: "pointer",
-                transition: "all 0.25s ease",
-                padding: 0,
-              }}
-            />
+            >
+              <img
+                src={slide.image}
+                alt={slide.title}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  background: slide.color,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: `linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.65) 100%)`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: `linear-gradient(90deg, ${slide.color}55 0%, transparent 60%)`,
+                  mixBlendMode: "multiply",
+                }}
+              />
+            </div>
           ))}
+
+          {/* Dots */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: 16,
+              left: "50%",
+              transform: "translateX(-50%)",
+              display: "flex",
+              gap: 8,
+              zIndex: 2,
+            }}
+          >
+            {homeBannerSlides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => onBannerIndexChange(i)}
+                style={{
+                  width: i === bannerIndex ? 28 : 8,
+                  height: 8,
+                  border: "1px solid rgba(255,255,255,0.6)",
+                  background: i === bannerIndex ? "#fff" : "transparent",
+                  cursor: "pointer",
+                  transition: "all 0.25s ease",
+                  padding: 0,
+                }}
+              />
+            ))}
+          </div>
         </div>
-      </div>
       )}
 
       <NewsBand />
@@ -372,17 +393,79 @@ export default function HomePage({
         }}
       >
         {visibleCompsFlat.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 8px", borderTop: "1px solid #2a2a2e", background: "transparent" }}>
+          <div
+            style={{
+              textAlign: "center",
+              padding: "60px 8px",
+              borderTop: "1px solid #2a2a2e",
+              background: "transparent",
+            }}
+          >
             {activeFilter === "Favoris" && query.trim() === "" ? (
               <>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.02em" }}>Aucun favori</div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90", marginTop: 8 }}>Suivez une compétition depuis sa fiche pour la retrouver ici.</div>
+                <div
+                  style={{
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: 32,
+                    fontWeight: 700,
+                    color: "#f2f2f2",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  Aucun favori
+                </div>
+                <div
+                  style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 13,
+                    color: "#8a8a90",
+                    marginTop: 8,
+                  }}
+                >
+                  Suivez une compétition depuis sa fiche pour la retrouver ici.
+                </div>
               </>
             ) : (
               <>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.02em" }}>Aucun résultat</div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#8a8a90", marginTop: 8 }}>Aucune compétition ne correspond à « {query} »</div>
-                <button onClick={() => onQueryChange("")} style={{ marginTop: 20, border: "1px solid #fff", background: "#1c1c1f", color: "#111", fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", padding: "10px 20px", cursor: "pointer" }}>Effacer la recherche</button>
+                <div
+                  style={{
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: 32,
+                    fontWeight: 700,
+                    color: "#f2f2f2",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  Aucun résultat
+                </div>
+                <div
+                  style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 13,
+                    color: "#8a8a90",
+                    marginTop: 8,
+                  }}
+                >
+                  Aucune compétition ne correspond à « {query} »
+                </div>
+                <button
+                  onClick={() => onQueryChange("")}
+                  style={{
+                    marginTop: 20,
+                    border: "1px solid #fff",
+                    background: "#1c1c1f",
+                    color: "#111",
+                    fontFamily: "Inter, sans-serif",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    padding: "10px 20px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Effacer la recherche
+                </button>
               </>
             )}
           </div>
@@ -390,37 +473,150 @@ export default function HomePage({
           // Archive view — one wide card per row instead of the usual
           // horizontally-scrollable rails, since there's nothing to
           // discover-browse here: it's a straightforward past-results list.
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingLeft: 8, paddingRight: 8, paddingTop: 6 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              paddingLeft: 8,
+              paddingRight: 8,
+              paddingTop: 6,
+            }}
+          >
             {[...visibleCompsFlat]
               .sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0))
               .map((comp) => (
-              <CompCard
-                key={comp.id}
-                comp={comp}
-                accent={comp.accent}
+                <CompCard
+                  key={comp.id}
+                  comp={comp}
+                  accent={comp.accent}
+                  onOpen={onOpenTypeComp}
+                  onOpenComments={onOpenComments}
+                  onOpenShare={onOpenShare}
+                  onRegister={onRegisterTypeComp}
+                  registeredCompIds={registeredCompIds}
+                  isRegistered={registeredCompIds?.has(comp.id)}
+                  isOwnCompetition={isCompOwner(comp, currentUser)}
+                  fullWidth
+                />
+              ))}
+          </div>
+        ) : (
+          <>
+            <TypeRow
+              icon={Flame}
+              label="Top compétitions"
+              accent="#E8A33D"
+              items={topComps}
+              onOpen={onOpenTypeComp}
+              onOpenComments={onOpenComments}
+              onOpenShare={onOpenShare}
+              onRegister={onRegisterTypeComp}
+              registeredCompIds={registeredCompIds}
+              currentUser={currentUser}
+            />
+            <TypeRow
+              icon={Radio}
+              label="En direct"
+              accent="#E74C3C"
+              items={liveComps}
+              onOpen={onOpenTypeComp}
+              onOpenComments={onOpenComments}
+              onOpenShare={onOpenShare}
+              onRegister={onRegisterTypeComp}
+              registeredCompIds={registeredCompIds}
+              currentUser={currentUser}
+            />
+            <TypeRow
+              icon={Pencil}
+              label="Inscriptions ouvertes"
+              accent="#6C63FF"
+              items={registrationComps}
+              onOpen={onOpenTypeComp}
+              onOpenComments={onOpenComments}
+              onOpenShare={onOpenShare}
+              onRegister={onRegisterTypeComp}
+              registeredCompIds={registeredCompIds}
+              currentUser={currentUser}
+            />
+            <TypeRow
+              icon={Clock}
+              label="Se termine bientôt"
+              accent="#D35400"
+              items={endingSoonComps}
+              onOpen={onOpenTypeComp}
+              onOpenComments={onOpenComments}
+              onOpenShare={onOpenShare}
+              onRegister={onRegisterTypeComp}
+              registeredCompIds={registeredCompIds}
+              currentUser={currentUser}
+            />
+            <TypeRow
+              icon={ArrowUp}
+              label="En hausse"
+              accent="#27AE60"
+              items={risingComps}
+              onOpen={onOpenTypeComp}
+              onOpenComments={onOpenComments}
+              onOpenShare={onOpenShare}
+              onRegister={onRegisterTypeComp}
+              registeredCompIds={registeredCompIds}
+              currentUser={currentUser}
+            />
+            <TypeRow
+              icon={Sparkles}
+              label="Nouveautés"
+              accent="#00B8A9"
+              items={newComps}
+              onOpen={onOpenTypeComp}
+              onOpenComments={onOpenComments}
+              onOpenShare={onOpenShare}
+              onRegister={onRegisterTypeComp}
+              registeredCompIds={registeredCompIds}
+              currentUser={currentUser}
+            />
+            {currentUser && (
+              <TypeRow
+                icon={Bell}
+                label="Suivies"
+                accent="#3498DB"
+                items={followedTypeItems}
                 onOpen={onOpenTypeComp}
                 onOpenComments={onOpenComments}
                 onOpenShare={onOpenShare}
                 onRegister={onRegisterTypeComp}
                 registeredCompIds={registeredCompIds}
-                isRegistered={registeredCompIds?.has(comp.id)}
-                isOwnCompetition={isCompOwner(comp, currentUser)}
-                fullWidth
+                currentUser={currentUser}
               />
-            ))}
-          </div>
-        ) : (
-          <>
-            <TypeRow icon={Flame} label="Top compétitions" accent="#E8A33D" items={topComps} onOpen={onOpenTypeComp} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
-            <TypeRow icon={Radio} label="En direct" accent="#E74C3C" items={liveComps} onOpen={onOpenTypeComp} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
-            <TypeRow icon={Pencil} label="Inscriptions ouvertes" accent="#6C63FF" items={registrationComps} onOpen={onOpenTypeComp} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
-            <TypeRow icon={Clock} label="Se termine bientôt" accent="#D35400" items={endingSoonComps} onOpen={onOpenTypeComp} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
-            <TypeRow icon={ArrowUp} label="En hausse" accent="#27AE60" items={risingComps} onOpen={onOpenTypeComp} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
-            <TypeRow icon={Sparkles} label="Nouveautés" accent="#00B8A9" items={newComps} onOpen={onOpenTypeComp} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
-            {currentUser && <TypeRow icon={Bell} label="Suivies" accent="#3498DB" items={followedTypeItems} onOpen={onOpenTypeComp} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />}
-            {currentUser && <TypeRow icon={Check} label="Vos inscriptions" accent="#34495E" items={registeredTypeItems} onOpen={onOpenTypeComp} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />}
+            )}
+            {currentUser && (
+              <TypeRow
+                icon={Check}
+                label="Vos inscriptions"
+                accent="#34495E"
+                items={registeredTypeItems}
+                onOpen={onOpenTypeComp}
+                onOpenComments={onOpenComments}
+                onOpenShare={onOpenShare}
+                onRegister={onRegisterTypeComp}
+                registeredCompIds={registeredCompIds}
+                currentUser={currentUser}
+              />
+            )}
             {organizerGroups.map(({ organisateur, comps }) => (
-              <TypeRow key={organisateur} icon={Users} label={`Compétitions de ${organisateur}`} accent="#7F8C8D" items={comps} onOpen={onOpenTypeComp} onOpenComments={onOpenComments} onOpenShare={onOpenShare} onRegister={onRegisterTypeComp} registeredCompIds={registeredCompIds} currentUser={currentUser} />
+              <TypeRow
+                key={organisateur}
+                icon={Users}
+                label={`Compétitions de ${organisateur}`}
+                accent="#7F8C8D"
+                items={comps}
+                onOpen={onOpenTypeComp}
+                onOpenComments={onOpenComments}
+                onOpenShare={onOpenShare}
+                onRegister={onRegisterTypeComp}
+                registeredCompIds={registeredCompIds}
+                currentUser={currentUser}
+              />
             ))}
           </>
         )}
