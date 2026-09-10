@@ -41,29 +41,29 @@ export default function TransactionHistory({
 
   // Helper to format day display
   const getDayDisplay = (day: string) => {
-    const today = new Date().toLocaleDateString('fr-FR', { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'long' 
+    const today = new Date().toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
     });
-    
+
     if (day === "Aujourd'hui") {
       return { label: "Aujourd'hui", isToday: true };
     }
-    
+
     // Check if it's yesterday
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toLocaleDateString('fr-FR', { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'long' 
+    const yesterdayStr = yesterday.toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
     });
-    
+
     if (day === yesterdayStr) {
       return { label: "Hier", isToday: false };
     }
-    
+
     return { label: day, isToday: false };
   };
 
@@ -71,33 +71,17 @@ export default function TransactionHistory({
   const CONTAINER_PADDING = 12;
 
   return (
-<<<<<<< HEAD
     <div>
       {/* Filter buttons - clean, minimal */}
-      <div style={{ 
-        display: "flex", 
-        gap: SPACING.sm, 
-        marginBottom: SPACING.lg,
-        overflowX: "auto",
-        paddingBottom: SPACING.xs,
-      }}>
-=======
-    <div style={{ marginTop: 8 }}>
       <div
         style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontSize: 18,
-          fontWeight: 700,
-          color: "#f2f2f2",
-          letterSpacing: "-0.01em",
-          marginBottom: 12,
+          display: "flex",
+          gap: SPACING.sm,
+          marginBottom: SPACING.lg,
+          overflowX: "auto",
+          paddingBottom: SPACING.xs,
         }}
       >
-        Transactions
-      </div>
-
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
->>>>>>> 4be5101 (Supprimer le séparateur sous l'en-tête du panneau de dépôt)
         {TX_FILTERS.map((f) => (
           <button
             key={f.id}
@@ -144,7 +128,14 @@ export default function TransactionHistory({
           <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#848e9c" }}>
             No transactions yet
           </div>
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#848e9c", marginTop: 4 }}>
+          <div
+            style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: 12,
+              color: "#848e9c",
+              marginTop: 4,
+            }}
+          >
             Your transactions will appear here
           </div>
         </div>
@@ -154,7 +145,7 @@ export default function TransactionHistory({
             const dayInfo = getDayDisplay(g.day);
             const dayTotal = g.items.reduce((sum, tx) => sum + tx.amount, 0);
             const isPositive = dayTotal >= 0;
-            
+
             return (
               <div key={g.day}>
                 {/* Day header with padding bottom */}
@@ -163,7 +154,7 @@ export default function TransactionHistory({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    paddingBottom: SPACING.sm, // Keep the padding
+                    paddingBottom: SPACING.sm,
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: SPACING.sm }}>
