@@ -400,14 +400,8 @@ export default function DepositPanel({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-<<<<<<< HEAD
             padding: `${SPACING.lg}px ${SPACING.lg}px ${SPACING.md}px`,
-            borderBottom: `1px solid ${COLORS.border}`,
             flexShrink: 0,
-=======
-            padding: "16px 16px 12px",
-            borderBottom: "none",
->>>>>>> 4be5101 (Supprimer le séparateur sous l'en-tête du panneau de dépôt)
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: SPACING.sm }}>
