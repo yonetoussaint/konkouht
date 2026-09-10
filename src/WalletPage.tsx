@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { ChevronRight } from "lucide-react";
 import PageHeader from "./components/PageHeader";
+import SectionHeader from "./components/SectionHeader";
 import BalanceCard from "./WalletPage/BalanceCard";
 import QuickActions from "./WalletPage/QuickActions";
 import DepositPanel from "./WalletPage/DepositPanel";
@@ -19,61 +19,6 @@ const SPACING = {
   xxl: 24,
   xxxl: 32,
 };
-
-// Section heading component for consistency
-function SectionHeader({ title, actionLabel, onAction }: { title: string; actionLabel: string; onAction: () => void }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: SPACING.md,
-      }}
-    >
-      <span
-        style={{
-          fontFamily: "'Inter', sans-serif",
-          fontSize: 16,
-          fontWeight: 600,
-          color: "#f2f2f2",
-          letterSpacing: "-0.01em",
-        }}
-      >
-        {title}
-      </span>
-      <button
-        onClick={onAction}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          background: "transparent",
-          border: "none",
-          color: "#848e9c",
-          fontFamily: "'Inter', sans-serif",
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: "pointer",
-          padding: "4px 8px",
-          borderRadius: 6,
-          transition: "all 0.15s",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = "#f2f2f2";
-          e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = "#848e9c";
-          e.currentTarget.style.background = "transparent";
-        }}
-      >
-        {actionLabel}
-        <ChevronRight size={16} strokeWidth={2} />
-      </button>
-    </div>
-  );
-}
 
 export default function WalletPage({
   balance,
