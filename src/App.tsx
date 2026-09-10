@@ -1113,6 +1113,23 @@ export function fakeName(index) {
   return `${first} ${lastInit}.`;
 }
 
+/* ─── MOCK TOP DONATEURS (fallback while `gifts` table is empty/unavailable) ─
+   Same shape as the real Supabase-derived rows: id, name, avatarUrl, total
+   (HTG, sum of gift_cost over the week), count (number of gifts sent).
+   Sorted descending by total, matching the real ranking logic. */
+const MOCK_TOP_DONORS = [
+  { id: "mock-1", name: "Widlène P.", avatarUrl: null, total: 18500, count: 22 },
+  { id: "mock-2", name: "Jean-Baptiste M.", avatarUrl: null, total: 15200, count: 17 },
+  { id: "mock-3", name: "Fabiola D.", avatarUrl: null, total: 12750, count: 14 },
+  { id: "mock-4", name: "Réginald T.", avatarUrl: null, total: 10400, count: 11 },
+  { id: "mock-5", name: "Nadège H.", avatarUrl: null, total: 8900, count: 10 },
+  { id: "mock-6", name: "Kévin S.", avatarUrl: null, total: 7300, count: 8 },
+  { id: "mock-7", name: "Mirlande C.", avatarUrl: null, total: 6100, count: 7 },
+  { id: "mock-8", name: "Duckens A.", avatarUrl: null, total: 4850, count: 6 },
+  { id: "mock-9", name: "Stéphanie L.", avatarUrl: null, total: 3200, count: 4 },
+  { id: "mock-10", name: "Frantz R.", avatarUrl: null, total: 1900, count: 3 },
+];
+
 const COMMENT_SNIPPETS = [
   "Bonne chance à tous les participants! 🔥",
   "C'est qui le favori cette saison?",
@@ -2434,7 +2451,7 @@ export default function App() {
   // changes (i.e. after login), so an anonymous visitor sees the same
   // leaderboard as everyone else, and a fresh login picks up their own
   // contributions if they've been gifting.
-  const [topDonors, setTopDonors] = useState([]);
+  const [topDonors, setTopDonors] = useState(MOCK_TOP_DONORS);
 
   const refreshWalletData = useCallback(async (userId) => {
     const uid = userId || currentUser?.id;
@@ -2521,7 +2538,9 @@ export default function App() {
         const ranked = Array.from(bySender.values())
           .sort((a, b) => b.total - a.total)
           .slice(0, 10);
-        setTopDonors(ranked);
+        // Fall back to mock data if there were no gifts this week, so the
+        // section never renders empty (e.g. fresh dev/staging environments).
+        setTopDonors(ranked.length ? ranked : MOCK_TOP_DONORS);
       });
 
     return () => { cancelled = true; };
