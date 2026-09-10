@@ -84,9 +84,7 @@ const HOME_TABS = [
 /* ─── TYPE ROW (horizontally-scrollable rail of one competition "type") ── */
 
 function TypeRow({
-  icon,
   label,
-  accent,
   items,
   onOpen,
   onOpenComments,
@@ -106,7 +104,7 @@ function TypeRow({
       }}
     >
       <div style={{ paddingLeft: 8, paddingRight: 8 }}>
-        <SectionHeader icon={icon} title={label} accent={accent} />
+        <SectionHeader title={label} />
       </div>
 
       <div
@@ -490,9 +488,7 @@ export default function HomePage({
         ) : (
           <>
             <TypeRow
-              icon={Flame}
               label="Top compétitions"
-              accent="#E8A33D"
               items={topComps}
               onOpen={onOpenTypeComp}
               onOpenComments={onOpenComments}
@@ -502,9 +498,7 @@ export default function HomePage({
               currentUser={currentUser}
             />
             <TypeRow
-              icon={Radio}
               label="En direct"
-              accent="#E74C3C"
               items={liveComps}
               onOpen={onOpenTypeComp}
               onOpenComments={onOpenComments}
@@ -514,9 +508,7 @@ export default function HomePage({
               currentUser={currentUser}
             />
             <TypeRow
-              icon={Pencil}
               label="Inscriptions ouvertes"
-              accent="#6C63FF"
               items={registrationComps}
               onOpen={onOpenTypeComp}
               onOpenComments={onOpenComments}
@@ -526,9 +518,7 @@ export default function HomePage({
               currentUser={currentUser}
             />
             <TypeRow
-              icon={Clock}
               label="Se termine bientôt"
-              accent="#D35400"
               items={endingSoonComps}
               onOpen={onOpenTypeComp}
               onOpenComments={onOpenComments}
@@ -538,9 +528,7 @@ export default function HomePage({
               currentUser={currentUser}
             />
             <TypeRow
-              icon={ArrowUp}
               label="En hausse"
-              accent="#27AE60"
               items={risingComps}
               onOpen={onOpenTypeComp}
               onOpenComments={onOpenComments}
@@ -550,9 +538,7 @@ export default function HomePage({
               currentUser={currentUser}
             />
             <TypeRow
-              icon={Sparkles}
               label="Nouveautés"
-              accent="#00B8A9"
               items={newComps}
               onOpen={onOpenTypeComp}
               onOpenComments={onOpenComments}
@@ -563,9 +549,7 @@ export default function HomePage({
             />
             {currentUser && (
               <TypeRow
-                icon={Bell}
                 label="Suivies"
-                accent="#3498DB"
                 items={followedTypeItems}
                 onOpen={onOpenTypeComp}
                 onOpenComments={onOpenComments}
@@ -577,9 +561,7 @@ export default function HomePage({
             )}
             {currentUser && (
               <TypeRow
-                icon={Check}
                 label="Vos inscriptions"
-                accent="#34495E"
                 items={registeredTypeItems}
                 onOpen={onOpenTypeComp}
                 onOpenComments={onOpenComments}
@@ -592,9 +574,7 @@ export default function HomePage({
             {organizerGroups.map(({ organisateur, comps }) => (
               <TypeRow
                 key={organisateur}
-                icon={Users}
                 label={`Compétitions de ${organisateur}`}
-                accent="#7F8C8D"
                 items={comps}
                 onOpen={onOpenTypeComp}
                 onOpenComments={onOpenComments}
