@@ -135,40 +135,66 @@ export default function WalletPage({
         borderColor="#2a2a2e"
       />
 
-      <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <BalanceCard
-          wallet={{
-            currency: 'Haitian Gourde',
-            symbol: 'HTG',
-            balance: effectiveBalance,
-            dayChange: dayChange,
-            dayChangePct: dayChangePct,
-            chartData: [
-              { time: '00:00', value: effectiveBalance - 5000 },
-              { time: '04:00', value: effectiveBalance - 2000 },
-              { time: '08:00', value: effectiveBalance + 3000 },
-              { time: '12:00', value: effectiveBalance + 1000 },
-              { time: '16:00', value: effectiveBalance - 1000 },
-              { time: '20:00', value: effectiveBalance + 2000 },
-              { time: '24:00', value: effectiveBalance },
-            ],
-          }}
-          showBalance={showBalance}
-          onToggleBalance={() => setShowBalance(!showBalance)}
-          isLoading={false}
-          onRefresh={handleRefresh}
-          width="100%"
-        />
+      <div style={{ 
+        maxWidth: 600, 
+        margin: "0 auto", 
+        padding: `0 ${SPACING.md}px`
+      }}>
+        {/* Balance Card Section - no heading */}
+        <div style={{ 
+          padding: `${SPACING.lg}px 0 ${SPACING.md}px 0`,
+          borderBottom: `1px solid #2a2a2e`,
+          margin: `0 -${SPACING.md}px`,
+          paddingLeft: SPACING.md,
+          paddingRight: SPACING.md,
+        }}>
+          <BalanceCard
+            wallet={{
+              currency: 'Haitian Gourde',
+              symbol: 'HTG',
+              balance: effectiveBalance,
+              dayChange: dayChange,
+              dayChangePct: dayChangePct,
+              chartData: [
+                { time: '00:00', value: effectiveBalance - 5000 },
+                { time: '04:00', value: effectiveBalance - 2000 },
+                { time: '08:00', value: effectiveBalance + 3000 },
+                { time: '12:00', value: effectiveBalance + 1000 },
+                { time: '16:00', value: effectiveBalance - 1000 },
+                { time: '20:00', value: effectiveBalance + 2000 },
+                { time: '24:00', value: effectiveBalance },
+              ],
+            }}
+            showBalance={showBalance}
+            onToggleBalance={() => setShowBalance(!showBalance)}
+            isLoading={false}
+            onRefresh={handleRefresh}
+          />
+        </div>
 
-        <QuickActions
-          isAuthenticated={isAuthenticated}
-          onOpenDeposit={() => setShowDeposit(true)}
-          onOpenWithdraw={onOpenWithdraw}
-          onOpenTransfer={onOpenTransfer}
-          onOpenSettings={onOpenSettings}
-          onRequireAuth={onRequireAuth}
-          showToast={showToast}
-        />
+        {/* Quick Actions Section - with heading */}
+        <div style={{ 
+          padding: `${SPACING.md}px 0 ${SPACING.md}px 0`,
+          borderBottom: `1px solid #2a2a2e`,
+          margin: `0 -${SPACING.md}px`,
+          paddingLeft: SPACING.md,
+          paddingRight: SPACING.md,
+        }}>
+          <SectionHeader
+            title="Quick Actions"
+            actionLabel="View all"
+            onAction={handleViewAllActions}
+          />
+          <QuickActions
+            isAuthenticated={isAuthenticated}
+            onOpenDeposit={() => setShowDeposit(true)}
+            onOpenWithdraw={onOpenWithdraw}
+            onOpenTransfer={onOpenTransfer}
+            onOpenSettings={onOpenSettings}
+            onRequireAuth={onRequireAuth}
+            showToast={showToast}
+          />
+        </div>
 
         {/* Transactions Section - with heading */}
         <div style={{ 
