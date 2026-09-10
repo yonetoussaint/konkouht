@@ -318,20 +318,11 @@ function mapEditionRow(row) {
     closedAt: row.closed_at,
     liveDurationSeconds: row.live_duration_seconds,
     createdAt: row.created_at,
-    // Ownership — whoever actually created this edition. Null for older
-    // rows created before this column existed (those fall back to the
-    // platform-organizer default in isCompOwner). `organisateur` lets a
-    // user-created edition show its own creator's name instead of always
-    // inheriting the seed competition's hardcoded "FNCH".
     createdBy: row.created_by ?? null,
     organisateur: row.organisateur ?? null,
   };
 }
 
-// Returns { [competitionId]: [editionObj, ...] } — every edition (drafts
-// included) of every seed competition, grouped by seed id. App.jsx does
-// its own filtering/sorting (e.g. hiding drafts on the homepage) on top
-// of this.
 async function fetchCompetitionEditions() {
   const { data, error } = await supabase.from(EDITIONS_TABLE).select("*");
   if (error) {
@@ -345,20 +336,6 @@ async function fetchCompetitionEditions() {
   return map;
 }
 
-// Creates a brand-new edition for a seed competition, in one shot, with
-// every field the admin already filled in on the create form. Replaces
-// the old createDraftEdition + saveEditionEdit two-step flow: that used
-// to insert a bare empty "draft" row the instant the admin picked a
-// template — before they'd typed anything — so backing out of the form
-// left an orphan row behind that had to be deleted separately. Now
-// nothing touches the database until the admin presses "Enregistrer",
-// and it always lands as phase "registration" — there's no draft state
-// for a freshly created edition, it opens for registration right away.
-// Every edition defaults to a fixed schedule — 1 week to register, then
-// (if it isn't already full and live by then) 1 week live. The admin can
-// still override either with a custom date/duration via the "Date
-// personnalisée" tab in the edit form; when they don't, these defaults
-// are used.
 const WEEK_SECONDS = 7 * 24 * 60 * 60;
 
 async function createEdition({
@@ -399,8 +376,6 @@ async function createEdition({
       active: true,
       updated_by: updatedBy,
       updated_at: new Date().toISOString(),
-      // Ownership is set once, here, at creation — never touched again by
-      // later edits (see saveEditionEdit, which never patches these).
       created_by: createdBy,
       organisateur,
     })
@@ -412,15 +387,6 @@ async function createEdition({
     return { data: null, error };
   }
 
-  // Shorten ONCE, right here at creation time, and persist it to the row —
-  // this is the only place an edition's id is ever new, so it's the only
-  // place that needs to call the shortener. Every future read (this admin's
-  // own next render, every other client, the share sheet, the native share
-  // tap) then just reads short_url straight off the row — no per-client,
-  // per-mount fetch, and nothing to race against a quick share tap or a
-  // fresh app launch. If the shorten call fails here (network hiccup),
-  // shortUrl stays null and callers fall back to the long link or the
-  // mount-time backfill in lib/share.js; it's not retried automatically.
   const shortUrl = await shortenEditionUrl(data.id);
   if (shortUrl) {
     const { data: updated, error: shortenError } = await supabase
@@ -438,23 +404,14 @@ async function createEdition({
   return { data: mapEditionRow(data), error: null };
 }
 
-// ISO-8601 week number (Monday-start, week 1 = the week containing the
-// year's first Thursday) for a given date. Used only to label auto-
-// generated weekly editions ("Semaine 32"), never sent to the database
-// as-is.
 export function isoWeekNumber(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7; // Monday=1 .. Sunday=7
+  const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
 
-// Updates one existing edition by its own id (owner-only via RLS). Unlike
-// the old single-row-per-competition saveCompetitionEdit, this is always
-// an UPDATE, never an upsert — a new edition is created first via
-// createEdition, so editionId always refers to a real row by the
-// time this is called.
 async function saveEditionEdit({
   editionId,
   title,
@@ -486,9 +443,6 @@ async function saveEditionEdit({
   if (rewardExtra !== undefined) patch.reward_extra = rewardExtra;
   if (rules !== undefined) patch.rules = rules;
   if (active !== undefined) patch.active = active;
-  // endsAt/liveDurationSeconds are no longer admin-typed anywhere — the
-  // only caller that still passes them is handlePublishEdition, which
-  // computes a fixed "now + 1 week" value to start a draft's clock.
   if (endsAt !== undefined) patch.ends_at = endsAt;
   if (liveDurationSeconds !== undefined) patch.live_duration_seconds = liveDurationSeconds;
 
@@ -503,12 +457,6 @@ async function saveEditionEdit({
   return { data: mapEditionRow(data), error: null };
 }
 
-// Deletes an edition outright (owner-only via RLS). Called after
-// handleDeleteEdition below has already refunded registrants and cleaned
-// up dependent rows (comments/gifts/registrations/media), so this works
-// for a draft OR a published/completed edition — it used to also filter
-// `.eq("phase", "draft")`, which silently no-op'd on any non-draft
-// edition (0 rows matched, no error) and got misread as an RLS block.
 async function deleteDraftEdition(editionId) {
   const { error } = await supabase
     .from(EDITIONS_TABLE)
@@ -517,20 +465,6 @@ async function deleteDraftEdition(editionId) {
   return { error };
 }
 
-// Downsizes and re-encodes an image before upload so banners stay
-// link-preview-friendly (WhatsApp/Facebook crawlers are unreliable above a
-// couple hundred KB). Falls back to the original file if compression fails
-// or doesn't actually save space — never blocks an upload on this.
-//
-// Reads dimensions via a plain <img> first (cheap — the browser doesn't
-// have to decode full pixel data just to report width/height), then asks
-// createImageBitmap to decode straight to the target size via
-// resizeWidth/resizeHeight. Decoding a 12MP camera photo at full res before
-// scaling it down (the previous approach) is what was making this slow.
-//
-// Returns a plain { body, name, type } object rather than a File — the
-// Android WebView Capacitor runs in doesn't reliably support `new File(...)`
-// even though Blob works fine, so we upload the Blob directly.
 async function compressImageFile(file, { maxDimension = 1280, quality = 0.8 } = {}) {
   const original = { body: file, name: file.name, type: file.type };
   if (!file || !file.type?.startsWith("image/")) return original;
@@ -583,21 +517,6 @@ async function compressImageFile(file, { maxDimension = 1280, quality = 0.8 } = 
   return { body: blob, name: newName, type: "image/jpeg" };
 }
 
-
-// Upload a dedicated banner image for ONE edition and return its public
-// URL. This is intentionally separate from the shared per-series gallery
-// (competition_images / addCompetitionImage below): that gallery is keyed
-// by the seed competition_id and is shared across every edition of a
-// series on purpose, so tagging a shared photo as "the banner" let one
-// edition's chosen image visually bleed onto sibling editions that shared
-// the same pool (and, worse, onto a completely different competition if an
-// admin re-picked the same-looking tile while editing another edition).
-// Keying this upload by the edition's OWN id — never the seed id — instead
-// of a shared folder makes every edition's banner file, path, and URL
-// unique in storage as well as in the database, so there's no shared
-// resource left for two competitions to collide on. `upsert: true` only
-// overwrites THIS edition's own previous banner file (re-uploading a new
-// one for the same edition), never another edition's.
 async function uploadEditionBanner({ editionId, file }) {
   const img = await compressImageFile(file);
   const ext = img.name.split(".").pop() || "jpg";
@@ -612,8 +531,6 @@ async function uploadEditionBanner({ editionId, file }) {
   }
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  // Cache-bust so re-uploading a new banner for the same edition (same
-  // path, upsert) shows up immediately instead of an old cached copy.
   const url = `${data.publicUrl}?t=${Date.now()}`;
   return { url, error: null };
 }
@@ -697,8 +614,7 @@ async function deleteCompetitionImage(imageId) {
   return { error };
 }
 
-/* ─── comments (edition-scoped) ──────────────────────────────────────────
-   See the schema notes above (edition_id + avatar_url added). ────────── */
+/* ─── comments (edition-scoped) ────────────────────────────────────────── */
 
 async function fetchAllRegistrationCounts() {
   const { data, error } = await supabase.from("registrations").select("edition_id");
@@ -741,24 +657,9 @@ async function fetchUserRegistrations(userId) {
   return data || [];
 }
 
-// Early-bird rule: the first N registrants (by created_at) on an edition
-// get half their registration fee refunded instantly, straight to their
-// wallet, as soon as they register. Everyone after them pays full price
-// and their fee goes to the prize pool as usual.
-// NOTE: the actual early-bird tagging/discount logic now runs inside
-// register_for_competition (see wallet_rpc_migration.sql), not here. These
-// two constants are kept only for any UI copy that references them (e.g.
-// "first 3 spots") — if you change one, change both places.
 const EARLY_BIRD_LIMIT = 3;
 const EARLY_BIRD_DISCOUNT = 0.5;
 
-// Registration + fee debit + early-bird tagging/discount all happen inside
-// one atomic DB transaction (register_for_competition, see
-// wallet_rpc_migration.sql) — the client never writes wallet_transactions/
-// wallet_balances directly for a registration, and never passes a userId:
-// the function always debits auth.uid(), so a client can't pay as someone
-// else. This is also where the real balance is checked; there's no local
-// "is balance high enough" client check that can go stale or race.
 async function insertRegistration({ editionId, competitionId, fullName, avatarUrl, fee }) {
   const { data, error } = await supabase.rpc("register_for_competition", {
     p_edition_id: editionId,
@@ -770,20 +671,10 @@ async function insertRegistration({ editionId, competitionId, fullName, avatarUr
 
   if (error) return { data: null, error };
 
-  // The RPC returns a `table(...)`, so postgrest hands it back as an array.
   const row = Array.isArray(data) ? data[0] : data;
   return { data: row, error: null };
 }
 
-// Admin-only removal (enforced both client-side by isOwnCompetition/phase
-// checks in App.jsx, and server-side by the "only the platform organizer
-// can delete registrations" RLS policy above). Deletes the row outright —
-// there's no "removed" status, since a removed registration during the
-// registration phase shouldn't linger anywhere in the participant lists.
-// Atomic (row-locked update, no more fetch-then-upsert race) and
-// organizer-only — refund_registration_fee checks the caller's JWT email
-// itself, so this can only ever be called successfully from an
-// organizer-authenticated session (edition deletion, participant removal).
 export async function refundRegistrationFee({ userId, amount, competitionTitle, isEarlyBird }) {
   if (!amount) return { error: null };
 
@@ -801,16 +692,6 @@ export async function refundRegistrationFee({ userId, amount, competitionTitle, 
   return { error: null };
 }
 
-// Withdrawals and gift-sends used to be local-state-only (setBalance +
-// a fake `t-${Date.now()}` transaction) and never touched wallet_balances/
-// wallet_transactions at all — the balance and the "history" entry both
-// vanished on refresh since nothing was persisted. These two mirror
-// insertRegistration/refundRegistrationFee above: one atomic RPC call
-// (withdraw_from_wallet / debit_wallet_for_gift, see
-// wallet_rpc_migration.sql) that checks the real balance, debits it, and
-// logs the wallet_transactions row server-side, scoped to auth.uid() so a
-// client can never debit someone else's wallet. The client trusts the
-// returned balance instead of subtracting locally.
 async function withdrawFromWallet({ amount, methodLabel }) {
   const { data, error } = await supabase.rpc("withdraw_from_wallet", {
     p_amount: amount,
@@ -829,15 +710,6 @@ async function debitWalletForGift({ amount, label }) {
   return { newBalance: Number(data), error: null };
 }
 
-// ── Admin withdrawal-confirmation PIN + pending-withdrawal review ─────────
-// Withdrawals now land as `status: "pending"` (see withdraw_from_wallet in
-// the wallet_rpc_migration.sql update) — the balance is debited right
-// away so the same funds can't be withdrawn twice, but nothing is actually
-// paid out until the organizer reviews it here and confirms with a PIN
-// that's stored hashed (bcrypt, via pgcrypto) server-side in
-// admin_settings. The client never sees or stores the PIN itself; every
-// check happens inside the SECURITY DEFINER RPCs, which also re-verify the
-// caller is the organizer.
 async function adminPinExists() {
   const { data, error } = await supabase.rpc("admin_pin_exists");
   if (error) return { exists: false, error };
@@ -877,20 +749,9 @@ async function rejectWithdrawal({ transactionId, pin, reason }) {
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 
-// FNCH ("Fédération Nationale des Concours d'Haïti") is the platform's own
-// organizing body — every competition on the app is run under this sigle,
-// and this account is auto-recognized as its verified organizer.
 const PLATFORM_ORGANIZER_EMAIL = "yonetoussaint25@gmail.com";
 export const PLATFORM_ORGANIZER_SIGLE = "FNCH";
 
-// Every signed-in user can create and manage their own competitions now —
-// not just the platform organizer. A competition/edition is "owned" by
-// whoever created it (comp.createdBy, set once at insert time and never
-// changed by later edits — see createEdition). The platform organizer
-// remains the owner of every pre-existing/seeded competition (the ones
-// with no createdBy yet, or explicitly organized under PLATFORM_ORGANIZER_SIGLE)
-// so nothing already live changes hands. Use this everywhere instead of
-// re-deriving ownership inline, so the rule stays in one place.
 export function isCompOwner(comp, currentUser) {
   if (!comp || !currentUser?.id) return false;
   if (comp.createdBy) return comp.createdBy === currentUser.id;
@@ -931,10 +792,6 @@ export const PAYMENT_METHODS = [
   { id: "card", label: "Carte bancaire", accent: "#111111" },
 ];
 
-// Turns an emoji character into a Google Noto "Animated Emoji" Lottie URL.
-// Google hosts a Lottie JSON per emoji at this CDN path, keyed by the
-// emoji's Unicode codepoint(s) joined with "_" (variation selector FE0F is
-// dropped from the filename).
 const INITIAL_TRANSACTIONS = [
   { id: "t1", type: "deposit", label: "Dépôt — MonCash", amount: 550, date: "Aujourd'hui, 09:14" },
   { id: "t2", type: "gift_sent", label: "Couronne envoyée — Concours de Beauté", amount: -150, date: "Hier, 21:02" },
@@ -943,7 +800,6 @@ const INITIAL_TRANSACTIONS = [
   { id: "t5", type: "deposit", label: "Dépôt — Carte bancaire", amount: 100, date: "12 juin, 14:30" },
   { id: "t6", type: "gift_sent", label: "Étoile envoyée — Top Model Open", amount: -25, date: "10 juin, 20:15" },
 ];
-
 
 const NICHE_ICONS = {
   "Tous": LayoutGrid,
@@ -959,8 +815,6 @@ const NICHE_ICONS = {
 
 /* ─── HELPERS ───────────────────────────────────────────────────────────── */
 
-// Compact "time remaining" label (e.g. "2j 5h", "3h 20m", "45m") used on
-// CompCard's countdown badge — was imported but never defined.
 export function fmtCountdown(target) {
   const diffMs = new Date(target).getTime() - Date.now();
   if (diffMs <= 0) return "Terminé";
@@ -978,18 +832,11 @@ export function fmtVotes(n) {
   return n.toString();
 }
 
-// Compact formatter for small counter badges (shares, comments, followers)
-// on CompCard — same "1.2k" style as fmtVotes, kept as its own export since
-// it's conceptually a different kind of count (engagement, not vote tally).
 export function formatCoins(n) {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "k";
   return n.toString();
 }
 
-// People read a fixed point in time ("20 Juil, 3:45 PM") far faster than a
-// duration ("2j 12h") — no mental math needed to figure out whether that's
-// tonight or next week. Used for both inscription deadlines and competition
-// end times, wherever we'd otherwise show a countdown-style duration.
 export const FR_MONTH_ABBR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 export function fmtAbsoluteDateOnly(target) {
   const d = new Date(target);
@@ -999,13 +846,6 @@ export function fmtAbsoluteDateOnly(target) {
   return `${date} ${month}`;
 }
 
-// Compact duration for the card overlay chip ("2j 14h", "6h 22m") — the
-// stats row below already shows the absolute deadline, so this is just a
-// quick-glance urgency cue, not meant to be precise to the minute.
-// Shared with fmtCountdown's parsing logic, but returns a raw timestamp for
-// sorting purposes (e.g. "Se termine bientôt" section) rather than a
-// display string. Mirrors CompCard's own resolvedEndDate derivation so the
-// homepage's notion of "soonest" matches what each card individually shows.
 function estimateEndTimestamp(comp) {
   if (comp.endsAt) return new Date(comp.endsAt).getTime();
   const str = comp.ends || "";
@@ -1016,12 +856,6 @@ function estimateEndTimestamp(comp) {
   return Date.now() + (total || 3600) * 1000;
 }
 
-// Shared unit table for dynamic countdowns: always shows the 3 most
-// significant units for the remaining duration (e.g. "2D : 12H : 45M" close
-// to a deadline, "5M : 2W : 23D" months out, "1Y : 12M : 32W" a year+ out,
-// "21H : 23M : 45S" under a day) instead of a fixed d/h/m format that's
-// either cluttered with zeros or too coarse depending on how far off the
-// deadline is.
 export function fmtCompactPrize(amount) {
   const n = Number(amount);
   if (!n || Number.isNaN(n) || n <= 0) return null;
@@ -1029,13 +863,6 @@ export function fmtCompactPrize(amount) {
   if (n >= 1_000) return `${(n % 1_000 === 0 ? n / 1_000 : (n / 1_000).toFixed(1))}K`;
   return `${n}`;
 }
-
-// NOTE: the old module-level findCompWithNiche(compId) — which looked up a
-// competition directly in the static NICHES seed data — was removed here.
-// Every id stored anywhere in the app (notifications, registeredCompIds,
-// followedCompIds) is now a specific edition's id, not a seed id, so the
-// lookup has to search each seed competition's editions and needs access
-// to `editionsByComp` state; see findEditionWithNiche inside App().
 
 export function hashStr(str) {
   let h = 0;
@@ -1046,16 +873,10 @@ export function hashStr(str) {
   return h;
 }
 
-// Mock chroniqueurs sportifs for the live audio commentary band. Deterministic
-// per-competition pick via hashStr so the same competition always shows the
-// same commentator. Replace/extend once real hosts are onboarded.
 export function getRegistrationFee(comp) {
   return comp.fee != null ? comp.fee : 50 + (Math.abs(hashStr(comp.id)) % 5) * 25;
 }
 
-// Compact French-style formatting for coin/point totals: 1 200 -> "1,2k",
-// 3 400 000 -> "3,4M". Small numbers stay exact with fr-FR thousands
-// separators so the leaderboard doesn't feel abbreviated for no reason.
 /* ─── BOTTOM TAB BAR ────────────────────────────────────────────────────── */
 
 const TABS = [
@@ -1192,7 +1013,7 @@ function PhaseRow({ edition, accent }) {
   );
 }
 
-/* ─── SKELETON CARD (feature 1) ─────────────────────────────────────────── */
+/* ─── SKELETON CARD ─────────────────────────────────────────────────────── */
 function SkeletonCard() {
   return (
     <div style={{ flexShrink: 0, width: 272, border: "1px solid #2a2a2e", borderRadius: 18, overflow: "hidden", background: "#1c1c1f" }}>
@@ -1214,9 +1035,6 @@ function SkeletonCard() {
   );
 }
 
-// Fills the parent circle (which sets width/height/overflow/border) with
-// either the person's real photo, or — when none is on file — a flat
-// initials circle built from their name. Never a stock/mock photo.
 export function MyAvatar({ user, size = 34, fontSize = 13, iconSize = 14, loggedBg = "#111", guestBg = "#e0e0e0" }) {
   if (user?.avatarUrl) {
     return (
@@ -1265,10 +1083,6 @@ const TEXT_SNIPPETS = [
   "J'ai tout sacrifié pour arriver ici, et je ne compte pas reculer...",
 ];
 
-// "Why I'm competing" mock stories — shown inside AlbumSheet so a donor
-// understands the person behind the gift, not just a media gallery. Cycled
-// by participant index like TEXT_SNIPPETS; swap for a real per-participant
-// field (e.g. registrations.motivation) once wired to Supabase.
 const WHY_STORIES = [
   "Je viens d'une famille de neuf enfants et j'ai appris très jeune à me battre pour ce que je veux. Ce concours, c'est ma chance de montrer que le talent n'attend pas les moyens.",
   "Après un accident qui m'a presque empêché de continuer, je me suis promis de remonter sur scène. Chaque vote ici, c'est un pas de plus vers cette promesse.",
@@ -1299,14 +1113,6 @@ export function fakeName(index) {
   return `${first} ${lastInit}.`;
 }
 
-/* ─── PARTICIPANT LIST OVERLAY ──────────────────────────────────────────── */
-
-// Builds the real, database-backed participant/classement list out of the
-// actual rows in `registrations` for this competition — no fake names, no
-// invented head-count, no invented vote/point totals. Every entry starts at
-// 0 here; the caller merges in each participant's real total (sum of actual
-// gift_cost from the `gifts` table, keyed by this same index) to produce
-// the "votes"/"points" that get displayed.
 const COMMENT_SNIPPETS = [
   "Bonne chance à tous les participants! 🔥",
   "C'est qui le favori cette saison?",
@@ -1338,7 +1144,7 @@ function buildComments(comp) {
   return Array.from({ length: count }, (_, i) => {
     const seed = (i * 41 + 19) % 53;
     const minutesAgo = 4 + (seed % 240);
-    const replyCount = (i * 7 + seed) % 3; // 0–2 replies per comment
+    const replyCount = (i * 7 + seed) % 3;
     return {
       id: `seed-${comp.id}-${i}`,
       index: 12 + i,
@@ -1358,9 +1164,6 @@ function buildComments(comp) {
   }).sort((a, b) => a.minutesAgo - b.minutesAgo);
 }
 
-// Converts an ISO datetime string into the "YYYY-MM-DDTHH:mm" format a
-// <input type="datetime-local"> expects, in the viewer's local timezone.
-// Returns "" for null/invalid input so the field just shows empty.
 function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser }) {
   const railRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -1387,7 +1190,6 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser })
 
   return (
     <section style={{ marginBottom: 0, borderBottom: "2px solid #2a2a2e", paddingBottom: 8, paddingTop: 8 }}>
-      {/* Row header */}
       <div
         style={{
           display: "flex",
@@ -1441,7 +1243,6 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser })
         </button>
       </div>
 
-      {/* Horizontal scroll rail */}
       <div
         ref={railRef}
         style={{
@@ -1459,27 +1260,13 @@ function NicheRow({ niche, onOpen, onRegister, registeredCompIds, currentUser })
         {niche.competitions.map((comp) => (
           <CompCard key={comp.id} comp={comp} accent={niche.accent} onOpen={onOpen} onRegister={onRegister} isRegistered={registeredCompIds?.has(comp.id)} isOwnCompetition={isCompOwner(comp, currentUser)} />
         ))}
-
       </div>
     </section>
   );
 }
 
-/* ─── TYPE ROW (homepage sections by type, not niche) ────────────────────
-   Same rail/skeleton as NicheRow, but the header icon/label/accent are
-   passed in directly and each item already carries its own originating
-   niche's accent/label (set once in App(), where the items are built),
-   since a single row here can mix competitions from every niche — e.g.
-   "Top compétitions" or "En direct" pull from all of them at once. */
-
 /* ─── WALLET PAGE ───────────────────────────────────────────────────────── */
 
-// NatCash deposits are temporarily disabled — remove "moncash" from this
-// list (or add "natcash" back) to change what's offered. Both the deposit
-// modal and the wallet's "add your number" tabs (DepositNumbersCard in
-// WalletPage.jsx) derive from this single list, so nothing else needs to
-// change to re-enable it later. This does NOT affect withdrawals — those
-// still use the full PAYMENT_METHODS list, including NatCash.
 const ENABLED_DEPOSIT_METHOD_IDS = ["moncash"];
 export const DEPOSIT_METHODS = PAYMENT_METHODS.filter((m) => ENABLED_DEPOSIT_METHOD_IDS.includes(m.id));
 
@@ -1530,7 +1317,6 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
           overflowY: "auto",
         }}
       >
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #2a2a2e" }}>
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: "#f2f2f2", letterSpacing: "-0.01em" }}>
             Déposer des fonds
@@ -1572,7 +1358,6 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
           ))}
         </ol>
 
-        {/* Number to send to */}
         <div
           style={{
             border: "1px solid #2a2a2e",
@@ -1636,12 +1421,12 @@ function DepositModal({ onClose, onDeposit, lastMethod }) {
   );
 }
 
-export const WALLET_PIN = "1234"; // demo PIN
+export const WALLET_PIN = "1234";
 
 function WithdrawModal({ balance, onClose, onWithdraw }) {
   const [amountStr, setAmountStr] = useState("");
   const [method, setMethod] = useState("moncash");
-  const [step, setStep] = useState("form"); // "form" | "pin"
+  const [step, setStep] = useState("form");
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
   const amount = parseInt(amountStr, 10) || 0;
@@ -1920,7 +1705,6 @@ function MyCompetitionsPage({ registeredEntries, followedEntries, onOpen }) {
             Mes compétitions
           </span>
         </div>
-        {/* Section tabs */}
         <div style={{ display: "flex", borderTop: "1px solid #2a2a2e", marginTop: 12 }}>
           {[
             { id: "inscrit", label: "Inscrit", count: registeredEntries.length },
@@ -2053,7 +1837,7 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
 
   async function handleAvatarFileChange(e) {
     const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-selecting the same file later
+    e.target.value = "";
     if (!file) return;
     setUploadingAvatar(true);
     try {
@@ -2084,7 +1868,6 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
       </header>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-        {/* Identity block */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 4px", marginBottom: 16 }}>
           <div style={{ position: "relative", width: 56, height: 56, flexShrink: 0 }}>
             <button
@@ -2185,9 +1968,6 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
           </div>
         </div>
 
-        {/* Every signed-in user can create and manage their own competitions
-            from here — not just the platform organizer, who additionally
-            gets the full admin view (every competition, plus withdrawals). */}
         {currentUser && (
           <button
             onClick={onOpenAdmin}
@@ -2208,7 +1988,6 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
           </button>
         )}
 
-        {/* Credits chip — drills into wallet */}
         <button
           onClick={onOpenWallet}
           style={{
@@ -2229,7 +2008,6 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
           </span>
         </button>
 
-        {/* Other account links — placeholders for future screens */}
         <div style={{ display: "flex", flexDirection: "column", gap: 1, border: "1px solid #2a2a2e", background: "#1c1c1f" }}>
           {[
             { label: "Compétitions suivies", icon: BadgeCheck },
@@ -2267,17 +2045,6 @@ function AccountPage({ currentUser, balance, onOpenWallet, onLoginRequest, onLog
   );
 }
 
-/* ─── ADMIN WITHDRAWALS PANEL ──────────────────────────────────────────────
-   Pending withdrawals sit here until the organizer confirms (funds were
-   actually sent) or rejects (funds are refunded to the user) them. Every
-   confirm/reject requires the admin PIN, checked server-side in
-   confirm_withdrawal/reject_withdrawal — the PIN itself is never stored or
-   compared on the client. ────────────────────────────────────────────── */
-
-// Small numeric PIN input used by both the create/change-PIN sheet and the
-// per-action confirmation prompt below. Deliberately not reusing the
-// user-facing WALLET_PIN input styling 1:1 so the two flows read as
-// distinct in the UI (this one leans on the admin panel's palette).
 function PinField({ value, onChange, autoFocus, error, placeholder = "••••" }) {
   return (
     <input
@@ -2338,9 +2105,6 @@ function AdminPinSheetShell({ title, onClose, children }) {
   );
 }
 
-// Create the admin PIN the first time, or change it afterwards (requires
-// the current PIN to change). Used both from the empty-state prompt and
-// from the "Changer le code PIN" link once one already exists.
 function AdminPinSetupModal({ hasExistingPin, onClose, onSaved, showToast }) {
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
@@ -2425,8 +2189,6 @@ function AdminPinSetupModal({ hasExistingPin, onClose, onSaved, showToast }) {
   );
 }
 
-// PIN prompt shown right before confirming or rejecting a specific
-// withdrawal. `action` is { txId, kind: "confirm" | "reject", amount, name }.
 function WithdrawalActionPinModal({ action, onClose, onDone, showToast }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -2495,11 +2257,11 @@ function WithdrawalActionPinModal({ action, onClose, onDone, showToast }) {
 }
 
 export function WithdrawalsPanel({ showToast }) {
-  const [pinExists, setPinExists] = useState(null); // null = loading
+  const [pinExists, setPinExists] = useState(null);
   const [withdrawals, setWithdrawals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPinSetup, setShowPinSetup] = useState(false);
-  const [action, setAction] = useState(null); // { txId, kind, amount, name }
+  const [action, setAction] = useState(null);
 
   async function refresh() {
     setLoading(true);
@@ -2648,8 +2410,6 @@ export function WithdrawalsPanel({ showToast }) {
   );
 }
 
-
-
 export default function App() {
   const [activeFilter, setActiveFilter] = useState("Tous");
   const [toast, setToast] = useState(null);
@@ -2659,7 +2419,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("home");
   const [selectedComp, setSelectedComp] = useState(null);
   const [commentsSheetComp, setCommentsSheetComp] = useState(null);
-  const [shareSheetState, setShareSheetState] = useState(null); // { comp, onShared }
+  const [shareSheetState, setShareSheetState] = useState(null);
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [showBuyModal, setShowBuyModal] = useState(false);
@@ -2669,13 +2429,13 @@ export default function App() {
   const [registrationComp, setRegistrationComp] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  // Top donateurs of the week — grouped from `gifts` by sender, summed by
+  // gift_cost, top 10. Refreshed on mount and whenever the signed-in user
+  // changes (i.e. after login), so an anonymous visitor sees the same
+  // leaderboard as everyone else, and a fresh login picks up their own
+  // contributions if they've been gifting.
+  const [topDonors, setTopDonors] = useState([]);
 
-  // Pulls the authoritative balance + transaction history straight from
-  // Supabase. Used on initial auth, and again by the deposit-return polling
-  // effect below so a confirmed MonCash deposit shows up immediately even
-  // if the realtime postgres_changes subscription missed it (e.g. its
-  // websocket got dropped while the browser was off on MonCash's hosted
-  // checkout page).
   const refreshWalletData = useCallback(async (userId) => {
     const uid = userId || currentUser?.id;
     if (!uid) return;
@@ -2713,7 +2473,6 @@ export default function App() {
     );
   }, [currentUser?.id]);
 
-  // Load real balance + transaction history from Supabase once authenticated.
   useEffect(() => {
     if (!currentUser?.id) return;
     let cancelled = false;
@@ -2723,16 +2482,51 @@ export default function App() {
     return () => { cancelled = true; };
   }, [currentUser?.id]);
 
-  // Deposit-return polling: right after DepositPanel redirects to MonCash's
-  // hosted checkout, it stashes the deposit's referenceId in localStorage
-  // (see DepositPanel.tsx). The moment we're back (currentUser is loaded
-  // again post-redirect) and see that stashed reference, poll for its
-  // wallet_transactions row to land as 'completed' every few seconds —
-  // rather than only waiting on the realtime subscription, whose websocket
-  // may not have reconnected yet (or may have silently dropped while the
-  // tab was backgrounded on MonCash's page) right when the webhook fires.
-  // Falls back to the realtime subscription/a manual refresh if the
-  // webhook still hasn't landed after ~90s.
+  // ── Top donateurs (this week) ─────────────────────────────────────────
+  // One query, aggregated client-side. Pulls every gift from the last 7
+  // days, groups by sender_id, sums gift_cost, and keeps the top 10.
+  // Cheap because the gifts table is small and the window is bounded —
+  // if it grows, this becomes a materialized view + .rpc call.
+  useEffect(() => {
+    let cancelled = false;
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    supabase
+      .from("gifts")
+      .select("sender_id, sender_name, sender_avatar_url, gift_cost, created_at")
+      .gte("created_at", since)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.error("top donors fetch error:", error);
+          return;
+        }
+        const bySender = new Map();
+        (data || []).forEach((g) => {
+          if (!g.sender_id) return;
+          const existing = bySender.get(g.sender_id);
+          if (existing) {
+            existing.total += Number(g.gift_cost) || 0;
+            existing.count += 1;
+          } else {
+            bySender.set(g.sender_id, {
+              id: g.sender_id,
+              name: g.sender_name || "Utilisateur",
+              avatarUrl: g.sender_avatar_url || null,
+              total: Number(g.gift_cost) || 0,
+              count: 1,
+            });
+          }
+        });
+        const ranked = Array.from(bySender.values())
+          .sort((a, b) => b.total - a.total)
+          .slice(0, 10);
+        setTopDonors(ranked);
+      });
+
+    return () => { cancelled = true; };
+  }, [currentUser?.id]);
+
   useEffect(() => {
     if (!currentUser?.id) return;
     let pendingRef;
@@ -2745,7 +2539,7 @@ export default function App() {
 
     let cancelled = false;
     let attempts = 0;
-    const maxAttempts = 30; // ~90s at 3s intervals
+    const maxAttempts = 30;
 
     const clearPending = () => {
       try { localStorage.removeItem("pendingMoncashDeposit"); } catch {}
@@ -2770,9 +2564,6 @@ export default function App() {
         return;
       }
       if (attempts >= maxAttempts) {
-        // Give up actively polling — the realtime subscription (or a
-        // manual pull-to-refresh) will still pick it up whenever the
-        // webhook does land.
         clearPending();
         return;
       }
@@ -2783,8 +2574,6 @@ export default function App() {
     return () => { cancelled = true; };
   }, [currentUser?.id, refreshWalletData]);
 
-  // Real-time: the moment the SMS server auto-credits a matching deposit,
-  // push it straight into the wallet — no user action, no page refresh.
   useEffect(() => {
     if (!currentUser?.id) return;
     const channel = supabase
@@ -2798,17 +2587,6 @@ export default function App() {
           let wasReconciled = false;
           setTransactions((tx) => {
             if (tx.some((existing) => existing.id === t.id)) return tx;
-            // The server row for a registration/early-bird discount lands
-            // here right after handleRegister already pushed an optimistic
-            // local entry (same type + amount) with the contest name baked
-            // into its label, and already set the authoritative post-fee
-            // balance from the RPC response. wallet_transactions has no
-            // edition_id column, so the server-side label never includes
-            // the title — replace the pending optimistic row in place
-            // (keeping its richer label) instead of appending the real row
-            // as a second entry, otherwise every registration shows up
-            // twice, and skip the balance delta below since it was already
-            // applied.
             const pendingMatch = tx.find((existing) => existing.pending && existing.type === t.type && existing.amount === amt);
             if (pendingMatch) {
               wasReconciled = true;
@@ -2824,11 +2602,6 @@ export default function App() {
             ];
           });
           if (wasReconciled) return;
-          // Only a *completed* credit actually moves money — a freshly
-          // inserted 'pending' MonCash deposit row should show up in the
-          // list but must not bump the balance or claim it's been
-          // credited yet (wallet_balances only changes once the webhook
-          // confirms payment and the wallet_balances UPDATE below fires).
           if (t.status && t.status !== "completed") {
             if (t.type === "deposit") {
               showToast(`Dépôt de ${amt.toLocaleString("fr-FR")} HTG en attente de confirmation`);
@@ -2846,12 +2619,6 @@ export default function App() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "wallet_transactions", filter: `user_id=eq.${currentUser.id}` },
         (payload) => {
-          // Fires when the organizer confirms/rejects one of this user's
-          // pending withdrawals — flips the row's status in place so the
-          // "En attente" badge in the wallet updates live, no refresh
-          // needed. The balance itself (for a rejection's refund) comes
-          // through as its own INSERT + wallet_balances UPDATE, handled
-          // above/below.
           const t = payload.new;
           setTransactions((tx) => tx.map((existing) => (existing.id === t.id ? { ...existing, status: t.status } : existing)));
           if (t.type === "withdrawal" && t.status === "completed") {
@@ -2861,9 +2628,6 @@ export default function App() {
             showToast(`Retrait de ${Math.abs(Number(t.amount)).toLocaleString("fr-FR")} HTG rejeté — montant remboursé`);
             pushNotif({ type: "action", icon: "⚠️", title: "Retrait rejeté", body: t.label });
           } else if (t.type === "deposit" && t.status === "completed") {
-            // MonCash webhook just confirmed this deposit — the actual
-            // balance bump comes from the wallet_balances UPDATE handler
-            // below, this just announces it.
             showToast(`+${Number(t.amount).toLocaleString("fr-FR")} HTG crédités`);
             pushNotif({ type: "action", icon: "💰", title: "Dépôt confirmé", body: t.label });
           } else if (t.type === "deposit" && t.status === "failed") {
@@ -2876,11 +2640,6 @@ export default function App() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "wallet_balances", filter: `user_id=eq.${currentUser.id}` },
         (payload) => {
-          // Authoritative: whatever the balance row says now, use it
-          // directly instead of trying to derive it from a transaction
-          // delta. This is what makes admin-triggered refunds/removals
-          // (or any other server-side balance change not initiated by
-          // this session) show up live instead of needing a refresh.
           const newBalance = Number(payload.new.balance);
           if (!Number.isNaN(newBalance)) setBalance(newBalance);
         }
@@ -2888,22 +2647,19 @@ export default function App() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [currentUser?.id]);
+
   const [registeredCompIds, setRegisteredCompIds] = useState(() => new Set());
   const [followedCompIds, setFollowedCompIds] = useState(() => new Set());
   const [showAuthOverlay, setShowAuthOverlay] = useState(false);
   const [pendingRegistrationComp, setPendingRegistrationComp] = useState(null);
   const [notifications, setNotifications] = useState(INITIAL_NOTIFS);
   const unreadCount = notifications.filter((n) => !n.read).length;
-  const [editionsByComp, setEditionsByComp] = useState({}); // { [competitionId]: [edition, ...] }
+  const [editionsByComp, setEditionsByComp] = useState({});
   const [compImages, setCompImages] = useState({});
-  const [compRegCounts, setCompRegCounts] = useState({}); // keyed by edition_id now
+  const [compRegCounts, setCompRegCounts] = useState({});
   const [compEditIntent, setCompEditIntent] = useState(false);
-  // True only while the admin is filling in the create-edition form for an
-  // edition that doesn't exist in the database yet — see
-  // handleCreateDraftEdition / handleCreateEditionSave below. Never true
-  // for editing an existing edition.
   const [pendingNewEdition, setPendingNewEdition] = useState(false);
-  const [draftEditionTarget, setDraftEditionTarget] = useState(null); // { competitionId, niche } while creating a new edition
+  const [draftEditionTarget, setDraftEditionTarget] = useState(null);
 
   useEffect(() => {
     fetchCompetitionEditions().then(setEditionsByComp);
@@ -2911,17 +2667,10 @@ export default function App() {
     fetchAllRegistrationCounts().then(setCompRegCounts);
   }, []);
 
-  // Deep link from a shared competition: the share edge function (see
-  // netlify/edge-functions/share.js) redirects real visitors to
-  // `/?comp=<editionId>` after showing them the link-preview page. Nothing
-  // was reading that query param, so people landed on the home feed instead
-  // of the competition itself — this opens it as soon as the editions have
-  // loaded, then strips the param so back/forward navigation doesn't keep
-  // reopening it.
   const deepLinkHandledRef = useRef(false);
   useEffect(() => {
     if (deepLinkHandledRef.current) return;
-    if (Object.keys(editionsByComp).length === 0) return; // editions not loaded yet
+    if (Object.keys(editionsByComp).length === 0) return;
     const params = new URLSearchParams(window.location.search);
     const compId = params.get("comp");
     if (compId) {
@@ -2937,12 +2686,6 @@ export default function App() {
     deepLinkHandledRef.current = true;
   }, [editionsByComp]);
 
-  // Deep link from a MonCash deposit return: the moncash-create-deposit
-  // edge function sets APP_DEPOSIT_RETURN_URL to `<app>/?tab=wallet`, so
-  // MonCash's checkout sends the user straight back to the wallet tab
-  // instead of the home feed. The wallet balance itself updates on its own
-  // via the wallet_transactions realtime subscription once the webhook
-  // credits it — this effect only handles which tab is showing.
   const depositReturnHandledRef = useRef(false);
   useEffect(() => {
     if (depositReturnHandledRef.current) return;
@@ -2956,21 +2699,6 @@ export default function App() {
     depositReturnHandledRef.current = true;
   }, []);
 
-  // ── Live sync for competition_editions ───────────────────────────────────
-  // Closing a competition (flipping phase → "completed", picking the
-  // winner, paying out the prize) now happens entirely server-side: a
-  // Postgres procedure, `close_expired_competitions`, runs on pg_cron and
-  // does all three atomically, whether or not anyone has a board open.
-  // This subscription is the client's only remaining job — reflect that
-  // result everywhere the moment it's committed, instead of the old
-  // approach where the one browser that happened to have the board open
-  // did the work itself and everyone else waited for a reload.
-  // Keeps both the homepage cards (via `editionsByComp`, consumed by
-  // `editionsForComp`/`allNichesWithEdits` below) and any currently-open
-  // `CompetitionBoard` (via `selectedComp`) in sync from a single channel.
-  // Unlike the old single-row-per-competition subscription, this one has to
-  // handle INSERT too — a brand-new draft (or a freshly published edition)
-  // showing up mid-session, not just an update to a row already in state.
   const notifiedCompletionsRef = useRef(new Set());
   useEffect(() => {
     const channel = supabase
@@ -2981,9 +2709,6 @@ export default function App() {
         (payload) => {
           const row = payload.new;
           if (!row?.competition_id) return;
-          // Maps snake_case DB columns to the camelCase shape used
-          // throughout the client (same shape `saveEditionEdit` writes
-          // and `fetchCompetitionEditions` returns).
           const edits = {
             id: row.id,
             competitionId: row.competition_id,
@@ -3012,16 +2737,13 @@ export default function App() {
             const idx = existing.findIndex((e) => e.id === row.id);
             const nextList =
               idx === -1
-                ? [...existing, edits] // brand-new row (a fresh draft, or an edition created directly)
+                ? [...existing, edits]
                 : existing.map((e, i) => (i === idx ? { ...e, ...edits } : e));
             return { ...prev, [row.competition_id]: nextList };
           });
           setSelectedComp((prev) =>
             prev && prev.id === row.id ? { ...prev, ...edits } : prev
           );
-          // Announce a fresh result once per edition per session — a ref
-          // (not editionsByComp state) so this isn't tied to a stale closure
-          // and doesn't fire again on later, unrelated edits to the same row.
           if (edits.phase === "completed" && !notifiedCompletionsRef.current.has(row.id)) {
             notifiedCompletionsRef.current.add(row.id);
             const label = edits.title || "Une compétition";
@@ -3050,13 +2772,6 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Resolves a stored id (a notification's compId, a registeredCompIds /
-  // followedCompIds entry) back to its full card + niche. Ids stored
-  // anywhere in the app are edition ids now, not the static seed id, so
-  // this has to search each seed competition's editions rather than the
-  // static NICHES data directly (the old module-level findCompWithNiche
-  // could get away with that when there was only ever one edition per
-  // competition).
   function findEditionWithNiche(editionId) {
     for (const niche of NICHES) {
       for (const seedComp of niche.competitions) {
@@ -3076,25 +2791,11 @@ export default function App() {
     [followedCompIds, editionsByComp, compImages, compRegCounts]
   );
 
-  // Merges one competition_editions row into its static seed data (the
-  // NICHES entry, e.g. "m1") to produce a renderable card. Unlike the old
-  // `withEdits`, this takes the edition explicitly rather than looking one
-  // up by competition_id, because a seed competition can now have several.
   function editionToCard(comp, e) {
     return {
       ...comp,
-      // `id` becomes this edition's own id — every downstream table
-      // (gifts, registrations, comments, participant_media) and every
-      // realtime subscription in CompetitionBoard is scoped by comp.id,
-      // so this one line is what makes all of that edition-scoped.
       id: e.id,
-      // The seed id is kept separately — it's still what the shared image
-      // gallery, the niche grouping, and "which series is this a season
-      // of" are keyed by.
       competitionId: comp.id,
-      // A cleared field — or a field never set at all — saves/loads as
-      // null. Fall back to the seed value in every case rather than let
-      // a blank silently wipe out real data.
       title: e.title != null ? e.title : comp.title,
       edition: e.edition != null ? e.edition : comp.edition,
       ends: e.ends != null ? e.ends : comp.ends,
@@ -3107,24 +2808,10 @@ export default function App() {
       fee: e.fee != null ? e.fee : comp.fee,
       rewardExtra: e.rewardExtra != null ? e.rewardExtra : comp.rewardExtra,
       rules: (e.rules && e.rules.length > 0) ? e.rules : comp.rules,
-      // Whoever created THIS edition owns it — falls back to the seed's
-      // organisateur (always the platform, "FNCH") for editions with no
-      // owner of their own, i.e. every pre-existing competition.
       createdBy: e.createdBy ?? null,
       organisateur: e.organisateur || comp.organisateur,
-      // Real count from the registrations table always wins over any
-      // seeded placeholder — 0 until someone actually registers for THIS
-      // edition (a new season starts back at 0, it doesn't inherit the
-      // previous season's registrants).
       registeredCount: compRegCounts[e.id] ?? 0,
-      // The gallery is shared across every edition of a series.
       images: compImages[comp.id] || [],
-      // Falling back to the shared gallery's first photo as an implicit
-      // "banner" only makes sense when there's a single edition — with
-      // several editions sharing one pool, that first photo could well be
-      // the one another edition's admin just tagged as *their* banner, so
-      // it would visually "leak" onto every sibling edition that hasn't
-      // set its own. Only offer this fallback when there's no ambiguity.
       thumbnailUrl: (editionsByComp[comp.id] || []).length <= 1
         ? (compImages[comp.id] || [])[0]?.url || null
         : null,
@@ -3137,12 +2824,6 @@ export default function App() {
     };
   }
 
-  // One card per PUBLISHED (non-draft) edition of this seed competition —
-  // zero cards if none have been published yet. This is the direct
-  // replacement for the old `withEdits`, which always produced exactly one
-  // card per seed competition (there was only ever one edit row to merge).
-  // Newest edition first, so a freshly-published season surfaces above an
-  // older, wrapping-up one.
   function publishedEditionsForComp(comp) {
     return (editionsByComp[comp.id] || [])
       .filter((e) => e.phase !== "draft")
@@ -3151,16 +2832,6 @@ export default function App() {
       .map((e) => editionToCard(comp, e));
   }
 
-  // A row that's never actually been through the create/edit flow — every
-  // overridable field is still null, so editionToCard falls all the way
-  // back and renders nothing but the hardcoded NICHES seed data (its
-  // title, contestant count, votes, etc. straight out of this file). That
-  // only happens for placeholder rows that were never really "created" as
-  // an edition, and it's also why they can't be deleted (they're not
-  // meant to be — they exist purely so the seed has something to show).
-  // A genuine in-progress draft is exempt: it's real, it's just empty so
-  // far, and hiding it here would make it un-findable after the admin
-  // navigates away from the edit form before filling it in.
   function isUncustomizedMockEdition(e) {
     if (e.phase === "draft") return false;
     const fields = [
@@ -3171,12 +2842,6 @@ export default function App() {
     return fields.every((f) => f == null) && rulesEmpty;
   }
 
-  // Every edition of this seed competition, drafts included — powers the
-  // admin page, which needs to see (and finish) drafts too, not just what's
-  // already live on the homepage. Mock rows that only ever carried the
-  // hardcoded seed data (never actually created/edited through the app)
-  // are left out — they aren't real editions and admins can't delete them
-  // anyway.
   function allEditionsForComp(comp) {
     return (editionsByComp[comp.id] || [])
       .filter((e) => !isUncustomizedMockEdition(e))
@@ -3185,10 +2850,6 @@ export default function App() {
       .map((e) => editionToCard(comp, e));
   }
 
-  // Quick on/off toggle from the admin list. `comp` here is one edition
-  // card (from allNichesWithEdits), so this only ever touches the one
-  // edition row the admin clicked — its siblings (other seasons of the
-  // same series) are untouched.
   async function handleToggleCompActive(comp) {
     const nextActive = !comp.active;
     const { error } = await saveEditionEdit({
@@ -3211,28 +2872,12 @@ export default function App() {
     showToast(nextActive ? "Compétition activée." : "Compétition désactivée — masquée de l'accueil.");
   }
 
-  // Admin page → jump straight to an edition's edit panel, regardless of
-  // the homepage's current filter/search state. `comp` here already has
-  // edits/images applied (it comes from allNichesWithEdits). This is
-  // always an EXISTING edition, never the new-edition form.
   function handleAdminOpenComp(comp, niche) {
     setPendingNewEdition(false);
     setCompEditIntent(true);
     setSelectedComp({ ...comp, accent: niche.accent, niche: niche.label });
   }
 
-  // Opens a blank create-edition form for a seed competition, but doesn't
-  // touch the database at all — nothing is written until the admin
-  // actually presses "Enregistrer" (see handleCreateEditionSave). Backing
-  // out of the form at this point leaves nothing behind, unlike the old
-  // flow which inserted a bare empty "draft" row the instant a template
-  // was picked, before the admin had typed anything.
-  //
-  // `id` is a client-only placeholder — never sent to the database, just
-  // enough of a stand-in so the competition screen underneath the form
-  // (registrations/comments/gallery lookups, realtime channels) has
-  // something to key off of instead of `undefined`; it harmlessly finds
-  // nothing until the real row exists.
   function handleCreateDraftEdition(comp, niche) {
     const placeholderId =
       typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `pending-${Date.now()}`;
@@ -3243,7 +2888,7 @@ export default function App() {
       edition: null,
       ends: null,
       endsAt: null,
-      phase: "registration", // every edition starts open for registration — no draft state
+      phase: "registration",
       contestants: null,
       bannerUrl: null,
       description: null,
@@ -3265,9 +2910,6 @@ export default function App() {
     setSelectedComp(editionToCard({ ...comp, accent: niche.accent, niche: niche.label }, blankEdition));
   }
 
-  // First real save of a brand-new edition — this is an INSERT (the row
-  // never existed before), always forced to phase "registration" inside
-  // createEdition itself, not an update to an existing row.
   async function handleCreateEditionSave({ competitionId, title, edition, ends, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
     const { data, error } = await createEdition({
       competitionId,
@@ -3302,17 +2944,12 @@ export default function App() {
     return { success: true, data };
   }
 
-  // Publishes a draft edition — flips it to "registration" phase and marks
-  // it active, so it starts showing up on the homepage/admin list as a
-  // real, open competition instead of a hidden draft.
   async function handlePublishEdition(comp) {
     const publishedEndsAt = new Date(Date.now() + WEEK_SECONDS * 1000).toISOString();
     const { error } = await saveEditionEdit({
       editionId: comp.id,
       phase: "registration",
       active: true,
-      // Auto-created drafts (from close_expired_competitions) never had a
-      // deadline set, so publishing is what starts their 1-week clock.
       endsAt: publishedEndsAt,
       liveDurationSeconds: WEEK_SECONDS,
       updatedBy: currentUser?.id,
@@ -3334,29 +2971,11 @@ export default function App() {
     showToast(`« ${comp.title} » publié — ouvert aux inscriptions !`);
   }
 
-  // Permanently deletes an edition (draft or published) from the admin
-  // list. `comp` is an edition card, so competitionId tells us which
-  // seed's bucket in editionsByComp to update locally after the delete.
-  //
-  // An edition with real activity (registrations, gifts, comments,
-  // participant media, gallery images) can't just be deleted outright —
-  // `registrations`/`gifts`/`comments`/`participant_media`/
-  // `competition_images` all reference it and the DB rejects an orphaning
-  // delete. So: refund every registrant's fee first (real money, has to
-  // go back before the record of it disappears), then remove the
-  // dependent rows, then the edition itself.
   async function handleDeleteEdition(comp) {
     const registrants = await fetchRegistrations(comp.id);
 
     for (const r of registrants) {
       if (!r.fee_paid || r.fee_paid <= 0) continue;
-      // Early-bird registrants already got EARLY_BIRD_DISCOUNT of their fee
-      // credited back as a separate registration_refund row at signup time
-      // (see register_for_competition). Refunding the full fee_paid here on
-      // top of that discount would hand them fee_paid * (1 + discount) —
-      // e.g. 150 back on a 100 fee — instead of making them whole. Refund
-      // only what they actually still have at risk: fee_paid minus the
-      // discount already paid out.
       const refundAmount = r.is_early_bird
         ? r.fee_paid * (1 - EARLY_BIRD_DISCOUNT)
         : r.fee_paid;
@@ -3373,15 +2992,6 @@ export default function App() {
       }
     }
 
-    // participant_media used to rely on a BEFORE DELETE trigger to remove
-    // the matching storage file (trigger_delete_participant_media_storage),
-    // but it called storage.delete(...) — not a real SQL function — so
-    // every delete on this table errored and aborted the whole edition
-    // deletion. That trigger's gone now; storage cleanup happens here
-    // instead, the same fetch-then-remove pattern deleteCompetitionImage
-    // already uses for gallery images. A storage-removal failure is
-    // logged but doesn't block the deletion — an orphaned file in
-    // storage is recoverable later, an edition stuck forever isn't.
     const { data: mediaRows, error: mediaFetchError } = await supabase
       .from("participant_media")
       .select("media_url")
@@ -3416,14 +3026,6 @@ export default function App() {
       showToast("Impossible de supprimer cette édition.");
       return;
     }
-    // A Supabase/PostgREST delete can come back with no `error` even when
-    // zero rows were actually removed — most commonly an RLS policy on
-    // `competition_editions` silently filtering the row out of the delete's
-    // WHERE clause. That's exactly what made deletions "stick" locally but
-    // reappear after a refresh: we were trusting the absence of an error
-    // instead of confirming the row was actually gone server-side. So
-    // re-fetch the truth from the DB before touching local state, and
-    // surface an honest failure immediately instead of a false success.
     const freshEditions = await fetchCompetitionEditions();
     const stillExists = (freshEditions[comp.competitionId] || []).some((e) => e.id === comp.id);
     if (stillExists) {
@@ -3433,10 +3035,6 @@ export default function App() {
       return;
     }
     setEditionsByComp(freshEditions);
-    // Registration counts and gallery images are cached separately from
-    // editionsByComp — refresh both so the admin list's "inscrits" count
-    // and any shared gallery view don't keep referencing rows we just
-    // wiped out.
     fetchAllRegistrationCounts().then(setCompRegCounts);
     fetchAllCompetitionImages().then(setCompImages);
     const refundedCount = registrants.filter((r) => r.fee_paid > 0).length;
@@ -3447,17 +3045,6 @@ export default function App() {
     );
   }
 
-
-  // Home banner slides: any published edition with a dedicated banner (set
-  // from the edit screen's "Bannière" section) is shown on the homepage —
-  // that's the whole point of that control. Editions without a banner fall
-  // back to their series' first gallery image, but only via c.thumbnailUrl,
-  // which is already null whenever that series has more than one edition —
-  // otherwise a photo one admin tagged as edition A's banner could silently
-  // surface as edition B's homepage image too, since the gallery itself is
-  // shared across every edition of a series. Nothing fake or unintentional
-  // ever shows up here. Drafts never appear — publishedEditionsForComp
-  // already excludes them.
   const homeBannerSlides = useMemo(() => {
     return NICHES.flatMap((niche) =>
       niche.competitions.flatMap((seed) =>
@@ -3474,9 +3061,7 @@ export default function App() {
     ).slice(0, 6);
   }, [compImages, editionsByComp, compRegCounts]);
 
-
   async function handleEditComp({ editionId, competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
-    // TEMP DEBUG — remove once we've confirmed the session is attached.
     const { data: debugSession } = await supabase.auth.getSession();
     console.log("[DEBUG] session email:", debugSession.session?.user?.email, "has token:", !!debugSession.session?.access_token);
     const edits = { title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds };
@@ -3487,9 +3072,6 @@ export default function App() {
     });
     if (error) {
       console.error("saveEditionEdit error:", error);
-      // TEMPORARY DIAGNOSTIC — remove once the RLS 403 is resolved.
-      // Surfaces the session state on-screen (via the existing toast) since
-      // devtools/console isn't available in this testing environment.
       const { data: sessionData } = await supabase.auth.getSession();
       const sessEmail = sessionData?.session?.user?.email || "none";
       const hasToken = !!sessionData?.session?.access_token;
@@ -3513,12 +3095,6 @@ export default function App() {
     return { success: true, data };
   }
 
-  // Uploads a dedicated banner file for ONE edition (see uploadEditionBanner
-  // above for why this is kept separate from the shared gallery). Nothing
-  // is written to competition_editions here — CompetitionBoard just stores
-  // the returned URL in its local editBannerUrl state, same as every other
-  // field in the edit form, and it's only persisted once "Enregistrer" is
-  // pressed (handleEditComp / handleCreateEditionSave).
   async function handleUploadBanner(editionId, file) {
     const { url, error } = await uploadEditionBanner({ editionId, file });
     if (error) {
@@ -3576,7 +3152,6 @@ export default function App() {
     return () => clearInterval(t);
   }, [homeBannerSlides.length]);
 
-  // Background activity: push a notif for a random hot comp every ~45s
   useEffect(() => {
     const ACTIVITY_NOTIFS = [
       (c, n) => ({ type: "activity", icon: "🔥", title: `${c.title} s'emballe`, body: `${fmtVotes(c.votes + Math.floor(Math.random() * 500))} votes comptabilisés — la compétition est très active.`, compId: c.id }),
@@ -3599,20 +3174,16 @@ export default function App() {
     return () => clearTimeout(timerRef.current);
   }, []);
 
-  // Rebuild the registered-competitions set from the database whenever we
-  // know who the current user is — this runs both after a fresh login and
-  // after the session is restored on page refresh, so registration state
-  // survives a reload instead of resetting to an empty Set.
   useEffect(() => {
     if (!currentUser?.id) {
       setRegisteredCompIds(new Set());
       return;
     }
-    console.log("Fetching registrations for user:", currentUser.id); // debug
+    console.log("Fetching registrations for user:", currentUser.id);
     let cancelled = false;
     fetchUserRegistrations(currentUser.id).then((rows) => {
       if (cancelled) return;
-      console.log("Registrations returned:", rows); // debug
+      console.log("Registrations returned:", rows);
       setRegisteredCompIds(new Set(rows.map((r) => r.edition_id).filter(Boolean)));
     });
     return () => { cancelled = true; };
@@ -3621,19 +3192,9 @@ export default function App() {
   const nichesByFilter = NICHES
     .map((niche) => ({
       ...niche,
-      // Homepage only ever shows published editions the admin has left
-      // switched on — one card per non-draft edition, zero if none exist —
-      // and NEVER a terminated/completed one; once an edition closes it
-      // belongs in the archive, not the homepage. The active tab is now
-      // TYPE-based rather than category-based: every niche can contribute
-      // to every tab, and the tab just narrows which competitions (by
-      // phase/trend) make it into the flattened list below.
       competitions: niche.competitions
         .flatMap(publishedEditionsForComp)
         .filter((c) => c.active)
-        // "Terminé" is the one tab that specifically wants completed
-        // editions — every other tab keeps excluding them, since a closed
-        // edition belongs in the archive, not the rest of the homepage.
         .filter((c) => activeFilter === "Terminé" ? c.phase === "completed" : c.phase !== "completed")
         .filter((c) => {
           if (activeFilter === "Favoris") return followedCompIds.has(c.id);
@@ -3642,26 +3203,16 @@ export default function App() {
           if (activeFilter === "Bientôt") return estimateEndTimestamp(c) - Date.now() <= 48 * 3600 * 1000;
           if (activeFilter === "En hausse") return c.hot;
           if (activeFilter === "Nouveautés") return c.phase === "registration";
-          return true; // "Tous" and "Terminé" (already narrowed above)
+          return true;
         }),
     }))
-    // A niche with nothing matching the active tab (or everything switched
-    // off) shouldn't appear as an empty section on the homepage at all.
     .filter((niche) => niche.competitions.length > 0);
 
-  // Full, unfiltered list (every niche, every edition — drafts included) —
-  // powers the admin page so the platform organizer can find, edit, and
-  // finish anything regardless of the homepage's current filter/search
-  // state or publish status.
   const allNichesWithEdits = NICHES.map((niche) => ({
     ...niche,
     competitions: niche.competitions.flatMap(allEditionsForComp),
   }));
 
-  // Every seed competition, flat — powers the admin "new edition" picker.
-  // Unlike allNichesWithEdits, this always includes a seed competition even
-  // if it has zero editions yet, since that's the only way to create its
-  // very first one.
   const seedCompetitionsList = NICHES.flatMap((niche) =>
     niche.competitions.map((comp) => ({ key: comp.id, comp, niche }))
   );
@@ -3678,12 +3229,6 @@ export default function App() {
         }))
         .filter((niche) => niche.competitions.length > 0);
 
-  // ── TYPE-BASED HOMEPAGE SECTIONS ────────────────────────────────────────
-  // The homepage groups by type (Top, En direct, ...) rather than by niche.
-  // Every visible (category-filter + search matched) competition is
-  // flattened once, with its originating niche's accent/label baked
-  // directly onto it, so a single row can mix competitions from every
-  // niche while each card still renders in its own brand color.
   const visibleCompsFlat = useMemo(
     () => visibleNiches.flatMap((niche) =>
       niche.competitions.map((comp) => ({ ...comp, accent: niche.accent, niche: niche.label }))
@@ -3691,13 +3236,6 @@ export default function App() {
     [visibleNiches]
   );
 
-  // ── HOMEPAGE SECTIONS, DEDUPED ──────────────────────────────────────────
-  // Every section used to be filtered independently, so the same edition
-  // could easily land in "Top compétitions" AND "En direct" AND "Se termine
-  // bientôt" at once. Instead, sections now claim competitions in priority
-  // order (top to bottom, matching render order below) — once an edition
-  // is placed in an earlier section it's removed from the pool for every
-  // section after it, so it shows up exactly once on the page.
   const homeSections = useMemo(() => {
     const usedIds = new Set();
     const takeUnique = (list, limit = 10) => {
@@ -3715,19 +3253,11 @@ export default function App() {
     const live = takeUnique(visibleCompsFlat.filter((c) => c.phase === "live").sort((a, b) => b.votes - a.votes));
     const registration = takeUnique(visibleCompsFlat.filter((c) => c.phase === "registration").sort((a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)));
     const endingSoon = takeUnique(visibleCompsFlat.filter((c) => c.phase !== "completed").sort((a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)));
-    // "Rising" reuses the old EN VUE flag (comp.hot) — competitions the
-    // platform has marked as gaining momentum — now as its own discovery
-    // row instead of a badge stamped on every card.
     const rising = takeUnique(visibleCompsFlat.filter((c) => c.hot).sort((a, b) => b.votes - a.votes));
-    // No real "createdAt" field exists in the mock data, so freshly-opened
-    // registration competitions (few signups so far) stand in for "new".
     const fresh = takeUnique(visibleCompsFlat.filter((c) => c.phase === "registration").sort((a, b) => a.registeredCount - b.registeredCount));
     const followed = takeUnique(followedEntries.map(({ comp, niche }) => ({ ...comp, accent: niche.accent, niche: niche.label })));
     const registered = takeUnique(registeredEntries.map(({ comp, niche }) => ({ ...comp, accent: niche.accent, niche: niche.label })));
 
-    // Spotlight rows per organizer — only surfaces organizers with enough
-    // of a presence (3+ still-unclaimed competitions) so it doesn't create
-    // a near-empty row for a one-off organizer.
     const byOrg = new Map();
     visibleCompsFlat.forEach((c) => {
       if (usedIds.has(c.id)) return;
@@ -3756,9 +3286,6 @@ export default function App() {
   const registeredTypeItems = homeSections.registered;
   const organizerGroups = homeSections.organizers;
 
-  // Shared open/register handlers for type rows — items already carry
-  // their own accent/niche (baked in above), so unlike NicheRow's per-row
-  // closure these don't need to re-attach anything.
   const handleOpenTypeComp = (comp) => { setCompEditIntent(false); setSelectedComp(comp); };
   const handleRegisterTypeComp = (comp) => requestRegistration(comp);
   const handleOpenComments = (comp) => setCommentsSheetComp(comp);
@@ -3788,10 +3315,6 @@ export default function App() {
       );
       return;
     }
-    // Trust the DB's balance over recomputing it locally, same as registration.
-    // The balance is already debited server-side, but the withdrawal itself
-    // sits "pending" until an admin confirms it from the admin panel — see
-    // withdraw_from_wallet in wallet_rpc_migration.sql.
     setBalance(newBalance);
     setTransactions((tx) => [
       { id: `t-${Date.now()}`, type: "withdrawal", label: `Retrait — ${methodLabel}`, amount: -amount, status: "pending", date: "À l'instant", pending: true },
@@ -3800,7 +3323,6 @@ export default function App() {
     setShowWithdrawModal(false);
     showToast(`Retrait de ${amount.toLocaleString("fr-FR")} HTG en attente de confirmation`);
   }
-
 
   async function handleSendGift(gift, comp) {
     if (!currentUser?.id) {
@@ -3823,7 +3345,6 @@ export default function App() {
       );
       return;
     }
-    // Trust the DB's balance over recomputing it locally, same as registration.
     setBalance(newBalance);
     setTransactions((tx) => [
       { id: `t-${Date.now()}`, type: "gift_sent", label, amount: -price, date: "À l'instant" },
@@ -3840,18 +3361,11 @@ export default function App() {
     if (isCompOwner(comp, currentUser)) {
       return { success: false, error: "Vous ne pouvez pas vous inscrire à votre propre compétition." };
     }
-    // Hard guarantee: never let someone register without a presentation
-    // media. The modal already enforces this, but defending in depth here
-    // means a future call site can't accidentally skip the rule.
     if (!Array.isArray(pendingMediaFiles) || pendingMediaFiles.length === 0) {
       return { success: false, error: "Ajoute au moins une photo ou vidéo pour t'inscrire." };
     }
 
-    // ── Step 1: upload the required media FIRST, so a failed upload never
-    // produces a registrant with no album. We track every storage path +
-    // inserted media row id so we can roll them back if the registration
-    // insert itself fails on the next step. ────────────────────────────
-    const uploadedRows = []; // { id, storagePath, publicUrl, mediaType }
+    const uploadedRows = [];
     for (const item of pendingMediaFiles) {
       const file = item?.file;
       if (!file) continue;
@@ -3863,7 +3377,6 @@ export default function App() {
         .upload(path, file);
       if (uploadError) {
         console.error("registration media upload error:", uploadError);
-        // Best-effort cleanup of anything we already pushed before bailing.
         await rollbackRegistrationMedia(uploadedRows);
         return { success: false, error: "Échec de l'envoi du média. Réessaie." };
       }
@@ -3886,8 +3399,6 @@ export default function App() {
         .single();
       if (insertError || !inserted) {
         console.error("registration media insert error:", insertError);
-        // Try to remove the storage object we just uploaded (silent if it
-        // 404s — the bucket might have been wiped between calls).
         await supabase.storage.from("participant-media").remove([path]).catch(() => {});
         await rollbackRegistrationMedia(uploadedRows);
         return { success: false, error: "Échec de l'enregistrement du média. Réessaie." };
@@ -3896,12 +3407,6 @@ export default function App() {
       uploadedRows.push({ id: inserted.id, storagePath: path });
     }
 
-    // ── Step 2: insert the registration row. The fee debit, the balance
-    // check, and the early-bird tag/discount all happen server-side inside
-    // this one call now (register_for_competition) — see
-    // wallet_rpc_migration.sql. Nothing here writes wallet_transactions/
-    // wallet_balances directly, and `balance` is set from the DB's
-    // authoritative post-transaction value, not a local subtraction. ────
     const { data: registrationResult, error } = await insertRegistration({
       editionId: comp.id,
       competitionId: comp.competitionId,
@@ -3911,12 +3416,8 @@ export default function App() {
     });
 
     if (error) {
-      // Roll back the media we just uploaded — otherwise we'd have orphan
-      // rows whose uploader is not in `registrations`, which would show up
-      // on the organizer's review queue and on CompetitionBoard's gallery
-      // as media from a "ghost" participant.
       await rollbackRegistrationMedia(uploadedRows);
-      const alreadyRegistered = error.code === "23505"; // unique(edition_id, user_id) violation
+      const alreadyRegistered = error.code === "23505";
       const insufficientFunds = error.message?.includes("insufficient_balance");
       return {
         success: false,
@@ -3934,17 +3435,8 @@ export default function App() {
       new_balance: newBalance,
     } = registrationResult || {};
 
-    // Trust the DB's balance over recomputing it locally — it already
-    // reflects both the fee debit and any early-bird discount atomically.
     if (newBalance != null) setBalance(newBalance);
 
-    // Two separate wallet lines for the registration, matching the split
-    // done server-side in register_for_competition: the fee debit and the
-    // early-bird discount (when it applies) are their own transactions
-    // instead of being netted into one amount. Types/amounts must match
-    // what the RPC inserts (registration_fee / registration_refund) so the
-    // realtime reconciliation above can pair each optimistic row with its
-    // real one instead of appending a duplicate.
     const newTx = [];
     if (fee > 0) {
       newTx.push({
@@ -3971,12 +3463,6 @@ export default function App() {
     }
 
     setRegisteredCompIds((prev) => new Set(prev).add(comp.id));
-    // Keep the App-level registration count (which CompCard reads via
-    // editionToCard's registeredCount) in sync immediately — it's only
-    // otherwise refreshed from the DB on mount / draft-edition deletion,
-    // so without this a fresh registration wouldn't show up on the card
-    // until a full reload even though CompetitionBoard (which fetches
-    // registrants live) would already reflect it.
     setCompRegCounts((prev) => ({ ...prev, [comp.id]: (prev[comp.id] || 0) + 1 }));
     pushNotif({
       type: "action",
@@ -3991,10 +3477,6 @@ export default function App() {
     return { success: true, isEarlyBird };
   }
 
-  // Removes every storage object + participant_media row pushed by a
-  // registration that didn't end up going through. Best-effort: a failure
-  // here is logged but never blocks the user-facing error path — orphan
-  // media is far less bad than a stuck spinner.
   async function rollbackRegistrationMedia(rows) {
     if (!rows?.length) return;
     const storagePaths = rows.map((r) => r.storagePath).filter(Boolean);
@@ -4057,18 +3539,10 @@ export default function App() {
       .eq("id", user.id)
       .maybeSingle();
 
-    // A custom name set via the in-app editor lives in `profiles.full_name`,
-    // not in the OAuth provider's metadata — Google (and other providers)
-    // re-sync `user_metadata.full_name` from the provider's own profile on
-    // every sign-in, which would silently clobber a custom name if we read
-    // from there first. `profiles.full_name` always wins when present.
     const fullName = isPlatformOrganizer
       ? PLATFORM_ORGANIZER_SIGLE
       : profileRow?.full_name || rawName || user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-    // Same reasoning for the picture: a photo the person uploaded themselves
-    // (profiles.avatar_url) always wins over the OAuth provider's photo, so
-    // it survives future Google/Facebook sign-ins instead of being clobbered.
     const avatarUrl = profileRow?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
     setIsAuthenticated(true);
@@ -4102,8 +3576,6 @@ export default function App() {
     }
   }
 
-  // Restore an existing Supabase session on load, and keep state in sync
-  // with sign-in / sign-out / token refresh events from anywhere in the app.
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) handleAuthenticated(session.user);
@@ -4143,8 +3615,6 @@ export default function App() {
       throw error;
     }
 
-    // If the number is actually changing, it goes back to unverified —
-    // it only becomes verified again once a real deposit arrives from it.
     const { data: existingProfile } = await supabase
       .from("profiles")
       .select(metadataKey)
@@ -4152,12 +3622,9 @@ export default function App() {
       .maybeSingle();
     const numberChanged = existingProfile?.[metadataKey] !== number;
 
-    // Also mirror into `profiles` so the SMS server can match this number
-    // with a simple queryable column (auth.users metadata isn't queryable
-    // from the backend without the admin API).
     const patch = {
       id: userId,
-      user_id: userId, // keep both in sync while it exists
+      user_id: userId,
       [metadataKey]: number,
       updated_at: new Date().toISOString(),
     };
@@ -4205,10 +3672,6 @@ export default function App() {
       throw error;
     }
 
-    // Source of truth for display purposes going forward — this is what
-    // survives the next Google (or other OAuth) login, since that flow
-    // re-syncs user_metadata.full_name from the provider and would
-    // otherwise overwrite a custom name.
     const { error: profileError } = await supabase
       .from("profiles")
       .upsert({ id: userId, user_id: userId, full_name: trimmed, updated_at: new Date().toISOString() }, { onConflict: "id" });
@@ -4217,9 +3680,6 @@ export default function App() {
       throw new Error("Le nom a été mis à jour, mais n'a pas pu être enregistré pour la prochaine connexion.");
     }
 
-    // The name is also copied (denormalized) onto the user's own existing
-    // rows in a few tables — backfill those too so the new name is visible
-    // to every user, not just reflected locally in this session.
     const [regResult, comResult, mediaResult] = await Promise.all([
       supabase.from("registrations").update({ full_name: trimmed }).eq("user_id", userId),
       supabase.from("comments").update({ full_name: trimmed }).eq("user_id", userId),
@@ -4232,13 +3692,6 @@ export default function App() {
     setCurrentUser((prev) => (prev ? { ...prev, fullName: trimmed } : prev));
   }
 
-  // Lets a signed-in user change their profile picture. Uploads to a public
-  // "avatars" Storage bucket (create it in the Supabase dashboard if it
-  // doesn't exist yet, with public read access), then persists the URL to
-  // `profiles.avatar_url` and backfills it onto the user's own existing rows
-  // so the new picture shows up everywhere in the app — comments they've
-  // posted, their registration entries, and their donateur history — not
-  // just in their account page.
   async function handleUpdateAvatar(file) {
     if (!file) return;
     if (!file.type?.startsWith("image/")) {
@@ -4255,8 +3708,6 @@ export default function App() {
     }
     const userId = sessionData.session.user.id;
 
-    // Always the same path per user (upsert) so we don't accumulate orphaned
-    // files on every change — just overwrite the one avatar they have.
     const path = `${userId}/avatar`;
     const { error: uploadError } = await supabase.storage
       .from("avatars")
@@ -4267,8 +3718,6 @@ export default function App() {
     }
 
     const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(path);
-    // Cache-bust so the new photo shows immediately instead of a stale CDN
-    // copy at the same URL.
     const avatarUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`;
 
     const { error: profileError } = await supabase
@@ -4279,7 +3728,6 @@ export default function App() {
       throw new Error("La photo a été envoyée, mais n'a pas pu être enregistrée pour la prochaine connexion.");
     }
 
-    // Denormalized copies elsewhere, same pattern as the name backfill above.
     const [regResult, comResult, mediaResult, giftResult] = await Promise.all([
       supabase.from("registrations").update({ avatar_url: avatarUrl }).eq("user_id", userId),
       supabase.from("comments").update({ avatar_url: avatarUrl }).eq("user_id", userId),
@@ -4294,13 +3742,6 @@ export default function App() {
     setCurrentUser((prev) => (prev ? { ...prev, avatarUrl } : prev));
   }
 
-  // ── Hardware back button (Android) ────────────────────────────────────
-  // In the compiled native app there's no browser chrome to fall back on —
-  // without this, the back button would exit the app straight out of
-  // whatever sheet/modal happens to be open. Close the top-most overlay
-  // first, then fall back to the Home tab, and only actually exit once
-  // there's truly nothing left to back out of. No-op on web (isNative
-  // guards it, and the listener is simply never attached there).
   const backButtonStateRef = useRef(null);
   backButtonStateRef.current = {
     showAuthOverlay, showRegistrationModal, showWithdrawModal, showBuyModal,
@@ -4346,7 +3787,6 @@ export default function App() {
         }
       `}</style>
 
-      {/* Toast */}
       {toast && (
         <div
           style={{
@@ -4447,6 +3887,7 @@ export default function App() {
           followedTypeItems={followedTypeItems}
           registeredTypeItems={registeredTypeItems}
           organizerGroups={organizerGroups}
+          topDonors={topDonors}
           registeredCompIds={registeredCompIds}
           currentUser={currentUser}
           onOpenTypeComp={handleOpenTypeComp}
