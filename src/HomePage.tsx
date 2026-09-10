@@ -138,6 +138,182 @@ function TypeRow({
   );
 }
 
+/* ─── TOP DONATEURS ROW ────────────────────────────────────────────────
+   Horizontal rail of the week's biggest gift-senders, grouped from the
+   `gifts` table server-side (see App.tsx). Reuses the same section shell
+   as the other rails so it slots into the homepage rhythm, but scrolls
+   through avatar cards instead of competition cards. The #1 slot gets a
+   crown so the leaderboard has a visible winner. */
+function TopDonorsRow({ donors, onOpenDonor }) {
+  if (!donors || donors.length === 0) return null;
+
+  return (
+    <section
+      style={{
+        marginBottom: 0,
+        borderBottom: "2px solid #2a2a2e",
+        paddingBottom: 10,
+        paddingTop: 8,
+      }}
+    >
+      <div style={{ paddingLeft: 8, paddingRight: 8 }}>
+        <SectionHeader title="Top donateurs" />
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          overflowX: "auto",
+          paddingLeft: 8,
+          paddingRight: 8,
+          paddingBottom: 4,
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
+        <style>{`div::-webkit-scrollbar{display:none}`}</style>
+        {donors.map((d, i) => {
+          const rank = i + 1;
+          const isLeader = rank === 1;
+          const initials = (d.name || "?")
+            .split(" ")
+            .map((w) => w[0])
+            .filter(Boolean)
+            .slice(0, 2)
+            .join("")
+            .toUpperCase();
+
+          return (
+            <button
+              key={d.id}
+              onClick={() => onOpenDonor?.(d)}
+              style={{
+                flexShrink: 0,
+                width: 84,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 6,
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                cursor: onOpenDonor ? "pointer" : "default",
+              }}
+            >
+              <div style={{ position: "relative", width: 60, height: 60 }}>
+                {d.avatarUrl ? (
+                  <img
+                    src={d.avatarUrl}
+                    alt={d.name}
+                    style={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      display: "block",
+                      border: isLeader ? "2px solid #F5C542" : "2px solid #2a2a2e",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: "50%",
+                      background: isLeader ? "#3a2f10" : "#26262a",
+                      color: isLeader ? "#F5C542" : "#c9c9c9",
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontSize: 20,
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: isLeader ? "2px solid #F5C542" : "2px solid #2a2a2e",
+                    }}
+                  >
+                    {initials}
+                  </div>
+                )}
+                {isLeader && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -6,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      background: "#F5C542",
+                      color: "#111",
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 11,
+                      lineHeight: 1,
+                      padding: "2px 5px",
+                      borderRadius: 999,
+                      border: "2px solid #111",
+                    }}
+                  >
+                    👑
+                  </span>
+                )}
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: -2,
+                    right: -2,
+                    minWidth: 20,
+                    height: 20,
+                    padding: "0 5px",
+                    borderRadius: 10,
+                    background: isLeader ? "#F5C542" : "#2a2a2e",
+                    color: isLeader ? "#111" : "#f2f2f2",
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "2px solid #1c1c1f",
+                  }}
+                >
+                  {rank}
+                </span>
+              </div>
+
+              <span
+                style={{
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "#f2f2f2",
+                  width: "100%",
+                  textAlign: "center",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {d.name}
+              </span>
+
+              <span
+                style={{
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: isLeader ? "#F5C542" : "#c9c9c9",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {d.total.toLocaleString("fr-FR")} HTG
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 /* ─── HOME PAGE ─────────────────────────────────────────────────────────── */
 
 export default function HomePage({
@@ -160,6 +336,7 @@ export default function HomePage({
   followedTypeItems,
   registeredTypeItems,
   organizerGroups,
+  topDonors,
   registeredCompIds,
   currentUser,
   onOpenTypeComp,
@@ -179,7 +356,6 @@ export default function HomePage({
           zIndex: 50,
         }}
       >
-        {/* Search bar */}
         <div style={{ padding: "8px" }}>
           <div
             style={{
@@ -224,7 +400,6 @@ export default function HomePage({
           </div>
         </div>
 
-        {/* Chips row — edge to edge */}
         <div
           style={{
             display: "flex",
@@ -281,7 +456,7 @@ export default function HomePage({
         <style>{`@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
       </header>
 
-      {/* ── BANNER SLIDER (2:1, real uploaded images only) ── */}
+      {/* ── BANNER SLIDER ── */}
       {homeBannerSlides.length > 0 && (
         <div
           style={{
@@ -334,7 +509,6 @@ export default function HomePage({
             </div>
           ))}
 
-          {/* Dots */}
           <div
             style={{
               position: "absolute",
@@ -507,6 +681,7 @@ export default function HomePage({
               registeredCompIds={registeredCompIds}
               currentUser={currentUser}
             />
+            <TopDonorsRow donors={topDonors} />
             <TypeRow
               label="Inscriptions ouvertes"
               items={registrationComps}
