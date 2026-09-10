@@ -70,12 +70,6 @@ function NewsBand() {
   );
 }
 
-// Home screen tabs — TYPE-based (what state/kind a competition is in)
-// rather than CATEGORY-based (which niche it belongs to). "Tous" and
-// "Favoris" stay as general-purpose tabs; everything else now narrows by
-// phase/trend instead of by niche label, and every niche can contribute
-// to any tab. "Live" gets a pulsating red dot to signal it's happening
-// right now.
 const HOME_TABS = [
   { key: "Tous", label: "Tous", icon: LayoutGrid },
   { key: "Favoris", label: "Favoris", icon: Heart },
@@ -149,18 +143,15 @@ function TypeRow({
 /* ─── HOME PAGE ─────────────────────────────────────────────────────────── */
 
 export default function HomePage({
-  // search + filter state
   query,
   onQueryChange,
   homeSearchFocused,
   onSearchFocusChange,
   activeFilter,
   onFilterChange,
-  // banner slider state
   homeBannerSlides,
   bannerIndex,
   onBannerIndexChange,
-  // competition lists
   visibleCompsFlat,
   topComps,
   liveComps,
@@ -171,10 +162,8 @@ export default function HomePage({
   followedTypeItems,
   registeredTypeItems,
   organizerGroups,
-  // shared
   registeredCompIds,
   currentUser,
-  // handlers
   onOpenTypeComp,
   onOpenComments,
   onOpenShare,
@@ -470,9 +459,6 @@ export default function HomePage({
             )}
           </div>
         ) : activeFilter === "Terminé" ? (
-          // Archive view — one wide card per row instead of the usual
-          // horizontally-scrollable rails, since there's nothing to
-          // discover-browse here: it's a straightforward past-results list.
           <div
             style={{
               display: "flex",
