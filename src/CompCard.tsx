@@ -1,48 +1,29 @@
 import { useState, useMemo } from "react";
 import { hapticTap } from "./native";
-import { shareCompetitionNatively, buildShareUrl } from "./lib/share";
 import {
   Image as ImageIcon,
   Pencil,
-  MessageCircle,
-  Star,
-  BadgeCheck,
   Check,
   Plus,
   Trophy,
   Gift,
   Clock,
-  Loader2,
+  BadgeCheck,
 } from "lucide-react";
-import { PiShareFat } from "react-icons/pi";
 import {
   isoWeekNumber,
   fmtVotes,
   fmtAbsoluteDateOnly,
   fmtCountdown,
   fmtCompactPrize,
-  hashStr,
   getRegistrationFee,
-  formatCoins,
 } from "./App";
 
-export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenShare, onRegister, isRegistered, isOwnCompetition, fullWidth = false }) {
+export default function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompetition, fullWidth = false }) {
   const [voteCount] = useState(comp.votes);
-  const [followed, setFollowed] = useState(false);
-  const [followerCount, setFollowerCount] = useState(comp.followers);
-  const [shareCount, setShareCount] = useState(() => 3 + (Math.abs(hashStr(comp.id)) % 240));
-  // Brief spinner while the native share sheet is opening/closing — the
-  // clipboard/onOpenShare fallbacks are effectively instant so this
-  // clears right after those fire.
-  const [isSharing, setIsSharing] = useState(false);
-  const [commentCount] = useState(() => 5 + (Math.abs(hashStr(comp.id + "c")) % 380));
   const isRegistration = comp.phase === "registration";
   const isCompleted = comp.phase === "completed";
   const isLive = comp.phase === "live";
-
-  // Sharing always uses the plain link (buildShareUrl) — no link shortener
-  // is used anywhere in the app anymore. Any short_url value already
-  // persisted on older rows is intentionally ignored here.
 
   const resolvedEndDate = useMemo(() => {
     if (comp.endsAt) return comp.endsAt;
@@ -98,10 +79,10 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
           background: "linear-gradient(to bottom, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.78) 100%)",
         }} />
 
-        {/* Top row - status badges and action buttons */}
+        {/* Top row - status badges only */}
         <div style={{
           position: "absolute", top: 8, left: 8, right: 8,
-          display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6,
+          display: "flex", alignItems: "flex-start", justifyContent: "flex-start", gap: 6,
         }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
             {isRegistration && (
@@ -147,100 +128,9 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
               </div>
             )}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsSharing(true);
-                const onShared = () => setShareCount((c) => c + 1);
-                if (shareCompetitionNatively(comp, onShared, () => setIsSharing(false))) return;
-                if (onOpenShare) {
-                  onOpenShare(comp, onShared);
-                } else if (navigator.clipboard) {
-                  const url = buildShareUrl(comp);
-                  navigator.clipboard.writeText(url).catch(() => {});
-                  onShared();
-                }
-                setIsSharing(false);
-              }}
-              title="Partager"
-              style={{
-                flexShrink: 0,
-                height: 25, borderRadius: 13,
-                border: "1px solid rgba(255,255,255,0.55)",
-                background: "rgba(0,0,0,0.35)",
-                backdropFilter: "blur(6px)",
-                WebkitBackdropFilter: "blur(6px)",
-                color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                cursor: "pointer",
-                padding: "0 8px 0 7px",
-              }}
-            >
-              {isSharing ? (
-                <Loader2 size={13} style={{ animation: "compcard-share-spin 0.6s linear infinite" }} />
-              ) : (
-                <PiShareFat size={13} />
-              )}
-              <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "Inter, sans-serif" }}>
-                {formatCoins(shareCount)}
-              </span>
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenComments) onOpenComments(comp);
-                else onOpen?.(comp, { focusComments: true });
-              }}
-              title="Commentaires"
-              style={{
-                flexShrink: 0,
-                height: 25, borderRadius: 13,
-                border: "1px solid rgba(255,255,255,0.55)",
-                background: "rgba(0,0,0,0.35)",
-                backdropFilter: "blur(6px)",
-                WebkitBackdropFilter: "blur(6px)",
-                color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                cursor: "pointer",
-                padding: "0 8px 0 7px",
-              }}
-            >
-              <MessageCircle size={13} strokeWidth={2.25} />
-              <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "Inter, sans-serif" }}>
-                {formatCoins(commentCount)}
-              </span>
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setFollowed((f) => !f);
-                setFollowerCount((c) => followed ? c - 1 : c + 1);
-              }}
-              title={followed ? "Retirer des favoris" : "Ajouter aux favoris"}
-              style={{
-                flexShrink: 0,
-                height: 25, borderRadius: 13,
-                border: followed ? "none" : "1px solid rgba(255,255,255,0.55)",
-                background: followed ? accent : "rgba(0,0,0,0.35)",
-                backdropFilter: "blur(6px)",
-                WebkitBackdropFilter: "blur(6px)",
-                color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                cursor: "pointer",
-                transition: "background 0.15s",
-                padding: "0 8px 0 7px",
-              }}
-            >
-              <Star size={12} strokeWidth={2.5} fill={followed ? "#fff" : "none"} />
-              <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "Inter, sans-serif" }}>
-                {formatCoins(followerCount)}
-              </span>
-            </button>
-          </div>
         </div>
 
-        {/* Bottom overlay - FIXED verification badge alignment */}
+        {/* Bottom overlay - Title + Code + Organizer + Timer */}
         <div style={{
           position: "absolute", 
           left: 0, 
@@ -292,7 +182,7 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
             </span>
           </div>
           
-          {/* Row 2: Organizer + Timer - FIXED */}
+          {/* Row 2: Organizer + Timer */}
           <div style={{ 
             display: "flex", 
             alignItems: "center",
@@ -360,7 +250,7 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
             }}>
               {isCompleted ? (
                 <>
-                  <Trophy size={9} strokeWidth={2.5} />
+                  <Trophy size={9} strokeWidth={2.5} color="#fff" />
                   <span style={{
                     fontFamily: "Inter, sans-serif", 
                     fontSize: 9, 
@@ -656,7 +546,6 @@ export default function CompCard({ comp, accent, onOpen, onOpenComments, onOpenS
           </span>
         </button>
       )}
-      <style>{`@keyframes compcard-share-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
