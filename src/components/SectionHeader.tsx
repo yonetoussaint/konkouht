@@ -11,24 +11,14 @@ const SPACING = {
 };
 
 /**
- * Global section heading, shared by WalletPage and HomePage.
- *
- * Supports two shapes so the same component works for the wallet's
- * "title + action link" sections and the homepage's "icon + title" rails:
+ * Global section heading — the single source of truth for every section
+ * title in the app (WalletPage, HomePage, and anywhere else). Visual style
+ * is fixed; callers only pass a title and, optionally, an action link.
  *
  *   <SectionHeader title="Transactions" actionLabel="View all" onAction={...} />
- *   <SectionHeader icon={Flame} title="Top compétitions" accent="#E8A33D" />
- *
- * `actionLabel`/`onAction` and `icon`/`accent` are all optional — omit
- * whichever pair doesn't apply for a given section.
+ *   <SectionHeader title="Top compétitions" />
  */
-export default function SectionHeader({
-  title,
-  actionLabel,
-  onAction,
-  icon: Icon,
-  accent,
-}) {
+export default function SectionHeader({ title, actionLabel, onAction }) {
   return (
     <div
       style={{
@@ -38,30 +28,20 @@ export default function SectionHeader({
         marginBottom: SPACING.md,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        {Icon && (
-          <Icon
-            size={16}
-            strokeWidth={2.5}
-            color={accent}
-            style={{ flexShrink: 0 }}
-          />
-        )}
-        <span
-          style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: 16,
-            fontWeight: 600,
-            color: "#f2f2f2",
-            letterSpacing: "-0.01em",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {title}
-        </span>
-      </div>
+      <span
+        style={{
+          fontFamily: "'Inter', sans-serif",
+          fontSize: 16,
+          fontWeight: 600,
+          color: "#f2f2f2",
+          letterSpacing: "-0.01em",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {title}
+      </span>
 
       {actionLabel && onAction && (
         <button
