@@ -181,7 +181,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               {`S${isoWeekNumber(new Date(resolvedEndDate))}-Q${comp.contestants}`}
             </span>
           </div>
-          
+
           {/* Row 2: Organizer + Timer */}
           <div style={{ 
             display: "flex", 
@@ -384,8 +384,8 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           <div
             style={{
               border: "none",
-              background: "#26262a",
-              color: "#8a8a90",
+              background: "linear-gradient(135deg, #2e2e33, #232326)",
+              color: "#9a9aa2",
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
               fontSize: 12.5,
@@ -406,7 +406,8 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           <div
             style={{
               border: "none",
-              background: "#123a2b",
+              background: "linear-gradient(135deg, #16473380, #123a2b)",
+              boxShadow: "0 4px 14px #00b89426",
               color: "#5ee0a8",
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
@@ -441,7 +442,8 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
             onClick={(e) => { e.stopPropagation(); hapticTap("medium"); onRegister?.(comp); }}
             style={{
               border: "none",
-              background: "#6C63FF",
+              background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
+              boxShadow: `0 4px 14px ${accent}4d`,
               color: "#fff",
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
@@ -453,7 +455,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               alignItems: "center",
               justifyContent: "space-between",
               cursor: "pointer",
-              transition: "background 0.15s",
+              transition: "filter 0.15s",
               flexShrink: 0,
             }}
           >
@@ -477,9 +479,9 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
         <button
           onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
           style={{
-            border: "none",
-            background: "#26262a",
-            color: "#b6b6bc",
+            border: `1px solid ${accent}33`,
+            background: `linear-gradient(135deg, ${accent}22, #26262a)`,
+            color: accent,
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
             fontSize: 12.5,
@@ -490,7 +492,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
             alignItems: "center",
             justifyContent: "space-between",
             cursor: "pointer",
-            transition: "background 0.15s",
+            transition: "filter 0.15s",
             flexShrink: 0,
           }}
         >
@@ -514,7 +516,8 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
           style={{
             border: "none",
-            background: "#fff",
+            background: `linear-gradient(135deg, #ffffff, ${accent}22)`,
+            boxShadow: `0 4px 14px ${accent}33`,
             color: "#111",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
@@ -526,7 +529,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
             alignItems: "center",
             justifyContent: "space-between",
             cursor: "pointer",
-            transition: "background 0.15s",
+            transition: "filter 0.15s",
             flexShrink: 0,
           }}
         >
