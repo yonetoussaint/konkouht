@@ -772,6 +772,17 @@ const NICHES = [
   },
 ];
 
+/* Placeholder data for the "Gagnants récents" rail — used only until real
+   completed editions with a winner exist in Supabase (editionsByComp is
+   fetched live, so there's nothing local to seed there). Delete this
+   block, and the fallback in `recentWinners` below, once real winners
+   start showing up on their own. */
+const MOCK_RECENT_WINNERS = [
+  { id: "mock-w1", title: "Concours de Beauté", edition: "Saison 1", accent: "#E91E8C", niche: "Beauté", winnerName: "Nadège Pierre", winnerPrize: 25000, closedAt: "2026-08-20T18:00:00Z", bannerUrl: null, thumbnailUrl: null },
+  { id: "mock-w2", title: "Miss Élégance", edition: "Finale", accent: "#E91E8C", niche: "Beauté", winnerName: "Stéphanie Louis", winnerPrize: 15000, closedAt: "2026-08-05T18:00:00Z", bannerUrl: null, thumbnailUrl: null },
+  { id: "mock-w3", title: "Top Model Open", edition: "Saison 2", accent: "#E91E8C", niche: "Beauté", winnerName: "Farah Jean-Baptiste", winnerPrize: 40000, closedAt: "2026-07-22T18:00:00Z", bannerUrl: null, thumbnailUrl: null },
+];
+
 /* ─── WALLET DATA ───────────────────────────────────────────────────────── */
 
 const DEPOSIT_PACKS = [
@@ -3255,7 +3266,7 @@ export default function App() {
   // the active tab or search query, so it stays populated even when the
   // homepage is filtered down to "Live" or "Inscriptions".
   const recentWinners = useMemo(() => {
-    return allNichesWithEdits
+    const real = allNichesWithEdits
       .flatMap((niche) =>
         niche.competitions
           .filter((c) => c.active !== false && c.phase === "completed" && c.winnerName)
@@ -3263,6 +3274,7 @@ export default function App() {
       )
       .sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0))
       .slice(0, 10);
+    return real.length > 0 ? real : MOCK_RECENT_WINNERS;
   }, [allNichesWithEdits]);
 
   // "Calendrier des finales" rail — every non-completed edition across all
