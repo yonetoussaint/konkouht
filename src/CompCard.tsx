@@ -10,7 +10,6 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import {
-  isoWeekNumber,
   fmtVotes,
   fmtAbsoluteDateOnly,
   fmtCountdown,
@@ -172,23 +171,6 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
             }}>
               {comp.title}
             </div>
-            <span style={{
-              flexShrink: 0,
-              display: "flex", 
-              alignItems: "center",
-              padding: "2px 7px",
-              borderRadius: 999,
-              background: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(6px)",
-              WebkitBackdropFilter: "blur(6px)",
-              fontFamily: "Inter, sans-serif", 
-              fontSize: 9, 
-              fontWeight: 700,
-              color: "#fff",
-              whiteSpace: "nowrap",
-            }}>
-              {`S${isoWeekNumber(new Date(resolvedEndDate))}-Q${comp.contestants}`}
-            </span>
           </div>
 
           {/* Row 2: Organizer + Timer */}
