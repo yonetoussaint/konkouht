@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import CompCard from "./CompCard";
 import SectionHeader from "./components/SectionHeader";
+import CategoryGrid from "./components/CategoryGrid";
+import RecentWinnersRow from "./components/RecentWinnersRow";
 import { isCompOwner } from "./App";
 
 /* ─── HOME NEWS TICKER ─────────────────────────────────────────────────── */
@@ -337,6 +339,10 @@ export default function HomePage({
   registeredTypeItems,
   organizerGroups,
   topDonors,
+  categories,
+  activeNiche,
+  onSelectCategory,
+  recentWinners,
   registeredCompIds,
   currentUser,
   onOpenTypeComp,
@@ -541,6 +547,12 @@ export default function HomePage({
 
       <NewsBand />
 
+      <CategoryGrid
+        categories={categories}
+        activeNiche={activeNiche}
+        onSelect={onSelectCategory}
+      />
+
       {/* ── NICHE ROWS ── */}
       <main
         style={{
@@ -702,6 +714,7 @@ export default function HomePage({
               registeredCompIds={registeredCompIds}
               currentUser={currentUser}
             />
+            <RecentWinnersRow winners={recentWinners} onOpen={onOpenTypeComp} />
             <TypeRow
               label="En hausse"
               items={risingComps}
