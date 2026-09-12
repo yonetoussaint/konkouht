@@ -1,4 +1,11 @@
 import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  Fragment,
+} from "react";
+import {
   LayoutGrid,
   Heart,
   Radio,
@@ -11,6 +18,7 @@ import {
   Flame,
   Bell,
   Users,
+  Loader2,
 } from "lucide-react";
 import CompCard from "./CompCard";
 import SectionHeader from "./components/SectionHeader";
@@ -86,6 +94,29 @@ const HOME_TABS = [
   { key: "Nouveautés", label: "Nouveautés", icon: Sparkles },
   { key: "Terminé", label: "Terminé", icon: Check },
 ];
+
+/* ─── ENDLESS FEED CONFIG ──────────────────────────────────────────────
+   Once the curated shelves (Top compétitions, En direct, etc.) run out,
+   the feed keeps generating more CompCard shelves from visibleCompsFlat,
+   cycling through this title pool so it never visibly runs dry — and
+   drops in one of the existing special sections every SPECIAL_EVERY
+   shelves, the way Facebook breaks up a post feed with non-post modules. */
+
+const DISCOVERY_TITLES = [
+  "Recommandé pour toi",
+  "Tendance en ce moment",
+  "À découvrir",
+  "Ne manquez pas ça",
+  "Sélection du jour",
+  "Ça bouge en ce moment",
+  "À surveiller",
+  "Choisi pour vous",
+  "Populaire cette semaine",
+  "Fraîchement ajouté",
+];
+
+const SHELF_SIZE = 6;
+const SPECIAL_EVERY = 2;
 
 /* ─── TYPE ROW (horizontally-scrollable rail of one competition "type") ── */
 
@@ -341,7 +372,69 @@ export default function HomePage({
   onOpenComments,
   onOpenShare,
   onRegisterTypeComp,
+  onLoadMore, // optional — hook real Supabase pagination here if the raw
+              // dataset itself needs more pages; the generated shelves
+              // below cycle through visibleCompsFlat regardless, so the
+              // feed is endless even before this is wired up.
 }) {
+  /* ── Endless feed: generated shelves + interleaved specials ──────────
+     Curated shelves (Top compétitions, En direct, ...) render first and
+     unchanged, exactly as before. Once the person scrolls past them, an
+     IntersectionObserver sentinel keeps revealing more CompCard shelves
+     built from visibleCompsFlat, titled from the rotating pool above,
+     with the existing DuelOfTheDay / TopDonorsRow / RecentWinnersRow
+     sections dropped back in every couple of shelves for rhythm. */
+  const [extraShelves, setExtraShelves] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef(null);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !visibleCompsFlat || visibleCompsFlat.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore) {
+          setLoadingMore(true);
+          Promise.resolve(onLoadMore?.()).finally(() => {
+            setExtraShelves((n) => n + 1);
+            setLoadingMore(false);
+          });
+        }
+      },
+      { rootMargin: "600px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [loadingMore, visibleCompsFlat, onLoadMore]);
+
+  const generatedShelves = useMemo(() => {
+    if (!visibleCompsFlat || visibleCompsFlat.length === 0) return [];
+    const shelves = [];
+    for (let i = 0; i < extraShelves; i++) {
+      const start = (i * SHELF_SIZE) % visibleCompsFlat.length;
+      const items = [];
+      for (let j = 0; j < SHELF_SIZE; j++) {
+        items.push(visibleCompsFlat[(start + j) % visibleCompsFlat.length]);
+      }
+      shelves.push({
+        key: `discovery-${i}`,
+        title: DISCOVERY_TITLES[i % DISCOVERY_TITLES.length],
+        items,
+      });
+    }
+    return shelves;
+  }, [extraShelves, visibleCompsFlat]);
+
+  const specialsPool = useMemo(
+    () =>
+      [
+        duelOfTheDay && (() => <DuelOfTheDay key="duel-extra" duel={duelOfTheDay} onOpen={onOpenTypeComp} />),
+        topDonors?.length > 0 && (() => <TopDonorsRow key="donors-extra" donors={topDonors} />),
+        recentWinners?.length > 0 && (() => <RecentWinnersRow key="winners-extra" winners={recentWinners} onOpen={onOpenTypeComp} />),
+      ].filter(Boolean),
+    [duelOfTheDay, topDonors, recentWinners, onOpenTypeComp]
+  );
+
   return (
     <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 64 }}>
       {/* ── HEADER ── */}
@@ -776,6 +869,52 @@ export default function HomePage({
                 currentUser={currentUser}
               />
             ))}
+
+            {/* ── ENDLESS DISCOVERY SHELVES ──────────────────────────────
+                Beyond this point the feed is self-generating: more
+                CompCard shelves keep appearing as the sentinel below is
+                scrolled into view, cycling through visibleCompsFlat and
+                the rotating title pool, with the special sections above
+                (Duel du jour, Top donateurs, Vainqueurs récents) dropped
+                back in every SPECIAL_EVERY shelves for rhythm. */}
+            {generatedShelves.map((shelf, i) => (
+              <Fragment key={shelf.key}>
+                <TypeRow
+                  label={shelf.title}
+                  items={shelf.items}
+                  onOpen={onOpenTypeComp}
+                  onOpenComments={onOpenComments}
+                  onOpenShare={onOpenShare}
+                  onRegister={onRegisterTypeComp}
+                  registeredCompIds={registeredCompIds}
+                  currentUser={currentUser}
+                />
+                {specialsPool.length > 0 &&
+                  (i + 1) % SPECIAL_EVERY === 0 &&
+                  specialsPool[
+                    (Math.floor(i / SPECIAL_EVERY)) % specialsPool.length
+                  ]()}
+              </Fragment>
+            ))}
+
+            <div ref={sentinelRef} style={{ display: "flex", justifyContent: "center", padding: 24 }}>
+              {loadingMore && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    color: "#8a8a90",
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 12,
+                  }}
+                >
+                  <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} />
+                  Chargement...
+                </div>
+              )}
+            </div>
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
           </>
         )}
       </main>
