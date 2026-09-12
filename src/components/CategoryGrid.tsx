@@ -4,13 +4,6 @@ import SectionShell from "./SectionShell";
 /**
  * Grille de catégories — tappable niche shortcuts shown on the homepage
  * so users can jump straight to a niche instead of scrolling every rail.
- *
- * See HomePage.tsx / App.tsx for the live wiring: App.tsx computes
- * `homeCategories` from NICHES + NICHE_ICONS and holds `activeNiche`
- * state; HomePage.tsx just passes them through to this component.
- *
- * Drop it right after <NewsBand /> and before the TypeRow rails, or
- * right under the filter tabs — either reads fine.
  */
 export default function CategoryGrid({ categories, activeNiche, onSelect }) {
   if (!categories || categories.length === 0) return null;
@@ -29,81 +22,46 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 10,
+          gap: 14,
           paddingLeft: 8,
           paddingRight: 8,
+          justifyItems: "center",
         }}
       >
         {categories.map((cat) => {
           const Icon = cat.icon;
           const isActive = activeNiche === cat.label;
+          const accent = cat.accent || "#F5C542";
+
           return (
             <button
               key={cat.label}
               onClick={() => onSelect?.(cat.label)}
+              aria-label={cat.label}
+              title={cat.label}
               style={{
+                width: 56,
+                height: 56,
+                borderRadius: "50%",
+                background: isActive ? `${accent}2e` : `${accent}1f`,
+                border: isActive ? `2px solid ${accent}` : "2px solid transparent",
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 8,
-                background: isActive ? `${cat.accent || "#F5C542"}14` : "#1c1c1f",
-                border: `1px solid ${isActive ? (cat.accent || "#F5C542") : "#2a2a2e"}`,
-                borderRadius: 16,
-                padding: "16px 6px",
                 cursor: "pointer",
-                transition: "border-color 0.15s, transform 0.15s",
+                padding: 0,
+                transition: "background 0.15s, border-color 0.15s, transform 0.15s",
               }}
               onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.borderColor = cat.accent || "#F5C542";
+                e.currentTarget.style.transform = "scale(1.06)";
+                if (!isActive) e.currentTarget.style.background = `${accent}33`;
               }}
               onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.borderColor = "#2a2a2e";
+                e.currentTarget.style.transform = "scale(1)";
+                if (!isActive) e.currentTarget.style.background = `${accent}1f`;
               }}
             >
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "50%",
-                  background: `${cat.accent || "#F5C542"}1f`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {Icon ? (
-                  <Icon size={20} strokeWidth={2} color={cat.accent || "#F5C542"} />
-                ) : null}
-              </div>
-
-              <span
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "#f2f2f2",
-                  textAlign: "center",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  maxWidth: "100%",
-                }}
-              >
-                {cat.label}
-              </span>
-
-              {typeof cat.count === "number" && (
-                <span
-                  style={{
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 10,
-                    color: "#8a8a90",
-                  }}
-                >
-                  {cat.count} concours
-                </span>
-              )}
+              {Icon ? <Icon size={22} strokeWidth={2} color={accent} /> : null}
             </button>
           );
         })}
