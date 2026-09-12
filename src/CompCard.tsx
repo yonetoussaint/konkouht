@@ -41,6 +41,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
       onClick={() => onOpen?.(comp)}
       style={{
         flexShrink: fullWidth ? 1 : 0,
+        alignSelf: "flex-start",
         width: fullWidth ? "100%" : 272,
         border: "1px solid #2a2a2e",
         borderRadius: 18,
