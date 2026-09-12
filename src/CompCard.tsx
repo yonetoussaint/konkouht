@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { hapticTap } from "./native";
 import {
   Image as ImageIcon,
-  Pencil,
   Check,
   Plus,
   Trophy,
@@ -99,15 +98,13 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
             {isRegistration && (
               <div style={{
-                height: 25, borderRadius: 13,
                 fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
                 textTransform: "uppercase", color: "#fff",
-                background: "#6C63FF",
+                background: "#6C63FF", padding: "2px 7px",
                 fontFamily: "Inter, sans-serif",
-                display: "flex", alignItems: "center", gap: 4,
-                padding: "0 8px 0 7px",
+                borderRadius: 7,
+                display: "flex", alignItems: "center", gap: 3,
               }}>
-                <Pencil size={11} strokeWidth={2.5} />
                 INSCR.
               </div>
             )}
@@ -450,7 +447,6 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           </div>
         ) : (
           <button
-            className="tap-scale"
             onClick={(e) => { e.stopPropagation(); hapticTap("medium"); onRegister?.(comp); }}
             style={{
               border: "none",
