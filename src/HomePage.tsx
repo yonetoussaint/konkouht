@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import CompCard from "./CompCard";
 import SectionHeader from "./components/SectionHeader";
+import SectionShell from "./components/SectionShell";
 import CategoryGrid from "./components/CategoryGrid";
 import RecentWinnersRow from "./components/RecentWinnersRow";
 import FinaleCalendarRow from "./components/FinaleCalendarRow";
@@ -100,14 +101,7 @@ function TypeRow({
 }) {
   if (!items || items.length === 0) return null;
   return (
-    <section
-      style={{
-        marginBottom: 0,
-        borderBottom: "2px solid #2a2a2e",
-        paddingBottom: 8,
-        paddingTop: 8,
-      }}
-    >
+    <SectionShell as="section" paddingTop={8} paddingBottom={8}>
       <div style={{ paddingLeft: 8, paddingRight: 8 }}>
         <SectionHeader title={label} />
       </div>
@@ -139,7 +133,7 @@ function TypeRow({
           />
         ))}
       </div>
-    </section>
+    </SectionShell>
   );
 }
 
@@ -153,14 +147,7 @@ function TopDonorsRow({ donors, onOpenDonor }) {
   if (!donors || donors.length === 0) return null;
 
   return (
-    <section
-      style={{
-        marginBottom: 0,
-        borderBottom: "2px solid #2a2a2e",
-        paddingBottom: 10,
-        paddingTop: 8,
-      }}
-    >
+    <SectionShell as="section" paddingTop={8} paddingBottom={10}>
       <div style={{ paddingLeft: 8, paddingRight: 8 }}>
         <SectionHeader title="Top donateurs" />
       </div>
@@ -315,7 +302,7 @@ function TopDonorsRow({ donors, onOpenDonor }) {
           );
         })}
       </div>
-    </section>
+    </SectionShell>
   );
 }
 
