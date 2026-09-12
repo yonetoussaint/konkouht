@@ -1,4 +1,5 @@
 import SectionHeader from "./SectionHeader";
+import SectionShell from "./SectionShell";
 
 /**
  * Grille de catégories — tappable niche shortcuts shown on the homepage
@@ -15,14 +16,7 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
   if (!categories || categories.length === 0) return null;
 
   return (
-    <section
-      style={{
-        marginBottom: 0,
-        borderBottom: "2px solid #2a2a2e",
-        paddingBottom: 14,
-        paddingTop: 8,
-      }}
-    >
+    <SectionShell as="section" paddingTop={8} paddingBottom={14}>
       <div style={{ paddingLeft: 8, paddingRight: 8 }}>
         <SectionHeader
           title="Catégories"
@@ -114,6 +108,6 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
           );
         })}
       </div>
-    </section>
+    </SectionShell>
   );
 }
