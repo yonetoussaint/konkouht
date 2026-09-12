@@ -16,6 +16,9 @@ import CompCard from "./CompCard";
 import SectionHeader from "./components/SectionHeader";
 import CategoryGrid from "./components/CategoryGrid";
 import RecentWinnersRow from "./components/RecentWinnersRow";
+import FinaleCalendarRow from "./components/FinaleCalendarRow";
+import DuelOfTheDay from "./components/DuelOfTheDay";
+import DownloadAppBanner from "./components/DownloadAppBanner";
 import { isCompOwner } from "./App";
 
 /* ─── HOME NEWS TICKER ─────────────────────────────────────────────────── */
@@ -343,6 +346,8 @@ export default function HomePage({
   activeNiche,
   onSelectCategory,
   recentWinners,
+  finaleCalendar,
+  duelOfTheDay,
   registeredCompIds,
   currentUser,
   onOpenTypeComp,
@@ -462,6 +467,15 @@ export default function HomePage({
         <style>{`@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
       </header>
 
+      {/* Dormant until real store URLs are set — the component itself
+          renders nothing without at least one of appStoreUrl/playStoreUrl,
+          so this is safe to ship as-is and fill in once KonkouHT is live
+          on a store. */}
+      <DownloadAppBanner
+        appStoreUrl={undefined}
+        playStoreUrl={undefined}
+      />
+
       {/* ── BANNER SLIDER ── */}
       {homeBannerSlides.length > 0 && (
         <div
@@ -552,6 +566,8 @@ export default function HomePage({
         activeNiche={activeNiche}
         onSelect={onSelectCategory}
       />
+
+      <FinaleCalendarRow finales={finaleCalendar} onOpen={onOpenTypeComp} />
 
       {/* ── NICHE ROWS ── */}
       <main
@@ -683,6 +699,7 @@ export default function HomePage({
               registeredCompIds={registeredCompIds}
               currentUser={currentUser}
             />
+            <DuelOfTheDay duel={duelOfTheDay} onOpen={onOpenTypeComp} />
             <TypeRow
               label="En direct"
               items={liveComps}
