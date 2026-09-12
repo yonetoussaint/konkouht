@@ -801,7 +801,7 @@ const INITIAL_TRANSACTIONS = [
   { id: "t6", type: "gift_sent", label: "Étoile envoyée — Top Model Open", amount: -25, date: "10 juin, 20:15" },
 ];
 
-const NICHE_ICONS = {
+export const NICHE_ICONS = {
   "Tous": LayoutGrid,
   "Favoris": Heart,
   "Musique": Music,
@@ -2429,6 +2429,7 @@ export function WithdrawalsPanel({ showToast }) {
 
 export default function App() {
   const [activeFilter, setActiveFilter] = useState("Tous");
+  const [activeNiche, setActiveNiche] = useState(null);
   const [toast, setToast] = useState(null);
   const [query, setQuery] = useState("");
   const [homeSearchFocused, setHomeSearchFocused] = useState(false);
@@ -3080,6 +3081,19 @@ export default function App() {
     ).slice(0, 6);
   }, [compImages, editionsByComp, compRegCounts]);
 
+  // Category grid on the homepage — one tile per niche, count reflects
+  // currently active (non-completed by default) published editions.
+  const homeCategories = useMemo(() => {
+    return NICHES.map((niche) => ({
+      label: niche.label,
+      accent: niche.accent,
+      icon: NICHE_ICONS[niche.label],
+      count: niche.competitions
+        .flatMap(publishedEditionsForComp)
+        .filter((c) => c.active !== false).length,
+    }));
+  }, [compImages, editionsByComp, compRegCounts]);
+
   async function handleEditComp({ editionId, competitionId, title, edition, ends, phase, endsAt, contestants, description, prizeAmount, fee, rewardExtra, rules, bannerUrl, liveDurationSeconds }) {
     const { data: debugSession } = await supabase.auth.getSession();
     console.log("[DEBUG] session email:", debugSession.session?.user?.email, "has token:", !!debugSession.session?.access_token);
@@ -3209,6 +3223,7 @@ export default function App() {
   }, [currentUser?.id]);
 
   const nichesByFilter = NICHES
+    .filter((niche) => !activeNiche || niche.label === activeNiche)
     .map((niche) => ({
       ...niche,
       competitions: niche.competitions
@@ -3235,6 +3250,20 @@ export default function App() {
   const seedCompetitionsList = NICHES.flatMap((niche) =>
     niche.competitions.map((comp) => ({ key: comp.id, comp, niche }))
   );
+
+  // "Gagnants récents" rail — pulls from every niche/edition regardless of
+  // the active tab or search query, so it stays populated even when the
+  // homepage is filtered down to "Live" or "Inscriptions".
+  const recentWinners = useMemo(() => {
+    return allNichesWithEdits
+      .flatMap((niche) =>
+        niche.competitions
+          .filter((c) => c.active !== false && c.phase === "completed" && c.winnerName)
+          .map((c) => ({ ...c, accent: niche.accent, niche: niche.label }))
+      )
+      .sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0))
+      .slice(0, 10);
+  }, [allNichesWithEdits]);
 
   const visibleNiches = query.trim() === ""
     ? nichesByFilter
@@ -3907,6 +3936,10 @@ export default function App() {
           registeredTypeItems={registeredTypeItems}
           organizerGroups={organizerGroups}
           topDonors={topDonors}
+          categories={homeCategories}
+          activeNiche={activeNiche}
+          onSelectCategory={(label) => setActiveNiche((prev) => (prev === label ? null : label))}
+          recentWinners={recentWinners}
           registeredCompIds={registeredCompIds}
           currentUser={currentUser}
           onOpenTypeComp={handleOpenTypeComp}
