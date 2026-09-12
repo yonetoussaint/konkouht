@@ -770,6 +770,72 @@ const NICHES = [
       { id: "b3", title: "Top Model Open", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "5j 00h", organisateur: "FNCH", hot: false, followers: 9120, mediaType: "photo", registeredCount: 7 },
     ],
   },
+  {
+    id: "musique",
+    label: "Musique",
+    accent: "#1DB954",
+    icon: "🎵",
+    competitions: [
+      { id: "m1", title: "Battle Hip-Hop", edition: "Saison 4", phase: "live", contestants: 16, votes: 9500, ends: "3j 14h", organisateur: "FNCH", hot: true, followers: 30000, mediaType: "video", registeredCount: 16 },
+      { id: "m2", title: "Chanson Française Live", edition: "Finale", phase: "live", contestants: 10, votes: 7200, ends: "1j 20h", organisateur: "FNCH", hot: true, followers: 25000, mediaType: "video", registeredCount: 10 },
+      { id: "m3", title: "Open Mic Night", edition: "Inscriptions", phase: "registration", contestants: 25, votes: 0, ends: "6j 00h", organisateur: "FNCH", hot: false, followers: 12000, mediaType: "photo", registeredCount: 8 },
+    ],
+  },
+  {
+    id: "danse",
+    label: "Danse",
+    accent: "#FF6F61",
+    icon: "💃",
+    competitions: [
+      { id: "d1", title: "Urban Dance Showdown", edition: "Saison 2", phase: "live", contestants: 12, votes: 8000, ends: "4j 10h", organisateur: "FNCH", hot: true, followers: 28000, mediaType: "video", registeredCount: 12 },
+      { id: "d2", title: "Ballet Stars", edition: "Qualifs", phase: "registration", contestants: 18, votes: 0, ends: "5j 05h", organisateur: "FNCH", hot: false, followers: 15000, mediaType: "photo", registeredCount: 5 },
+      { id: "d3", title: "Freestyle Battle", edition: "Finale", phase: "live", contestants: 8, votes: 5500, ends: "2j 18h", organisateur: "FNCH", hot: true, followers: 20000, mediaType: "video", registeredCount: 8 },
+    ],
+  },
+  {
+    id: "sports",
+    label: "Sports",
+    accent: "#4CAF50",
+    icon: "🏆",
+    competitions: [
+      { id: "s1", title: "Football Freestyle Cup", edition: "Saison 3", phase: "live", contestants: 14, votes: 11000, ends: "2j 06h", organisateur: "FNCH", hot: true, followers: 35000, mediaType: "video", registeredCount: 14 },
+      { id: "s2", title: "Streetball Challenge", edition: "Inscriptions", phase: "registration", contestants: 20, votes: 0, ends: "7j 00h", organisateur: "FNCH", hot: false, followers: 18000, mediaType: "photo", registeredCount: 6 },
+      { id: "s3", title: "Esports Showdown", edition: "Finale", phase: "live", contestants: 8, votes: 6300, ends: "3j 12h", organisateur: "FNCH", hot: true, followers: 22000, mediaType: "video", registeredCount: 8 },
+    ],
+  },
+  {
+    id: "artdesign",
+    label: "Art & Design",
+    accent: "#9C27B0",
+    icon: "🎨",
+    competitions: [
+      { id: "a1", title: "Graffiti Masters", edition: "Saison 1", phase: "live", contestants: 10, votes: 7200, ends: "3j 08h", organisateur: "FNCH", hot: true, followers: 26000, mediaType: "photo", registeredCount: 10 },
+      { id: "a2", title: "Digital Illustration Contest", edition: "Beta", phase: "registration", contestants: 22, votes: 0, ends: "6j 12h", organisateur: "FNCH", hot: false, followers: 14000, mediaType: "photo", registeredCount: 7 },
+      { id: "a3", title: "Fashion Design Showdown", edition: "Finale", phase: "live", contestants: 12, votes: 8500, ends: "2j 20h", organisateur: "FNCH", hot: true, followers: 24000, mediaType: "photo", registeredCount: 12 },
+    ],
+  },
+  {
+    id: "comedie",
+    label: "Comédie",
+    accent: "#FFC107",
+    icon: "😂",
+    competitions: [
+      { id: "c1", title: "Stand-Up Battle", edition: "Saison 1", phase: "live", contestants: 12, votes: 6800, ends: "3j 04h", organisateur: "FNCH", hot: true, followers: 21000, mediaType: "video", registeredCount: 12 },
+      { id: "c2", title: "Improvisation League", edition: "Qualifs", phase: "registration", contestants: 18, votes: 0, ends: "5j 10h", organisateur: "FNCH", hot: false, followers: 13000, mediaType: "photo", registeredCount: 5 },
+      { id: "c3", title: "Sketch Comedy Showdown", edition: "Finale", phase: "live", contestants: 10, votes: 7200, ends: "2j 18h", organisateur: "FNCH", hot: true, followers: 19000, mediaType: "video", registeredCount: 10 },
+    ],
+  },
+  {
+    id: "gaming",
+    label: "Gaming",
+    accent: "#00BCD4",
+    icon: "🎮",
+    competitions: [
+      { id: "g1", title: "Mobile Masters", edition: "Saison 2", phase: "live", contestants: 16, votes: 9800, ends: "2j 12h", organisateur: "FNCH", hot: true, followers: 32000, mediaType: "video", registeredCount: 16 },
+      { id: "g2", title: "Indie Game Dev Jam", edition: "Inscriptions", phase: "registration", contestants: 20, votes: 0, ends: "6j 00h", organisateur: "FNCH", hot: false, followers: 15000, mediaType: "photo", registeredCount: 7 },
+      { id: "g3", title: "Esports Tournament", edition: "Finale", phase: "live", contestants: 12, votes: 8700, ends: "3j 20h", organisateur: "FNCH", hot: true, followers: 27000, mediaType: "video", registeredCount: 12 },
+    ],
+  },
 ];
 
 /* Placeholder data for the "Gagnants récents" rail — used only until real
