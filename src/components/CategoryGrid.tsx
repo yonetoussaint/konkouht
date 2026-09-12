@@ -27,7 +27,7 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
       <div
         style={{
           display: "flex",
-          gap: 12,
+          gap: 8,
           overflowX: "auto",
           paddingLeft: 8,
           paddingRight: 8,
