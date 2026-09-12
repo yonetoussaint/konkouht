@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import PageHeader from "./components/PageHeader";
 import SectionHeader from "./components/SectionHeader";
+import SectionShell from "./components/SectionShell";
 import BalanceCard from "./WalletPage/BalanceCard";
 import QuickActions from "./WalletPage/QuickActions";
 import DepositPanel from "./WalletPage/DepositPanel";
@@ -86,13 +87,7 @@ export default function WalletPage({
         padding: `0 ${SPACING.md}px`
       }}>
         {/* Balance Card Section - no heading */}
-        <div style={{ 
-          padding: `${SPACING.lg}px 0 ${SPACING.md}px 0`,
-          borderBottom: `1px solid #2a2a2e`,
-          margin: `0 -${SPACING.md}px`,
-          paddingLeft: SPACING.md,
-          paddingRight: SPACING.md,
-        }}>
+        <SectionShell bleed={SPACING.md} paddingTop={SPACING.lg} paddingBottom={SPACING.md}>
           <BalanceCard
             wallet={{
               currency: 'Haitian Gourde',
@@ -115,16 +110,10 @@ export default function WalletPage({
             isLoading={false}
             onRefresh={handleRefresh}
           />
-        </div>
+        </SectionShell>
 
         {/* Quick Actions Section - with heading */}
-        <div style={{ 
-          padding: `${SPACING.md}px 0 ${SPACING.md}px 0`,
-          borderBottom: `1px solid #2a2a2e`,
-          margin: `0 -${SPACING.md}px`,
-          paddingLeft: SPACING.md,
-          paddingRight: SPACING.md,
-        }}>
+        <SectionShell bleed={SPACING.md} paddingTop={SPACING.md} paddingBottom={SPACING.md}>
           <SectionHeader
             title="Quick Actions"
             actionLabel="View all"
@@ -139,16 +128,10 @@ export default function WalletPage({
             onRequireAuth={onRequireAuth}
             showToast={showToast}
           />
-        </div>
+        </SectionShell>
 
         {/* Transactions Section - with heading */}
-        <div style={{ 
-          paddingTop: SPACING.lg,
-          paddingBottom: SPACING.xxxl,
-          margin: `0 -${SPACING.md}px`,
-          paddingLeft: SPACING.md,
-          paddingRight: SPACING.md,
-        }}>
+        <SectionShell bleed={SPACING.md} paddingTop={SPACING.lg} paddingBottom={SPACING.xxxl} noBorder>
           <SectionHeader
             title="Transactions"
             actionLabel="View all"
@@ -160,7 +143,7 @@ export default function WalletPage({
             showToast={showToast}
             showHeader={false} // Tell component to hide its internal header
           />
-        </div>
+        </SectionShell>
       </div>
 
       <TransactionDetailSheet
