@@ -1,5 +1,6 @@
 import { fmtVotes } from "../App";
 import SectionHeader from "./SectionHeader";
+import SectionShell from "./SectionShell";
 
 /**
  * Duel du jour — a head-to-head spotlight between the two hottest live
@@ -138,14 +139,7 @@ export default function DuelOfTheDay({ duel, onOpen }) {
   );
 
   return (
-    <section
-      style={{
-        marginBottom: 0,
-        borderBottom: "2px solid #2a2a2e",
-        paddingBottom: 14,
-        paddingTop: 8,
-      }}
-    >
+    <SectionShell as="section" paddingTop={8} paddingBottom={14}>
       <div style={{ paddingLeft: 8, paddingRight: 8 }}>
         <SectionHeader title="Duel du jour" />
       </div>
@@ -180,6 +174,6 @@ export default function DuelOfTheDay({ duel, onOpen }) {
           VS
         </div>
       </div>
-    </section>
+    </SectionShell>
   );
 }
