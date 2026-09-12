@@ -95,12 +95,7 @@ const HOME_TABS = [
   { key: "Terminé", label: "Terminé", icon: Check },
 ];
 
-/* ─── ENDLESS FEED CONFIG ──────────────────────────────────────────────
-   Once the curated shelves (Top compétitions, En direct, etc.) run out,
-   the feed keeps generating more CompCard shelves from visibleCompsFlat,
-   cycling through this title pool so it never visibly runs dry — and
-   drops in one of the existing special sections every SPECIAL_EVERY
-   shelves, the way Facebook breaks up a post feed with non-post modules. */
+/* ─── ENDLESS FEED CONFIG ────────────────────────────────────────────── */
 
 const DISCOVERY_TITLES = [
   "Recommandé pour toi",
@@ -118,7 +113,7 @@ const DISCOVERY_TITLES = [
 const SHELF_SIZE = 6;
 const SPECIAL_EVERY = 2;
 
-/* ─── TYPE ROW (horizontally-scrollable rail of one competition "type") ── */
+/* ─── TYPE ROW ────────────────────────────────────────────────────────── */
 
 function TypeRow({
   label,
@@ -168,12 +163,8 @@ function TypeRow({
   );
 }
 
-/* ─── TOP DONATEURS ROW ────────────────────────────────────────────────
-   Horizontal rail of the week's biggest gift-senders, grouped from the
-   `gifts` table server-side (see App.tsx). Reuses the same section shell
-   as the other rails so it slots into the homepage rhythm, but scrolls
-   through avatar cards instead of competition cards. The #1 slot gets a
-   crown so the leaderboard has a visible winner. */
+/* ─── TOP DONATEURS ROW ──────────────────────────────────────────────── */
+
 function TopDonorsRow({ donors, onOpenDonor }) {
   if (!donors || donors.length === 0) return null;
 
@@ -365,25 +356,40 @@ export default function HomePage({
   onSelectCategory,
   recentWinners,
   finaleCalendar,
-  duelOfTheDay,
+  /**
+   * Duels keyed by lifecycle state:
+   *   duels.live     → { a, b } for the current live duel (or null)
+   *   duels.upcoming → { a, b } for the next scheduled duel (or null)
+   *   duels.ended    → { a, b } for the most recent finished duel (or null)
+   *
+   * The component picks the highest-priority one that exists:
+   * live > upcoming > ended. If all are null, the duel section is hidden.
+   * The old single `duelOfTheDay` prop still works — if `duels` isn't
+   * passed, it's treated as `{ live: duelOfTheDay }`.
+   */
+  duels,
+  duelOfTheDay, // legacy prop, kept for compatibility
   registeredCompIds,
   currentUser,
   onOpenTypeComp,
   onOpenComments,
   onOpenShare,
   onRegisterTypeComp,
-  onLoadMore, // optional — hook real Supabase pagination here if the raw
-              // dataset itself needs more pages; the generated shelves
-              // below cycle through visibleCompsFlat regardless, so the
-              // feed is endless even before this is wired up.
+  onLoadMore,
 }) {
-  /* ── Endless feed: generated shelves + interleaved specials ──────────
-     Curated shelves (Top compétitions, En direct, ...) render first and
-     unchanged, exactly as before. Once the person scrolls past them, an
-     IntersectionObserver sentinel keeps revealing more CompCard shelves
-     built from visibleCompsFlat, titled from the rotating pool above,
-     with the existing DuelOfTheDay / TopDonorsRow / RecentWinnersRow
-     sections dropped back in every couple of shelves for rhythm. */
+  /* ── Pick the duel to actually render ────────────────────────────────
+     Priority: live beats upcoming beats ended. When a duel transitions
+     from upcoming → live, this flips automatically without any extra
+     wiring on the parent side, as long as `duels.live` is populated. */
+  const activeDuel = useMemo(() => {
+    const d = duels ?? { live: duelOfTheDay ?? null };
+    if (d.live?.a && d.live?.b) return { ...d.live, state: "live" };
+    if (d.upcoming?.a && d.upcoming?.b) return { ...d.upcoming, state: "upcoming" };
+    if (d.ended?.a && d.ended?.b) return { ...d.ended, state: "ended" };
+    return null;
+  }, [duels, duelOfTheDay]);
+
+  /* ── Endless feed ────────────────────────────────────────────────── */
   const [extraShelves, setExtraShelves] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef(null);
@@ -425,14 +431,16 @@ export default function HomePage({
     return shelves;
   }, [extraShelves, visibleCompsFlat]);
 
+  /* Specials pool for the endless feed. Uses `activeDuel` so the
+     interleaved duel matches whichever state is currently live. */
   const specialsPool = useMemo(
     () =>
       [
-        duelOfTheDay && (() => <DuelOfTheDay key="duel-extra" duel={duelOfTheDay} onOpen={onOpenTypeComp} />),
+        activeDuel && (() => <DuelOfTheDay key="duel-extra" duel={activeDuel} onOpen={onOpenTypeComp} />),
         topDonors?.length > 0 && (() => <TopDonorsRow key="donors-extra" donors={topDonors} />),
         recentWinners?.length > 0 && (() => <RecentWinnersRow key="winners-extra" winners={recentWinners} onOpen={onOpenTypeComp} />),
       ].filter(Boolean),
-    [duelOfTheDay, topDonors, recentWinners, onOpenTypeComp]
+    [activeDuel, topDonors, recentWinners, onOpenTypeComp]
   );
 
   return (
@@ -547,10 +555,6 @@ export default function HomePage({
         <style>{`@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
       </header>
 
-      {/* Dormant until real store URLs are set — the component itself
-          renders nothing without at least one of appStoreUrl/playStoreUrl,
-          so this is safe to ship as-is and fill in once KonkouHT is live
-          on a store. */}
       <DownloadAppBanner
         appStoreUrl={undefined}
         playStoreUrl={undefined}
@@ -779,7 +783,21 @@ export default function HomePage({
               registeredCompIds={registeredCompIds}
               currentUser={currentUser}
             />
-            <DuelOfTheDay duel={duelOfTheDay} onOpen={onOpenTypeComp} />
+
+            {/* ── DUEL DU JOUR ────────────────────────────────────────
+                Renders whichever duel is currently most relevant:
+                live if there is one, otherwise the next upcoming one,
+                otherwise the most recent ended one. `activeDuel.state`
+                is passed through so DuelOfTheDay can theme itself.
+                Hidden entirely when nothing is available. */}
+            {activeDuel && (
+              <DuelOfTheDay
+                duel={activeDuel}
+                state={activeDuel.state}
+                onOpen={onOpenTypeComp}
+              />
+            )}
+
             <TypeRow
               label="En direct"
               items={liveComps}
@@ -870,13 +888,6 @@ export default function HomePage({
               />
             ))}
 
-            {/* ── ENDLESS DISCOVERY SHELVES ──────────────────────────────
-                Beyond this point the feed is self-generating: more
-                CompCard shelves keep appearing as the sentinel below is
-                scrolled into view, cycling through visibleCompsFlat and
-                the rotating title pool, with the special sections above
-                (Duel du jour, Top donateurs, Vainqueurs récents) dropped
-                back in every SPECIAL_EVERY shelves for rhythm. */}
             {generatedShelves.map((shelf, i) => (
               <Fragment key={shelf.key}>
                 <TypeRow
