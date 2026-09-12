@@ -2,7 +2,7 @@ import SectionHeader from "./SectionHeader";
 import SectionShell from "./SectionShell";
 
 /**
- * CategoryGrid — circular niche shortcuts with titles.
+ * CategoryGrid — compact circular niche shortcuts with titles.
  *
  * See HomePage.tsx / App.tsx for the live wiring: App.tsx computes
  * `homeCategories` from NICHES + NICHE_ICONS and holds `activeNiche`
@@ -28,7 +28,7 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "20px 8px",
+          gap: "14px 6px",
           paddingLeft: 8,
           paddingRight: 8,
           justifyItems: "center",
@@ -47,7 +47,7 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 8,
+                gap: 6,
                 width: "100%",
                 background: "transparent",
                 border: "none",
@@ -59,17 +59,13 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
               }}
               onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.94)")}
               onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
-                const circle = e.currentTarget.firstChild;
-                if (!isActive) circle.style.borderColor = "#2a2a2e";
-              }}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
               {/* Circular button — the only interactive surface */}
               <div
                 style={{
-                  width: 68,
-                  height: 68,
+                  width: 48,
+                  height: 48,
                   borderRadius: "50%",
                   background: isActive ? `${accent}14` : "#1c1c1f",
                   border: `${isActive ? 2 : 1.5}px solid ${isActive ? accent : "#2a2a2e"}`,
@@ -77,8 +73,8 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
                   alignItems: "center",
                   justifyContent: "center",
                   boxShadow: isActive
-                    ? `0 0 0 3px ${accent}22, 0 2px 8px rgba(0,0,0,0.5)`
-                    : "0 2px 8px rgba(0,0,0,0.5)",
+                    ? `0 0 0 2px ${accent}22, 0 1px 4px rgba(0,0,0,0.5)`
+                    : "0 1px 4px rgba(0,0,0,0.4)",
                   transition: "border-color 0.2s, background 0.2s, box-shadow 0.2s",
                   flexShrink: 0,
                 }}
@@ -90,7 +86,7 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
                 }}
               >
                 {Icon ? (
-                  <Icon size={26} strokeWidth={2} color={accent} />
+                  <Icon size={20} strokeWidth={2} color={accent} />
                 ) : null}
               </div>
 
@@ -98,11 +94,11 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
               <span
                 style={{
                   fontFamily: "Inter, sans-serif",
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 600,
                   color: isActive ? accent : "#f2f2f2",
                   textAlign: "center",
-                  lineHeight: 1.3,
+                  lineHeight: 1.2,
                   maxWidth: "100%",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -112,21 +108,6 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
               >
                 {cat.label}
               </span>
-
-              {/* Optional count */}
-              {typeof cat.count === "number" && (
-                <span
-                  style={{
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 10,
-                    fontWeight: 500,
-                    color: "#8a8a90",
-                    marginTop: -4,
-                  }}
-                >
-                  {cat.count} concours
-                </span>
-              )}
             </button>
           );
         })}
