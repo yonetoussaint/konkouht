@@ -442,6 +442,9 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
             onClick={(e) => { e.stopPropagation(); hapticTap("medium"); onRegister?.(comp); }}
             style={{
               border: "none",
+              borderRadius: 0,
+              width: "100%",
+              boxSizing: "border-box",
               background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
               boxShadow: `0 4px 14px ${accent}4d`,
               color: "#fff",
@@ -483,6 +486,9 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
           style={{
             border: `1px solid ${accent}33`,
+            borderRadius: 0,
+            width: "100%",
+            boxSizing: "border-box",
             background: `linear-gradient(135deg, ${accent}22, #26262a)`,
             color: accent,
             appearance: "none",
@@ -522,6 +528,10 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
           style={{
             border: "none",
+            borderRadius: 0,
+            width: "100%",
+            boxSizing: "border-box",
+            display: "flex",
             background: `linear-gradient(135deg, ${accent}, #F5A623)`,
             boxShadow: `0 4px 14px ${accent}55`,
             color: "#fff",
@@ -534,7 +544,6 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             padding: "10px 14px",
-            display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             cursor: "pointer",
