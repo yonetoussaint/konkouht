@@ -12,10 +12,18 @@ import {
 import {
   fmtVotes,
   fmtAbsoluteDateOnly,
-  fmtCountdown,
   fmtCompactPrize,
   getRegistrationFee,
 } from "./App";
+
+function fmtCountdownClock(endDate) {
+  const totalSeconds = Math.max(0, Math.floor((new Date(endDate).getTime() - Date.now()) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${hours}:${pad(minutes)}:${pad(seconds)}`;
+}
 
 export default function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompetition, fullWidth = false }) {
   const [voteCount] = useState(comp.votes);
@@ -269,7 +277,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
                   fontWeight: 700,
                 }}>
                   <Clock size={9} strokeWidth={2.5} />
-                  {fmtCountdown(resolvedEndDate)}
+                  {fmtCountdownClock(resolvedEndDate)}
                 </span>
               )}
             </div>
