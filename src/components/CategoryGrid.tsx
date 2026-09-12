@@ -26,14 +26,17 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
 
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "14px 6px",
+          display: "flex",
+          gap: 12,
+          overflowX: "auto",
           paddingLeft: 8,
           paddingRight: 8,
-          justifyItems: "center",
+          paddingBottom: 4,
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
         }}
       >
+        <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {categories.map((cat) => {
           const Icon = cat.icon;
           const accent = cat.accent || "#F5C542";
@@ -48,7 +51,8 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
                 flexDirection: "column",
                 alignItems: "center",
                 gap: 6,
-                width: "100%",
+                width: 72,
+                flexShrink: 0,
                 background: "transparent",
                 border: "none",
                 padding: 0,
