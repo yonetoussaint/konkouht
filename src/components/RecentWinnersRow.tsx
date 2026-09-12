@@ -1,5 +1,6 @@
 import { Trophy } from "lucide-react";
 import SectionHeader from "./SectionHeader";
+import SectionShell from "./SectionShell";
 import { fmtCompactPrize } from "../App";
 
 /**
@@ -29,14 +30,7 @@ export default function RecentWinnersRow({ winners, onOpen }) {
   if (!winners || winners.length === 0) return null;
 
   return (
-    <section
-      style={{
-        marginBottom: 0,
-        borderBottom: "2px solid #2a2a2e",
-        paddingBottom: 10,
-        paddingTop: 8,
-      }}
-    >
+    <SectionShell as="section" paddingTop={8} paddingBottom={10}>
       <div style={{ paddingLeft: 8, paddingRight: 8 }}>
         <SectionHeader title="Gagnants récents" />
       </div>
@@ -192,6 +186,6 @@ export default function RecentWinnersRow({ winners, onOpen }) {
           );
         })}
       </div>
-    </section>
+    </SectionShell>
   );
 }
