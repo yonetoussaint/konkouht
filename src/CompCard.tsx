@@ -18,11 +18,14 @@ import {
 
 function fmtCountdownClock(endDate) {
   const totalSeconds = Math.max(0, Math.floor((new Date(endDate).getTime() - Date.now()) / 1000));
+  const days = Math.floor(totalSeconds / 86400);
   const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${hours}:${pad(minutes)}:${pad(seconds)}`;
+  const minutes = Math.floor(totalSeconds / 60);
+
+  if (days > 0) return `Il reste ${days} jour${days > 1 ? "s" : ""}`;
+  if (hours > 0) return `Il reste ${hours} heure${hours > 1 ? "s" : ""}`;
+  if (minutes > 0) return `Il reste ${minutes} minute${minutes > 1 ? "s" : ""}`;
+  return `Il reste ${totalSeconds} seconde${totalSeconds !== 1 ? "s" : ""}`;
 }
 
 export default function CompCard({ comp, accent, onOpen, onRegister, isRegistered, isOwnCompetition, fullWidth = false }) {
