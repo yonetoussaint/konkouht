@@ -445,6 +445,9 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
               boxShadow: `0 4px 14px ${accent}4d`,
               color: "#fff",
+              appearance: "none",
+              WebkitAppearance: "none",
+              margin: 0,
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
               fontSize: 12.5,
@@ -482,6 +485,9 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
             border: `1px solid ${accent}33`,
             background: `linear-gradient(135deg, ${accent}22, #26262a)`,
             color: accent,
+            appearance: "none",
+            WebkitAppearance: "none",
+            margin: 0,
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
             fontSize: 12.5,
@@ -516,9 +522,12 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
           onClick={(e) => { e.stopPropagation(); onOpen?.(comp); }}
           style={{
             border: "none",
-            background: `linear-gradient(135deg, #ffffff, ${accent}22)`,
-            boxShadow: `0 4px 14px ${accent}33`,
-            color: "#111",
+            background: `linear-gradient(135deg, ${accent}, #F5A623)`,
+            boxShadow: `0 4px 14px ${accent}55`,
+            color: "#fff",
+            appearance: "none",
+            WebkitAppearance: "none",
+            margin: 0,
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
             fontSize: 12.5,
@@ -542,7 +551,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               fontFamily: "Inter, sans-serif",
               fontSize: 11.5,
               fontWeight: 600,
-              opacity: 0.75,
+              opacity: 0.85,
             }}
           >
             {fmtVotes(voteCount)}
