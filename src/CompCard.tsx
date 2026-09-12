@@ -115,7 +115,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
                 borderRadius: 7,
                 display: "flex", alignItems: "center", gap: 3,
               }}>
-                INSCR.
+                INSCR. EN COURS
               </div>
             )}
             {isLive && (
