@@ -36,6 +36,17 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comp.endsAt, comp.id]);
 
+  const registrationPct = Math.min(100, Math.round((comp.registeredCount / Math.max(comp.contestants, 1)) * 100));
+  const registrationFillColor = comp.registeredCount >= comp.contestants ? "#00B894" : accent;
+  const ProgressFill = () => (
+    <div style={{
+      position: "absolute", left: 0, bottom: 0, height: 3,
+      width: `${registrationPct}%`,
+      background: registrationFillColor,
+      transition: "width 0.4s ease",
+    }} />
+  );
+
   return (
     <div
       onClick={() => onOpen?.(comp)}
@@ -367,24 +378,14 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
         </div>
       </div>
 
-      {/* Registration progress bar */}
-      {isRegistration && (
-        <div style={{ height: 6, width: "100%", background: "#2a2a2e", overflow: "hidden", flexShrink: 0 }}>
-          <div style={{
-            height: "100%",
-            width: `${Math.min(100, Math.round((comp.registeredCount / Math.max(comp.contestants, 1)) * 100))}%`,
-            background: comp.registeredCount >= comp.contestants ? "#00B894" : accent,
-            transition: "width 0.4s ease",
-          }} />
-        </div>
-      )}
-
       {/* Footer */}
       {isRegistration ? (
         isOwnCompetition ? (
           <div
             style={{
               border: "none",
+              position: "relative",
+              overflow: "hidden",
               height: 41,
               boxSizing: "border-box",
               background: "linear-gradient(135deg, #2e2e33, #232326)",
@@ -395,7 +396,6 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               letterSpacing: "0.06em",
               textTransform: "uppercase",
               whiteSpace: "nowrap",
-              overflow: "hidden",
               textOverflow: "ellipsis",
               padding: "0 14px",
               display: "flex",
@@ -405,13 +405,16 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               flexShrink: 0,
             }}
           >
+            <ProgressFill />
             <BadgeCheck size={13} strokeWidth={2.5} />
-            Votre compétition
+            Votre compét.
           </div>
         ) : isRegistered ? (
           <div
             style={{
               border: "none",
+              position: "relative",
+              overflow: "hidden",
               height: 41,
               boxSizing: "border-box",
               background: "linear-gradient(135deg, #16473380, #123a2b)",
@@ -429,6 +432,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               flexShrink: 0,
             }}
           >
+            <ProgressFill />
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Check size={13} strokeWidth={2.5} />
               Inscrit
@@ -454,6 +458,8 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               width: "100%",
               height: 41,
               boxSizing: "border-box",
+              position: "relative",
+              overflow: "hidden",
               background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
               boxShadow: `0 4px 14px ${accent}4d`,
               color: "#fff",
@@ -474,6 +480,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
               flexShrink: 0,
             }}
           >
+            <ProgressFill />
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Plus size={13} strokeWidth={2.5} />
               S'inscrire
@@ -540,6 +547,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
             border: "none",
             borderRadius: 0,
             width: "100%",
+            height: 41,
             boxSizing: "border-box",
             display: "flex",
             background: `linear-gradient(135deg, ${accent}, #F5A623)`,
@@ -553,7 +561,7 @@ export default function CompCard({ comp, accent, onOpen, onRegister, isRegistere
             fontSize: 12.5,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            padding: "10px 14px",
+            padding: "0 14px",
             alignItems: "center",
             justifyContent: "space-between",
             cursor: "pointer",
