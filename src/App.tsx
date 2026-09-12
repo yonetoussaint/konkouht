@@ -846,7 +846,7 @@ export function fmtAbsoluteDateOnly(target) {
   return `${date} ${month}`;
 }
 
-function estimateEndTimestamp(comp) {
+export function estimateEndTimestamp(comp) {
   if (comp.endsAt) return new Date(comp.endsAt).getTime();
   const str = comp.ends || "";
   let total = 0;
@@ -3265,6 +3265,56 @@ export default function App() {
       .slice(0, 10);
   }, [allNichesWithEdits]);
 
+  // "Calendrier des finales" rail — every non-completed edition across all
+  // niches, sorted by resolved end date, independent of the active tab.
+  const finaleCalendar = useMemo(() => {
+    return allNichesWithEdits
+      .flatMap((niche) =>
+        niche.competitions
+          .filter((c) => c.active !== false && c.phase !== "completed")
+          .map((c) => ({
+            ...c,
+            accent: niche.accent,
+            niche: niche.label,
+            endsAtResolved: new Date(estimateEndTimestamp(c)).toISOString(),
+          }))
+      )
+      .sort((a, b) => new Date(a.endsAtResolved) - new Date(b.endsAtResolved))
+      .slice(0, 10);
+  }, [allNichesWithEdits]);
+
+  // "Duel du jour" — the two hottest live competitions in whichever niche
+  // has at least two live entries (falls back to the two hottest live
+  // competitions overall). Picks the same pair all day; seed the pick with
+  // today's date instead of pure vote count if you want it to rotate daily.
+  const duelOfTheDay = useMemo(() => {
+    const byNiche = allNichesWithEdits
+      .map((niche) => ({
+        niche,
+        live: niche.competitions.filter((c) => c.active !== false && c.phase === "live"),
+      }))
+      .filter(({ live }) => live.length >= 2);
+
+    const pickPair = (niche, live) => {
+      const [a, b] = [...live].sort((x, y) => y.votes - x.votes);
+      return {
+        a: { ...a, accent: niche.accent, niche: niche.label },
+        b: { ...b, accent: niche.accent, niche: niche.label },
+      };
+    };
+
+    if (byNiche.length > 0) return pickPair(byNiche[0].niche, byNiche[0].live);
+
+    const allLive = allNichesWithEdits.flatMap((niche) =>
+      niche.competitions
+        .filter((c) => c.active !== false && c.phase === "live")
+        .map((c) => ({ ...c, accent: niche.accent, niche: niche.label }))
+    );
+    if (allLive.length < 2) return null;
+    const [a, b] = [...allLive].sort((x, y) => y.votes - x.votes);
+    return { a, b };
+  }, [allNichesWithEdits]);
+
   const visibleNiches = query.trim() === ""
     ? nichesByFilter
     : nichesByFilter
@@ -3940,6 +3990,8 @@ export default function App() {
           activeNiche={activeNiche}
           onSelectCategory={(label) => setActiveNiche((prev) => (prev === label ? null : label))}
           recentWinners={recentWinners}
+          finaleCalendar={finaleCalendar}
+          duelOfTheDay={duelOfTheDay}
           registeredCompIds={registeredCompIds}
           currentUser={currentUser}
           onOpenTypeComp={handleOpenTypeComp}
