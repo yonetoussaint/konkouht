@@ -61,9 +61,26 @@ export default function DuelOfTheDay({ duel, onOpen }) {
   if (!duel || !duel.a || !duel.b) return null;
   const { a, b } = duel;
 
+  // Derived vote-share values, hoisted so the JSX below stays flat.
+  const aVotes = a.votes || 0;
+  const bVotes = b.votes || 0;
+  const total = aVotes + bVotes;
+  const aPct = total > 0 ? (aVotes / total) * 100 : 50;
+  const bPct = 100 - aPct;
+  const gap = Math.abs(aVotes - bVotes);
+  const aLeading = aVotes > bVotes;
+  const bLeading = bVotes > aVotes;
+
+  // If both comps share the same accent (common within one niche), the
+  // two halves of the bar would be visually identical — fall back to a
+  // neutral tone for the right side so the split is readable.
+  const aColor = a.accent || "#F5C542";
+  const bColor = b.accent && b.accent !== a.accent ? b.accent : "#8a8a90";
+
   const Side = ({ comp, align }) => (
     <button
       onClick={() => onOpen?.(comp)}
+      aria-label={`Open ${comp.title}, ${fmtVotes(comp.votes)} votes`}
       style={{
         flex: 1,
         display: "flex",
@@ -144,6 +161,10 @@ export default function DuelOfTheDay({ duel, onOpen }) {
         <SectionHeader title="Duel du jour" />
       </div>
 
+      {/* Cards + VS badge live in a relative wrapper so the badge can be
+          absolutely centered on the seam between the two cards. The vote
+          bar is a sibling below this wrapper so it doesn't shift the
+          visual center the badge is anchored to. */}
       <div style={{ paddingLeft: 8, paddingRight: 8, position: "relative" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
           <Side comp={a} align="left" />
@@ -169,9 +190,64 @@ export default function DuelOfTheDay({ duel, onOpen }) {
             fontSize: 11,
             fontWeight: 700,
             color: "#F5C542",
+            pointerEvents: "none",
           }}
         >
           VS
+        </div>
+      </div>
+
+      {/* Live vote-share bar */}
+      <div
+        style={{ paddingLeft: 8, paddingRight: 8, marginTop: 10 }}
+        role="img"
+        aria-label={`${a.title} ${aPct.toFixed(0)} percent, ${b.title} ${bPct.toFixed(0)} percent`}
+      >
+        <div
+          style={{
+            display: "flex",
+            height: 6,
+            borderRadius: 999,
+            overflow: "hidden",
+            background: "#1a1a1d",
+            border: "1px solid #2a2a2e",
+          }}
+        >
+          <div
+            style={{
+              width: `${aPct}%`,
+              background: aColor,
+              transition: "width 400ms ease",
+            }}
+          />
+          <div
+            style={{
+              flex: 1,
+              background: bColor,
+              transition: "width 400ms ease",
+            }}
+          />
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: 6,
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontSize: 11,
+            fontWeight: 700,
+          }}
+        >
+          <span style={{ color: aLeading ? aColor : "#8a8a90" }}>
+            {aPct.toFixed(0)}%{aLeading && gap > 0 ? " ▲" : ""}
+          </span>
+          <span style={{ color: "#5a5a60", fontWeight: 600 }}>
+            {gap > 0 ? `${fmtVotes(gap)} ahead` : "tied"}
+          </span>
+          <span style={{ color: bLeading ? bColor : "#8a8a90" }}>
+            {bLeading && gap > 0 ? "▲ " : ""}{bPct.toFixed(0)}%
+          </span>
         </div>
       </div>
     </SectionShell>
