@@ -71,11 +71,22 @@ function deriveState(a, b) {
  *   endsAt?: string | Date,
  * }
  */
-export default function DuelOfTheDay({ duel, onOpen }) {
+export default function DuelOfTheDay({ duel, onOpen, title }) {
   if (!duel || !duel.a || !duel.b) return null;
   const { a, b } = duel;
 
   const state = deriveState(a, b);
+
+  // Header label defaults per lifecycle state so multiple duel cards
+  // (live + upcoming + ended) rendered together on the homepage read as
+  // distinct sections instead of three cards all titled "Duel du jour".
+  const headerTitle =
+    title ||
+    (state === "upcoming"
+      ? "Prochain duel"
+      : state === "ended"
+      ? "Duel terminé"
+      : "Duel du jour");
 
   // Live "now" tick so countdowns update. 1s granularity — the countdown
   // formatter itself drops to seconds only under a minute, so it's
@@ -292,7 +303,7 @@ export default function DuelOfTheDay({ duel, onOpen }) {
           justifyContent: "space-between",
         }}
       >
-        <SectionHeader title="Duel du jour" />
+        <SectionHeader title={headerTitle} />
         <StatusChip />
       </div>
 
