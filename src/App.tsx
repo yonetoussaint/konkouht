@@ -3361,36 +3361,69 @@ export default function App() {
       .slice(0, 10);
   }, [allNichesWithEdits]);
 
-  // "Duel du jour" — the two hottest live competitions in whichever niche
-  // has at least two live entries (falls back to the two hottest live
-  // competitions overall). Picks the same pair all day; seed the pick with
-  // today's date instead of pure vote count if you want it to rotate daily.
-  const duelOfTheDay = useMemo(() => {
-    const byNiche = allNichesWithEdits
-      .map((niche) => ({
-        niche,
-        live: niche.competitions.filter((c) => c.active !== false && c.phase === "live"),
-      }))
-      .filter(({ live }) => live.length >= 2);
-
-    const pickPair = (niche, live) => {
-      const [a, b] = [...live].sort((x, y) => y.votes - x.votes);
+  // "Duel du jour" — a pair per lifecycle state (live / upcoming / ended),
+  // in whichever niche has at least two entries in that state (falls back
+  // to the two hottest/soonest/most-recent entries overall). HomePage
+  // picks live > upcoming > ended, so populating all three means the
+  // homepage no longer sits stuck on a single state when nothing is live.
+  const duels = useMemo(() => {
+    const pickPair = (items, niche) => {
+      if (items.length < 2) return null;
+      const [a, b] = items.slice(0, 2);
       return {
         a: { ...a, accent: niche.accent, niche: niche.label },
         b: { ...b, accent: niche.accent, niche: niche.label },
       };
     };
 
-    if (byNiche.length > 0) return pickPair(byNiche[0].niche, byNiche[0].live);
+    // phase: the app's actual competition phase to filter by.
+    // normalizedPhase: what DuelOfTheDay expects ("live" | "upcoming" | "ended"),
+    // since it trusts an explicit `phase` on each comp — without this override
+    // "registration"/"completed" would fall through as unmapped states.
+    const buildForPhase = (phase, normalizedPhase, sortFn) => {
+      const rank = sortFn || ((x, y) => y.votes - x.votes);
 
-    const allLive = allNichesWithEdits.flatMap((niche) =>
-      niche.competitions
-        .filter((c) => c.active !== false && c.phase === "live")
-        .map((c) => ({ ...c, accent: niche.accent, niche: niche.label }))
-    );
-    if (allLive.length < 2) return null;
-    const [a, b] = [...allLive].sort((x, y) => y.votes - x.votes);
-    return { a, b };
+      const byNiche = allNichesWithEdits
+        .map((niche) => ({
+          niche,
+          items: niche.competitions.filter((c) => c.active !== false && c.phase === phase),
+        }))
+        .filter(({ items }) => items.length >= 2);
+
+      let pair = null;
+      if (byNiche.length > 0) {
+        pair = pickPair([...byNiche[0].items].sort(rank), byNiche[0].niche);
+      } else {
+        const all = allNichesWithEdits.flatMap((niche) =>
+          niche.competitions
+            .filter((c) => c.active !== false && c.phase === phase)
+            .map((c) => ({ ...c, accent: niche.accent, niche: niche.label }))
+        );
+        if (all.length >= 2) {
+          const [a, b] = [...all].sort(rank).slice(0, 2);
+          pair = { a, b };
+        }
+      }
+      if (!pair) return null;
+      return {
+        a: { ...pair.a, phase: normalizedPhase },
+        b: { ...pair.b, phase: normalizedPhase },
+      };
+    };
+
+    return {
+      live: buildForPhase("live", "live"),
+      upcoming: buildForPhase(
+        "registration",
+        "upcoming",
+        (a, b) => estimateEndTimestamp(a) - estimateEndTimestamp(b)
+      ),
+      ended: buildForPhase(
+        "completed",
+        "ended",
+        (a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0)
+      ),
+    };
   }, [allNichesWithEdits]);
 
   const visibleNiches = query.trim() === ""
@@ -4069,7 +4102,7 @@ export default function App() {
           onSelectCategory={(label) => setActiveNiche((prev) => (prev === label ? null : label))}
           recentWinners={recentWinners}
           finaleCalendar={finaleCalendar}
-          duelOfTheDay={duelOfTheDay}
+          duels={duels}
           registeredCompIds={registeredCompIds}
           currentUser={currentUser}
           onOpenTypeComp={handleOpenTypeComp}
