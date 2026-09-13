@@ -377,16 +377,16 @@ export default function HomePage({
   onRegisterTypeComp,
   onLoadMore,
 }) {
-  /* ── Pick the duel to actually render ────────────────────────────────
-     Priority: live beats upcoming beats ended. When a duel transitions
-     from upcoming → live, this flips automatically without any extra
-     wiring on the parent side, as long as `duels.live` is populated. */
-  const activeDuel = useMemo(() => {
+  /* ── Every duel worth showing ─────────────────────────────────────────
+     Renders one card per lifecycle state that actually has a pair —
+     live AND upcoming AND ended can all appear at once, instead of the
+     homepage being stuck showing only whichever one wins a priority
+     order. A state simply doesn't render if `duels.<state>` is null. */
+  const availableDuels = useMemo(() => {
     const d = duels ?? { live: duelOfTheDay ?? null };
-    if (d.live?.a && d.live?.b) return { ...d.live, state: "live" };
-    if (d.upcoming?.a && d.upcoming?.b) return { ...d.upcoming, state: "upcoming" };
-    if (d.ended?.a && d.ended?.b) return { ...d.ended, state: "ended" };
-    return null;
+    return ["live", "upcoming", "ended"]
+      .filter((state) => d[state]?.a && d[state]?.b)
+      .map((state) => ({ ...d[state], state }));
   }, [duels, duelOfTheDay]);
 
   /* ── Endless feed ────────────────────────────────────────────────── */
@@ -431,16 +431,18 @@ export default function HomePage({
     return shelves;
   }, [extraShelves, visibleCompsFlat]);
 
-  /* Specials pool for the endless feed. Uses `activeDuel` so the
-     interleaved duel matches whichever state is currently live. */
+  /* Specials pool for the endless feed. Includes every available duel
+     state so the interleaved cards aren't all the same "live" pair. */
   const specialsPool = useMemo(
     () =>
       [
-        activeDuel && (() => <DuelOfTheDay key="duel-extra" duel={activeDuel} onOpen={onOpenTypeComp} />),
+        ...availableDuels.map(
+          (duel) => () => <DuelOfTheDay key={`duel-extra-${duel.state}`} duel={duel} onOpen={onOpenTypeComp} />
+        ),
         topDonors?.length > 0 && (() => <TopDonorsRow key="donors-extra" donors={topDonors} />),
         recentWinners?.length > 0 && (() => <RecentWinnersRow key="winners-extra" winners={recentWinners} onOpen={onOpenTypeComp} />),
       ].filter(Boolean),
-    [activeDuel, topDonors, recentWinners, onOpenTypeComp]
+    [availableDuels, topDonors, recentWinners, onOpenTypeComp]
   );
 
   return (
@@ -784,19 +786,15 @@ export default function HomePage({
               currentUser={currentUser}
             />
 
-            {/* ── DUEL DU JOUR ────────────────────────────────────────
-                Renders whichever duel is currently most relevant:
-                live if there is one, otherwise the next upcoming one,
-                otherwise the most recent ended one. `activeDuel.state`
-                is passed through so DuelOfTheDay can theme itself.
-                Hidden entirely when nothing is available. */}
-            {activeDuel && (
-              <DuelOfTheDay
-                duel={activeDuel}
-                state={activeDuel.state}
-                onOpen={onOpenTypeComp}
-              />
-            )}
+            {/* ── DUELS ───────────────────────────────────────────────
+                Renders one card per lifecycle state that has a pair —
+                live, upcoming, and ended can all show up together.
+                Each DuelOfTheDay derives its own state/label from the
+                pair's phase, so nothing extra needs passing through
+                here. Hidden entirely when none are available. */}
+            {availableDuels.map((duel) => (
+              <DuelOfTheDay key={`duel-${duel.state}`} duel={duel} onOpen={onOpenTypeComp} />
+            ))}
 
             <TypeRow
               label="En direct"
