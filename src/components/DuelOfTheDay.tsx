@@ -3,7 +3,7 @@ import { hapticTap } from "./native";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { PiShareFat } from "react-icons/pi";
-import ShareSheet from "./ShareSheet";
+import ShareSheet from "../ShareSheet";
 import { shareCompetitionNatively } from "./lib/share";
 import {
   Trophy, Home, Wallet, Users, Bell, BadgeCheck, Play, Plus, Gift, X, Check,
