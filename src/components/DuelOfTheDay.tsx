@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { hapticTap } from "./native";
+import { hapticTap } from "../native";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import { PiShareFat } from "react-icons/pi";
 import ShareSheet from "../ShareSheet";
-import { shareCompetitionNatively } from "./lib/share";
+import { shareCompetitionNatively } from "../lib/share";
 import {
   Trophy, Home, Wallet, Users, Bell, BadgeCheck, Play, Plus, Gift, X, Check,
   ArrowLeft, Send, ChevronRight, ChevronLeft, MessageCircle,
@@ -24,7 +24,7 @@ import {
   fetchRegistrations,
   refundRegistrationFee,
   isCompOwner,
-} from "./App";
+} from "../App";
 
 async function fetchComments(editionId) {
   const { data, error } = await supabase
