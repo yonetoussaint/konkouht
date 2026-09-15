@@ -1,6 +1,6 @@
 import { supabase, hashStr, fakeName, FR_MONTH_ABBR } from "../App";
 
-/* ��� comments (edition-scoped) ������������������������������������������� */
+/* ─── comments (edition-scoped) ─────────────────────────────────────────── */
 
 export async function fetchComments(editionId) {
   const { data, error } = await supabase
@@ -52,11 +52,11 @@ export async function insertComment({
     .single();
 }
 
-/* ��� registrations (edition-scoped) ��������������������������������������
+/* ─── registrations (edition-scoped) ──────────────────────────────────────
    See the schema notes above (edition_id + avatar_url added, unique
-   constraint moved to (edition_id, user_id)). ������������������������� */
+   constraint moved to (edition_id, user_id)). ───────────────────────── */
 
-// Keyed by edition_id now � a new season/edition starts back at 0
+// Keyed by edition_id now — a new season/edition starts back at 0
 // registrants, it doesn't inherit a previous edition's count.
 export async function deleteRegistration(registrationId) {
   const { error } = await supabase.from("registrations").delete().eq("id", registrationId);
@@ -64,9 +64,9 @@ export async function deleteRegistration(registrationId) {
 }
 
 // Refunds a registration fee back into a participant's wallet after an
-// admin removal. Writes a wallet_transactions row first � same shape as a
+// admin removal. Writes a wallet_transactions row first — same shape as a
 // MonCash deposit credit, so it shows up in the participant's transaction
-// history labeled as a refund � then updates wallet_balances directly.
+// history labeled as a refund — then updates wallet_balances directly.
 //
 // Note: the balance update here is read-then-write, not atomic. That
 // matches how the rest of this file already touches wallet_balances (no
@@ -83,7 +83,7 @@ export function notoAnimatedEmojiUrl(emoji) {
 }
 
 // Gift "points" (shown on the icon) are not the same as the actual HTG
-// price charged � points are a display/prestige number, the real cost in
+// price charged — points are a display/prestige number, the real cost in
 // gourdes is derived from this rate (e.g. 50 points -> 45 HTG at 0.9).
 export const POINTS_TO_HTG_RATE = 0.9;
 export function giftPriceHTG(gift) {
@@ -91,36 +91,36 @@ export function giftPriceHTG(gift) {
 }
 
 export const GIFT_CATALOG = [
-  { id: "g1", name: "Applaudissement", icon: "��", cost: 10 },
-  { id: "g2", name: "Pouce lev辿", icon: "�", cost: 10 },
-  { id: "g3", name: "C�ur", icon: "�わ��", cost: 15 },
-  { id: "g4", name: "�toile", icon: "皚", cost: 25 },
-  { id: "g5", name: "Ballon", icon: "��", cost: 25 },
-  { id: "g6", name: "Fleur", icon: "�", cost: 30 },
-  { id: "g7", name: "Flamme", icon: "��", cost: 50 },
-  { id: "g8", name: "�clair", icon: "��", cost: 50 },
-  { id: "g9", name: "Papillon", icon: "��", cost: 60 },
-  { id: "g10", name: "Confettis", icon: "��", cost: 75 },
-  { id: "g11", name: "Cadeau", icon: "��", cost: 100 },
-  { id: "g12", name: "Micro", icon: "�､", cost: 100 },
-  { id: "g13", name: "Danse", icon: "�", cost: 120 },
-  { id: "g14", name: "Couronne", icon: "�", cost: 150 },
-  { id: "g15", name: "Feu d'artifice", icon: "��", cost: 180 },
-  { id: "g16", name: "Guitare", icon: "�ｸ", cost: 200 },
-  { id: "g17", name: "Arc-en-ciel", icon: "�", cost: 220 },
-  { id: "g18", name: "M辿daille d'or", icon: "��", cost: 250 },
-  { id: "g19", name: "Troph辿e", icon: "��", cost: 300 },
-  { id: "g20", name: "Champagne", icon: "��", cost: 350 },
-  { id: "g21", name: "Fus辿e", icon: "�", cost: 400 },
-  { id: "g22", name: "Sir竪ne", icon: "����鏝�", cost: 450 },
-  { id: "g23", name: "Voiture de sport", icon: "���鏝�", cost: 500 },
-  { id: "g24", name: "Lion", icon: "��", cost: 600 },
-  { id: "g25", name: "Diamant", icon: "��", cost: 750 },
-  { id: "g26", name: "Yacht", icon: "�ワ��", cost: 900 },
-  { id: "g27", name: "Ch但teau", icon: "���", cost: 1200 },
-  { id: "g28", name: "Avion priv辿", icon: "�鏝�", cost: 1500 },
-  { id: "g29", name: "Fus辿e spatiale", icon: "��", cost: 2000 },
-  { id: "g30", name: "Couronne royale", icon: "�", cost: 3000 },
+  { id: "g1", name: "Applaudissement", icon: "👏", cost: 10 },
+  { id: "g2", name: "Pouce levé", icon: "👍", cost: 10 },
+  { id: "g3", name: "Cœur", icon: "❤️", cost: 15 },
+  { id: "g4", name: "Étoile", icon: "⭐", cost: 25 },
+  { id: "g5", name: "Ballon", icon: "🎈", cost: 25 },
+  { id: "g6", name: "Fleur", icon: "💐", cost: 30 },
+  { id: "g7", name: "Flamme", icon: "🔥", cost: 50 },
+  { id: "g8", name: "Éclair", icon: "⚡", cost: 50 },
+  { id: "g9", name: "Papillon", icon: "🦋", cost: 60 },
+  { id: "g10", name: "Confettis", icon: "🎉", cost: 75 },
+  { id: "g11", name: "Cadeau", icon: "🎁", cost: 100 },
+  { id: "g12", name: "Micro", icon: "🎤", cost: 100 },
+  { id: "g13", name: "Danse", icon: "💃", cost: 120 },
+  { id: "g14", name: "Couronne", icon: "👑", cost: 150 },
+  { id: "g15", name: "Feu d'artifice", icon: "🎆", cost: 180 },
+  { id: "g16", name: "Guitare", icon: "🎸", cost: 200 },
+  { id: "g17", name: "Arc-en-ciel", icon: "🌈", cost: 220 },
+  { id: "g18", name: "Médaille d'or", icon: "🥇", cost: 250 },
+  { id: "g19", name: "Trophée", icon: "🏆", cost: 300 },
+  { id: "g20", name: "Champagne", icon: "🍾", cost: 350 },
+  { id: "g21", name: "Fusée", icon: "🚀", cost: 400 },
+  { id: "g22", name: "Sirène", icon: "🧜‍♀️", cost: 450 },
+  { id: "g23", name: "Voiture de sport", icon: "🏎️", cost: 500 },
+  { id: "g24", name: "Lion", icon: "🦁", cost: 600 },
+  { id: "g25", name: "Diamant", icon: "💎", cost: 750 },
+  { id: "g26", name: "Yacht", icon: "🛥️", cost: 900 },
+  { id: "g27", name: "Château", icon: "🏰", cost: 1200 },
+  { id: "g28", name: "Avion privé", icon: "✈️", cost: 1500 },
+  { id: "g29", name: "Fusée spatiale", icon: "🛸", cost: 2000 },
+  { id: "g30", name: "Couronne royale", icon: "👑", cost: 3000 },
 ];
 
 export function fmtAbsoluteDate(target) {
@@ -136,7 +136,7 @@ export function fmtAbsoluteDate(target) {
   return `${date} ${month}, ${hours}:${minutes} ${ampm}`;
 }
 
-// Date-only variant for CompCard's compact stats row � the card is small
+// Date-only variant for CompCard's compact stats row — the card is small
 // enough that the time just adds noise once you already have the "Fin
 // inscr." / "Fin dans" label sitting right next to it.
 export const COUNTDOWN_UNITS = [
@@ -149,7 +149,7 @@ export const COUNTDOWN_UNITS = [
   { label: "S", secs: 1 },
 ];
 export function fmtCountdownSecs(s, unitCount = 3) {
-  if (!Number.isFinite(s) || s <= 0) return "Termin辿";
+  if (!Number.isFinite(s) || s <= 0) return "Terminé";
   let startIdx = COUNTDOWN_UNITS.findIndex((u) => s >= u.secs);
   if (startIdx === -1) startIdx = COUNTDOWN_UNITS.length - 1;
   let remaining = s;
@@ -169,7 +169,7 @@ export function fmtCountdown(target) {
 }
 
 // Compact prize amount for the card's tight stats-row cell ("50K HTG",
-// "1.2M HTG") � the full precise figure is shown on the competition's own
+// "1.2M HTG") — the full precise figure is shown on the competition's own
 // page, this is just a quick-glance number. Returns null when there's no
 // prize set yet (mock seed competitions, or an edition the organizer
 // hasn't filled in) so the caller can fall back to a placeholder dash.
@@ -217,9 +217,9 @@ export function toDatetimeLocal(isoString) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// ��� TOURNAMENT BRACKET (mock) �����������������������������������������
+// ─── TOURNAMENT BRACKET (mock) ─────────────────────────────────────────
 // World-cup-style stages built on top of the *same* participant pool used
-// for Classement � no separate contestants list, no admin re-seeding yet.
+// for Classement — no separate contestants list, no admin re-seeding yet.
 // "Advancing" a round just means "the higher-voted side of each pairing
 // moves on," and the poules step is presentation only (groups of 4, top
 // scorers already sorted to the front of `qualifiers`). This is mock data:
@@ -228,7 +228,7 @@ export function toDatetimeLocal(isoString) {
 export const KNOCKOUT_STAGE_NAMES = { 16: "8e de finale", 8: "Quart de finale", 4: "Demi-finale", 2: "Finale" };
 
 export function pairForBracket(entrants) {
-  // Standard seeding � 1st vs last, 2nd vs second-last, etc. � keeps the
+  // Standard seeding — 1st vs last, 2nd vs second-last, etc. — keeps the
   // strongest scorers apart for as long as possible, like a real bracket.
   const n = entrants.length;
   const pairs = [];
@@ -236,7 +236,7 @@ export function pairForBracket(entrants) {
   return pairs;
 }
 
-// Fallback contestant pool for the bracket demo � used whenever the real
+// Fallback contestant pool for the bracket demo — used whenever the real
 // registrant list has fewer than 2 people (new/empty competitions, or just
 // testing), so the bracket always has something to show in every phase.
 // Deterministic per competition (seeded off comp.id), same fakeName/hashStr
@@ -261,9 +261,9 @@ export function buildMockBracket(participants) {
   const pool = (participants || []).filter(Boolean).slice().sort((a, b) => (b.points || 0) - (a.points || 0));
   if (pool.length < 2) return null;
 
-  // Bracket entry size: largest power of two �� 16 (8e de finale) that the
+  // Bracket entry size: largest power of two ≤ 16 (8e de finale) that the
   // pool can fill, so a small competition still gets a sensible bracket
-  // (e.g. 5 registrants � a 4-person knockout, no poules groups needed).
+  // (e.g. 5 registrants → a 4-person knockout, no poules groups needed).
   let bracketSize = 2;
   while (bracketSize * 2 <= Math.min(pool.length, 16)) bracketSize *= 2;
 
@@ -304,10 +304,10 @@ export function fmtAgoFr(minutesAgo) {
   return `Il y a ${Math.floor(hours / 24)} j`;
 }
 
-/* ��� RULES / PRIZE / DESCRIPTION ����������������������������������������� */
+/* ─── RULES / PRIZE / DESCRIPTION ───────────────────────────────────────── */
 
 export function buildRulesInfo(comp) {
-  // No generated placeholder copy � only what the organizer has actually
+  // No generated placeholder copy — only what the organizer has actually
   // entered in the edit panel. Anything left blank stays blank in the UI.
   return {
     description: comp.description?.trim() ? comp.description : "",
