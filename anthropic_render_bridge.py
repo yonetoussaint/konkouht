@@ -24,6 +24,15 @@ HOST = os.getenv("BRIDGE_HOST", "127.0.0.1")
 PORT = int(os.getenv("BRIDGE_PORT", "16889"))
 TIMEOUT = float(os.getenv("BRIDGE_TIMEOUT", "600"))
 
+# Map OpenAI finish_reason -> Anthropic stop_reason
+STOP_REASON_MAP = {
+    "tool_calls": "tool_use",
+    "stop": "end_turn",
+    "length": "max_tokens",
+    "content_filter": "end_turn",
+    None: "end_turn",
+}
+
 client = httpx.AsyncClient(timeout=TIMEOUT, trust_env=False)
 
 
@@ -153,9 +162,15 @@ def openai_to_anthropic(resp: dict[str, Any], model: str) -> dict[str, Any]:
     choice = (resp.get("choices") or [{}])[0]
     msg = choice.get("message") or {}
     content = []
-    text = msg.get("content")
+
+    # Some OpenAI-compatible upstreams (DeepSeek reasoning models in
+    # particular) return the actual answer in `reasoning_content` and
+    # leave `content` null/empty, especially when the token budget ran
+    # out mid-reasoning. Fall back so we never emit an empty message.
+    text = msg.get("content") or msg.get("reasoning_content")
     if text:
         content.append({"type": "text", "text": text})
+
     for call in msg.get("tool_calls") or []:
         fn = call.get("function") or {}
         try:
@@ -169,8 +184,14 @@ def openai_to_anthropic(resp: dict[str, Any], model: str) -> dict[str, Any]:
             "input": inp,
         })
 
-    stop = choice.get("finish_reason")
-    stop_reason = "tool_use" if stop == "tool_calls" else ("end_turn" if stop in ("stop", None) else stop)
+    # Guard against a truly empty content array, which some clients
+    # (Claude Code included) treat as an error/hang rather than a
+    # no-op turn.
+    if not content:
+        content.append({"type": "text", "text": ""})
+
+    finish = choice.get("finish_reason")
+    stop_reason = STOP_REASON_MAP.get(finish, finish)
     usage = resp.get("usage") or {}
     return {
         "id": resp.get("id") or f"msg_{uuid.uuid4().hex}",
@@ -197,6 +218,7 @@ async def stream_translate(resp: httpx.Response, model: str):
     text_started = False
     tool_indexes: dict[int, int] = {}
     tool_state: dict[int, dict[str, Any]] = {}
+    any_content_emitted = False
 
     yield sse("message_start", {"type": "message_start", "message": {
         "id": msg_id, "type": "message", "role": "assistant", "model": model,
@@ -217,12 +239,16 @@ async def stream_translate(resp: httpx.Response, model: str):
         choice = (chunk.get("choices") or [{}])[0]
         delta = choice.get("delta") or {}
 
-        text = delta.get("content")
+        # Fall back to reasoning_content, same rationale as the
+        # non-streaming path: some upstreams stream the real answer
+        # there instead of (or in addition to) `content`.
+        text = delta.get("content") or delta.get("reasoning_content")
         if text:
             if not text_started:
                 yield sse("content_block_start", {"type": "content_block_start", "index": index, "content_block": {"type": "text", "text": ""}})
                 text_started = True
             yield sse("content_block_delta", {"type": "content_block_delta", "index": index, "delta": {"type": "text_delta", "text": text}})
+            any_content_emitted = True
 
         for call in delta.get("tool_calls") or []:
             ci = call.get("index", 0)
@@ -239,15 +265,23 @@ async def stream_translate(resp: httpx.Response, model: str):
             args = (call.get("function") or {}).get("arguments", "")
             if args:
                 yield sse("content_block_delta", {"type": "content_block_delta", "index": idx, "delta": {"type": "input_json_delta", "partial_json": args}})
+            any_content_emitted = True
 
         finish = choice.get("finish_reason")
         if finish:
+            # If nothing was ever emitted, open and immediately close an
+            # empty text block so the message isn't left with zero
+            # content blocks.
+            if not any_content_emitted and not tool_indexes:
+                yield sse("content_block_start", {"type": "content_block_start", "index": index, "content_block": {"type": "text", "text": ""}})
+                text_started = True
+
             for idx in sorted(tool_indexes.values()):
                 yield sse("content_block_stop", {"type": "content_block_stop", "index": idx})
             if text_started:
                 yield sse("content_block_stop", {"type": "content_block_stop", "index": index})
-            reason = "tool_use" if finish == "tool_calls" else ("end_turn" if finish == "stop" else finish)
-            yield sse("message_delta", {"type": "message_delta", "delta": {"stop_reason": reason, "stop_sequence": None}, "usage": {"output_tokens": 0}})
+            stop_reason = STOP_REASON_MAP.get(finish, finish)
+            yield sse("message_delta", {"type": "message_delta", "delta": {"stop_reason": stop_reason, "stop_sequence": None}, "usage": {"output_tokens": 0}})
             yield sse("message_stop", {"type": "message_stop"})
 
     await resp.aclose()
