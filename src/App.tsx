@@ -768,6 +768,7 @@ const NICHES = [
       { id: "b1", title: "Concours de Beauté", edition: "Saison 1", phase: "live", contestants: 12, votes: 6240, ends: "2j 08h", organisateur: "FNCH", hot: true, followers: 22450, mediaType: "photo", registeredCount: 12 },
       { id: "b2", title: "Miss Élégance", edition: "Demi-finale", phase: "live", contestants: 8, votes: 4810, ends: "1j 12h", organisateur: "FNCH", hot: true, followers: 18300, mediaType: "photo", registeredCount: 8 },
       { id: "b3", title: "Top Model Open", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "5j 00h", organisateur: "FNCH", hot: false, followers: 9120, mediaType: "photo", registeredCount: 7 },
+      { id: "b4", title: "Miss Univers Haïti", edition: "Édition 2025", phase: "completed", contestants: 16, votes: 15200, organisateur: "FNCH", hot: false, followers: 30000, mediaType: "photo", registeredCount: 16, winnerName: "Nadège Pierre", winnerPrize: 25000, closedAt: "2026-08-20T18:00:00Z" },
     ],
   },
   {
@@ -779,6 +780,7 @@ const NICHES = [
       { id: "m1", title: "Battle Hip-Hop", edition: "Saison 4", phase: "live", contestants: 16, votes: 9500, ends: "3j 14h", organisateur: "FNCH", hot: true, followers: 30000, mediaType: "video", registeredCount: 16 },
       { id: "m2", title: "Chanson Française Live", edition: "Finale", phase: "live", contestants: 10, votes: 7200, ends: "1j 20h", organisateur: "FNCH", hot: true, followers: 25000, mediaType: "video", registeredCount: 10 },
       { id: "m3", title: "Open Mic Night", edition: "Inscriptions", phase: "registration", contestants: 25, votes: 0, ends: "6j 00h", organisateur: "FNCH", hot: false, followers: 12000, mediaType: "photo", registeredCount: 8 },
+      { id: "m4", title: "Voix d'Or", edition: "Saison 3", phase: "completed", contestants: 12, votes: 10800, organisateur: "FNCH", hot: false, followers: 24000, mediaType: "video", registeredCount: 12, winnerName: "Emmanuel Duverger", winnerPrize: 30000, closedAt: "2026-08-18T20:00:00Z" },
     ],
   },
   {
@@ -790,6 +792,7 @@ const NICHES = [
       { id: "d1", title: "Urban Dance Showdown", edition: "Saison 2", phase: "live", contestants: 12, votes: 8000, ends: "4j 10h", organisateur: "FNCH", hot: true, followers: 28000, mediaType: "video", registeredCount: 12 },
       { id: "d2", title: "Ballet Stars", edition: "Qualifs", phase: "registration", contestants: 18, votes: 0, ends: "5j 05h", organisateur: "FNCH", hot: false, followers: 15000, mediaType: "photo", registeredCount: 5 },
       { id: "d3", title: "Freestyle Battle", edition: "Finale", phase: "live", contestants: 8, votes: 5500, ends: "2j 18h", organisateur: "FNCH", hot: true, followers: 20000, mediaType: "video", registeredCount: 8 },
+      { id: "d4", title: "Kompa Dance Cup", edition: "Finale 2025", phase: "completed", contestants: 10, votes: 8900, organisateur: "FNCH", hot: false, followers: 19000, mediaType: "video", registeredCount: 10, winnerName: "Vladimir Noël", winnerPrize: 20000, closedAt: "2026-08-10T19:00:00Z" },
     ],
   },
   {
@@ -801,6 +804,7 @@ const NICHES = [
       { id: "s1", title: "Football Freestyle Cup", edition: "Saison 3", phase: "live", contestants: 14, votes: 11000, ends: "2j 06h", organisateur: "FNCH", hot: true, followers: 35000, mediaType: "video", registeredCount: 14 },
       { id: "s2", title: "Streetball Challenge", edition: "Inscriptions", phase: "registration", contestants: 20, votes: 0, ends: "7j 00h", organisateur: "FNCH", hot: false, followers: 18000, mediaType: "photo", registeredCount: 6 },
       { id: "s3", title: "Esports Showdown", edition: "Finale", phase: "live", contestants: 8, votes: 6300, ends: "3j 12h", organisateur: "FNCH", hot: true, followers: 22000, mediaType: "video", registeredCount: 8 },
+      { id: "s4", title: "Combat des Champions", edition: "Saison 1", phase: "completed", contestants: 8, votes: 7600, organisateur: "FNCH", hot: false, followers: 21000, mediaType: "video", registeredCount: 8, winnerName: "Jean-Robert Michel", winnerPrize: 35000, closedAt: "2026-08-14T17:00:00Z" },
     ],
   },
   {
@@ -812,6 +816,7 @@ const NICHES = [
       { id: "a1", title: "Graffiti Masters", edition: "Saison 1", phase: "live", contestants: 10, votes: 7200, ends: "3j 08h", organisateur: "FNCH", hot: true, followers: 26000, mediaType: "photo", registeredCount: 10 },
       { id: "a2", title: "Digital Illustration Contest", edition: "Beta", phase: "registration", contestants: 22, votes: 0, ends: "6j 12h", organisateur: "FNCH", hot: false, followers: 14000, mediaType: "photo", registeredCount: 7 },
       { id: "a3", title: "Fashion Design Showdown", edition: "Finale", phase: "live", contestants: 12, votes: 8500, ends: "2j 20h", organisateur: "FNCH", hot: true, followers: 24000, mediaType: "photo", registeredCount: 12 },
+      { id: "a4", title: "Mural Legends", edition: "Édition 1", phase: "completed", contestants: 14, votes: 6100, organisateur: "FNCH", hot: false, followers: 17000, mediaType: "photo", registeredCount: 14, winnerName: "Guerline Antoine", winnerPrize: 18000, closedAt: "2026-08-05T16:00:00Z" },
     ],
   },
   {
@@ -823,6 +828,7 @@ const NICHES = [
       { id: "c1", title: "Stand-Up Battle", edition: "Saison 1", phase: "live", contestants: 12, votes: 6800, ends: "3j 04h", organisateur: "FNCH", hot: true, followers: 21000, mediaType: "video", registeredCount: 12 },
       { id: "c2", title: "Improvisation League", edition: "Qualifs", phase: "registration", contestants: 18, votes: 0, ends: "5j 10h", organisateur: "FNCH", hot: false, followers: 13000, mediaType: "photo", registeredCount: 5 },
       { id: "c3", title: "Sketch Comedy Showdown", edition: "Finale", phase: "live", contestants: 10, votes: 7200, ends: "2j 18h", organisateur: "FNCH", hot: true, followers: 19000, mediaType: "video", registeredCount: 10 },
+      { id: "c4", title: "Roi du Rire", edition: "Saison 2", phase: "completed", contestants: 12, votes: 5400, organisateur: "FNCH", hot: false, followers: 15000, mediaType: "video", registeredCount: 12, winnerName: "Ricardo Sévère", winnerPrize: 15000, closedAt: "2026-07-30T21:00:00Z" },
     ],
   },
   {
@@ -834,6 +840,7 @@ const NICHES = [
       { id: "g1", title: "Mobile Masters", edition: "Saison 2", phase: "live", contestants: 16, votes: 9800, ends: "2j 12h", organisateur: "FNCH", hot: true, followers: 32000, mediaType: "video", registeredCount: 16 },
       { id: "g2", title: "Indie Game Dev Jam", edition: "Inscriptions", phase: "registration", contestants: 20, votes: 0, ends: "6j 00h", organisateur: "FNCH", hot: false, followers: 15000, mediaType: "photo", registeredCount: 7 },
       { id: "g3", title: "Esports Tournament", edition: "Finale", phase: "live", contestants: 12, votes: 8700, ends: "3j 20h", organisateur: "FNCH", hot: true, followers: 27000, mediaType: "video", registeredCount: 12 },
+      { id: "g4", title: "Champions League Mobile", edition: "Saison 1", phase: "completed", contestants: 16, votes: 13900, organisateur: "FNCH", hot: false, followers: 28000, mediaType: "video", registeredCount: 16, winnerName: "Kervens Dorcé", winnerPrize: 40000, closedAt: "2026-08-22T22:00:00Z" },
     ],
   },
 ];
