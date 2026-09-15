@@ -1,5 +1,6 @@
 import { Trophy, Check } from "lucide-react";
 import EntityAvatar from "./EntityAvatar";
+import { fmtMatchdayDate } from "./utils";
 
 // Poules → 8e de finale → Quart → Demi → Finale, built from the same
 // registrant/points pool as Classement. Shown in every phase (falls back
@@ -73,12 +74,12 @@ export default function Bracket({ bracket, bracketCurrentRound, accent, isComple
                   </div>
                 ))
               ) : round.type === "roundrobin" ? (
-                round.groups.map((group, gi) => (
-                  <div key={gi} style={{ background: "#f8f7fc", borderRadius: 8, padding: "6px 8px" }}>
+                round.matchdays.map((matchday, di) => (
+                  <div key={di} style={{ background: "#f8f7fc", borderRadius: 8, padding: "6px 8px" }}>
                     <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                      Groupe {String.fromCharCode(65 + gi)}
+                      J{di + 1} · {fmtMatchdayDate(matchday.date)}
                     </div>
-                    {round.groupMatches[gi].map((m, mi) => (
+                    {matchday.matches.map((m, mi) => (
                       <div
                         key={mi}
                         style={{
@@ -86,6 +87,9 @@ export default function Bracket({ bracket, bracketCurrentRound, accent, isComple
                           borderTop: mi > 0 ? "1px solid #ece9f7" : "none",
                         }}
                       >
+                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 8, fontWeight: 700, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                          Groupe {String.fromCharCode(65 + m.groupIndex)}
+                        </div>
                         {[m.a, m.b].map((p) => {
                           const won = p === m.winner;
                           return (
