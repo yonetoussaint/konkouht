@@ -506,8 +506,31 @@ function buildMockBracket(participants) {
 }
 
 // See buildMockBracket above for how rounds/winners are derived.
+// Tab bar of round names (Poules → 8e → Quart → Demi → Finale), horizontally
+// scrollable so it never wraps. Selecting a tab shows *only* that round's
+// content below, full width — no neighboring round bleeding into view — and
+// scrolls the tab itself to the center of the bar so the active tab never
+// sits half-hidden at the scroll edge.
 function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistration }) {
+  const [activeRoundIdx, setActiveRoundIdx] = useState(bracketCurrentRound);
+  const tabRefs = useRef([]);
+
+  // Defensive clamp only — the bracket is recomputed from live vote counts,
+  // so it can occasionally end up with fewer rounds than before. Doesn't
+  // otherwise touch the user's own tab selection.
+  useEffect(() => {
+    if (!bracket) return;
+    setActiveRoundIdx((idx) => Math.min(idx, bracket.length - 1));
+  }, [bracket]);
+
   if (!bracket) return null;
+
+  const round = bracket[activeRoundIdx];
+
+  const selectRound = (idx) => {
+    setActiveRoundIdx(idx);
+    tabRefs.current[idx]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  };
 
   return (
     <div style={{ background: "#1a1a1a", borderTop: "8px solid #2a2a2a", padding: "14px 16px" }}>
@@ -527,76 +550,91 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
           : "Progression simulée à partir du classement actuel."}
       </div>
 
-      <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6 }}>
-        {bracket.map((round, roundIdx) => {
-          const roundState = roundIdx < bracketCurrentRound ? "done" : roundIdx === bracketCurrentRound ? "current" : "upcoming";
+      {/* Tab bar — horizontally scrollable, scrollbar hidden */}
+      <div
+        className="bracket-tabbar"
+        style={{
+          display: "flex", gap: 8, overflowX: "auto", paddingBottom: 10,
+          scrollbarWidth: "none", msOverflowStyle: "none",
+        }}
+      >
+        <style>{`.bracket-tabbar::-webkit-scrollbar{display:none}`}</style>
+        {bracket.map((r, idx) => {
+          const roundState = idx < bracketCurrentRound ? "done" : idx === bracketCurrentRound ? "current" : "upcoming";
+          const isActive = idx === activeRoundIdx;
           return (
-            <div key={round.name} style={{ flexShrink: 0, width: 168, display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                padding: "6px 8px", borderRadius: 999,
-                background: roundState === "current" ? `${accent}1a` : "#242424",
-                border: roundState === "current" ? `1px solid ${accent}` : "1px solid #2a2a2a",
+            <button
+              key={r.name}
+              ref={(el) => (tabRefs.current[idx] = el)}
+              onClick={() => selectRound(idx)}
+              style={{
+                flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
+                padding: "7px 12px", borderRadius: 999, cursor: "pointer",
+                background: isActive ? accent : roundState === "current" ? `${accent}1a` : "#242424",
+                border: isActive || roundState === "current" ? `1px solid ${accent}` : "1px solid #2a2a2a",
+              }}
+            >
+              {roundState === "done" && <Check size={11} strokeWidth={3} color={isActive ? "#111" : "#00A86B"} />}
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800,
+                color: isActive ? "#111" : roundState === "current" ? accent : roundState === "done" ? "#c4c4c4" : "#7a7a7a",
+                textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap",
               }}>
-                {roundState === "done" && <Check size={11} strokeWidth={3} color="#00A86B" />}
-                <span style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800,
-                  color: roundState === "current" ? accent : roundState === "done" ? "#c4c4c4" : "#7a7a7a",
-                  textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap",
-                }}>
-                  {round.name}
-                </span>
-              </div>
-
-              {round.type === "groups" ? (
-                round.groups.map((group, gi) => (
-                  <div key={gi} style={{ background: "#242424", borderRadius: 8, padding: "6px 8px" }}>
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                      Groupe {String.fromCharCode(65 + gi)}
-                    </div>
-                    {group.map((p) => {
-                      const qualified = round.qualifiers.includes(p);
-                      return (
-                        <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
-                          <div style={{ width: 16, height: 16, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: qualified ? 1 : 0.4 }}>
-                            <EntityAvatar url={p.avatarUrl} name={p.name} />
-                          </div>
-                          <span style={{
-                            flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
-                            fontWeight: qualified ? 700 : 500, color: qualified ? "#f2f2f2" : "#7a7a7a",
-                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                          }}>{p.name}</span>
-                          {qualified && <Check size={10} strokeWidth={3} color="#00A86B" style={{ flexShrink: 0 }} />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))
-              ) : (
-                round.matches.map((m, mi) => (
-                  <div key={mi} style={{ background: "#242424", borderRadius: 8, padding: "6px 8px" }}>
-                    {[m.a, m.b].map((p) => {
-                      const won = p === m.winner;
-                      return (
-                        <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
-                          <div style={{ width: 18, height: 18, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: won ? `1.5px solid ${accent}` : "none", opacity: won ? 1 : 0.5 }}>
-                            <EntityAvatar url={p.avatarUrl} name={p.name} />
-                          </div>
-                          <span style={{
-                            flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
-                            fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
-                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                          }}>{p.name}</span>
-                          {won && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))
-              )}
-            </div>
+                {r.name}
+              </span>
+            </button>
           );
         })}
+      </div>
+
+      {/* Active round's content only — full width, self-contained */}
+      <div key={round.name} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
+        {round.type === "groups" ? (
+          round.groups.map((group, gi) => (
+            <div key={gi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                Groupe {String.fromCharCode(65 + gi)}
+              </div>
+              {group.map((p) => {
+                const qualified = round.qualifiers.includes(p);
+                return (
+                  <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
+                    <div style={{ width: 16, height: 16, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: qualified ? 1 : 0.4 }}>
+                      <EntityAvatar url={p.avatarUrl} name={p.name} />
+                    </div>
+                    <span style={{
+                      flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                      fontWeight: qualified ? 700 : 500, color: qualified ? "#f2f2f2" : "#7a7a7a",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    }}>{p.name}</span>
+                    {qualified && <Check size={10} strokeWidth={3} color="#00A86B" style={{ flexShrink: 0 }} />}
+                  </div>
+                );
+              })}
+            </div>
+          ))
+        ) : (
+          round.matches.map((m, mi) => (
+            <div key={mi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
+              {[m.a, m.b].map((p) => {
+                const won = p === m.winner;
+                return (
+                  <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
+                    <div style={{ width: 18, height: 18, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: won ? `1.5px solid ${accent}` : "none", opacity: won ? 1 : 0.5 }}>
+                      <EntityAvatar url={p.avatarUrl} name={p.name} />
+                    </div>
+                    <span style={{
+                      flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                      fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    }}>{p.name}</span>
+                    {won && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
+                  </div>
+                );
+              })}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
