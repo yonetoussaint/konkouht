@@ -1,11 +1,15 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { hapticTap } from "./native";
+import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
+import { PiShareFat } from "react-icons/pi";
+import ShareSheet from "./ShareSheet";
+import { shareCompetitionNatively } from "./lib/share";
 import {
   Trophy, Home, Wallet, Users, Bell, BadgeCheck, Play, Plus, Gift, X, Check,
-  ArrowLeft, Send, ChevronRight,
-  Image as ImageIcon, Heart, Share2, Sticker, Info,
-  Clock, Pencil,
+  ArrowLeft, Send, ChevronRight, ChevronLeft, MessageCircle,
+  Image as ImageIcon, Heart, Share2, Bookmark, Info, Volume2, VolumeX, Hand,
+  Clock, Pencil, Link2, Loader2,
 } from "lucide-react";
 import {
   supabase,
@@ -13,55 +17,2071 @@ import {
   hashStr,
   getRegistrationFee,
   fakeName,
+  FR_MONTH_ABBR,
+  MyAvatar,
   PLATFORM_ORGANIZER_SIGLE,
   WALLET_PIN,
   fetchRegistrations,
   refundRegistrationFee,
+  isCompOwner,
 } from "./App";
-import {
-  fetchComments,
-  insertComment,
-  deleteRegistration,
-  giftPriceHTG,
-  GIFT_CATALOG,
-  fmtAbsoluteDate,
-  fmtCountdownSecs,
-  fmtCountdown,
-  COMMENTATORS,
-  formatCoins,
-  buildParticipantsFromRegistrants,
-  toDatetimeLocal,
-  buildMockContestants,
-  buildMockBracket,
-  fmtCommentTime,
-  fmtAgoFr,
-  buildRulesInfo,
-} from "./CompetitionBoard/utils";
-import EntityAvatar from "./CompetitionBoard/EntityAvatar";
-import AnimatedGiftIcon from "./CompetitionBoard/AnimatedGiftIcon";
-import ParticipantListOverlay from "./CompetitionBoard/ParticipantListOverlay";
-import AlbumGridOverlay from "./CompetitionBoard/AlbumGridOverlay";
-import RegistrantListOverlay from "./CompetitionBoard/RegistrantListOverlay";
-import OrgBar from "./CompetitionBoard/OrgBar";
-import AlbumSheet from "./CompetitionBoard/AlbumSheet";
-import MediaLightbox from "./CompetitionBoard/MediaLightbox";
-import CommentaryStreamSheet from "./CompetitionBoard/CommentaryStreamSheet";
-import Bracket from "./CompetitionBoard/Bracket";
+
+async function fetchComments(editionId) {
+  const { data, error } = await supabase
+    .from("comments")
+    .select("*")
+    .eq("edition_id", editionId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("fetchComments error:", error);
+    return [];
+  }
+
+  const rows = data || [];
+  const repliesByParent = {};
+  rows.forEach((r) => {
+    if (r.parent_id) {
+      (repliesByParent[r.parent_id] ||= []).push(r);
+    }
+  });
+
+  return rows
+    .filter((r) => !r.parent_id)
+    .map((c) => ({ ...c, replies: repliesByParent[c.id] || [] }))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
+async function insertComment({
+  editionId,
+  competitionId,
+  userId,
+  fullName,
+  avatarUrl,
+  text,
+  parentId = null,
+}) {
+  return supabase
+    .from("comments")
+    .insert({
+      edition_id: editionId,
+      competition_id: competitionId,
+      user_id: userId,
+      full_name: fullName,
+      avatar_url: avatarUrl,
+      text,
+      parent_id: parentId,
+    })
+    .select()
+    .single();
+}
+
+/* ─── registrations (edition-scoped) ──────────────────────────────────────
+   See the schema notes above (edition_id + avatar_url added, unique
+   constraint moved to (edition_id, user_id)). ───────────────────────── */
+
+// Keyed by edition_id now — a new season/edition starts back at 0
+// registrants, it doesn't inherit a previous edition's count.
+async function deleteRegistration(registrationId) {
+  const { error } = await supabase.from("registrations").delete().eq("id", registrationId);
+  return { error };
+}
+
+// Removes a single removed participant's album: their participant_media
+// storage files for this edition, then the rows themselves. Same
+// fetch-then-remove pattern as the full-edition cleanup in App.tsx
+// (handleDeleteEdition) — storage failures are logged but don't block the
+// row delete, since an orphaned file is recoverable later and a participant
+// stuck mid-removal isn't.
+async function deleteParticipantAlbum(uploaderId, editionId) {
+  const { data: mediaRows, error: fetchError } = await supabase
+    .from("participant_media")
+    .select("media_url")
+    .eq("edition_id", editionId)
+    .eq("uploader_id", uploaderId);
+  if (fetchError) {
+    console.error("participant_media fetch error (removeParticipant):", fetchError);
+  } else if (mediaRows?.length) {
+    const paths = mediaRows
+      .map((r) => r.media_url?.replace(/^.*\/participant-media\//, ""))
+      .filter(Boolean);
+    if (paths.length) {
+      const { error: storageError } = await supabase.storage.from("participant-media").remove(paths);
+      if (storageError) console.error("participant_media storage cleanup error (removeParticipant):", storageError);
+    }
+  }
+  const { error } = await supabase
+    .from("participant_media")
+    .delete()
+    .eq("edition_id", editionId)
+    .eq("uploader_id", uploaderId);
+  return { error };
+}
+
+// Refunds a registration fee back into a participant's wallet after an
+// admin removal. Writes a wallet_transactions row first — same shape as a
+// MonCash deposit credit, so it shows up in the participant's transaction
+// history labeled as a refund — then updates wallet_balances directly.
+//
+// Note: the balance update here is read-then-write, not atomic. That
+// matches how the rest of this file already touches wallet_balances (no
+// RPC/stored procedure exists yet), so it carries the same small
+// race-condition risk as a concurrent deposit landing at the same instant.
+// If that ever becomes a real concern, replace this with a Postgres
+// function (e.g. `increment_wallet_balance(user_id, amount)`) called via
+// supabase.rpc(), which resolves it atomically server-side.
+function notoAnimatedEmojiUrl(emoji) {
+  const codepoints = Array.from(emoji)
+    .map((ch) => ch.codePointAt(0).toString(16))
+    .filter((cp) => cp !== "fe0f");
+  return `https://fonts.gstatic.com/s/e/notoemoji/latest/${codepoints.join("_")}/lottie.json`;
+}
+
+// Renders a gift's icon as an animated sticker instead of a static emoji
+// glyph. Falls back to the plain emoji if the animation fails to load
+// (e.g. no matching Noto animation exists for that emoji, or offline).
+function AnimatedGiftIcon({ emoji, size = 40 }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <span style={{ fontSize: size * 0.7, lineHeight: 1, display: "block" }}>
+        {emoji}
+      </span>
+    );
+  }
+
+  return (
+    <Player
+      src={notoAnimatedEmojiUrl(emoji)}
+      autoplay
+      loop
+      onEvent={(event) => {
+        if (event === "error") setFailed(true);
+      }}
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
+// Gift "points" (shown on the icon) are not the same as the actual HTG
+// price charged — points are a display/prestige number, the real cost in
+// gourdes is derived from this rate (e.g. 50 points -> 45 HTG at 0.9).
+const POINTS_TO_HTG_RATE = 0.9;
+function giftPriceHTG(gift) {
+  return Math.round(gift.cost * POINTS_TO_HTG_RATE);
+}
+
+const GIFT_CATALOG = [
+  { id: "g1", name: "Applaudissement", icon: "👏", cost: 10 },
+  { id: "g2", name: "Pouce levé", icon: "👍", cost: 10 },
+  { id: "g3", name: "Cœur", icon: "❤️", cost: 15 },
+  { id: "g4", name: "Étoile", icon: "⭐", cost: 25 },
+  { id: "g5", name: "Ballon", icon: "🎈", cost: 25 },
+  { id: "g6", name: "Fleur", icon: "💐", cost: 30 },
+  { id: "g7", name: "Flamme", icon: "🔥", cost: 50 },
+  { id: "g8", name: "Éclair", icon: "⚡", cost: 50 },
+  { id: "g9", name: "Papillon", icon: "🦋", cost: 60 },
+  { id: "g10", name: "Confettis", icon: "🎉", cost: 75 },
+  { id: "g11", name: "Cadeau", icon: "🎁", cost: 100 },
+  { id: "g12", name: "Micro", icon: "🎤", cost: 100 },
+  { id: "g13", name: "Danse", icon: "💃", cost: 120 },
+  { id: "g14", name: "Couronne", icon: "👑", cost: 150 },
+  { id: "g15", name: "Feu d'artifice", icon: "🎆", cost: 180 },
+  { id: "g16", name: "Guitare", icon: "🎸", cost: 200 },
+  { id: "g17", name: "Arc-en-ciel", icon: "🌈", cost: 220 },
+  { id: "g18", name: "Médaille d'or", icon: "🥇", cost: 250 },
+  { id: "g19", name: "Trophée", icon: "🏆", cost: 300 },
+  { id: "g20", name: "Champagne", icon: "🍾", cost: 350 },
+  { id: "g21", name: "Fusée", icon: "🚀", cost: 400 },
+  { id: "g22", name: "Sirène", icon: "🧜‍♀️", cost: 450 },
+  { id: "g23", name: "Voiture de sport", icon: "🏎️", cost: 500 },
+  { id: "g24", name: "Lion", icon: "🦁", cost: 600 },
+  { id: "g25", name: "Diamant", icon: "💎", cost: 750 },
+  { id: "g26", name: "Yacht", icon: "🛥️", cost: 900 },
+  { id: "g27", name: "Château", icon: "🏰", cost: 1200 },
+  { id: "g28", name: "Avion privé", icon: "✈️", cost: 1500 },
+  { id: "g29", name: "Fusée spatiale", icon: "🛸", cost: 2000 },
+  { id: "g30", name: "Couronne royale", icon: "👑", cost: 3000 },
+];
+
+function fmtAbsoluteDate(target) {
+  const d = new Date(target);
+  if (Number.isNaN(d.getTime())) return "";
+  const date = d.getDate();
+  const month = FR_MONTH_ABBR[d.getMonth()];
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  return `${date} ${month}, ${hours}:${minutes} ${ampm}`;
+}
+
+// Date-only variant for CompCard's compact stats row — the card is small
+// enough that the time just adds noise once you already have the "Fin
+// inscr." / "Fin dans" label sitting right next to it.
+const COUNTDOWN_UNITS = [
+  { label: "Y", secs: 31536000 }, // 365d
+  { label: "M", secs: 2592000 },  // 30d ("month")
+  { label: "W", secs: 604800 },
+  { label: "D", secs: 86400 },
+  { label: "H", secs: 3600 },
+  { label: "M", secs: 60 },       // minute
+  { label: "S", secs: 1 },
+];
+function fmtCountdownSecs(s, unitCount = 3) {
+  if (!Number.isFinite(s) || s <= 0) return "Terminé";
+  let startIdx = COUNTDOWN_UNITS.findIndex((u) => s >= u.secs);
+  if (startIdx === -1) startIdx = COUNTDOWN_UNITS.length - 1;
+  let remaining = s;
+  return COUNTDOWN_UNITS.slice(startIdx, startIdx + unitCount)
+    .map((u) => {
+      const val = Math.floor(remaining / u.secs);
+      remaining -= val * u.secs;
+      return `${val}${u.label}`;
+    })
+    .join(" : ");
+}
+
+export function fmtCountdown(target) {
+  const diff = new Date(target).getTime() - Date.now();
+  if (Number.isNaN(diff)) return "";
+  return fmtCountdownSecs(Math.floor(diff / 1000));
+}
+
+// Short French relative-time label for a past timestamp ("À l'instant",
+// "Il y a 12 min", "Il y a 3h") — used in participant-preview rows instead
+// of restating fields already covered by the stat chips.
+function fmtRelativeTime(iso) {
+  const diffSecs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (!Number.isFinite(diffSecs) || diffSecs < 0) return "";
+  if (diffSecs < 60) return "À l'instant";
+  const mins = Math.floor(diffSecs / 60);
+  if (mins < 60) return `Il y a ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Il y a ${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `Il y a ${days}j`;
+}
+
+// Compact prize amount for the card's tight stats-row cell ("50K HTG",
+// "1.2M HTG") — the full precise figure is shown on the competition's own
+// page, this is just a quick-glance number. Returns null when there's no
+// prize set yet (mock seed competitions, or an edition the organizer
+// hasn't filled in) so the caller can fall back to a placeholder dash.
+const COMMENTATORS = [
+  { name: "Marc Fontaine" },
+  { name: "Sophie Laurent" },
+  { name: "Thierry Dubois" },
+  { name: "Karine Joseph" },
+  { name: "Yves Baptiste" },
+];
+
+// Registration fee for a competition, in credits. Organizers can set an
+// explicit comp.fee from the edit screen; competitions that never had one
+// set fall back to a deterministic per-competition default so old data
+// keeps behaving the same as before this was editable.
+export function formatCoins(n) {
+  const abs = Math.abs(n);
+  if (abs >= 1000000) {
+    return (n / 1000000).toFixed(1).replace(".", ",").replace(",0", "") + "M";
+  }
+  if (abs >= 1000) {
+    return (n / 1000).toFixed(1).replace(".", ",").replace(",0", "") + "k";
+  }
+  return n.toLocaleString("fr-FR");
+}
+
+function EntityAvatar({ url, name, bg = "#242424", color = "#9a9a9a" }) {
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={name || ""}
+        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+      />
+    );
+  }
+  return (
+    <div style={{
+      width: "100%", height: "100%",
+      background: bg, color,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
+    }}>
+      {(name || "?").trim().charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+// Shared header row for the home-preview sections (Participants, Médias,
+// Donateurs, Live) — one component so the icon/label/action treatment can't
+// drift between hand-rolled copies of the same row. Sections that link
+// somewhere pass onAction (renders the "Voir plus" button); sections with
+// no destination pass `right` instead — a small contextual element (status
+// chip, avatar stack, etc.) so every heading still resolves to *something*
+// on the right rather than sometimes being empty.
+function PreviewSectionHeader({ icon, label, accent, actionLabel = "Voir plus", onAction, right, marginBottom = 4, paddingX = 10 }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      marginBottom, paddingLeft: paddingX, paddingRight: paddingX,
+    }}>
+      <span style={{
+        display: "flex", alignItems: "center", gap: 6,
+        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+        color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
+      }}>
+        {icon}{label}
+      </span>
+      {onAction ? (
+        <button
+          onClick={onAction}
+          style={{
+            border: "none", background: "none", color: accent,
+            fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+            letterSpacing: "0.08em", textTransform: "uppercase",
+            cursor: "pointer", padding: 0,
+            display: "flex", alignItems: "center", gap: 4,
+          }}
+        >
+          {actionLabel}
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+            <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+          </svg>
+        </button>
+      ) : right || null}
+    </div>
+  );
+}
+
+// Small status chip used in place of a "Voir plus" button on headings that
+// have nothing to navigate to (Cagnotte, Statistiques) — reflects the
+// competition's actual phase rather than a fabricated stat.
+function PhaseStatusBadge({ isRegistration, isCompleted }) {
+  if (isCompleted) {
+    return (
+      <span style={{
+        display: "flex", alignItems: "center", gap: 4,
+        fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+        color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em",
+      }}>
+        <BadgeCheck size={11} strokeWidth={2.5} />
+        Terminé
+      </span>
+    );
+  }
+  if (isRegistration) {
+    return (
+      <span style={{
+        fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+        color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em",
+      }}>
+        Bientôt
+      </span>
+    );
+  }
+  return (
+    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700, color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        Live
+      </span>
+    </span>
+  );
+}
+
+// Small right-aligned "Par {organisateur}" chip for the À propos heading —
+// reuses the same initials-circle treatment as the organiser profile chip
+// in the hero header, just scaled down.
+function OrganiserChip({ name, accent }) {
+  if (!name) return null;
+  return (
+    <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
+      <span style={{
+        width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+        background: accent, color: "#fff",
+        fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {name.charAt(0).toUpperCase()}
+      </span>
+      <span style={{
+        fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 600, color: "#7a7a7a",
+        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 100,
+      }}>
+        {name}
+      </span>
+    </span>
+  );
+}
+
+
+// Renders the *current* signed-in user's own avatar — a real photo once
+// they've set one, otherwise the initials circle used throughout the app.
+function buildParticipantsFromRegistrants(registrants) {
+  if (!registrants || registrants.length === 0) return [];
+  return registrants.map((r) => ({
+    index: Math.abs(hashStr(r.userId || r.id)) % 40,
+    id: r.id,
+    userId: r.userId,
+    name: r.name || r.full_name || "Participant",
+    avatarUrl: r.avatarUrl,
+    votes: 0,
+    points: 0,
+  }));
+}
+
+/* ─── TOURNAMENT BRACKET (mock) ──────────────────────────────────────────
+   Poules → 8e de finale → Quart → Demi → Finale, built from the same
+   registrant/points pool as Classement. Shown in every phase (falls back
+   to generated mock contestants when there aren't 2+ real registrants
+   yet). No persisted round/match data behind this yet — it's recomputed
+   from current vote counts on every render/refresh. ─────────────────── */
+
+const KNOCKOUT_STAGE_NAMES = { 16: "8e de finale", 8: "Quart de finale", 4: "Demi-finale", 2: "Finale" };
+
+function pairForBracket(entrants) {
+  // Standard seeding — 1st vs last, 2nd vs second-last, etc. — keeps the
+  // strongest scorers apart for as long as possible, like a real bracket.
+  const n = entrants.length;
+  const pairs = [];
+  for (let i = 0; i < n / 2; i++) pairs.push([entrants[i], entrants[n - 1 - i]]);
+  return pairs;
+}
+
+// Fallback contestant pool for the bracket demo — used whenever the real
+// registrant list has fewer than 2 people (new/empty competitions, or just
+// testing), so the bracket always has something to show in every phase.
+// Deterministic per competition (seeded off comp.id), same fakeName/hashStr
+// pattern already used elsewhere in this file for mock speakers etc.
+function buildMockContestants(comp) {
+  const count = Math.min(Math.max(comp?.contestants || 16, 4), 32);
+  return Array.from({ length: count }, (_, i) => {
+    const seed = Math.abs(hashStr(`${comp?.id || "mock"}_bracket_contestant_${i}`));
+    const points = 50 + (seed % 950);
+    return {
+      id: `mock-contestant-${i}`,
+      index: seed % 40,
+      name: fakeName(seed),
+      avatarUrl: null,
+      votes: points,
+      points,
+    };
+  });
+}
+
+function buildMockBracket(participants) {
+  const pool = (participants || []).filter(Boolean).slice().sort((a, b) => (b.points || 0) - (a.points || 0));
+  if (pool.length < 2) return null;
+
+  // Bracket entry size: largest power of two ≤ 16 (8e de finale) that the
+  // pool can fill, so a small competition still gets a sensible bracket
+  // (e.g. 5 registrants → a 4-person knockout, no poules groups needed).
+  let bracketSize = 2;
+  while (bracketSize * 2 <= Math.min(pool.length, 16)) bracketSize *= 2;
+
+  const rounds = [];
+  if (pool.length > bracketSize) {
+    const groupSize = 4;
+    const groups = [];
+    for (let i = 0; i < pool.length; i += groupSize) groups.push(pool.slice(i, i + groupSize));
+    const qualifiers = pool.slice(0, bracketSize);
+    rounds.push({ name: "Phase de poules", type: "groups", groups, qualifiers });
+  }
+
+  let entrants = pool.slice(0, bracketSize);
+  while (entrants.length >= 2) {
+    const size = entrants.length;
+    const matches = pairForBracket(entrants).map(([a, b]) => ({
+      a, b,
+      winner: (a.points || 0) >= (b.points || 0) ? a : b,
+    }));
+    rounds.push({ name: KNOCKOUT_STAGE_NAMES[size] || `Tour de ${size}`, type: "knockout", matches });
+    entrants = matches.map((m) => m.winner);
+  }
+
+  return rounds.length > 0 ? rounds : null;
+}
+
+// See buildMockBracket above for how rounds/winners are derived.
+function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistration }) {
+  if (!bracket) return null;
+
+  return (
+    <div style={{ background: "#1a1a1a", borderTop: "8px solid #2a2a2a", padding: "14px 16px" }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 6,
+        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+        color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
+      }}>
+        <Trophy size={13} strokeWidth={2.5} />
+        Parcours du tournoi
+      </div>
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", padding: "4px 0 10px" }}>
+        {isCompleted
+          ? "Bracket final, du premier tour au sacre."
+          : isRegistration
+          ? "Aperçu du bracket — les inscriptions déterminent qui l'occupe."
+          : "Progression simulée à partir du classement actuel."}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6 }}>
+        {bracket.map((round, roundIdx) => {
+          const roundState = roundIdx < bracketCurrentRound ? "done" : roundIdx === bracketCurrentRound ? "current" : "upcoming";
+          return (
+            <div key={round.name} style={{ flexShrink: 0, width: 168, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                padding: "6px 8px", borderRadius: 999,
+                background: roundState === "current" ? `${accent}1a` : "#242424",
+                border: roundState === "current" ? `1px solid ${accent}` : "1px solid #2a2a2a",
+              }}>
+                {roundState === "done" && <Check size={11} strokeWidth={3} color="#00A86B" />}
+                <span style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800,
+                  color: roundState === "current" ? accent : roundState === "done" ? "#c4c4c4" : "#7a7a7a",
+                  textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap",
+                }}>
+                  {round.name}
+                </span>
+              </div>
+
+              {round.type === "groups" ? (
+                round.groups.map((group, gi) => (
+                  <div key={gi} style={{ background: "#242424", borderRadius: 8, padding: "6px 8px" }}>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                      Groupe {String.fromCharCode(65 + gi)}
+                    </div>
+                    {group.map((p) => {
+                      const qualified = round.qualifiers.includes(p);
+                      return (
+                        <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
+                          <div style={{ width: 16, height: 16, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: qualified ? 1 : 0.4 }}>
+                            <EntityAvatar url={p.avatarUrl} name={p.name} />
+                          </div>
+                          <span style={{
+                            flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                            fontWeight: qualified ? 700 : 500, color: qualified ? "#f2f2f2" : "#7a7a7a",
+                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                          }}>{p.name}</span>
+                          {qualified && <Check size={10} strokeWidth={3} color="#00A86B" style={{ flexShrink: 0 }} />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))
+              ) : (
+                round.matches.map((m, mi) => (
+                  <div key={mi} style={{ background: "#242424", borderRadius: 8, padding: "6px 8px" }}>
+                    {[m.a, m.b].map((p) => {
+                      const won = p === m.winner;
+                      return (
+                        <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
+                          <div style={{ width: 18, height: 18, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: won ? `1.5px solid ${accent}` : "none", opacity: won ? 1 : 0.5 }}>
+                            <EntityAvatar url={p.avatarUrl} name={p.name} />
+                          </div>
+                          <span style={{
+                            flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                            fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
+                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                          }}>{p.name}</span>
+                          {won && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function toDatetimeLocal(isoString) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Splits/joins the same "YYYY-MM-DDTHH:MM" shape toDatetimeLocal produces,
+// so the date pill and time pill can each own their half of one
+// datetime-local-shaped state value without either pill knowing about the
+// other's format.
+function splitDatetimeLocal(dtLocal) {
+  if (!dtLocal) return { date: "", time: "" };
+  const [date, time] = dtLocal.split("T");
+  return { date: date || "", time: time || "" };
+}
+function joinDatetimeLocal(date, time) {
+  if (!date) return "";
+  return `${date}T${time || "00:00"}`;
+}
+
+// Pill-styled replacement for a native <input type="datetime-local">: one
+// pill for the date, one for the time, side by side. Reads/writes the same
+// "YYYY-MM-DDTHH:MM" shaped value the datetime-local input used, so callers
+// don't need to change how they store or interpret it.
+function DateTimePills({ value, onChange, minDate }) {
+  const { date, time } = splitDatetimeLocal(value);
+  const pillStyle = {
+    boxSizing: "border-box",
+    border: "1px solid #2a2a2a",
+    borderRadius: 999,
+    padding: "10px 14px",
+    fontFamily: "Inter, sans-serif",
+    fontSize: 14,
+    color: "#c4c4c4",
+    outline: "none",
+    background: "#1a1a1a",
+  };
+  return (
+    <div style={{ display: "flex", gap: 8 }}>
+      <input
+        type="date"
+        value={date}
+        min={minDate}
+        onChange={(e) => onChange(joinDatetimeLocal(e.target.value, time || "00:00"))}
+        style={{ ...pillStyle, flex: 1.3 }}
+      />
+      <input
+        type="time"
+        value={time}
+        onChange={(e) => onChange(joinDatetimeLocal(date, e.target.value))}
+        style={{ ...pillStyle, flex: 1 }}
+      />
+    </div>
+  );
+}
+
+// Precise deadline for admin-facing display — e.g. "5 Août, 14:30" — as
+// opposed to the countdown-style durations shown elsewhere, which are fine
+// for "how urgent is this" but don't tell an admin the actual date/time
+// they're extending it to.
+function fmtAbsoluteDateTime(isoString) {
+  if (!isoString) return null;
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return null;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getDate()} ${FR_MONTH_ABBR[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fmtCommentTime(minutesAgo) {
+  if (minutesAgo < 60) return `${minutesAgo}min`;
+  const hours = Math.floor(minutesAgo / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}j`;
+}
+
+function fmtAgoFr(minutesAgo) {
+  if (minutesAgo < 60) return `Il y a ${minutesAgo} min`;
+  const hours = Math.floor(minutesAgo / 60);
+  if (hours < 24) return `Il y a ${hours} h`;
+  return `Il y a ${Math.floor(hours / 24)} j`;
+}
+
+/* ─── RULES / PRIZE / DESCRIPTION ───────────────────────────────────────── */
+
+function buildRulesInfo(comp) {
+  // No generated placeholder copy — only what the organizer has actually
+  // entered in the edit panel. Anything left blank stays blank in the UI.
+  return {
+    description: comp.description?.trim() ? comp.description : "",
+    rewardExtra: comp.rewardExtra?.trim() ? comp.rewardExtra : "",
+    rules: Array.isArray(comp.rules) && comp.rules.length > 0 ? comp.rules : [],
+  };
+}
+
+function ParticipantListOverlay({ comp, participants, onClose }) {
+  const accent = comp.accent;
+  // `participants` is passed down from CompetitionBoard, already synced with
+  // the real `registrations` table — real registrants only, never invented.
+  const ranked = participants || [];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#242424", overflowY: "auto" }}>
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          background: "#1a1a1a",
+          borderBottom: "1px solid #2a2a2a",
+          padding: "14px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          zIndex: 1,
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#c4c4c4", padding: 0, lineHeight: 1 }}
+        >
+          <ArrowLeft size={18} />
+        </button>
+      </div>
+
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
+        {/* Column headers */}
+        <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #2a2a2a", marginBottom: 4 }}>
+          <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
+          <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Participant</span>
+          <span style={{ width: 90, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Votes</span>
+          <span style={{ width: 70, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Points</span>
+        </div>
+
+        {ranked.length === 0 ? (
+          <div style={{ padding: "40px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#7a7a7a" }}>
+            Aucun participant pour le moment.
+          </div>
+        ) : ranked.map((p, rank) => (
+          <div
+            key={p.id ?? p.index}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "10px 0",
+              borderBottom: "1px solid #2a2a2a",
+            }}
+          >
+            <span
+              style={{
+                width: 32,
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontSize: 13,
+                fontWeight: 700,
+                color: rank < 3 ? accent : "#7a7a7a",
+              }}
+            >
+              {rank + 1}
+            </span>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                  width: 28, height: 28, borderRadius: "50%",
+                  flexShrink: 0, overflow: "hidden",
+                  border: "1px solid #2a2a2a",
+                }}>
+                <EntityAvatar url={p.avatarUrl} name={p.name} />
+              </div>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#c4c4c4", fontWeight: 600 }}>{p.name}</span>
+            </div>
+            <span style={{ width: 90, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#c4c4c4" }}>
+              {fmtVotes(p.votes)}
+            </span>
+            <span style={{ width: 70, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#7a7a7a" }}>
+              {p.points}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── ALBUM GRID OVERLAY ─────────────────────────────────────────────────
+   Full grid of approved participant media — this is what "Voir tout" opens
+   from the Médias tab. Kept separate from ParticipantListOverlay, which is
+   the votes/ranking table used by the Classement tab's own "Voir tout". */
+
+function AlbumGridOverlay({ items, onClose, onOpenItem }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#242424", overflowY: "auto" }}>
+      <div
+        style={{
+          position: "sticky", top: 0, background: "#1a1a1a",
+          borderBottom: "1px solid #2a2a2a", padding: "14px 16px",
+          display: "flex", alignItems: "center", gap: 12, zIndex: 1,
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{ border: "none", background: "none", cursor: "pointer", color: "#c4c4c4", padding: 0, lineHeight: 1 }}
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#f2f2f2" }}>
+          Médias des participants
+        </span>
+      </div>
+
+      <div style={{
+        maxWidth: 800, margin: "0 auto", padding: 12,
+        display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8,
+      }}>
+        {items.map((item) => (
+          <div key={item.id} onClick={() => onOpenItem(items, item)} style={{ position: "relative", cursor: "pointer", aspectRatio: "1 / 1", overflow: "hidden", background: "#0d0d0d" }}>
+            {item.media_type === "video" ? (
+              <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+            ) : (
+              <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            )}
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "5px 9px", background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {item.uploader_name}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── REGISTRANT LIST OVERLAY ───────────────────────────────────────────── */
+
+function RegistrantListOverlay({ comp, registrants, accent, onClose, canRemove, onRemove, removingRegistrantId }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#242424", overflowY: "auto" }}>
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          background: "#1a1a1a",
+          borderBottom: "1px solid #2a2a2a",
+          padding: "14px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          zIndex: 1,
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#c4c4c4", padding: 0, lineHeight: 1 }}
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#c4c4c4" }}>
+          Membres inscrits — {comp.title}
+        </span>
+      </div>
+
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
+        {/* Column headers */}
+        <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #2a2a2a", marginBottom: 4 }}>
+          <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
+          <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Membre</span>
+          <span style={{ width: 100, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Date</span>
+          <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Frais</span>
+        </div>
+
+        {registrants.length === 0 ? (
+          <div style={{ padding: "40px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#7a7a7a" }}>
+            Aucune inscription pour le moment.
+          </div>
+        ) : registrants.map((r, i) => (
+          <div
+            key={r.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "10px 0",
+              borderBottom: "1px solid #2a2a2a",
+            }}
+          >
+            <span
+              style={{
+                width: 32,
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#7a7a7a",
+              }}
+            >
+              {i + 1}
+            </span>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <div style={{
+                  width: 28, height: 28, borderRadius: "50%",
+                  flexShrink: 0,
+                  background: "#211f36", color: "#6C63FF",
+                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                {r.name.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#c4c4c4", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+              {r.isEarlyBird && (
+                <span style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+                  color: accent, background: "#1a1a1a",
+                  border: `1px solid ${accent}`, borderRadius: 999, padding: "3px 8px",
+                  textTransform: "uppercase", letterSpacing: "0.05em",
+                  flexShrink: 0,
+                }}>
+                  -50%
+                </span>
+              )}
+            </div>
+            <span style={{ width: 100, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#7a7a7a", lineHeight: 1.3 }}>
+              {r.date}<br />
+              <span style={{ fontSize: 11, color: "#7a7a7a" }}>{r.time}</span>
+            </span>
+            <span style={{ width: 80, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: accent }}>
+              {r.fee} gdes
+            </span>
+            {canRemove && (
+              <button
+                onClick={() => onRemove?.(r)}
+                disabled={removingRegistrantId === r.id}
+                title="Retirer ce participant"
+                style={{
+                  width: 26, height: 26, flexShrink: 0, marginLeft: 10,
+                  border: "1px solid #4a2320", borderRadius: "50%",
+                  background: "#2a1614", color: "#e74c3c",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: removingRegistrantId === r.id ? "default" : "pointer",
+                  opacity: removingRegistrantId === r.id ? 0.5 : 1,
+                  padding: 0,
+                }}
+              >
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── ALBUM SHEET (Mon album) ────────────────────────────────────────────
+   Lets the current user manage their own uploaded participant media. Only
+   ever opened in "own" mode now — browsing other participants' media goes
+   through the real approved-media gallery + MediaStoriesViewer instead. */
+
+/* ─── PARTICIPANTS SHEET ─────────────────────────────────────────────────
+   Bottom sheet opened from the chevron/avatar-stack above the registration
+   progress bar (and from the home preview's "Voir plus"). Replaces the old
+   standalone Participants tab. Shows registrants during registration, or
+   the top-5 classement once voting is live. "Voir tout" still hands off to
+   the existing full-page overlays (RegistrantListOverlay / ParticipantListOverlay). */
+function ParticipantsSheet({
+  comp, accent, isRegistration, liveRegistered, registrants, registrantsLoading,
+  ranked, topPoints, currentUser, canRemove, onRemove, removingRegistrantId,
+  onClose, onShowAllRegistrants, onShowAllRanked,
+}) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1100,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480,
+          background: "#1a1a1a",
+          borderTop: "2px solid #0d0d0d",
+          maxHeight: "88vh",
+          display: "flex", flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 16px 12px",
+          borderBottom: "1px solid #2a2a2a",
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#f2f2f2" }}>
+              Participants
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginTop: 2 }}>
+              {isRegistration ? `${liveRegistered}/${comp.contestants} inscrits` : `${comp.contestants} participants`}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#c4c4c4", padding: 4, lineHeight: 0 }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div style={{ overflowY: "auto", padding: "16px 16px 24px" }}>
+          {isRegistration ? (
+            <>
+              <div style={{
+                padding: "20px", background: "#242424", borderRadius: 16,
+                textAlign: "center", marginBottom: 16,
+              }}>
+                <div style={{
+                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700,
+                  color: "#6C63FF", marginBottom: 4,
+                }}>
+                  {liveRegistered}/{comp.contestants}
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9a9a9a", marginBottom: 12 }}>
+                  personnes inscrites
+                </div>
+                <div style={{ height: 8, borderRadius: 999, background: "#2c2657", width: "100%", marginBottom: 12, overflow: "hidden" }}>
+                  <div
+                    className="bar-shimmer"
+                    style={{
+                      height: "100%",
+                      borderRadius: 999,
+                      width: `${Math.round((liveRegistered / comp.contestants) * 100)}%`,
+                      background: liveRegistered >= comp.contestants
+                        ? "linear-gradient(90deg, #00B894 0%, #00d4a8 50%, #00B894 100%)"
+                        : "linear-gradient(90deg, #6C63FF 0%, #a89dff 50%, #6C63FF 100%)",
+                      transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)",
+                    }}
+                  />
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", lineHeight: 1.5 }}>
+                  {comp.contestants - liveRegistered > 0
+                    ? `${comp.contestants - liveRegistered} place${comp.contestants - liveRegistered !== 1 ? 's' : ''} encore disponible${comp.contestants - liveRegistered !== 1 ? 's' : ''}`
+                    : "Les inscriptions sont complètes"}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <span style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
+                }}><Users size={13} strokeWidth={2.5} />Membres inscrits</span>
+                {registrants.length > 5 && (
+                  <button
+                    onClick={onShowAllRegistrants}
+                    style={{
+                      border: "none", background: "none", color: accent,
+                      fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                      letterSpacing: "0.08em", textTransform: "uppercase",
+                      cursor: "pointer", padding: 0,
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}
+                  >
+                    Voir tout ({registrants.length})
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                      <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {registrantsLoading ? (
+                <div style={{ padding: "20px 0 24px", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
+                  Chargement des inscrits...
+                </div>
+              ) : registrants.length === 0 ? (
+                <div style={{ padding: "20px 0 24px", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
+                  Aucune inscription pour le moment.
+                </div>
+              ) : (
+                registrants.slice(0, 5).map((r, idx, arr) => {
+                  const isMe = currentUser && r.userId === currentUser.id;
+                  return (
+                    <div key={r.id} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "9px 6px", margin: "0 -6px", borderRadius: 8,
+                      background: isMe ? "#211f36" : "transparent",
+                      borderBottom: idx < arr.length - 1 ? "1px solid #2a2a2a" : "none",
+                    }}>
+                      <div style={{
+                        width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                        background: "#211f36", color: "#6C63FF",
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        border: isMe ? "2px solid #6C63FF" : "none",
+                      }}>
+                        {r.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: isMe ? "#6C63FF" : "#c4c4c4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {r.name}
+                        </span>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a" }}>
+                          {fmtRelativeTime(r.createdAt)}
+                        </span>
+                      </div>
+                      {isMe && (
+                        <span style={{
+                          fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+                          color: "#fff", background: "#6C63FF",
+                          borderRadius: 999, padding: "3px 8px",
+                          textTransform: "uppercase", letterSpacing: "0.05em",
+                          flexShrink: 0,
+                        }}>
+                          Vous
+                        </span>
+                      )}
+                      {r.isEarlyBird && (
+                        <span style={{
+                          fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+                          color: accent, background: "#1a1a1a",
+                          border: `1px solid ${accent}`, borderRadius: 999, padding: "3px 8px",
+                          textTransform: "uppercase", letterSpacing: "0.05em",
+                          flexShrink: 0,
+                        }}>
+                          -50%
+                        </span>
+                      )}
+                      {canRemove && (
+                        <button
+                          onClick={() => onRemove(r)}
+                          disabled={removingRegistrantId === r.id}
+                          title="Retirer ce participant"
+                          style={{
+                            width: 24, height: 24, flexShrink: 0, marginLeft: 4,
+                            border: "1px solid #4a2320", borderRadius: "50%",
+                            background: "#2a1614", color: "#e74c3c",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            cursor: removingRegistrantId === r.id ? "default" : "pointer",
+                            opacity: removingRegistrantId === r.id ? 0.5 : 1,
+                            padding: 0,
+                          }}
+                        >
+                          <X size={13} strokeWidth={2.5} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <span style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                  color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
+                }}><Trophy size={13} strokeWidth={2.5} />Classement · Top 5</span>
+                <button
+                  onClick={onShowAllRanked}
+                  style={{
+                    border: "none", background: "none", color: accent,
+                    fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                    letterSpacing: "0.08em", textTransform: "uppercase",
+                    cursor: "pointer", padding: 0,
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}
+                >
+                  Voir tout ({comp.contestants})
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
+                  </svg>
+                </button>
+              </div>
+
+              {ranked.length === 0 ? (
+                <div style={{ padding: "24px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#7a7a7a" }}>
+                  Aucun participant pour le moment.
+                </div>
+              ) : ranked.map((p, rank) => {
+                const pct = Math.max(8, Math.round((p.points / topPoints) * 100));
+                return (
+                  <div key={p.id ?? p.index} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "11px 0",
+                    borderBottom: rank < ranked.length - 1 ? "1px solid #2a2a2a" : "none",
+                  }}>
+                    <span style={{
+                      width: 20, flexShrink: 0, textAlign: "center",
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontSize: rank === 0 ? 16 : 12, fontWeight: 700,
+                      color: rank === 0 ? accent : "#7a7a7a",
+                    }}>
+                      {rank === 0 ? "🥇" : rank + 1}
+                    </span>
+                    <div style={{
+                      width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                      overflow: "hidden", background: "#1a1a1a",
+                      border: rank === 0 ? `2px solid ${accent}` : "2px solid #2a2a2a",
+                      boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
+                    }}>
+                      <EntityAvatar url={p.avatarUrl} name={p.name} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                        <span style={{
+                          fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                          color: "#f2f2f2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>{p.name}</span>
+                        <span style={{
+                          display: "flex", alignItems: "center", gap: 4,
+                          fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
+                          color: rank === 0 ? accent : "#9a9a9a", flexShrink: 0,
+                        }}>
+                          🪙 {p.points.toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                      <div style={{ height: 4, background: "#242424", borderRadius: 2, overflow: "hidden" }}>
+                        <div
+                          className="bar-shimmer"
+                          style={{
+                            height: "100%", borderRadius: 2,
+                            width: `${pct}%`,
+                            background: rank === 0
+                              ? `linear-gradient(90deg, ${accent} 0%, ${accent}cc 50%, ${accent} 100%)`
+                              : "linear-gradient(90deg, #3a3a3a 0%, #2a2a2a 50%, #3a3a3a 100%)",
+                            transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── MEDIA SHEET ────────────────────────────────────────────────────────
+   Bottom sheet that replaces the old standalone Médias tab. Triggered by
+   the "Voir plus" button on the home preview's Médias row, it now owns the
+   full media surface: organizer approval queue at the top, the registered
+   participant's "Mon album" tile + the 2-col gallery of approved uploads
+   below, and a "Voir tout" tile that hands off to AlbumGridOverlay when
+   there are more than 11 approved items. Same chrome (sticky header, dark
+   backdrop, max-height 88vh) as ParticipantsSheet so the two side-by-side
+   sheets feel like a single design language. */
+function MediaSheet({
+  accent, isRegistration, approvedUploads, pendingUploads, participantUploads,
+  currentUser, isRegistered, participants, onOpenItem, onOpenAlbum, onOpenAllAlbums, onReviewUpload, onClose,
+}) {
+  const otherApproved = approvedUploads.filter((u) => u.uploader_id !== currentUser?.id);
+
+  // Avatar lookup for the album tiles — same shape as the home preview.
+  const avatarByUploader = new Map();
+  (participants || []).forEach((p) => {
+    if (p.userId && p.avatarUrl) avatarByUploader.set(p.userId, p.avatarUrl);
+  });
+  if (currentUser?.id && currentUser?.avatarUrl) {
+    avatarByUploader.set(currentUser.id, currentUser.avatarUrl);
+  }
+
+  // Group every approved upload (including the current user's, since their
+  // own "Mon album" tile is just a launch button, not a real album tile)
+  // by uploader. One album per uploader, ordered by their latest activity.
+  const albumByUploader = new Map();
+  (otherApproved).forEach((it) => {
+    const key = it.uploader_id || it.uploader_name;
+    if (!albumByUploader.has(key)) {
+      albumByUploader.set(key, {
+        key, uploaderId: it.uploader_id, uploaderName: it.uploader_name,
+        items: [], latestAt: 0,
+      });
+    }
+    const album = albumByUploader.get(key);
+    album.items.push(it);
+    const t = it.created_at ? new Date(it.created_at).getTime() : 0;
+    if (t > album.latestAt) album.latestAt = t;
+  });
+  const albums = Array.from(albumByUploader.values()).sort((a, b) => b.latestAt - a.latestAt);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1100,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480,
+          background: "#1a1a1a",
+          borderTop: "2px solid #0d0d0d",
+          maxHeight: "88vh",
+          display: "flex", flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 16px 12px",
+          borderBottom: "1px solid #2a2a2a",
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#f2f2f2" }}>
+              Médias
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginTop: 2 }}>
+              {`${approvedUploads.length} média${approvedUploads.length > 1 ? "s" : ""} approuvé${approvedUploads.length > 1 ? "s" : ""}`}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#c4c4c4", padding: 4, lineHeight: 0 }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div style={{ overflowY: "auto", padding: "16px 16px 24px" }}>
+          <>
+              {/* Organizer-only: media submitted by participants, awaiting approval */}
+              {currentUser?.isOrganizer && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                    color: pendingUploads.length > 0 ? "#e74c3c" : "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
+                    marginBottom: 10,
+                  }}>
+                    <Clock size={13} strokeWidth={2.5} />
+                    Médias à approuver{pendingUploads.length > 0 ? ` (${pendingUploads.length})` : ""}
+                  </div>
+                  {pendingUploads.length === 0 ? (
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a", padding: "4px 0 2px" }}>
+                      Rien à approuver pour l'instant.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {pendingUploads.map((item) => (
+                        <div key={item.id} style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          border: "1px solid #2a2a2a", padding: 8,
+                        }}>
+                          <div style={{ width: 46, height: 46, flexShrink: 0, overflow: "hidden", background: "#0d0d0d" }}>
+                            {item.media_type === "video" ? (
+                              <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+                            ) : (
+                              <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            )}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#f2f2f2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {item.uploader_name}
+                            </div>
+                            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#7a7a7a" }}>
+                              {item.media_type === "video" ? "Vidéo" : "Photo"} envoyée
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => onReviewUpload(item.id, "rejected")}
+                            style={{ border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#7a7a7a", width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                          >
+                            <X size={14} />
+                          </button>
+                          <button
+                            onClick={() => onReviewUpload(item.id, "approved")}
+                            style={{ border: "none", background: accent, color: "#fff", width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                          >
+                            <Check size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
+                marginBottom: 12,
+              }}>
+                <ImageIcon size={13} strokeWidth={2.5} />
+                Médias des participants
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                {isRegistered && currentUser && (() => {
+                  // Count of media in the participant's own album (any status) —
+                  // the "Mon album" tile surfaces this counter so the participant
+                  // can see at a glance how many items they've submitted.
+                  const myAlbumCount = participantUploads.filter(
+                    (u) => u.uploader_id === currentUser.id
+                  ).length;
+                  return (
+                  <div
+                    onClick={onOpenAlbum}
+                    style={{
+                      position: "relative", cursor: "pointer", aspectRatio: "1 / 1",
+                      border: `1.5px dashed ${accent}`, background: `${accent}0a`,
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Surface the same "En attente" badge the home shows on
+                        "Mon album" so the participant knows their last upload
+                        is still being reviewed. */}
+                    {participantUploads.some((u) => u.uploader_id === currentUser.id && u.status === "pending") && (
+                      <span style={{
+                        position: "absolute", top: 7, right: 7,
+                        background: "#e74c3c", color: "#fff",
+                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                        padding: "2px 6px", zIndex: 1,
+                      }}>
+                        En attente
+                      </span>
+                    )}
+                    {/* Profile pic circle — the participant's avatar as the
+                        album thumbnail identity. Falls back to their initial
+                        on a tinted background if they haven't set one. */}
+                    <div style={{
+                      width: 44, height: 44, borderRadius: "50%",
+                      background: currentUser.avatarUrl ? "#1a1a1a" : `${accent}33`,
+                      border: `2px solid ${accent}`,
+                      overflow: "hidden", flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {currentUser.avatarUrl ? (
+                        <img
+                          src={currentUser.avatarUrl}
+                          alt=""
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        />
+                      ) : (
+                        <span style={{
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          fontSize: 16, fontWeight: 700, color: accent,
+                        }}>
+                          {(currentUser.fullName || "?").charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: accent }}>
+                      Mon album
+                    </span>
+                    {/* Image counter — total media the user has sent to this
+                        album (any status: pending/approved/rejected). */}
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 3,
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontSize: 10, fontWeight: 700, color: "#9a9a9a",
+                    }}>
+                      <ImageIcon size={10} strokeWidth={2.5} />
+                      {myAlbumCount} média{myAlbumCount > 1 ? "s" : ""}
+                    </span>
+                    {/* Tiny + affordance in the corner so the tile still reads
+                        as "tap to add/open" rather than a static avatar. */}
+                    <span style={{
+                      position: "absolute", bottom: 6, right: 6,
+                      width: 18, height: 18, borderRadius: "50%",
+                      background: accent, color: "#fff",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Plus size={11} strokeWidth={3} />
+                    </span>
+                  </div>
+                  );
+                })()}
+                {albums.slice(0, 11).map((album) => {
+                  const cover = album.items[0];
+                  const count = album.items.length;
+                  const avatarUrl = avatarByUploader.get(album.uploaderId);
+                  return (
+                    <div
+                      key={album.key}
+                      onClick={() => onOpenItem(otherApproved, cover)}
+                      style={{ position: "relative", cursor: "pointer", aspectRatio: "1 / 1", overflow: "hidden", background: "#0d0d0d" }}
+                    >
+                      {cover.media_type === "video" ? (
+                        <video src={cover.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+                      ) : (
+                        <img src={cover.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      )}
+                      {/* Image count pill (top-right) — same treatment as the
+                          home preview so the two surfaces read consistently. */}
+                      <span style={{
+                        position: "absolute", top: 6, right: 6,
+                        display: "inline-flex", alignItems: "center", gap: 3,
+                        background: "rgba(0,0,0,0.55)", color: "#fff",
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700,
+                        padding: "2px 6px", borderRadius: 999,
+                      }}>
+                        <ImageIcon size={10} strokeWidth={2.5} />
+                        {count}
+                      </span>
+                      {/* Bottom gradient + uploader name + profile pic circle. */}
+                      <div style={{
+                        position: "absolute", bottom: 0, left: 0, right: 0,
+                        padding: "5px 6px 5px 9px", background: "linear-gradient(to top, rgba(0,0,0,0.65), transparent)",
+                        display: "flex", alignItems: "center", gap: 6,
+                      }}>
+                        <div style={{
+                          width: 18, height: 18, borderRadius: "50%",
+                          background: avatarUrl ? "#1a1a1a" : "rgba(255,255,255,0.25)",
+                          border: "1.5px solid #1a1a1a", overflow: "hidden", flexShrink: 0,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          {avatarUrl ? (
+                            <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          ) : (
+                            <span style={{
+                              fontFamily: "'Space Grotesk', sans-serif",
+                              fontSize: 9, fontWeight: 700, color: "#fff",
+                            }}>
+                              {(album.uploaderName || "?").charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>
+                          {album.uploaderName}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {albums.length > 11 && (
+                  <div
+                    onClick={onOpenAllAlbums}
+                    style={{
+                      border: "1px dashed #3a3a3a", background: "#242424",
+                      display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center",
+                      gap: 6, cursor: "pointer",
+                      aspectRatio: "1/1",
+                    }}
+                  >
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#7a7a7a" }}>
+                      +{albums.length - 11}
+                    </span>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#7a7a7a", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      Voir tout
+                    </span>
+                  </div>
+                )}
+                {albums.length === 0 && !(isRegistered && currentUser) && (
+                  <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "24px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
+                    Aucun média approuvé pour l'instant.
+                  </div>
+                )}
+              </div>
+            </>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AlbumSheet({ accent, uploads = [], uploading = false, onUpload, onClose }) {
+  const subtitle = `${uploads.length} média${uploads.length > 1 ? "s" : ""} envoyé${uploads.length > 1 ? "s" : ""}`;
+  const statusLabel = { pending: "En attente", approved: "Approuvé", rejected: "Rejeté" };
+  const statusColor = { pending: "#e74c3c", approved: "#27ae60", rejected: "#7a7a7a" };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1100,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480,
+          background: "#1a1a1a",
+          borderTop: `2px solid #0d0d0d`,
+          maxHeight: "88vh",
+          display: "flex", flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 16px 12px",
+          borderBottom: "1px solid #2a2a2a",
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#f2f2f2" }}>
+              Mon album
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginTop: 2 }}>
+              {subtitle}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#c4c4c4", padding: 4, lineHeight: 0 }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div style={{
+          overflowY: "auto",
+          padding: "16px 16px 24px",
+          display: "flex", flexDirection: "column", gap: 12,
+        }}>
+          <div style={{
+            background: "#242424", border: "1px solid #2a2a2a",
+            padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12,
+            color: "#9a9a9a", lineHeight: 1.6,
+          }}>
+            Ajoutez vos propres photos ou vidéos — elles seront visibles publiquement une fois approuvées par l'organisateur.
+          </div>
+
+          <label style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            border: `1.5px dashed ${accent}`, background: `${accent}0a`,
+            padding: "14px 0", cursor: uploading ? "default" : "pointer",
+            opacity: uploading ? 0.6 : 1,
+          }}>
+            <input
+              type="file"
+              accept="image/*,video/*"
+              disabled={uploading}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload?.(f); e.target.value = ""; }}
+              style={{ display: "none" }}
+            />
+            <Plus size={16} color={accent} strokeWidth={2.5} />
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: accent }}>
+              {uploading ? "Envoi en cours…" : "Ajouter un média"}
+            </span>
+          </label>
+
+          {uploads.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
+              Aucun média envoyé pour l'instant.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+              {uploads.map((u) => (
+                <div key={u.id} style={{ position: "relative", aspectRatio: "1 / 1", overflow: "hidden", background: "#0d0d0d" }}>
+                  {u.media_type === "video" ? (
+                    <video src={u.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
+                  ) : (
+                    <img src={u.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  )}
+                  <span style={{
+                    position: "absolute", top: 6, right: 6,
+                    background: statusColor[u.status], color: "#fff",
+                    fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                    padding: "2px 6px",
+                  }}>
+                    {statusLabel[u.status]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── MEDIA STORIES VIEWER ───────────────────────────────────────────────
+   Full-screen Instagram/WhatsApp-style stories viewer, opened from the
+   real "Médias des participants" gallery (home preview strip, the "Voir
+   tout" grid, and the Médias sheet all funnel into this the same way).
+
+   A flat list of approved participant_media rows is grouped by uploader
+   into ordered "story" groups — each participant becomes one story with
+   its own row of segmented progress bars. Tapping the right side of the
+   screen (or letting the timer run out) advances to the next photo/video;
+   once a participant's items are exhausted it rolls into the next
+   participant's story, mirroring how IG/WhatsApp status chains people
+   together. Tapping the left side goes back, holding pauses, and
+   swiping down closes the viewer. */
+
+function groupUploadsIntoStories(items) {
+  const order = [];
+  const byUploader = new Map();
+  items.forEach((it) => {
+    const key = it.uploader_id || it.uploader_name;
+    if (!byUploader.has(key)) {
+      const group = { key, uploaderId: it.uploader_id, uploaderName: it.uploader_name, items: [] };
+      byUploader.set(key, group);
+      order.push(group);
+    }
+    byUploader.get(key).items.push(it);
+  });
+  // Oldest → newest within each participant's story, like a chronological
+  // status reel rather than the newest-first order the feed fetches in.
+  order.forEach((g) => g.items.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)));
+  return order;
+}
+
+function findStoryPosition(groups, item) {
+  for (let g = 0; g < groups.length; g++) {
+    const i = groups[g].items.findIndex((x) => x.id === item.id);
+    if (i !== -1) return { groupIndex: g, itemIndex: i };
+  }
+  return { groupIndex: 0, itemIndex: 0 };
+}
+
+const STORY_IMAGE_DURATION_MS = 5000;
+
+function MediaStoriesViewer({ groups, groupIndex, itemIndex, onChangePosition, onClose }) {
+  const group = groups[groupIndex];
+  const item = group?.items[itemIndex];
+
+  const [progress, setProgress] = useState(0); // 0-1 for the active segment
+  const [paused, setPaused] = useState(false);
+  const [dragY, setDragY] = useState(0);
+  const videoRef = useRef(null);
+  const pointerRef = useRef({ x: 0, y: 0, t: 0, dragging: false });
+
+  const goToNextItem = () => {
+    if (!group) return;
+    if (itemIndex < group.items.length - 1) onChangePosition(groupIndex, itemIndex + 1);
+    else if (groupIndex < groups.length - 1) onChangePosition(groupIndex + 1, 0);
+    else onClose();
+  };
+  const goToPrevItem = () => {
+    if (itemIndex > 0) onChangePosition(groupIndex, itemIndex - 1);
+    else if (groupIndex > 0) onChangePosition(groupIndex - 1, groups[groupIndex - 1].items.length - 1);
+  };
+  const goToNextGroup = () => {
+    if (groupIndex < groups.length - 1) onChangePosition(groupIndex + 1, 0);
+    else onClose();
+  };
+  const goToPrevGroup = () => {
+    if (groupIndex > 0) onChangePosition(groupIndex - 1, 0);
+  };
+
+  // Reset the bar whenever the active item changes.
+  useEffect(() => {
+    setProgress(0);
+  }, [item?.id]);
+
+  // Photos advance on a fixed timer; videos drive progress via their own
+  // playback clock instead (see the <video> handlers below).
+  useEffect(() => {
+    if (!item || item.media_type === "video" || paused) return;
+    const stepMs = 50;
+    const increment = stepMs / STORY_IMAGE_DURATION_MS;
+    const id = setInterval(() => {
+      setProgress((p) => Math.min(1, p + increment));
+    }, stepMs);
+    return () => clearInterval(id);
+  }, [item?.id, paused, item?.media_type]);
+
+  // Fires once per item, whenever the timer/video reports completion.
+  useEffect(() => {
+    if (progress >= 1) goToNextItem();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress]);
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    if (paused) videoRef.current.pause();
+    else videoRef.current.play?.().catch(() => {});
+  }, [paused, item?.id]);
+
+  if (!item || !group) return null;
+
+  function handlePointerDown(e) {
+    pointerRef.current = { x: e.clientX, y: e.clientY, t: Date.now(), dragging: false };
+    setPaused(true);
+  }
+  function handlePointerMove(e) {
+    const dx = e.clientX - pointerRef.current.x;
+    const dy = e.clientY - pointerRef.current.y;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) pointerRef.current.dragging = true;
+    if (dy > 0) setDragY(dy);
+  }
+  function handlePointerUp(e) {
+    const { x, y, t, dragging } = pointerRef.current;
+    const dx = e.clientX - x;
+    const dy = e.clientY - y;
+    const heldLong = Date.now() - t > 220;
+    setPaused(false);
+    setDragY(0);
+    if (dy > 90) { onClose(); return; }
+    if (dragging && Math.abs(dx) > 60) {
+      if (dx < 0) goToNextGroup(); else goToPrevGroup();
+      return;
+    }
+    if (!dragging || !heldLong) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const relX = e.clientX - rect.left;
+      if (relX < rect.width * 0.3) goToPrevItem(); else goToNextItem();
+    }
+  }
+
+  return (
+    <div
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1150,
+        background: "#0d0d0d", overflow: "hidden", touchAction: "none",
+        userSelect: "none",
+      }}
+    >
+      <div style={{
+        position: "absolute", inset: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transform: `translateY(${dragY}px)`,
+        opacity: dragY ? Math.max(0.4, 1 - dragY / 300) : 1,
+        transition: dragY ? "none" : "transform 0.2s ease, opacity 0.2s ease",
+      }}>
+        {item.media_type === "video" ? (
+          <video
+            ref={videoRef}
+            src={item.media_url}
+            autoPlay
+            playsInline
+            onTimeUpdate={(e) => {
+              const d = e.currentTarget.duration;
+              if (d) setProgress(Math.min(1, e.currentTarget.currentTime / d));
+            }}
+            style={{ width: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
+          />
+        ) : (
+          <img src={item.media_url} alt="" style={{ width: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} />
+        )}
+      </div>
+
+      {/* Segmented progress bars — one per item in the active story */}
+      <div style={{ position: "absolute", top: 10, left: 10, right: 10, display: "flex", gap: 4 }}>
+        {group.items.map((it, i) => (
+          <div key={it.id} style={{ flex: 1, height: 2.5, borderRadius: 2, background: "rgba(255,255,255,0.35)", overflow: "hidden" }}>
+            <div style={{
+              height: "100%", background: "#1a1a1a",
+              width: i < itemIndex ? "100%" : i === itemIndex ? `${progress * 100}%` : "0%",
+            }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Header: uploader + close */}
+      <div style={{ position: "absolute", top: 20, left: 10, right: 10, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#c4c4c4", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, color: "#fff" }}>
+            {(group.uploaderName || "?").trim().charAt(0).toUpperCase()}
+          </span>
+        </div>
+        <span style={{
+          flex: 1, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#fff",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>
+          {group.uploaderName}
+        </span>
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
+          style={{
+            border: "none", background: "rgba(255,255,255,0.15)", borderRadius: "50%",
+            width: 30, height: 30, flexShrink: 0, cursor: "pointer", color: "#fff",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── LIVE COMMENTARY STREAM SHEET (X Spaces / podcast style) ─────────── */
+
+function RoomAvatar({ name, size = 56, speaking = false, ring, badge }) {
+  const initials = (name || "").trim() ? name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "?";
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <div style={{
+        width: size, height: size, borderRadius: "50%", overflow: "hidden",
+        border: speaking ? `2px solid ${ring || "#2ecc71"}` : "2px solid transparent",
+        boxSizing: "border-box",
+      }}>
+        <div style={{ width: "100%", height: "100%", background: "#c4c4c4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: size * 0.32, fontWeight: 700, color: "#fff" }}>{initials}</span>
+        </div>
+      </div>
+      {badge}
+      {speaking && (
+        <div style={{
+          position: "absolute", bottom: -3, right: -3,
+          width: 20, height: 20, borderRadius: "50%", background: "#0d0d0d",
+          border: "2px solid #0d0d0d",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <AudioBarsLoader height="11" width="11" color="#2ecc71" ariaLabel="parle" visible={true} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, muted, onToggleMute, onClose }) {
+  const [requestSent, setRequestSent] = useState(false);
+  const baseSeed = Math.abs(hashStr(comp.id));
+  const listenerCount = 40 + (baseSeed % 900);
+  const listenerFaces = Array.from({ length: 6 }, (_, i) => (baseSeed + i * 13) % 60);
+  const speakers = [
+    { name: commentator.name, role: "Hôte", index: baseSeed % 40, speaking: true },
+    ...coSpeakers.map((s, i) => ({ name: s.name, role: "Intervenant", index: (baseSeed + (i + 1) * 9) % 40, speaking: i === 0 })),
+  ];
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1200,
+        background: "rgba(0,0,0,0.6)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480,
+          background: "#0d0d0d",
+          borderTop: "1px solid #2a2a2a",
+          maxHeight: "85vh",
+          display: "flex", flexDirection: "column",
+        }}
+      >
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px", flexShrink: 0 }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "#c4c4c4" }} />
+        </div>
+
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "6px 18px 12px", flexShrink: 0,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 800, color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              Salle audio en direct
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Réduire"
+            style={{
+              width: 26, height: 26, border: "none", background: "#0d0d0d", borderRadius: "50%",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <ChevronLeft size={14} color="#7a7a7a" style={{ transform: "rotate(-90deg)" }} />
+          </button>
+        </div>
+
+        <div style={{ padding: "0 18px 22px", overflowY: "auto" }}>
+          {/* Speakers grid */}
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#9a9a9a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+            À l'antenne · {speakers.length}
+          </div>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {speakers.map((s, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 64 }}>
+                <RoomAvatar name={s.name} size={56} speaking={s.speaking} ring={accent} />
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#fff", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>
+                  {s.name.split(" ")[0]}
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#9a9a9a" }}>{s.role}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Listeners */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginTop: 22, paddingTop: 16, borderTop: "1px solid #2a2a2a",
+          }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {listenerFaces.map((idx, i) => (
+                <div key={i} style={{ marginLeft: i === 0 ? 0 : -8, border: "2px solid #0d0d0d", borderRadius: "50%" }}>
+                  <RoomAvatar name="" size={26} />
+                </div>
+              ))}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
+              {listenerCount} auditeurs
+            </div>
+          </div>
+
+          {/* Description */}
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#7a7a7a", lineHeight: 1.5, marginTop: 16 }}>
+            Suivez le commentaire audio en direct de cette compétition — analyses, moments forts et ambiance, commentés en temps réel.
+          </div>
+
+          {/* Controls */}
+          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+            <button
+              onClick={() => setRequestSent(true)}
+              disabled={requestSent}
+              style={{
+                flex: 1, height: 44, borderRadius: 22, border: "1px solid #c4c4c4",
+                background: requestSent ? "#0d0d0d" : accent,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                cursor: requestSent ? "default" : "pointer",
+              }}
+            >
+              <Hand size={16} color={requestSent ? "#7a7a7a" : "#f2f2f2"} strokeWidth={2.2} />
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: requestSent ? "#7a7a7a" : "#f2f2f2" }}>
+                {requestSent ? "Demande envoyée" : "Demander à parler"}
+              </span>
+            </button>
+            <button
+              onClick={onToggleMute}
+              aria-label={muted ? "Activer le son" : "Couper le son"}
+              style={{
+                width: 44, height: 44, borderRadius: 22, border: "1px solid #c4c4c4",
+                background: muted ? "#0d0d0d" : "#1a1a1a",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", flexShrink: 0,
+              }}
+            >
+              {muted ? <VolumeX size={16} color="#fff" strokeWidth={2.2} /> : <Volume2 size={16} color="#f2f2f2" strokeWidth={2.2} />}
+            </button>
+          </div>
+
+          {/* Leave */}
+          <button
+            onClick={onClose}
+            style={{
+              width: "100%", background: "none", border: "none", cursor: "pointer",
+              marginTop: 14, padding: "8px 0",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#e74c3c",
+            }}
+          >
+            Quitter la salle
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
 
-export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onCreateComp, onAddImage, onRemoveImage, startInEditMode = false, isNewEdition = false, onParticipantRemoved }) {
+export default function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onCreateComp, onAddImage, onRemoveImage, onUploadBanner, startInEditMode = false, isNewEdition = false, onParticipantRemoved }) {
   const isRegistration = comp.phase === "registration";
   const isCompleted = comp.phase === "completed";
   const registrationFee = getRegistrationFee(comp);
-  const isOwnCompetition = currentUser?.isOrganizer && comp.organisateur === PLATFORM_ORGANIZER_SIGLE;
+  const isOwnCompetition = isCompOwner(comp, currentUser);
+  // Admins/organizers manage their own competition, they don't send themselves gifts —
+  // so the gift button is swapped out for an edit entry point instead. Once the
+  // competition is completed there's no one left to vote for, so sending gifts
+  // disappears entirely. And gifting isn't available until the competition goes
+  // live, so it's hidden during registration too.
+  const showGiftOption = !isOwnCompetition && !isRegistered && !isCompleted && !isRegistration;
+  // Gives unregistered visitors a way to register right from the footer bar
+  // during the registration phase, in the same slot Edit occupies for organizers.
+  const showRegisterButton = isRegistration && !isOwnCompetition && !isRegistered;
+  // Once registered (and no longer just in the registration phase), there's
+  // nothing actionable to show in that outer slot — just a subtle confirmation.
+  const showRegisteredBadge = isRegistered && !isRegistration && !isOwnCompetition;
+  // Organiser-follow state — lives here now that the organiser profile chip
+  // sits in the header instead of its own bar in the body.
+  const [orgFollowed, setOrgFollowed] = useState(false);
+  const [orgFollowerCount, setOrgFollowerCount] = useState(comp.followers);
   const [showEditModal, setShowEditModal] = useState(startInEditMode);
   const [editTitle, setEditTitle] = useState(comp.title);
   const [editEdition, setEditEdition] = useState(comp.edition);
   const [editEnds, setEditEnds] = useState(comp.ends);
   const [editPhase, setEditPhase] = useState(comp.phase);
   const [editContestants, setEditContestants] = useState(comp.contestants != null ? String(comp.contestants) : "");
-  const [editEndsAt, setEditEndsAt] = useState(toDatetimeLocal(comp.endsAt));
   const [editDescription, setEditDescription] = useState(comp.description || "");
   const [editPrizeAmount, setEditPrizeAmount] = useState(comp.prizeAmount != null ? String(comp.prizeAmount) : "");
   const [editFee, setEditFee] = useState(String(registrationFee));
@@ -70,25 +2090,215 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
   const [editBannerUrl, setEditBannerUrl] = useState(comp.bannerUrl || null);
   const [savingEdit, setSavingEdit] = useState(false);
   const isLive = !isRegistration && !isCompleted;
-  // How long the LIVE phase itself will last, once this edition gets there.
-  // This has to be locked in during registration (or at creation) because
-  // `open_expired_registrations` reads it only at the registration→live
-  // transition to compute the real `ends_at` for the live phase — it can't
-  // be changed by hand after the fact, so the edit form stops offering it
-  // the moment phase flips to "live".
+  // Registration defaults to exactly 1 week (or shorter if every place
+  // fills up early), and the live phase that follows defaults to exactly
+  // 1 week too — both computed server-side. The "Fixe" tab leaves it at
+  // that default; the "Date personnalisée" tab lets the admin override
+  // either with a specific deadline/duration.
+  const [scheduleMode, setScheduleMode] = useState(comp.endsAt ? "custom" : "fixed");
+  const [editEndsAt, setEditEndsAt] = useState(toDatetimeLocal(comp.endsAt));
   const [editLiveDurationSeconds, setEditLiveDurationSeconds] = useState(comp.liveDurationSeconds ?? null);
-  // Both duration fields — the quick preset label (editEnds) AND the real
-  // deadline (editEndsAt) — must be set together before the edition can be
-  // saved/published. Picking a preset sets both at once; picking a custom
-  // date used to blank out the label instead, leaving the edition half-set.
-  // While still in registration, the live-phase duration above must also be
-  // set, since there's no later opportunity to fill it in once live. Live
-  // and completed editions skip this check entirely — a live edition's
-  // duration was already locked in, and a completed one hides the whole
-  // duration section.
-  const durationIncomplete = !isCompleted && (!editEnds.trim() || !editEndsAt || (isRegistration && !editLiveDurationSeconds));
+  // Set the moment the admin uses the quick "+X heures/jours/semaines"
+  // extend control on the "Fixe" tab — that's a real, deliberate change to
+  // the deadline even though the tab itself never otherwise sends endsAt.
+  const [scheduleDirty, setScheduleDirty] = useState(false);
+  // +N of a given unit, applied on top of whatever end time is currently
+  // showing (the pending edit if there is one, else the saved deadline, else
+  // now) — e.g. clicking "+1 jour" twice pushes the deadline out by a day
+  // each time, rather than resetting it.
+  function extendEndsAt(amountSeconds) {
+    const base = editEndsAt ? new Date(editEndsAt) : comp.endsAt ? new Date(comp.endsAt) : new Date();
+    const rawNext = new Date(base.getTime() + amountSeconds * 1000);
+    // "Raccourcir" (negative amount) can pull the deadline back, but never
+    // earlier than right now — a registration deadline in the past doesn't
+    // mean anything, and it would leave the live-duration stepper below
+    // computing a live end that's already ended.
+    const now = new Date();
+    const next = rawNext.getTime() < now.getTime() ? now : rawNext;
+    setEditEndsAt(toDatetimeLocal(next.toISOString()));
+    setScheduleDirty(true);
+  }
+  // Stepper state backing the "Prolonger" control on both the "Fixe" and
+  // "Date personnalisée" tabs — shared since only one tab is ever visible
+  // at a time. Amount can go negative (pulls the deadline in, e.g. from
+  // the 18th to the 17th) as well as positive (pushes it out); unit picks
+  // which conversion to seconds applies when the admin presses the button.
+  const [extendAmount, setExtendAmount] = useState(1);
+  const [extendUnit, setExtendUnit] = useState("hours");
+  const EXTEND_UNIT_SECONDS = { minutes: 60, hours: 3600, days: 86400, weeks: 604800 };
+  const EXTEND_UNIT_LABELS = { minutes: "Minutes", hours: "Heures", days: "Jours", weeks: "Semaines" };
+  function clampExtendAmount(n) {
+    const v = Math.round(Number(n));
+    return Number.isFinite(v) ? v : 0;
+  }
+  function handleProlonger() {
+    extendEndsAt(extendAmount * EXTEND_UNIT_SECONDS[extendUnit]);
+  }
+  // Live preview of where the deadline would land if "Prolonger" were
+  // pressed right now — recomputed on every render so it tracks the
+  // stepper's amount/unit as the admin adjusts them, without committing
+  // anything until they actually click the button.
+  function extendPreviewLabel() {
+    const base = editEndsAt ? new Date(editEndsAt) : comp.endsAt ? new Date(comp.endsAt) : new Date();
+    if (Number.isNaN(base.getTime())) return null;
+    const next = new Date(base.getTime() + extendAmount * EXTEND_UNIT_SECONDS[extendUnit] * 1000);
+    return fmtAbsoluteDateTime(next.toISOString());
+  }
+  function renderExtendStepper() {
+    const preview = extendPreviewLabel();
+    return (
+      <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", border: "1px solid #3a3a3a", borderRadius: 8, overflow: "hidden" }}>
+          <button
+            type="button"
+            onClick={() => setExtendAmount((v) => clampExtendAmount(v - 1))}
+            style={{ border: "none", background: "#242424", color: "#c4c4c4", width: 30, height: 32, fontSize: 16, fontWeight: 700, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+          >
+            −
+          </button>
+          <input
+            type="number"
+            step={1}
+            value={extendAmount}
+            onChange={(e) => setExtendAmount(clampExtendAmount(e.target.value))}
+            onBlur={(e) => setExtendAmount(clampExtendAmount(e.target.value))}
+            style={{ width: 44, height: 32, border: "none", borderLeft: "1px solid #3a3a3a", borderRight: "1px solid #3a3a3a", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: extendAmount < 0 ? "#D35400" : "#c4c4c4", outline: "none" }}
+          />
+          <button
+            type="button"
+            onClick={() => setExtendAmount((v) => clampExtendAmount(v + 1))}
+            style={{ border: "none", background: "#242424", color: "#c4c4c4", width: 30, height: 32, fontSize: 16, fontWeight: 700, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+          >
+            +
+          </button>
+        </div>
+        <select
+          value={extendUnit}
+          onChange={(e) => setExtendUnit(e.target.value)}
+          style={{ border: "1px solid #3a3a3a", borderRadius: 8, background: "#1a1a1a", color: "#c4c4c4", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, padding: "0 8px", height: 32, cursor: "pointer" }}
+        >
+          {Object.keys(EXTEND_UNIT_SECONDS).map((u) => (
+            <option key={u} value={u}>
+              {EXTEND_UNIT_LABELS[u]}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={handleProlonger}
+          disabled={extendAmount === 0}
+          style={{ border: "1px solid #0d0d0d", borderRadius: 8, background: extendAmount === 0 ? "#242424" : "#0d0d0d", color: "#fff", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, padding: "0 14px", height: 32, cursor: extendAmount === 0 ? "default" : "pointer", WebkitTapHighlightColor: "transparent" }}
+        >
+          {extendAmount < 0 ? "Raccourcir" : "Prolonger"}
+        </button>
+      </div>
+      {preview && (
+        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, color: "#7a7a7a", marginTop: 6 }}>
+          → nouvelle fin : <span style={{ fontWeight: 700, color: "#c4c4c4" }}>{preview}</span>
+        </div>
+      )}
+      </div>
+    );
+  }
+  // Stepper for "Durée de la phase en direct" — unlike the "Prolonger"
+  // stepper above (which adds an amount on top of a base deadline), this one
+  // directly represents the total live-phase duration in whichever unit the
+  // admin has selected. Switching units just changes how the same
+  // editLiveDurationSeconds value is displayed/stepped; it never rewrites
+  // the underlying seconds.
+  const [liveDurationUnit, setLiveDurationUnit] = useState("days");
+  const LIVE_DURATION_UNIT_SECONDS = { minutes: 60, hours: 3600, days: 86400, weeks: 604800 };
+  const LIVE_DURATION_UNIT_LABELS = { minutes: "Minutes", hours: "Heures", days: "Jours", weeks: "Semaines" };
+  // The live phase always starts the instant registration ends, so a
+  // duration of 0 is the floor that keeps the live end from ever landing
+  // before the registration end — there's no separate "start time" to
+  // protect, since it's derived, but this is exactly what stops the live
+  // phase from effectively starting "before" registration closes.
+  function clampLiveDurationSeconds(s) {
+    return Math.max(0, Math.round(s));
+  }
+  function adjustLiveDuration(deltaUnits) {
+    setEditLiveDurationSeconds((prev) => {
+      const base = prev ?? 0;
+      return clampLiveDurationSeconds(base + deltaUnits * LIVE_DURATION_UNIT_SECONDS[liveDurationUnit]);
+    });
+  }
+  function setLiveDurationFromAmount(amountInUnit) {
+    const amount = Number(amountInUnit);
+    if (!Number.isFinite(amount)) return;
+    setEditLiveDurationSeconds(clampLiveDurationSeconds(amount * LIVE_DURATION_UNIT_SECONDS[liveDurationUnit]));
+  }
+  function renderLiveDurationStepper() {
+    const durationSecs = editLiveDurationSeconds ?? 0;
+    const regEndMs = editEndsAt ? new Date(editEndsAt).getTime() : comp.endsAt ? new Date(comp.endsAt).getTime() : Date.now();
+    const liveEndLabel = editLiveDurationSeconds
+      ? fmtAbsoluteDateTime(new Date(regEndMs + durationSecs * 1000).toISOString())
+      : null;
+    const unitSecs = LIVE_DURATION_UNIT_SECONDS[liveDurationUnit];
+    const amountDisplay = Math.round((durationSecs / unitSecs) * 100) / 100;
+    const atMin = durationSecs <= 0;
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", border: "1px solid #3a3a3a", borderRadius: 8, overflow: "hidden" }}>
+            <button
+              type="button"
+              onClick={() => adjustLiveDuration(-1)}
+              disabled={atMin}
+              style={{ border: "none", background: "#242424", color: atMin ? "#7a7a7a" : "#c4c4c4", width: 30, height: 32, fontSize: 16, fontWeight: 700, cursor: atMin ? "default" : "pointer", WebkitTapHighlightColor: "transparent" }}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={amountDisplay}
+              onChange={(e) => setLiveDurationFromAmount(e.target.value)}
+              onBlur={(e) => setLiveDurationFromAmount(Math.max(0, Number(e.target.value) || 0))}
+              style={{ width: 50, height: 32, border: "none", borderLeft: "1px solid #3a3a3a", borderRight: "1px solid #3a3a3a", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#c4c4c4", outline: "none" }}
+            />
+            <button
+              type="button"
+              onClick={() => adjustLiveDuration(1)}
+              style={{ border: "none", background: "#242424", color: "#c4c4c4", width: 30, height: 32, fontSize: 16, fontWeight: 700, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+            >
+              +
+            </button>
+          </div>
+          <select
+            value={liveDurationUnit}
+            onChange={(e) => setLiveDurationUnit(e.target.value)}
+            style={{ border: "1px solid #3a3a3a", borderRadius: 8, background: "#1a1a1a", color: "#c4c4c4", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, padding: "0 8px", height: 32, cursor: "pointer" }}
+          >
+            {Object.keys(LIVE_DURATION_UNIT_SECONDS).map((u) => (
+              <option key={u} value={u}>
+                {LIVE_DURATION_UNIT_LABELS[u]}
+              </option>
+            ))}
+          </select>
+        </div>
+        {liveEndLabel && (
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, color: "#7a7a7a", marginTop: 6 }}>
+            → fin du direct : <span style={{ fontWeight: 700, color: "#c4c4c4" }}>{liveEndLabel}</span>
+          </div>
+        )}
+        {atMin && (
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#D35400", marginTop: 4 }}>
+            La phase en direct ne peut pas commencer avant la fin des inscriptions.
+          </div>
+        )}
+      </div>
+    );
+  }
+  // Only required when the admin has actively chosen "Date personnalisée"
+  // — the "Fixe" tab never blocks saving, since the server fills in the
+  // defaults itself.
+  const scheduleIncomplete = !isCompleted && isRegistration && scheduleMode === "custom" && (!editEndsAt || !editLiveDurationSeconds);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removingImageId, setRemovingImageId] = useState(null);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const images = comp.images || [];
 
   useEffect(() => {
@@ -97,15 +2307,17 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
     setEditEnds(comp.ends);
     setEditPhase(comp.phase);
     setEditContestants(comp.contestants != null ? String(comp.contestants) : "");
-    setEditEndsAt(toDatetimeLocal(comp.endsAt));
     setEditDescription(comp.description || "");
     setEditPrizeAmount(comp.prizeAmount != null ? String(comp.prizeAmount) : "");
     setEditFee(String(getRegistrationFee(comp)));
     setEditRewardExtra(comp.rewardExtra || "");
     setEditRules((comp.rules || []).join("\n"));
     setEditBannerUrl(comp.bannerUrl || null);
+    setEditEndsAt(toDatetimeLocal(comp.endsAt));
     setEditLiveDurationSeconds(comp.liveDurationSeconds ?? null);
-  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.endsAt, comp.description, comp.prizeAmount, comp.fee, comp.rewardExtra, comp.rules, comp.bannerUrl, comp.liveDurationSeconds]);
+    setScheduleMode(comp.endsAt ? "custom" : "fixed");
+    setScheduleDirty(false);
+  }, [comp.id, comp.title, comp.edition, comp.ends, comp.phase, comp.contestants, comp.description, comp.prizeAmount, comp.fee, comp.rewardExtra, comp.rules, comp.bannerUrl, comp.endsAt, comp.liveDurationSeconds]);
 
   async function handleAddImageFile(e) {
     const file = e.target.files?.[0];
@@ -118,12 +2330,27 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
     setUploadingImage(false);
   }
 
-  // Banner: not a separate upload — just a tag on one of the thumbnails
-  // below, marking which image represents this competition on its card and
-  // in the homepage carousel. Persisted to competition_edits.bannerUrl only
-  // once "Enregistrer" is pressed, same as every other field in this panel.
-  function handleSetBanner(url) {
-    setEditBannerUrl((prev) => (prev === url ? null : url));
+  // Banner: a dedicated image uploaded just for THIS edition (via
+  // onUploadBanner, keyed by comp.id — never the shared gallery), marking
+  // what represents this specific competition on its card and in the
+  // homepage carousel. The gallery below is still shared across every
+  // edition of a series, so it deliberately can't be used to set the
+  // banner anymore — picking a shared photo there could make two different
+  // editions/competitions appear to have "the same" banner. Persisted to
+  // competition_editions.banner_url only once "Enregistrer" is pressed,
+  // same as every other field in this panel.
+  async function handleUploadBannerFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingBanner(true);
+    const url = await onUploadBanner?.(comp.id, file);
+    if (url) setEditBannerUrl(url);
+    setUploadingBanner(false);
+  }
+
+  function handleRemoveBanner() {
+    setEditBannerUrl(null);
   }
 
   async function handleRemoveImage(imageId) {
@@ -142,17 +2369,23 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
       edition: editEdition.trim() || comp.edition,
       ends: editEnds.trim() || comp.ends,
       contestants: trimmedContestants === "" ? null : Math.max(0, parseInt(trimmedContestants, 10) || 0),
-      endsAt: editEndsAt ? new Date(editEndsAt).toISOString() : null,
       description: editDescription.trim(),
       prizeAmount: trimmedPrize === "" ? null : Number(trimmedPrize),
       fee: trimmedFee === "" ? null : Math.max(0, parseInt(trimmedFee, 10) || 0),
       rewardExtra: editRewardExtra.trim(),
       rules: editRules.split("\n").map((r) => r.trim()).filter(Boolean),
       bannerUrl: editBannerUrl,
-      // Left undefined once live (or completed) so neither saveEditionEdit
-      // nor onCreateComp ever touches live_duration_seconds past the point
-      // it's allowed to change — it was locked in back in registration.
-      liveDurationSeconds: isLive ? undefined : editLiveDurationSeconds,
+      // Sent whenever the admin picked "Date personnalisée", or used the
+      // quick "+X" extend control on the "Fixe" tab — on plain "Fixe" with
+      // no extension applied, these stay undefined so the server keeps its
+      // 1-week defaults (set at creation, or left alone on an existing
+      // edition).
+      ...(isRegistration && (scheduleMode === "custom" || scheduleDirty)
+        ? {
+            endsAt: editEndsAt ? new Date(editEndsAt).toISOString() : null,
+            liveDurationSeconds: editLiveDurationSeconds,
+          }
+        : {}),
     };
     // A brand-new edition has never been written to the database — this
     // is its first save, so it's an insert (always phase "registration",
@@ -173,7 +2406,9 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
   const [voted, setVoted] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [showAllAlbums, setShowAllAlbums] = useState(false);
-  const [activeTab, setActiveTab] = useState("home"); // "home" | "participants" | "medias" | "donateurs"
+  const [showParticipantsSheet, setShowParticipantsSheet] = useState(false);
+  const [showMediaSheet, setShowMediaSheet] = useState(false);
+  const [activeTab, setActiveTab] = useState("home"); // "home" | "medias" | "donateurs" | "live"
 
   // ── LIVE AUDIO COMMENTARY ──────────────────────────────────────────────
   // Floating, permanent audio player for a "chroniqueur sportif" narrating
@@ -246,9 +2481,9 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
   const [bannerFullscreen, setBannerFullscreen] = useState(false);
   const [tickFlash, setTickFlash] = useState(false);
   // Bonus punch-up: only the gift bonus bumps/flashes, the base prize stays static
-  const [bonusBump, setBonusBump] = useState(false);
-  const [cagnotteFlash, setCagnotteFlash] = useState(null); // { id, amount } | null
-  const cagnotteFlashTimeoutRef = useRef(null);
+  const [bonusBump, setBonusBump] = useState([false, false, false]); // per place: [1st, 2nd, 3rd]
+  const [cagnotteFlash, setCagnotteFlash] = useState([null, null, null]); // per place: { id, amount } | null
+  const cagnotteFlashTimeoutRefs = useRef([null, null, null]);
 
   // ── Leader row live signals: momentum flash, margin trend, time-in-lead ──
   const leaderSinceRef = useRef(Date.now());
@@ -320,8 +2555,44 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
   // with the module-level fmtCountdown() used on the home-screen cards.
   const fmtCountdown = (s) => fmtCountdownSecs(s);
   const [albumSheet, setAlbumSheet] = useState(null); // { participantIndex, name }
-  const [mediaLightbox, setMediaLightbox] = useState(null); // approved participant_media row
+  const [storyViewer, setStoryViewer] = useState(null); // { groups, groupIndex, itemIndex }
+
+  // Opens the stories viewer at `item`, grouping the rest of `list` (the
+  // same set of approved uploads the calling gallery is showing) into the
+  // other stories the person can swipe/tap through from there.
+  function openStories(list, item) {
+    const groups = groupUploadsIntoStories(list.filter((x) => x.status === "approved"));
+    const pos = findStoryPosition(groups, item);
+    setStoryViewer({ groups, ...pos });
+  }
   const [showGiftBar, setShowGiftBar] = useState(false);
+  const [showCommentsPanel, setShowCommentsPanel] = useState(false);
+  // Which tab is active inside the Comments panel — it now nests Comments,
+  // the gifts-sent feed, and (while live) the donateurs leaderboard, since
+  // the footer's gift button is dedicated solely to sending a gift.
+  const [commentsPanelTab, setCommentsPanelTab] = useState("comments"); // "comments" | "gifts" | "donateurs"
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  // Brief spinner state for the footer share button — covers the native
+  // share sheet's open/dismiss round-trip (navigator.share can take a
+  // beat to appear) and the moment before the custom ShareSheet fallback
+  // mounts, so the tap always gets visible feedback.
+  const [isSharing, setIsSharing] = useState(false);
+  const handleShareTap = () => {
+    setIsSharing(true);
+    const onShared = () => setShareCount((n) => n + 1);
+    if (!shareCompetitionNatively(comp, onShared, () => setIsSharing(false))) {
+      setShowShareSheet(true);
+      setIsSharing(false);
+    }
+  };
+  // Sharing always uses the plain link — no link shortener anywhere in the
+  // app anymore, so there's nothing to backfill or prefetch here.
+  const [shareCount, setShareCount] = useState(comp.shares ?? 0);
+  // Header save/bookmark toggle — purely local for now (the header's Share
+  // button was redundant with the one in the footer bar, so it was swapped
+  // for this instead). Wire this up to real persistence if a "saved
+  // competitions" list gets added later.
+  const [isSaved, setIsSaved] = useState(false);
   const [activeGift, setActiveGift] = useState(null);
   const [giftStep, setGiftStep] = useState("participant"); // "participant" | "gift" | "confirm"
   const [selectedParticipant, setSelectedParticipant] = useState(null);
@@ -457,6 +2728,11 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
   const basePrizePool = comp.prizeAmount != null && comp.prizeAmount !== ""
     ? Number(comp.prizeAmount)
     : 0;
+  // Prix partagé entre 3 vainqueurs : 50% / 30% / 20%
+  const totalPrizePool = basePrizePool; // will use heroPrizeValue when computed later
+  const firstPlacePrize = Math.round(totalPrizePool * 0.5);
+  const secondPlacePrize = Math.round(totalPrizePool * 0.3);
+  const thirdPlacePrize = totalPrizePool - firstPlacePrize - secondPlacePrize;
   // Real registrants for this competition, fetched from Supabase. Always
   // fetched (not just during "registration") since the voting-phase
   // classement/albums/gift-picker below are now built from these rows
@@ -497,6 +2773,15 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
         setRemovingRegistrantId(null);
         return;
       }
+    }
+    const { error: albumError } = await deleteParticipantAlbum(r.userId, comp.id);
+    if (albumError) {
+      console.error("remove participant album error:", albumError);
+      // Non-fatal: the participant is already removed and refunded above;
+      // leftover media rows are cleaned up later by the edition-level
+      // participant_media cleanup, so don't block or roll back on this.
+    } else {
+      setParticipantUploads((prev) => prev.filter((u) => u.uploader_id !== r.userId));
     }
     setRegistrants((prev) => prev.filter((x) => x.id !== r.id));
     onParticipantRemoved?.(comp.id);
@@ -549,6 +2834,19 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
         { event: "UPDATE", schema: "public", table: "participant_media", filter: `edition_id=eq.${comp.id}` },
         (payload) => {
           setParticipantUploads((prev) => prev.map((r) => (r.id === payload.new.id ? payload.new : r)));
+        }
+      )
+      .on(
+        // Fires when an admin removes a participant (deleteParticipantAlbum)
+        // or the whole edition is deleted — without this, anyone else with
+        // this board already open keeps showing the removed participant's
+        // album until they reload, since postgres_changes DELETE payloads
+        // only carry the row's replica identity (id), not edition_id, so
+        // this can't be server-filtered the way INSERT/UPDATE are above.
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "participant_media" },
+        (payload) => {
+          setParticipantUploads((prev) => prev.filter((r) => r.id !== payload.old.id));
         }
       )
       .subscribe();
@@ -619,8 +2917,10 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
           name: r.full_name,
           avatarUrl: (currentUser && r.user_id === currentUser.id) ? currentUser.avatarUrl : r.avatar_url,
           fee: r.fee_paid,
+          isEarlyBird: !!r.is_early_bird,
           date: new Date(r.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
           time: new Date(r.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+          createdAt: r.created_at,
         }))
       );
       setRegistrantsLoading(false);
@@ -647,12 +2947,27 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                 name: r.full_name,
                 avatarUrl: (currentUser && r.user_id === currentUser.id) ? currentUser.avatarUrl : r.avatar_url,
                 fee: r.fee_paid,
+                isEarlyBird: !!r.is_early_bird,
                 date: new Date(r.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
                 time: new Date(r.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+                createdAt: r.created_at,
               },
               ...prev,
             ];
           });
+        }
+      )
+      .on(
+        // The early-bird flag lands via a separate UPDATE right after the
+        // INSERT (handleRegister tags the row once the refund succeeds), so
+        // other viewers with this board already open need this to catch it.
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "registrations", filter: `edition_id=eq.${comp.id}` },
+        (payload) => {
+          const r = payload.new;
+          setRegistrants((prev) =>
+            prev.map((existing) => (existing.id === r.id ? { ...existing, isEarlyBird: !!r.is_early_bird } : existing))
+          );
         }
       )
       .subscribe();
@@ -768,30 +3083,36 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
     const h = Math.floor(m / 60);
     return `${h}h${String(m % 60).padStart(2, "0")}`;
   };
-  const leaderGiftCredits = leader ? leader.points : 0;
-  const bonusValue = isRegistration ? 0 : Math.round(leaderGiftCredits * WINNER_GIFT_SHARE);
-  const winnerPrize = basePrizePool + bonusValue;
-  const heroPrizeValue = isRegistration ? basePrizePool : winnerPrize;
-  // Only the bonus bumps/flashes live — the base prize number stays put
-  const prevBonusRef = useRef(bonusValue);
+  // Prize — three winners: each place's share of registration fees (base,
+  // 50/30/20 via firstPlacePrize/secondPlacePrize/thirdPlacePrize above) +
+  // 30% of that place's own personal gift credits.
+  const placeBasePrizes = [firstPlacePrize, secondPlacePrize, thirdPlacePrize];
+  const placeGiftCredits = [leader ? leader.points : 0, secondPlace ? secondPlace.points : 0, thirdPlace ? thirdPlace.points : 0];
+  const bonusValues = isRegistration ? [0, 0, 0] : placeGiftCredits.map((c) => Math.round(c * WINNER_GIFT_SHARE));
+  const placeTotalPrizes = placeBasePrizes.map((base, i) => base + bonusValues[i]);
+  const heroPrizeValue = placeTotalPrizes.reduce((a, b) => a + b, 0); // grand total across all 3 winners
+  // Only the bonus bumps/flashes live, per place — the base prize number stays put
+  const prevBonusValuesRef = useRef(bonusValues);
   useEffect(() => {
-    if (bonusValue !== prevBonusRef.current) {
-      const delta = bonusValue - prevBonusRef.current;
-      prevBonusRef.current = bonusValue;
-      setBonusBump(true);
-      const t = setTimeout(() => setBonusBump(false), 380);
-      if (delta > 0) {
-        setCagnotteFlash({ id: Date.now(), amount: delta });
-        clearTimeout(cagnotteFlashTimeoutRef.current);
-        cagnotteFlashTimeoutRef.current = setTimeout(() => setCagnotteFlash(null), 1400);
+    bonusValues.forEach((val, i) => {
+      if (val !== prevBonusValuesRef.current[i]) {
+        const delta = val - prevBonusValuesRef.current[i];
+        prevBonusValuesRef.current[i] = val;
+        setBonusBump((prev) => prev.map((b, j) => (j === i ? true : b)));
+        setTimeout(() => setBonusBump((prev) => prev.map((b, j) => (j === i ? false : b))), 380);
+        if (delta > 0) {
+          setCagnotteFlash((prev) => prev.map((f, j) => (j === i ? { id: Date.now() + i, amount: delta } : f)));
+          clearTimeout(cagnotteFlashTimeoutRefs.current[i]);
+          cagnotteFlashTimeoutRefs.current[i] = setTimeout(() => {
+            setCagnotteFlash((prev) => prev.map((f, j) => (j === i ? null : f)));
+          }, 1400);
+        }
       }
-      return () => clearTimeout(t);
-    }
-  }, [bonusValue]);
-  // Contribution breakdown — how much of the pot is base vs. gift bonus
-  const giftBonusValue = Math.max(0, heroPrizeValue - basePrizePool);
-  const giftBonusPct = heroPrizeValue > 0 ? Math.min(100, Math.round((giftBonusValue / heroPrizeValue) * 100)) : 0;
-  // Next round milestone, to create a little anticipation
+    });
+  }, [bonusValues[0], bonusValues[1], bonusValues[2]]);
+  // Contribution breakdown per place — how much of that winner's share is base vs. gift bonus
+  const giftBonusPcts = placeTotalPrizes.map((total, i) => (total > 0 ? Math.min(100, Math.round((bonusValues[i] / total) * 100)) : 0));
+  // Next round milestone for the combined pot, to create a little anticipation
   const nextMilestone = (() => {
     const v = heroPrizeValue;
     const step = v < 5000 ? 1000 : v < 20000 ? 5000 : v < 100000 ? 10000 : 50000;
@@ -975,6 +3296,124 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
     });
   }
 
+  // Renders one comment (with its replies, like button, reply composer) —
+  // shared between the interleaved Live-tab feed and the standalone
+  // Comments panel opened from the footer bar's comment button.
+  function renderCommentEntry(item, isLast) {
+    const c = item.comment;
+    const liked = likedCommentIds.has(c.id);
+    const repliesOpen = expandedReplies.has(c.id);
+    const isReplying = replyingTo === c.id;
+    return (
+      <div key={item.key} style={{
+        borderBottom: isLast ? "none" : "1px solid #2a2a2a",
+        padding: "10px 0",
+      }}>
+        {/* Main comment */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+            border: "1px solid #2a2a2a",
+            background: c.isMine ? "#0d0d0d" : "transparent",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            {c.isMine ? (
+              <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700 }}>
+                {c.name.charAt(0).toUpperCase()}
+              </span>
+            ) : (
+              <EntityAvatar url={c.avatarUrl} name={c.name} />
+            )}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#c4c4c4" }}>{c.name}</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a" }}>
+                {c.minutesAgo === 0 ? "À l'instant" : `il y a ${fmtCommentTime(c.minutesAgo)}`}
+              </span>
+            </div>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#c4c4c4", lineHeight: 1.4, margin: "0 0 6px" }}>{c.text}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <button onClick={() => handleToggleLike(c.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: liked ? "#e74c3c" : "#7a7a7a" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill={liked ? "#e74c3c" : "none"} stroke={liked ? "#e74c3c" : "#7a7a7a"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                {c.likes + (liked ? 1 : 0)}
+              </button>
+              <button
+                onClick={() => { setReplyingTo(isReplying ? null : c.id); setReplyDraft(""); }}
+                style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: isReplying ? accent : "#7a7a7a" }}
+              >
+                Répondre
+              </button>
+              {c.replies?.length > 0 && (
+                <button
+                  onClick={() => setExpandedReplies((prev) => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; })}
+                  style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: accent }}
+                >
+                  {repliesOpen ? "Masquer" : `${c.replies.length} réponse${c.replies.length > 1 ? "s" : ""}`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Reply input */}
+        {isReplying && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, marginLeft: 38 }}>
+            <input
+              autoFocus
+              type="text"
+              value={replyDraft}
+              onChange={(e) => setReplyDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handlePostReply(c.id);
+              }}
+              placeholder={`Répondre à ${c.name}…`}
+              style={{ flex: 1, minWidth: 0, border: "1px solid #2a2a2a", background: "#242424", padding: "7px 10px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#c4c4c4", outline: "none" }}
+            />
+            <button
+              onClick={() => handlePostReply(c.id)}
+              style={{ border: "none", background: accent, color: "#fff", padding: "7px 12px", flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", display: "flex", alignItems: "center" }}
+            ><Send size={13} /></button>
+          </div>
+        )}
+
+
+        {/* Sub-comments */}
+        {repliesOpen && c.replies?.length > 0 && (
+          <div style={{ marginLeft: 38, marginTop: 8, borderLeft: `2px solid #2a2a2a`, paddingLeft: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+            {c.replies.map((r) => {
+              const rLiked = likedCommentIds.has(r.id);
+              return (
+                <div key={r.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #2a2a2a", background: r.isMine ? "#0d0d0d" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {r.isMine ? (
+                      <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{r.name.charAt(0)}</span>
+                    ) : (
+                      <EntityAvatar url={r.avatarUrl} name={r.name} />
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#c4c4c4" }}>{r.name}</span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#7a7a7a" }}>
+                        {r.minutesAgo === 0 ? "À l'instant" : `il y a ${fmtCommentTime(r.minutesAgo)}`}
+                      </span>
+                    </div>
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9a9a9a", lineHeight: 1.4, margin: "0 0 4px" }}>{r.text}</p>
+                    <button onClick={() => handleToggleLike(r.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: rLiked ? "#e74c3c" : "#7a7a7a" }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill={rLiked ? "#e74c3c" : "none"} stroke={rLiked ? "#e74c3c" : "#7a7a7a"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                      {r.likes + (rLiked ? 1 : 0)}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Interleave live gift entries and comments into one chronological feed, TikTok-style.
   // Derived straight from giftRows (Supabase-backed + realtime-synced) so the
   // live feed survives a refresh, instead of the old local-only liveLog state
@@ -993,6 +3432,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
         pName: row.recipient_name,
         gift: { icon: row.gift_icon, name: row.gift_name, cost: row.gift_cost },
         senderName: row.sender_name,
+        senderAvatarUrl: row.sender_avatar_url,
         ago: i === 0 ? "À l'instant" : `il y a ${i * 2} min`,
       },
     }));
@@ -1005,16 +3445,56 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
     return [...giftItems, ...commentItems].sort((a, b) => a.minutesAgo - b.minutesAgo);
   }, [giftRows, comments]);
 
+  // Gift-only and comment-only slices of the feed, for the standalone
+  // Gifts panel and Comments panel opened from the footer bar.
+  const giftFeedItems = useMemo(() => feedItems.filter((i) => i.type === "gift"), [feedItems]);
+  const commentFeedItems = useMemo(() => feedItems.filter((i) => i.type === "comment"), [feedItems]);
+
   const heroBannerSlides = useMemo(() => {
     const images = comp.images || [];
-    if (images.length === 0) return [{ type: "placeholder" }];
-    return images.map((img) => ({ type: "image", src: img.url }));
-  }, [comp.images]);
+    // The organizer's dedicated banner (comp.bannerUrl — a per-edition
+    // upload, see onUploadBanner) always leads the carousel — same
+    // priority CompCard uses for its thumbnail
+    // (comp.bannerUrl || comp.thumbnailUrl), so the board and the card
+    // never show different images as the "first" one. It's prepended as
+    // its own slide rather than sorted into the gallery array below,
+    // because it now lives in its own storage path and is never one of
+    // the shared gallery's photos — that shared gallery still trails
+    // after it as extra photos for this series, but the banner itself
+    // can't be mistaken for another edition's or competition's banner.
+    const gallerySlides = images
+      .filter((img) => img.url !== comp.bannerUrl)
+      .map((img) => ({ type: "image", src: img.url }));
+    const slides = comp.bannerUrl
+      ? [{ type: "image", src: comp.bannerUrl }, ...gallerySlides]
+      : gallerySlides;
+    return slides.length > 0 ? slides : [{ type: "placeholder" }];
+  }, [comp.images, comp.bannerUrl]);
 
   return (
-    <div ref={scrollRef} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#F2F2F0", overflowY: "auto" }}>
+    <div ref={scrollRef} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#242424", overflowY: "auto" }}>
 
       {/* ── STICKY TRANSPARENT HEADER ── */}
+      {(() => {
+        // Icons start white (readable over the banner image) and the glass
+        // circle behind them fades out entirely as the header scrolls to
+        // solid — by the time headerBg is opaque white, these buttons are
+        // just plain dark icons with no background of their own.
+        const iconColor = "#fff"; // header surface is dark at every scroll position now
+        const glassOpacity = Math.max(0, 0.1 * (1 - t * 2));
+        const glassBlur = t > 0.5 ? "none" : "blur(3px)";
+        const btnStyle = (active) => ({
+          width: 40, height: 40, borderRadius: "50%",
+          background: active ? `${accent}22` : `rgba(255,255,255,${glassOpacity})`,
+          backdropFilter: glassBlur,
+          WebkitBackdropFilter: glassBlur,
+          border: active ? `1px solid ${accent}66` : "none",
+          boxShadow: t > 0.5 ? "none" : "0 1px 6px rgba(0,0,0,0.06)",
+          color: active ? accent : iconColor,
+          cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        });
+        return (
       <div style={{
         position: "sticky", top: 0, zIndex: 50,
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1025,56 +3505,33 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
         opacity: bannerFullscreen ? 0 : 1,
         transition: "opacity 0.3s",
       }}>
-        <button onClick={onClose} style={{
-          width: 32, height: 32, borderRadius: "50%",
-          background: "rgba(255,255,255,0.25)",
-          backdropFilter: "blur(12px) saturate(180%)",
-          WebkitBackdropFilter: "blur(12px) saturate(180%)",
-          border: "1px solid rgba(255,255,255,0.4)",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
-          color: "#222", fontSize: 15, cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          pointerEvents: "all",
-        }}><X size={14} /></button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, pointerEvents: "all", minWidth: 0 }}>
+          <button onClick={onClose} style={{ ...btnStyle(false), flexShrink: 0 }}>
+            <X size={22} strokeWidth={2} />
+          </button>
+        </div>
 
         {/* Competition follow — separate from organiser follow */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, pointerEvents: "all" }}>
           <button
             onClick={() => onToggleFollow?.(comp)}
             title={isFollowed ? "Ne plus suivre cette compétition" : "Suivre cette compétition"}
-            style={{
-              width: 32, height: 32, borderRadius: "50%",
-              background: isFollowed ? `${accent}33` : "rgba(255,255,255,0.25)",
-              backdropFilter: "blur(12px) saturate(180%)",
-              WebkitBackdropFilter: "blur(12px) saturate(180%)",
-              border: isFollowed ? `1px solid ${accent}88` : "1px solid rgba(255,255,255,0.4)",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
-              color: isFollowed ? accent : "#222",
-              cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}
+            style={btnStyle(isFollowed)}
           >
-            <Bell size={13} strokeWidth={isFollowed ? 2.5 : 2} fill={isFollowed ? accent : "none"} />
+            <Bell size={22} strokeWidth={isFollowed ? 2.5 : 2} fill={isFollowed ? accent : "none"} />
           </button>
 
           <button
-            title="Partager"
-            style={{
-              width: 32, height: 32, borderRadius: "50%",
-              background: "rgba(255,255,255,0.25)",
-              backdropFilter: "blur(12px) saturate(180%)",
-              WebkitBackdropFilter: "blur(12px) saturate(180%)",
-              border: "1px solid rgba(255,255,255,0.4)",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.5)",
-              color: "#222",
-              cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}
+            onClick={() => setIsSaved((prev) => !prev)}
+            title={isSaved ? "Retirer des sauvegardés" : "Sauvegarder"}
+            style={btnStyle(isSaved)}
           >
-            <Share2 size={13} strokeWidth={2} />
+            <Bookmark size={22} strokeWidth={isSaved ? 2.5 : 2} fill={isSaved ? accent : "none"} />
           </button>
         </div>
       </div>
+        );
+      })()}
 
       {/* ── HERO ── */}
       <div style={{ position: "relative", width: "100%", background: accent, paddingBottom: 0, marginTop: -46 }}>
@@ -1120,8 +3577,8 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                         )}
                       </>
                     ) : slide.type === "placeholder" ? (
-                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#e5e5e5" }}>
-                        <ImageIcon size={40} color="#bbb" />
+                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#242424" }}>
+                        <ImageIcon size={40} color="#7a7a7a" />
                       </div>
                     ) : (
                       <img src={slide.src} alt={`${comp.title} ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: isCompleted ? "grayscale(0.85)" : "none" }} />
@@ -1150,7 +3607,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                         background: "#00B894", padding: "2px 7px", borderRadius: 7,
                         fontFamily: "Inter, sans-serif",
                       }}>
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#fff", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#1a1a1a", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
                         En direct
                       </div>
                     )}
@@ -1202,13 +3659,13 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
       <div style={{
         position: "relative",
         borderRadius: "22px 22px 0 0",
-        background: "#F2F2F0",
+        background: "#242424",
         overflow: "hidden",
       }}>
 
       {/* ── Thumbnail selector — lives inside the sheet so the curve never covers it. Only worth showing when there's something to switch between. ── */}
       {heroBannerSlides.length > 1 && (
-        <div style={{ background: "#fff", padding: "12px 8px 8px", display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
+        <div style={{ background: "#1a1a1a", padding: "12px 8px 8px", display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
           {heroBannerSlides.map((slide, i) => (
             <div
               key={i}
@@ -1225,8 +3682,8 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
               }}
             >
               {slide.type === "placeholder" ? (
-                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#eee" }}>
-                  <ImageIcon size={20} color="#ccc" />
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#242424" }}>
+                  <ImageIcon size={20} color="#7a7a7a" />
                 </div>
               ) : (
                 <img src={slide.type === "video" ? slide.poster : slide.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -1242,7 +3699,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                     background: "rgba(255,255,255,0.9)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
-                    <Play size={11} fill="#111" color="#111" strokeWidth={0} style={{ marginLeft: 1 }} />
+                    <Play size={11} fill="#f2f2f2" color="#f2f2f2" strokeWidth={0} style={{ marginLeft: 1 }} />
                   </div>
                 </div>
               )}
@@ -1251,50 +3708,13 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
         </div>
       )}
 
-      {/* ── ORGANISER BAR ── */}
-      <OrgBar comp={comp} accent={accent} />
-
-      {/* ── TABS ── */}
-      <div style={{
-        display: "flex", background: "#fff", borderBottom: "1px solid #e0e0e0",
-        position: "sticky", top: 0, zIndex: 20,
-      }}>
-        {[
-          { key: "home", label: "Home" },
-          { key: "participants", label: "Participants" },
-          { key: "medias", label: "Médias" },
-          { key: "donateurs", label: "Donateurs" },
-          { key: "live", label: "Live" },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            style={{
-              flex: 1, border: "none", background: "none", cursor: "pointer",
-              padding: "13px 4px 11px",
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
-              color: activeTab === tab.key ? "#111" : "#aaa",
-              borderBottom: activeTab === tab.key ? `2px solid ${accent}` : "2px solid transparent",
-              transition: "color 0.15s, border-color 0.15s",
-            }}
-          >
-            {tab.key === "live" && !isRegistration ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
-                {tab.label}
-              </span>
-            ) : tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ padding: "0 0 132px" }}>
+      <div style={{ padding: 0 }}>
 
         {activeTab === "home" && (
         <>
         {isCompleted && (
           <div style={{
-            background: "linear-gradient(135deg, #2c2c2c, #111)",
+            background: "linear-gradient(135deg, #2c2c2c, #0d0d0d)",
             padding: "18px 16px", textAlign: "center", color: "#fff",
           }}>
             <div style={{
@@ -1308,11 +3728,31 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
             </div>
             {comp.winnerUserId ? (
               <>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 800, marginBottom: 2 }}>
-                  {comp.winnerName} remporte {Number(comp.winnerPrize || 0).toLocaleString("fr-FR")} HTG
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
+                  Podium des vainqueurs
                 </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                  Félicitations au gagnant 🎉
+                <div style={{ display: "flex", justifyContent: "center", gap: 20, marginBottom: 4 }}>
+                  {/* 2nd Place */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", margin: "0 auto 4px", border: "2px solid #F0C420" }} />
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#F0C420", marginBottom: 2 }}>🥈 2nd</div>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>{secondPlacePrize.toLocaleString("fr-FR")} HTG</div>
+                  </div>
+                  {/* 1st Place */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", margin: "0 auto 4px", border: "3px solid #F0C420" }} />
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#F0C420", marginBottom: 2 }}>🥇 1er</div>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800, color: "#f2f2f2" }}>{firstPlacePrize.toLocaleString("fr-FR")} HTG</div>
+                  </div>
+                  {/* 3rd Place */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", margin: "0 auto 4px", border: "2px solid #F0C420" }} />
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#F0C420", marginBottom: 2 }}>🥉 3e</div>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>{thirdPlacePrize.toLocaleString("fr-FR")} HTG</div>
+                  </div>
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+                  Le prix total de {Number(comp.winnerPrize || 0).toLocaleString("fr-FR")} HTG a été réparti.
                 </div>
               </>
             ) : (
@@ -1324,31 +3764,74 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
           </div>
         )}
         {/* ── À PROPOS / RÈGLEMENT ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 10px" }}>
+        <div style={{ background: "#1a1a1a", padding: "8px 10px", borderTop: "8px solid #2a2a2a" }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 6,
             fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-            color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+            color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
             marginBottom: 10,
           }}>
             <Info size={13} strokeWidth={2.5} />
             À propos
           </div>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 10 }}>
+            Description, règlement et récompense de la compétition.
+          </div>
 
           <p style={{
-            fontFamily: "Inter, sans-serif", fontSize: 13, color: rulesInfo.description ? "#444" : "#aaa",
-            lineHeight: 1.55, margin: "0 0 12px",
+            fontFamily: "Inter, sans-serif", fontSize: 13, color: rulesInfo.description ? "#c4c4c4" : "#7a7a7a",
+            lineHeight: 1.55, margin: 0,
             fontStyle: rulesInfo.description ? "normal" : "italic",
           }}>
             {rulesInfo.description || "Aucune description pour le moment."}
           </p>
+        </div>
 
-          {/* Prize — single winner: registration fees (base) + 30% of their personal gifts */}
-          <div style={{ marginBottom: 12 }}>
+        {/* ── CAGNOTTE ── */}
+        <div style={{ background: "#1a1a1a", padding: "8px 10px", borderTop: "8px solid #2a2a2a" }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
+            fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+            color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
+            marginBottom: 10,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Trophy size={13} strokeWidth={2.5} />
+              Cagnotte
+            </div>
+            {(() => {
+              const sponsorSeed = Math.abs(hashStr(comp.id + "_sponsor"));
+              const sponsors = Array.from({ length: 3 }, (_, i) => fakeName(sponsorSeed + i * 7));
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 600, color: "#7a7a7a", textTransform: "none", letterSpacing: "normal" }}>
+                    Sponsorisé par
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    {sponsors.map((name, i) => (
+                      <div key={i} style={{
+                        width: 20, height: 20, borderRadius: "50%", overflow: "hidden",
+                        border: "2px solid #1a1a1a", boxShadow: "0 0 0 1px #2a2a2a",
+                        marginLeft: i === 0 ? 0 : -7,
+                      }}>
+                        <EntityAvatar name={name} bg="#242424" color="#7a7a7a" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 10 }}>
+            {isRegistration ? "Prix de base et bonus attendu selon les cadeaux reçus." : "Détail de la cagnotte et de sa progression en direct."}
+          </div>
 
-            {/* Hero cagnotte — full-width section, no card wrapper */}
-            <div style={{ position: "relative", padding: "2px 2px 0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+          {/* Prize — three winners: each place's base share (50/30/20) + 30% of that place's own personal gifts */}
+          <div>
+
+            {/* Hero cagnotte — gray chip wrapper, matching the Places/Frais/Temps stat chips */}
+            <div style={{ position: "relative", background: "#242424", borderRadius: 10, padding: "12px 12px 10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                 <Trophy size={14} color="#C99A2E" strokeWidth={2.3} />
                 <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#C99A2E", textTransform: "uppercase", letterSpacing: "0.09em" }}>
                   {isRegistration ? "Prix à gagner" : "Cagnotte à gagner"}
@@ -1363,107 +3846,109 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                 )}
               </div>
 
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-                {/* Base prize — static, never bumps or increments */}
-                <span style={{
-                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 30, fontWeight: 800, color: "#111",
-                  fontVariantNumeric: "tabular-nums",
-                }}>
-                  {basePrizePool.toLocaleString("fr-FR")}
-                </span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#999" }}>
-                  HTG
-                </span>
+              {/* Three-winner podium — 1st / 2nd / 3rd, each with base share + own gift bonus */}
+              <div style={{ display: "flex", gap: 6 }}>
+                {[
+                  { rank: 1, label: "1er", emoji: "🥇", color: "#C99A2E", base: placeBasePrizes[0], bonus: bonusValues[0], pct: giftBonusPcts[0] },
+                  { rank: 2, label: "2e", emoji: "🥈", color: "#C7CBD1", base: placeBasePrizes[1], bonus: bonusValues[1], pct: giftBonusPcts[1] },
+                  { rank: 3, label: "3e", emoji: "🥉", color: "#CD7F32", base: placeBasePrizes[2], bonus: bonusValues[2], pct: giftBonusPcts[2] },
+                ].map((p, i) => (
+                  <div key={p.rank} style={{ flex: 1, background: "#1a1a1a", borderRadius: 8, padding: "10px 8px", position: "relative", minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, lineHeight: 1 }}>{p.emoji}</span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700, color: p.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        {p.label}
+                      </span>
+                    </div>
 
-                {/* Gift bonus — lives in the same row, this is the only piece that bumps/increments */}
-                {!isRegistration && (
-                  <span style={{ position: "relative", display: "inline-flex" }}>
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", gap: 4,
-                      background: `${accent}18`, color: accent,
-                      padding: "3px 9px", borderRadius: 999,
-                      fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 800,
-                      fontVariantNumeric: "tabular-nums",
-                      transform: bonusBump ? "scale(1.08)" : "scale(1)",
-                      transformOrigin: "left center",
-                      transition: "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
-                    }}>
-                      <Gift size={11} color={accent} strokeWidth={2.3} />
-                      +{bonusValue.toLocaleString("fr-FR")} HTG bonus
-                    </span>
-                    {cagnotteFlash != null && (
-                      <span key={cagnotteFlash.id} style={{
-                        position: "absolute", left: "100%", top: -2, marginLeft: 6,
-                        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 800, color: "#27ae60",
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 3, flexWrap: "wrap" }}>
+                      <span style={{
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 800, color: "#f2f2f2",
+                        fontVariantNumeric: "tabular-nums",
+                      }}>
+                        {(p.base + p.bonus).toLocaleString("fr-FR")}
+                      </span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, fontWeight: 700, color: "#7a7a7a" }}>HTG</span>
+                    </div>
+
+                    {!isRegistration && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 3 }}>
+                        <Gift size={9} color={accent} strokeWidth={2.5} />
+                        <span style={{
+                          fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: accent,
+                          fontVariantNumeric: "tabular-nums",
+                          transform: bonusBump[i] ? "scale(1.08)" : "scale(1)",
+                          transformOrigin: "left center",
+                          transition: "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
+                          display: "inline-block",
+                        }}>
+                          +{p.bonus.toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                    )}
+
+                    {cagnotteFlash[i] != null && (
+                      <span key={cagnotteFlash[i].id} style={{
+                        position: "absolute", right: 6, top: 6,
+                        fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 800, color: "#27ae60",
                         whiteSpace: "nowrap", animation: "float-up-fade 1.4s ease-out forwards",
                       }}>
-                        +{cagnotteFlash.amount.toLocaleString("fr-FR")}
+                        +{cagnotteFlash[i].amount.toLocaleString("fr-FR")}
                       </span>
                     )}
-                  </span>
-                )}
+
+                    {!isRegistration && p.base + p.bonus > 0 && (
+                      <div style={{ marginTop: 6 }}>
+                        <div style={{ display: "flex", width: "100%", height: 4, borderRadius: 2, overflow: "hidden", background: "#242424" }}>
+                          <div style={{ width: `${100 - p.pct}%`, background: "#242424", transition: "width 0.4s ease" }} />
+                          <div style={{ width: `${p.pct}%`, background: accent, transition: "width 0.4s ease" }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
 
-              {isRegistration ? (
-                <div style={{ marginTop: 4, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888" }}>
-                  + un bonus basé sur les cadeaux reçus par le gagnant
+              {!isRegistration && !isCompleted && (
+                <div style={{ marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 10, color: "#7a7a7a" }}>
+                  Cagnotte totale : {heroPrizeValue.toLocaleString("fr-FR")} HTG · Prochain palier : {nextMilestone.toLocaleString("fr-FR")} HTG
+                  <span style={{ marginLeft: 6, color: "#7a7a7a" }}>({milestoneProgressPct}%)</span>
                 </div>
-              ) : (
-                <>
-                  {/* Contribution breakdown — base prize vs. gift bonus, as a thin segmented bar */}
-                  {heroPrizeValue > 0 && (
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ display: "flex", width: "100%", height: 5, borderRadius: 3, overflow: "hidden", background: "#eee" }}>
-                        <div style={{ width: `${100 - giftBonusPct}%`, background: "#ccc", transition: "width 0.4s ease" }} />
-                        <div style={{ width: `${giftBonusPct}%`, background: accent, transition: "width 0.4s ease" }} />
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, fontFamily: "Inter, sans-serif", fontSize: 9, color: "#aaa" }}>
-                        <span>Mise de base {(100 - giftBonusPct)}%</span>
-                        <span>Cadeaux {giftBonusPct}%</span>
-                      </div>
-                    </div>
-                  )}
+              )}
 
-                  {/* Milestone marker — a little anticipation for the next round number */}
-                  {!isCompleted && (
-                    <div style={{ marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>
-                      Prochain palier : {nextMilestone.toLocaleString("fr-FR")} HTG
-                      <span style={{ marginLeft: 6, color: "#ccc" }}>({milestoneProgressPct}%)</span>
-                    </div>
-                  )}
-                </>
+              {rulesInfo.rewardExtra && (
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginTop: 8 }}>
+                  {rulesInfo.rewardExtra}
+                </div>
               )}
             </div>
-
-            {rulesInfo.rewardExtra && (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", marginTop: 8, padding: "0 2px" }}>
-                {rulesInfo.rewardExtra}
-              </div>
-            )}
 
           </div>
         </div>
 
         {/* ── STATS / RÉSUMÉ FINAL ── */}
         {isCompleted ? (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0" }}>
+          <div style={{ background: "#1a1a1a", borderTop: "8px solid #2a2a2a" }}>
 
             {/* Section label */}
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
               fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+              color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
               padding: "14px 16px 0",
             }}>
               <Trophy size={13} strokeWidth={2.5} />
               Résumé final
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", padding: "4px 16px 0" }}>
+              Chiffres clés une fois la compétition terminée.
             </div>
 
             {/* Quick stats — 2x2 flat grid, hairline dividers like the
                 live/registration stat row, no card backgrounds */}
             <div style={{
               display: "grid", gridTemplateColumns: "1fr 1fr",
-              marginTop: 12, borderTop: "1px solid #f0f0f0",
+              marginTop: 12, borderTop: "1px solid #2a2a2a",
             }}>
               {[
                 { label: "Candidats", value: liveRegistered },
@@ -1473,18 +3958,18 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
               ].map((s, i) => (
                 <div key={i} style={{
                   padding: "12px 4px",
-                  borderRight: i % 2 === 0 ? "1px solid #f0f0f0" : "none",
-                  borderBottom: i < 2 ? "1px solid #f0f0f0" : "none",
+                  borderRight: i % 2 === 0 ? "1px solid #2a2a2a" : "none",
+                  borderBottom: i < 2 ? "1px solid #2a2a2a" : "none",
                   display: "flex", flexDirection: "column", alignItems: "center",
                 }}>
                   <div style={{
                     fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 800,
-                    color: s.accent ? accent : "#111", lineHeight: 1.15,
+                    color: s.accent ? accent : "#f2f2f2", lineHeight: 1.15,
                     fontVariantNumeric: "tabular-nums",
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%",
                   }}>{s.value}</div>
                   <div style={{
-                    fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#999",
+                    fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#7a7a7a",
                     textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4,
                     fontWeight: 600, textAlign: "center",
                   }}>{s.label}</div>
@@ -1492,43 +3977,52 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
               ))}
             </div>
 
-            {/* Winner — this platform has one winner per competition (the
-                real, DB-persisted comp.winnerName), not a ranked podium.
-                Flat row, matching the Classement tab's own style. */}
-            {ranked.length > 0 && (
-              <div style={{ padding: "14px 16px 4px" }}>
-                <div style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-                  marginBottom: 4,
-                }}>
-                  Gagnant
-                </div>
-                {(() => {
-                  const p = ranked[0];
-                  return (
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0" }}>
-                      <span style={{
-                        width: 20, flexShrink: 0, textAlign: "center",
-                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700,
-                        color: accent,
-                      }}>
-                        🥇
-                      </span>
-                      <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: `2px solid ${accent}` }}>
-                        <EntityAvatar url={p.avatarUrl} name={p.name} />
-                      </div>
-                      <span style={{
-                        flex: 1, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
-                        color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>{comp.winnerName || p.name}</span>
-                      <span style={{
-                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700,
-                        color: accent, flexShrink: 0,
-                      }}>🪙 {p.points.toLocaleString("fr-FR")}</span>
+            {/* Podium — three winners sharing the prize pool */}
+            {ranked.length >= 3 && (
+              <>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Podium des vainqueurs</div>
+                <div style={{ display: "flex", alignItems: "end", gap: 12 }}>
+                  {/* 2nd Place (Left) */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", overflow: "hidden", margin: "0 auto 2px", border: `2px solid ${accent}` }}>
+                      <EntityAvatar url={ranked[1].avatarUrl} name={ranked[1].name} />
                     </div>
-                  );
-                })()}
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: accent, marginBottom: 2 }}>🥈</div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, color: "#f2f2f2", background: "#242424", borderRadius: 4, padding: "2px 6px" }}>{ranked[1].points.toLocaleString("fr-FR")}</div>
+                  </div>
+                  {/* 1st Place (Center) */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", overflow: "hidden", margin: "0 auto 2px", border: `3px solid ${accent}` }}>
+                      <EntityAvatar url={ranked[0].avatarUrl} name={ranked[0].name} />
+                    </div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: accent, marginBottom: 2 }}>🥇</div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: "#f2f2f2", background: "#242424", borderRadius: 4, padding: "2px 8px" }}>{ranked[0].points.toLocaleString("fr-FR")}</div>
+                  </div>
+                  {/* 3rd Place (Right) */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", overflow: "hidden", margin: "0 auto 2px", border: `2px solid ${accent}` }}>
+                      <EntityAvatar url={ranked[2].avatarUrl} name={ranked[2].name} />
+                    </div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: accent, marginBottom: 2 }}>🥉</div>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, color: "#f2f2f2", background: "#242424", borderRadius: 4, padding: "2px 6px" }}>{ranked[2].points.toLocaleString("fr-FR")}</div>
+                  </div>
+                </div>
+              </>
+            )}
+            {ranked.length >= 1 && ranked.length < 3 && (
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#7a7a7a", marginTop: 4 }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#7a7a7a", marginBottom: 2 }}>
+                  Il n'y a que {ranked.length} participant(s) classé pour le podium.
+                </div>
+                {ranked.slice(0, 3).map((winner, index) => (
+                  <div key={winner.id} style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#f2f2f2", marginLeft: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600 }}>{index + 1}°</span>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
+                      <EntityAvatar url={winner.avatarUrl} name={winner.name} />
+                    </div>
+                    <span style={{ flex: 1 }}>{winner.points.toLocaleString("fr-FR")}</span>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -1537,7 +4031,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
               <div style={{ padding: "10px 16px 14px" }}>
                 <div style={{
                   fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
+                  color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
                   marginBottom: 4,
                 }}>
                   Top donateurs
@@ -1546,19 +4040,19 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                   <div key={d.id} style={{
                     display: "flex", alignItems: "center", gap: 10,
                     padding: "9px 0",
-                    borderBottom: i < Math.min(giftLeaderboard.length, 3) - 1 ? "1px solid #f0f0f0" : "none",
+                    borderBottom: i < Math.min(giftLeaderboard.length, 3) - 1 ? "1px solid #2a2a2a" : "none",
                   }}>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: "#ccc", width: 16, flexShrink: 0, textAlign: "center" }}>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700, color: "#7a7a7a", width: 16, flexShrink: 0, textAlign: "center" }}>
                       {i + 1}
                     </span>
-                    <div style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "2px solid #eee" }}>
+                    <div style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "2px solid #2a2a2a" }}>
                       <EntityAvatar url={d.avatarUrl} name={d.name} />
                     </div>
                     <span style={{
                       flex: 1, fontFamily: "Inter, sans-serif", fontSize: 12.5, fontWeight: 600,
-                      color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      color: "#f2f2f2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>{d.name}</span>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#999", flexShrink: 0 }}>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#7a7a7a", flexShrink: 0 }}>
                       {d.totalSpent.toLocaleString("fr-FR")} G
                     </span>
                   </div>
@@ -1567,56 +4061,108 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
             )}
           </div>
         ) : (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0" }}>
+          <div style={{ background: "#1a1a1a", borderTop: "8px solid #2a2a2a" }}>
             {isRegistration && (
-              <div style={{ padding: "14px 16px 4px" }}>
+              <div style={{ padding: "14px 10px 4px" }}>
+                <PreviewSectionHeader
+                  icon={<Users size={13} strokeWidth={2.5} />}
+                  label="Participants"
+                  accent={accent}
+                  actionLabel="Voir plus"
+                  onAction={() => setShowParticipantsSheet(true)}
+                  paddingX={0}
+                />
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 8 }}>
+                  Places restantes et inscrits avant le début.
+                </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  {/* Avatar stack — recent registrants, aligned with the count on the same row.
-                      Tapping it (or the chevron) jumps to the full Participants list. */}
                   {registrants.length > 0 ? (
                     <button
-                      onClick={() => setActiveTab("participants")}
+                      onClick={() => setShowParticipantsSheet(true)}
                       style={{
-                        display: "flex", alignItems: "center", gap: 4,
+                        display: "flex", alignItems: "center", gap: 6,
                         border: "none", background: "none", padding: 0, cursor: "pointer",
+                        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                        color: accent, letterSpacing: "0.08em", textTransform: "uppercase",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center" }}>
-                        {registrants.slice(0, 4).map((r, i) => {
-                          const isMe = currentUser && r.userId === currentUser.id;
-                          return (
-                            <div key={r.id} style={{
-                              width: 22, height: 22, borderRadius: "50%", overflow: "hidden", flexShrink: 0,
-                              border: isMe ? `2px solid ${accent}` : "2px solid #fff", marginLeft: i === 0 ? 0 : -8,
-                              boxShadow: isMe ? `0 0 0 1px ${accent}` : "0 1px 3px rgba(0,0,0,0.18)",
-                            }}>
-                              <EntityAvatar url={r.avatarUrl} name={r.name} />
-                            </div>
-                          );
-                        })}
-                        {registrants.length > 4 && (
-                          <div style={{
-                            width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                            border: "2px solid #fff", marginLeft: -8,
-                            background: "#f0ebff", color: "#6C63FF",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700,
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-                          }}>
-                            +{registrants.length - 4}
-                          </div>
-                        )}
-                      </div>
-                      <ChevronRight size={14} color="#bbb" strokeWidth={2.5} />
+                      Premiers inscrits
+                      <ChevronRight size={14} color={accent} strokeWidth={2.5} />
                     </button>
                   ) : <span />}
 
                   <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
-                    <span style={{ color: "#111" }}>{liveRegistered}</span>
-                    <span style={{ color: "#ccc" }}>/</span>
+                    <span style={{ color: "#f2f2f2" }}>{liveRegistered}</span>
+                    <span style={{ color: "#7a7a7a" }}>/</span>
                     <span style={{ color: accent }}>{comp.contestants}</span>
                   </span>
                 </div>
+
+                {/* First three registered participants as full rows (avatars + name
+                    + relative join time). Ordered the same way the ParticipantsSheet
+                    shows them — by created_at desc, so the freshest registrant
+                    sits at the top. The "Voir plus" / "Premiers inscrits" link
+                    above still hands off to the full sheet for the rest. */}
+                {registrants.length > 0 && (() => {
+                  const top3 = registrants.slice(0, 3);
+                  return (
+                    <div style={{ marginBottom: 10 }}>
+                      {top3.map((r, idx) => {
+                        const isMe = currentUser && r.userId === currentUser.id;
+                        return (
+                          <div
+                            key={r.id}
+                            onClick={() => setShowParticipantsSheet(true)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 10,
+                              padding: "9px 4px",
+                              borderBottom: idx < top3.length - 1 ? "1px solid #2a2a2a" : "none",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <div style={{
+                              width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                              overflow: "hidden", background: "#211f36",
+                              border: isMe ? `2px solid ${accent}` : "none",
+                            }}>
+                              <EntityAvatar url={r.avatarUrl} name={r.name} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+                              <span style={{
+                                fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                                color: isMe ? accent : "#c4c4c4",
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                              }}>
+                                {r.name}{isMe ? " (vous)" : ""}
+                              </span>
+                              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a" }}>
+                                {fmtRelativeTime(r.createdAt)}
+                              </span>
+                            </div>
+                            {r.isEarlyBird && (
+                              <span style={{
+                                fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 700,
+                                color: accent, background: "#1a1a1a",
+                                border: `1px solid ${accent}`, borderRadius: 999, padding: "3px 8px",
+                                textTransform: "uppercase", letterSpacing: "0.05em",
+                                flexShrink: 0,
+                              }}>
+                                -50%
+                              </span>
+                            )}
+                            <span style={{
+                              fontFamily: "'Space Grotesk', sans-serif",
+                              fontSize: 11, fontWeight: 700, color: "#7a7a7a",
+                              width: 18, textAlign: "center", flexShrink: 0,
+                            }}>
+                              #{idx + 1}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
 
                 {/* Animated fill bar — same treatment as the Participants tab's registration bar,
                     with milestone ticks at 25/50/75% to gauge fill speed at a glance. Color ramps
@@ -1634,7 +4180,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                     ? "linear-gradient(90deg, #E67E22 0%, #f5a623 50%, #E67E22 100%)"
                     : "linear-gradient(90deg, #6C63FF 0%, #a89dff 50%, #6C63FF 100%)";
                   return (
-                    <div style={{ height: 8, borderRadius: 999, background: "#e0d5ff", width: "100%", overflow: "visible", position: "relative" }}>
+                    <div style={{ height: 8, borderRadius: 999, background: "#2c2657", width: "100%", overflow: "visible", position: "relative" }}>
                       <div style={{ position: "absolute", inset: 0, borderRadius: 999, overflow: "hidden" }}>
                         <div
                           className="bar-shimmer"
@@ -1674,23 +4220,23 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                 {/* Consolidated stat chips — pulls Places/Frais/Temps into one row right under the bar,
                     instead of scattering them across separate rows below. */}
                 <div style={{ display: "flex", gap: 8, margin: "12px 0 4px" }}>
-                  <div style={{ flex: 1, background: "#f7f7f5", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800, color: "#111", fontVariantNumeric: "tabular-nums" }}>
+                  <div style={{ flex: 1, background: "#242424", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800, color: "#f2f2f2", fontVariantNumeric: "tabular-nums" }}>
                       {Math.max(0, comp.contestants - liveRegistered)}
                     </div>
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#999", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2, fontWeight: 600 }}>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2, fontWeight: 600 }}>
                       Places rest.
                     </div>
                   </div>
-                  <div style={{ flex: 1, background: "#f7f7f5", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800, color: "#111", fontVariantNumeric: "tabular-nums" }}>
+                  <div style={{ flex: 1, background: "#242424", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800, color: "#f2f2f2", fontVariantNumeric: "tabular-nums" }}>
                       {registrationFee} G
                     </div>
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#999", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2, fontWeight: 600 }}>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2, fontWeight: 600 }}>
                       Frais insc.
                     </div>
                   </div>
-                  <div style={{ flex: 1, background: "#f7f7f5", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+                  <div style={{ flex: 1, background: "#242424", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
                     <div style={{
                       fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 800,
                       color: comp.hot ? "#c0392b" : "#6C63FF", fontVariantNumeric: "tabular-nums",
@@ -1698,7 +4244,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                     }}>
                       {fmtCountdownSecs(secondsLeft, 2)}
                     </div>
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#999", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2, fontWeight: 600 }}>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2, fontWeight: 600 }}>
                       Temps rest.
                     </div>
                   </div>
@@ -1706,6 +4252,19 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
               </div>
             )}
             {!isRegistration && (
+            <div>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
+                padding: "14px 16px 0",
+              }}>
+                <Trophy size={13} strokeWidth={2.5} />
+                Statistiques
+              </div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", padding: "4px 16px 10px" }}>
+                Suivi en direct pendant la compétition.
+              </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr" }}>
               {([
                 { value: liveRegistered, label: "Candidats" },
@@ -1715,7 +4274,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                 const hotTimer = s.timer && s.hot;
                 return (
                   <div key={i} style={{
-                    borderLeft: i > 0 ? "1px solid #f0f0f0" : "none",
+                    borderLeft: i > 0 ? "1px solid #2a2a2a" : "none",
                     padding: "10px 4px",
                     display: "flex", flexDirection: "column", alignItems: "center",
                     background: s.timer ? "transparent" : "transparent",
@@ -1724,7 +4283,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                     <div style={{
                       fontFamily: "'Space Grotesk', sans-serif",
                       fontSize: s.timer ? 13 : 24, fontWeight: 800,
-                      color: hotTimer ? "#c0392b" : s.timer ? "#6C63FF" : s.accent ? accent : "#111",
+                      color: hotTimer ? "#c0392b" : s.timer ? "#6C63FF" : s.accent ? accent : "#f2f2f2",
                       lineHeight: 1.15,
                       transition: s.timer ? "opacity 0.12s, transform 0.28s cubic-bezier(0.34,1.56,0.64,1), background 0.3s" : "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
                       opacity: s.timer ? (tickFlash ? 1 : 0.6) : 1,
@@ -1739,12 +4298,12 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                     }}>{s.timer ? fmtCountdown(secondsLeft) : s.value}</div>
                     {s.timer && (
                       <div style={{
-                        fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb",
+                        fontFamily: "Inter, sans-serif", fontSize: 9, color: "#7a7a7a",
                         marginTop: 2, whiteSpace: "nowrap",
                       }}>{fmtAbsoluteDate(resolveEndsAt())}</div>
                     )}
                     <div style={{
-                      fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#999",
+                      fontFamily: "Inter, sans-serif", fontSize: 9.5, color: "#7a7a7a",
                       textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4,
                       fontWeight: 600, textAlign: "center",
                     }}>{s.label}</div>
@@ -1752,21 +4311,144 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                 );
               })}
             </div>
+            </div>
             )}
           </div>
         )}
 
+        {/* ── TOURNAMENT BRACKET (mock) ────────────────────────────────
+            Poules → 8e de finale → Quart → Demi → Finale. See
+            buildMockBracket above for how rounds/winners are derived —
+            no persisted round/match data behind this yet. Shown in every
+            phase, same as the section above. */}
+        <Bracket
+          bracket={bracket}
+          bracketCurrentRound={bracketCurrentRound}
+          accent={accent}
+          isCompleted={isCompleted}
+          isRegistration={isRegistration}
+        />
+
+        {/* ── ORGANISER PROFILE — standalone section, own row below Participants ── */}
+        <div style={{ background: "#1a1a1a", padding: "8px 10px", borderTop: "8px solid #2a2a2a" }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 8,
+          }}>
+            <span style={{
+              display: "flex", alignItems: "center", gap: 6,
+              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+              color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
+            }}>
+              <BadgeCheck size={13} strokeWidth={2.5} />
+              Organisateur
+            </span>
+            <button
+              onClick={() => showToast?.("Réseaux de l'organisateur — bientôt disponible")}
+              style={{
+                border: "none", background: "none", color: accent,
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                letterSpacing: "0.08em", textTransform: "uppercase",
+                cursor: "pointer", padding: 0,
+                display: "flex", alignItems: "center", gap: 4,
+              }}
+            >
+              <Link2 size={12} strokeWidth={2.5} />
+              Voir les réseaux
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: "50%",
+              background: accent, color: "#fff",
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>
+              {comp.organisateur.charAt(0)}
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 14.5, color: "#f2f2f2", fontWeight: 700,
+                display: "flex", alignItems: "center", gap: 4,
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              }}>
+                {comp.organisateur}
+                <BadgeCheck size={13} strokeWidth={2.5} color={accent} style={{ flexShrink: 0 }} />
+              </span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a", fontWeight: 500 }}>
+                {fmtVotes(orgFollowerCount)} abonnés
+              </span>
+            </div>
+
+            {(() => {
+              const friendSeed = Math.abs(hashStr(comp.id + "_org_friends"));
+              const friendCount = 2 + (friendSeed % 4); // 2–5 mutuals
+              const friendNames = Array.from({ length: friendCount }, (_, i) => fakeName(friendSeed + i * 11));
+              return (
+                <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }} title={`Suivi par ${friendNames.join(", ")}`}>
+                  {friendNames.slice(0, 3).map((name, i) => (
+                    <div key={i} style={{
+                      width: 22, height: 22, borderRadius: "50%", overflow: "hidden", flexShrink: 0,
+                      border: "2px solid #1a1a1a", marginLeft: i === 0 ? 0 : -8,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+                    }}>
+                      <EntityAvatar name={name} bg="#211f36" color="#6C63FF" />
+                    </div>
+                  ))}
+                  {friendCount > 3 && (
+                    <div style={{
+                      width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                      border: "2px solid #1a1a1a", marginLeft: -8,
+                      background: "#211f36", color: "#6C63FF",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+                    }}>
+                      +{friendCount - 3}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <button
+              onClick={() => {
+                const wasFollowed = orgFollowed;
+                setOrgFollowed(!wasFollowed);
+                setOrgFollowerCount((c) => wasFollowed ? c - 1 : c + 1);
+              }}
+              style={{
+                flexShrink: 0,
+                border: orgFollowed ? "1px solid #2a2a2a" : "none",
+                background: orgFollowed ? "#1a1a1a" : accent,
+                color: orgFollowed ? "#9a9a9a" : "#fff",
+                borderRadius: 999, padding: "8px 16px",
+                fontFamily: "Inter, sans-serif", fontSize: 12.5, fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              {orgFollowed ? "Abonné" : "Suivre"}
+            </button>
+          </div>
+        </div>
+
         {/* ── RULES (lower-priority disclosure, separate from the vitals above) ── */}
         {rulesInfo.rules.length > 0 && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 10px" }}>
+          <div style={{ background: "#1a1a1a", padding: "8px 10px", borderTop: "8px solid #2a2a2a" }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 8 }}>
+              Toutes les règles détaillées de la compétition.
+            </div>
             <button
               onClick={() => setRulesExpanded((v) => !v)}
               style={{
-                width: "100%", border: "none", borderRadius: 14, background: "#f5f5f5",
+                width: "100%", border: "none", borderRadius: 14, background: "#242424",
                 padding: "6px 8px", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
-                color: "#333", textTransform: "uppercase", letterSpacing: "0.06em",
+                color: "#c4c4c4", textTransform: "uppercase", letterSpacing: "0.06em",
               }}
             >
               Règlement complet
@@ -1783,7 +4465,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
               }}>
                 {rulesInfo.rules.map((rule, i) => (
                   <li key={i} style={{
-                    fontFamily: "Inter, sans-serif", fontSize: 12.5, color: "#555",
+                    fontFamily: "Inter, sans-serif", fontSize: 12.5, color: "#9a9a9a",
                     lineHeight: 1.5,
                   }}>
                     {rule}
@@ -1794,232 +4476,232 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
           </div>
         )}
 
-        {/* ── PARTICIPANTS PREVIEW ── */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 0" }}>
+        {/* ── COUNTDOWN BAR ── (registration mode now covered by the Places/Frais/Temps chips above) */}
+        {!isRegistration && (
           <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 12, paddingLeft: 10, paddingRight: 10,
+            background: comp.hot ? "#2a1614" : "#242424",
+            padding: "6px 10px",
+            borderTop: "8px solid #2a2a2a",
+            display: "flex", alignItems: "center", gap: 10,
           }}>
             <span style={{
-              display: "flex", alignItems: "center", gap: 6,
-              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-            }}><Users size={13} strokeWidth={2.5} />Participants</span>
-            <button
-              onClick={() => setActiveTab("participants")}
-              style={{
-                border: "none", background: "none", color: accent,
-                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                letterSpacing: "0.08em", textTransform: "uppercase",
-                cursor: "pointer", padding: 0,
-                display: "flex", alignItems: "center", gap: 4,
-              }}
-            >
-              Voir plus
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
-              </svg>
-            </button>
+              width: 8, height: 8, borderRadius: "50%",
+              background: comp.hot ? "#e74c3c" : "#7a7a7a",
+              display: "inline-block", flexShrink: 0,
+              animation: comp.hot ? "pulse-dot 1.2s infinite" : "none",
+            }} />
+            <style>{`@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
+            <span style={{
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+              color: comp.hot ? "#c0392b" : "#7a7a7a",
+            }}>
+              {comp.hot ? `Compétition très active — ${fmtCountdown(secondsLeft)}` : `Se termine dans ${fmtCountdown(secondsLeft)}`}
+            </span>
           </div>
+        )}
 
-          <div style={{ paddingLeft: 10, paddingRight: 10 }}>
-            {isRegistration ? (
-              registrants.slice(0, 3).map((r, idx, arr) => (
-                <div key={r.id} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "3px 0",
-                  borderBottom: idx < arr.length - 1 ? "1px solid #f3f3f3" : "none",
-                }}>
-                  <div style={{
-                    width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-                    background: "#f0ebff", color: "#6C63FF",
-                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {r.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {r.name}
-                    </span>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
-                      Inscrit le {r.date} à {r.time}
-                    </span>
-                  </div>
-                  <span style={{
-                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                    color: "#6C63FF", flexShrink: 0,
-                  }}>
-                    {r.fee} gourdes
-                  </span>
-                </div>
-              ))
-            ) : (
-              ranked.slice(0, 3).map((p, rank, arr) => {
-                const pct = Math.max(8, Math.round((p.points / topPoints) * 100));
+        {/* ── MÉDIAS PREVIEW ──
+             One tile per uploader (per "album"). Each tile shows the
+             uploader's profile pic, a counter of how many images they
+             contributed, and their first media as the cover. Tapping
+             opens that uploader's album in the stories viewer. Only
+             renders once there's real media to show. */}
+        {(() => {
+          const displayItems = participantUploads.filter(
+            (u) => u.status === "approved" || (currentUser && u.uploader_id === currentUser.id && u.status === "pending")
+          );
+          // The section is always shown now — even when there's no media yet,
+          // the header + a friendly Lottie-backed notice ("Aucun média")
+          // stays visible so the user knows where the surface is and the
+          // "Voir plus" button can still hand off to the MediaSheet (which
+          // owns the upload CTA). Carousel only renders when there's at
+          // least one item to display.
+          const hasMedia = displayItems.length > 0;
+
+          // Avatar lookup for each uploader. participantsFull already holds
+          // the user record (with avatarUrl) for every registered
+          // participant, so we just index by userId. Current user's own
+          // avatar is the source of truth if they happen to be in the list
+          // (in case the cached participants row is stale).
+          const avatarByUploader = new Map();
+          participantsFull.forEach((p) => {
+            if (p.userId && p.avatarUrl) avatarByUploader.set(p.userId, p.avatarUrl);
+          });
+          if (currentUser?.id && currentUser?.avatarUrl) {
+            avatarByUploader.set(currentUser.id, currentUser.avatarUrl);
+          }
+
+          // Group items by uploader so each rendered tile is one
+          // participant's full album. Order: most-recently-active uploader
+          // first (their newest item's created_at), so the freshest album
+          // sits at the head of the carousel.
+          const albumByUploader = new Map();
+          displayItems.forEach((it) => {
+            const key = it.uploader_id || it.uploader_name;
+            if (!albumByUploader.has(key)) {
+              albumByUploader.set(key, {
+                key,
+                uploaderId: it.uploader_id,
+                uploaderName: it.uploader_name,
+                items: [],
+                latestAt: 0,
+                hasPending: false,
+              });
+            }
+            const album = albumByUploader.get(key);
+            album.items.push(it);
+            if (it.status === "pending") album.hasPending = true;
+            const t = it.created_at ? new Date(it.created_at).getTime() : 0;
+            if (t > album.latestAt) album.latestAt = t;
+          });
+          const albums = Array.from(albumByUploader.values()).sort((a, b) => b.latestAt - a.latestAt);
+
+          return (
+          <div style={{ background: "#1a1a1a", padding: "8px 0", borderTop: "8px solid #2a2a2a" }}>
+            <PreviewSectionHeader
+              icon={<ImageIcon size={13} strokeWidth={2.5} />}
+              label="Médias"
+              accent={accent}
+              onAction={() => setShowMediaSheet(true)}
+            />
+
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", padding: "0 10px 10px" }}>
+              Albums des participants — touchez un album pour voir toutes les photos.
+            </div>
+
+            {hasMedia ? (
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 10, paddingRight: 10, scrollbarWidth: "none" }}>
+              {albums.slice(0, 10).map((album) => {
+                const cover = album.items[0];
+                const count = album.items.length;
+                const avatarUrl = avatarByUploader.get(album.uploaderId);
+                const tappable = !!cover;
                 return (
-                  <div key={p.id ?? p.index} style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "5px 0",
-                    borderBottom: rank < arr.length - 1 ? "1px solid #f0f0f0" : "none",
-                  }}>
-                    {/* Rank */}
+                  <div
+                    key={album.key}
+                    onClick={() => { if (tappable) openStories(displayItems, cover); }}
+                    style={{
+                      position: "relative", flexShrink: 0, width: 110, aspectRatio: "1 / 1", overflow: "hidden",
+                      background: "#0d0d0d",
+                      cursor: tappable ? "pointer" : "default",
+                    }}
+                  >
+                    {cover?.media_type === "video" ? (
+                      <video src={cover.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: cover.status === "pending" ? 0.55 : 1 }} muted />
+                    ) : (
+                      <img src={cover?.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: cover.status === "pending" ? 0.55 : 1 }} />
+                    )}
+                    {/* "En attente" badge for the current user's own album while
+                        their last upload is still being reviewed. */}
+                    {album.hasPending && currentUser && album.uploaderId === currentUser.id && (
+                      <span style={{
+                        position: "absolute", top: 6, left: 6,
+                        background: "#e74c3c", color: "#fff",
+                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                        padding: "2px 6px", letterSpacing: "0.02em",
+                      }}>
+                        En attente
+                      </span>
+                    )}
+                    {/* Image count — top-right pill. Stays legible over any
+                        cover image because it sits on a dark translucent
+                        background. */}
                     <span style={{
-                      width: 20, flexShrink: 0, textAlign: "center",
-                      fontFamily: "'Space Grotesk', sans-serif",
-                      fontSize: rank === 0 ? 16 : 12, fontWeight: 700,
-                      color: rank === 0 ? accent : "#ccc",
+                      position: "absolute", top: 6, right: 6,
+                      display: "inline-flex", alignItems: "center", gap: 3,
+                      background: "rgba(0,0,0,0.55)", color: "#fff",
+                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700,
+                      padding: "2px 6px", borderRadius: 999,
                     }}>
-                      {rank === 0 ? "🥇" : rank + 1}
+                      <ImageIcon size={10} strokeWidth={2.5} />
+                      {count}
                     </span>
-
-                    {/* Profile pic */}
-                    <div style={{
-                      width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                      overflow: "hidden", background: "#fff",
-                      border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                      boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
-                    }}>
-                      <EntityAvatar url={p.avatarUrl} name={p.name} />
-                    </div>
-
-                    {/* Name + points/coin above, full-width progress bar below */}
-                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                        <span style={{
-                          fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                          color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        }}>{p.name}</span>
-                        <span style={{
-                          display: "flex", alignItems: "center", gap: 4,
-                          fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                          color: rank === 0 ? accent : "#555", flexShrink: 0,
-                        }}>
-                          🪙 {p.points.toLocaleString("fr-FR")}
-                        </span>
+                    {/* Bottom gradient + uploader name + profile pic circle */}
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "5px 6px 5px 9px", background: "linear-gradient(to top, rgba(0,0,0,0.65), transparent)", display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{
+                        width: 18, height: 18, borderRadius: "50%",
+                        background: avatarUrl ? "#1a1a1a" : "rgba(255,255,255,0.25)",
+                        border: "1.5px solid #1a1a1a", overflow: "hidden", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        ) : (
+                          <span style={{
+                            fontFamily: "'Space Grotesk', sans-serif",
+                            fontSize: 9, fontWeight: 700, color: "#fff",
+                          }}>
+                            {(album.uploaderName || "?").charAt(0).toUpperCase()}
+                          </span>
+                        )}
                       </div>
-                      <div style={{ height: 4, background: "#f0f0f0", borderRadius: 2, overflow: "hidden" }}>
-                        <div
-                          className="bar-shimmer"
-                          style={{
-                            height: "100%", borderRadius: 2,
-                            width: `${pct}%`,
-                            background: rank === 0
-                              ? `linear-gradient(90deg, ${accent} 0%, ${accent}cc 50%, ${accent} 100%)`
-                              : "linear-gradient(90deg, #ddd 0%, #eee 50%, #ddd 100%)",
-                            transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)",
-                          }}
-                        />
-                      </div>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>
+                        {album.uploaderName}
+                      </span>
                     </div>
                   </div>
                 );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* ── MÉDIAS PREVIEW ──
-             Approved media from everyone, plus the current user's own
-             uploads even while still pending (tagged "En attente") so they
-             can see their submission sitting in the row while it's reviewed. */}
-        {!isRegistration && (() => {
-          const homeMediaItems = participantUploads.filter(
-            (u) => u.status === "approved" || (currentUser && u.uploader_id === currentUser.id && u.status === "pending")
-          );
-          return homeMediaItems.length > 0 && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 0" }}>
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 12, paddingLeft: 10, paddingRight: 10,
-            }}>
-              <span style={{
-                display: "flex", alignItems: "center", gap: 6,
-                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}><ImageIcon size={13} strokeWidth={2.5} />Médias</span>
-              <button
-                onClick={() => setActiveTab("medias")}
+              })}
+            </div>
+            ) : (
+              /* Empty state: section is still shown so users can find the
+                 upload surface via "Voir plus" → MediaSheet. The Lottie is
+                 wrapped in a fixed-size box so the section height stays
+                 predictable and the animation doesn't push the page around
+                 on every render. src points at a LottieFiles-hosted
+                 "empty" illustration (LottieFiles CDN, public, no auth). */
+              <div
                 style={{
-                  border: "none", background: "none", color: accent,
-                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  letterSpacing: "0.08em", textTransform: "uppercase",
-                  cursor: "pointer", padding: 0,
-                  display: "flex", alignItems: "center", gap: 4,
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  justifyContent: "center", gap: 8, padding: "18px 10px 22px",
                 }}
               >
-                Voir plus
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
-                </svg>
-              </button>
-            </div>
-
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 10, paddingRight: 10, scrollbarWidth: "none" }}>
-              {homeMediaItems.slice(0, 10).map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => { if (item.status === "approved") setMediaLightbox(item); }}
-                  style={{ position: "relative", flexShrink: 0, width: 110, aspectRatio: "1 / 1", overflow: "hidden", background: "#111", cursor: item.status === "approved" ? "pointer" : "default" }}
-                >
-                  {item.media_type === "video" ? (
-                    <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: item.status === "pending" ? 0.55 : 1 }} muted />
-                  ) : (
-                    <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: item.status === "pending" ? 0.55 : 1 }} />
-                  )}
-                  {item.status === "pending" && (
-                    <span style={{
-                      position: "absolute", top: 6, left: 6,
-                      background: "#e74c3c", color: "#fff",
-                      fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-                      padding: "2px 6px", letterSpacing: "0.02em",
-                    }}>
-                      En attente
-                    </span>
-                  )}
-                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "5px 9px", background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {item.uploader_name}
-                    </span>
-                  </div>
+                <div style={{ width: 120, height: 120 }}>
+                  <Player
+                    src={notoAnimatedEmojiUrl("📷")}
+                    autoplay
+                    loop
+                    style={{ width: "100%", height: "100%" }}
+                  />
                 </div>
-              ))}
-            </div>
+                <div style={{
+                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 13,
+                  fontWeight: 700, color: "#c4c4c4", textAlign: "center",
+                }}>
+                  Aucun média pour le moment
+                </div>
+                <div style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 11,
+                  color: "#7a7a7a", textAlign: "center", maxWidth: 260, lineHeight: 1.45,
+                }}>
+                  {isRegistered
+                    ? "Sois le premier à partager une photo ou une vidéo de cette compétition ✨"
+                    : "Les participants n'ont encore rien partagé. Reviens bientôt !"}
+                </div>
+              </div>
+            )}
           </div>
           );
         })()}
 
         {/* ── DONATEURS PREVIEW ── */}
         {!isRegistration && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 0" }}>
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 12, paddingLeft: 10, paddingRight: 10,
-            }}>
-              <span style={{
-                display: "flex", alignItems: "center", gap: 6,
-                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}><Gift size={13} strokeWidth={2.5} />Donateurs</span>
-              <button
-                onClick={() => setActiveTab("donateurs")}
-                style={{
-                  border: "none", background: "none", color: accent,
-                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  letterSpacing: "0.08em", textTransform: "uppercase",
-                  cursor: "pointer", padding: 0,
-                  display: "flex", alignItems: "center", gap: 4,
-                }}
-              >
-                Voir plus
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
-                </svg>
-              </button>
+          <div style={{ background: "#1a1a1a", padding: "8px 0", borderTop: "8px solid #2a2a2a" }}>
+            <PreviewSectionHeader
+              icon={<Gift size={13} strokeWidth={2.5} />}
+              label="Donateurs"
+              accent={accent}
+              onAction={() => {
+                setCommentsPanelTab(isLive ? "donateurs" : "gifts");
+                setShowCommentsPanel(true);
+              }}
+            />
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 12, paddingLeft: 10, paddingRight: 10 }}>
+              Ceux qui ont envoyé le plus de cadeaux.
             </div>
 
             {giftLeaderboard.length === 0 ? (
-              <div style={{ padding: "2px 10px 0px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
+              <div style={{ padding: "2px 10px 0px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
                 Aucun donateur pour le moment.
               </div>
             ) : (
@@ -2028,18 +4710,18 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                   <div key={donor.id} style={{ flexShrink: 0, width: 72, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                     <div style={{
                       width: 52, height: 52, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
-                      border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
+                      border: i === 0 ? `2px solid ${accent}` : "2px solid #2a2a2a",
                       position: "relative",
                     }}>
-                      <EntityAvatar url={donor.avatarUrl} name={donor.name} bg={donor.isMe ? "#111" : "#ddd"} color={donor.isMe ? "#fff" : "#666"} />
+                      <EntityAvatar url={donor.avatarUrl} name={donor.name} bg={donor.isMe ? "#0d0d0d" : "#242424"} color={donor.isMe ? "#fff" : "#9a9a9a"} />
                       {i === 0 && (
                         <span style={{ position: "absolute", bottom: -2, right: -2, fontSize: 14 }}>👑</span>
                       )}
                     </div>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#333", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#c4c4c4", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
                       {donor.name}
                     </span>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: i === 0 ? accent : "#888" }}>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: i === 0 ? accent : "#7a7a7a" }}>
                       🪙 {formatCoins(donor.totalSpent)}
                     </span>
                   </div>
@@ -2049,865 +4731,14 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
           </div>
         )}
 
-        {/* ── LIVE PREVIEW ── */}
-        {!isRegistration && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "8px 0" }}>
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 12, paddingLeft: 10, paddingRight: 10,
-            }}>
-              <span style={{
-                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-                display: "flex", alignItems: "center", gap: 6,
-              }}>
-                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
-                Live
-              </span>
-              <button
-                onClick={() => setActiveTab("live")}
-                style={{
-                  border: "none", background: "none", color: accent,
-                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  letterSpacing: "0.08em", textTransform: "uppercase",
-                  cursor: "pointer", padding: 0,
-                  display: "flex", alignItems: "center", gap: 4,
-                }}
-              >
-                Voir plus
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
-                </svg>
-              </button>
-            </div>
-
-            {feedItems.length === 0 ? (
-              <div style={{ padding: "2px 10px 0px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
-                Aucune activité pour le moment.
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingLeft: 10, paddingRight: 10, scrollbarWidth: "none" }}>
-                {feedItems.slice(0, 10).map((item) => {
-                  if (item.type === "gift") {
-                    const entry = item.entry;
-                    const liked = likedCommentIds.has(entry.id);
-                    // entry.id is a UUID string (from Supabase), not the old
-                    // Date.now() number — hash it to a stable int before % so
-                    // this doesn't produce NaN like it did right after the
-                    // liveLog -> giftRows switch.
-                    let idHash = 0;
-                    for (let ci = 0; ci < String(entry.id).length; ci++) {
-                      idHash = (idHash * 31 + String(entry.id).charCodeAt(ci)) | 0;
-                    }
-                    idHash = Math.abs(idHash);
-                    const likeCount = (idHash % 12) + (liked ? 1 : 0);
-                    const replyCount = idHash % 3;
-                    return (
-                      <div key={item.key} style={{
-                        flexShrink: 0, width: 170,
-                        border: "1px solid #f0f0f0",
-                        display: "flex", flexDirection: "column",
-                      }}>
-                        {/* Body */}
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, padding: "7px 8px 6px" }}>
-                          {/* Header — sender profile, same as a comment card */}
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <div style={{
-                              width: 20, height: 20, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
-                              background: "#111",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                            }}>
-                              <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>
-                                {(entry.senderName || "V").charAt(0)}
-                              </span>
-                            </div>
-                            <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {entry.senderName || "Vous"}
-                            </span>
-                            {/* Gift tag — distinguishes this from a comment card */}
-                            <span style={{
-                              flexShrink: 0,
-                              display: "flex", alignItems: "center", gap: 2,
-                              background: `${accent}18`, color: accent,
-                              fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-                              textTransform: "uppercase", letterSpacing: "0.04em",
-                              padding: "2px 5px", borderRadius: 999,
-                            }}>
-                              🎁 Cadeau
-                            </span>
-                          </div>
-
-                          {/* Emoji — the central element */}
-                          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, padding: "3px 0" }}>
-                            <span style={{ fontSize: 26, lineHeight: 1 }}>{entry.gift.icon}</span>
-                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700, color: accent }}>
-                              {entry.gift.name}
-                            </span>
-                          </div>
-
-                          {/* Recipient — who the gift is for */}
-                          <div style={{
-                            display: "flex", alignItems: "center", gap: 5,
-                            paddingTop: 4, borderTop: "1px solid #f0f0f0",
-                          }}>
-                            <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #eee" }}>
-                              <EntityAvatar url={entry.pAvatarUrl} name={entry.pName || fakeName(entry.pIndex)} />
-                            </div>
-                            <span style={{
-                              fontFamily: "Inter, sans-serif", fontSize: 10, color: "#888",
-                              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                            }}>
-                              pour <span style={{ fontWeight: 700, color: "#666" }}>{entry.pName || fakeName(entry.pIndex)}</span>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Engagement bar — edge-to-edge separator, always at the bottom */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 8px", borderTop: "1px solid #f0f0f0" }}>
-                          <button onClick={() => handleToggleLike(entry.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 3 }}>
-                            <Heart size={12} fill={liked ? "#e74c3c" : "none"} color={liked ? "#e74c3c" : "#bbb"} strokeWidth={2} />
-                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: liked ? "#e74c3c" : "#999" }}>{likeCount}</span>
-                          </button>
-                          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                            <MessageCircle size={12} color="#bbb" strokeWidth={2} />
-                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#999" }}>{replyCount}</span>
-                          </div>
-                          <span style={{ marginLeft: "auto", fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", whiteSpace: "nowrap" }}>
-                            {fmtAgoFr(item.minutesAgo)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }
-                  const c = item.comment;
-                  const liked = likedCommentIds.has(c.id);
-                  return (
-                    <div key={item.key} style={{
-                      flexShrink: 0, width: 170,
-                      border: "1px solid #f0f0f0",
-                      display: "flex", flexDirection: "column",
-                    }}>
-                      {/* Body */}
-                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, padding: "7px 8px 6px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{
-                            width: 20, height: 20, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
-                            background: c.isMine ? "#111" : "transparent",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                          }}>
-                            {c.isMine ? (
-                              <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{c.name.charAt(0)}</span>
-                            ) : (
-                              <EntityAvatar url={c.avatarUrl} name={c.name} />
-                            )}
-                          </div>
-                          <span style={{ flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {c.name}
-                          </span>
-                        </div>
-                        <p style={{
-                          flex: 1,
-                          fontFamily: "Inter, sans-serif", fontSize: 11, color: "#666", lineHeight: 1.4, margin: 0,
-                          display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
-                        }}>
-                          {c.text}
-                        </p>
-                      </div>
-
-                      {/* Engagement bar — edge-to-edge separator, always at the bottom */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 8px", borderTop: "1px solid #f0f0f0" }}>
-                        <button onClick={() => handleToggleLike(c.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 3 }}>
-                          <Heart size={12} fill={liked ? "#e74c3c" : "none"} color={liked ? "#e74c3c" : "#bbb"} strokeWidth={2} />
-                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: liked ? "#e74c3c" : "#999" }}>{c.likes + (liked ? 1 : 0)}</span>
-                        </button>
-                        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                          <MessageCircle size={12} color="#bbb" strokeWidth={2} />
-                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: "#999" }}>{c.replies.length}</span>
-                        </div>
-                        <span style={{ marginLeft: "auto", fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", whiteSpace: "nowrap" }}>
-                          {fmtAgoFr(item.minutesAgo)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+        {/* ── BOTTOM CLEARANCE — white spacer sized to the fixed footer bar,
+             so the last section isn't hidden behind it and no grey page
+             background shows through underneath the transparent footer. ── */}
+        <div style={{ background: "#1a1a1a", height: "calc(72px + env(safe-area-inset-bottom, 0px))" }} />
 
         </>
         )}
 
-        {/* ── TOP 5 LEADERBOARD or REGISTRATION INFO ── */}
-        {activeTab === "participants" && (
-        isRegistration ? (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 14,
-            }}>
-              <span style={{
-                display: "flex", alignItems: "center", gap: 6,
-                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}><Users size={13} strokeWidth={2.5} />Inscription en cours</span>
-            </div>
-            <div style={{
-              padding: "20px", background: "#f8f7fc", borderRadius: 16,
-              textAlign: "center", marginBottom: 12,
-            }}>
-              <div style={{
-                fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700,
-                color: "#6C63FF", marginBottom: 4,
-                transition: "color 0.2s",
-              }}>
-                {liveRegistered}/{comp.contestants}
-              </div>
-              <div style={{
-                fontFamily: "Inter, sans-serif", fontSize: 12, color: "#666",
-                marginBottom: 12,
-              }}>
-                personnes inscrites
-              </div>
-              {/* Animated fill bar */}
-              <div style={{ height: 8, borderRadius: 999, background: "#e0d5ff", width: "100%", marginBottom: 12, overflow: "hidden" }}>
-                <div
-                  className="bar-shimmer"
-                  style={{
-                    height: "100%",
-                    borderRadius: 999,
-                    width: `${Math.round((liveRegistered / comp.contestants) * 100)}%`,
-                    background: liveRegistered >= comp.contestants
-                      ? "linear-gradient(90deg, #00B894 0%, #00d4a8 50%, #00B894 100%)"
-                      : "linear-gradient(90deg, #6C63FF 0%, #a89dff 50%, #6C63FF 100%)",
-                    transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)",
-                  }}
-                />
-              </div>
-              <div style={{
-                fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999",
-                lineHeight: 1.5,
-              }}>
-                {comp.contestants - liveRegistered > 0
-                  ? `${comp.contestants - liveRegistered} place${comp.contestants - liveRegistered !== 1 ? 's' : ''} encore disponible${comp.contestants - liveRegistered !== 1 ? 's' : ''}`
-                  : "Les inscriptions sont complètes"}
-              </div>
-            </div>
-
-            {/* Registered members list */}
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 10,
-            }}>
-              <span style={{
-                display: "flex", alignItems: "center", gap: 6,
-                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}><Users size={13} strokeWidth={2.5} />Membres inscrits</span>
-              {registrants.length > 5 && (
-                <button
-                  onClick={() => setShowAllRegistrants(true)}
-                  style={{
-                    border: "none", background: "none", color: accent,
-                    fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                    letterSpacing: "0.08em", textTransform: "uppercase",
-                    cursor: "pointer", padding: 0,
-                    display: "flex", alignItems: "center", gap: 4,
-                  }}
-                >
-                  Voir tout ({registrants.length})
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                    <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
-                  </svg>
-                </button>
-              )}
-            </div>
-
-            {registrantsLoading ? (
-              <div style={{
-                padding: "20px 0 24px", textAlign: "center",
-                fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb",
-              }}>
-                Chargement des inscrits...
-              </div>
-            ) : registrants.length === 0 ? (
-              <div style={{
-                padding: "20px 0 24px", textAlign: "center",
-                fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb",
-              }}>
-                Aucune inscription pour le moment.
-              </div>
-            ) : (
-              registrants.slice(0, 5).map((r, idx, arr) => (
-                <div key={r.id} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "9px 0",
-                  borderBottom: idx < arr.length - 1 ? "1px solid #f3f3f3" : "none",
-                }}>
-                  <div style={{
-                    width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-                    background: "#f0ebff", color: "#6C63FF",
-                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {r.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {r.name}
-                    </span>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa" }}>
-                      Inscrit le {r.date} à {r.time}
-                    </span>
-                  </div>
-                  <span style={{
-                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                    color: "#6C63FF", flexShrink: 0,
-                  }}>
-                    {r.fee} gourdes
-                  </span>
-                  {canRemoveParticipants && (
-                    <button
-                      onClick={() => handleRemoveParticipant(r)}
-                      disabled={removingRegistrantId === r.id}
-                      title="Retirer ce participant"
-                      style={{
-                        width: 24, height: 24, flexShrink: 0, marginLeft: 4,
-                        border: "1px solid #f3d0cd", borderRadius: "50%",
-                        background: "#fdf1f0", color: "#e74c3c",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        cursor: removingRegistrantId === r.id ? "default" : "pointer",
-                        opacity: removingRegistrantId === r.id ? 0.5 : 1,
-                        padding: 0,
-                      }}
-                    >
-                      <X size={13} strokeWidth={2.5} />
-                    </button>
-                  )}
-                </div>
-              ))
-            )}
-            <div style={{ height: 12 }} />
-          </div>
-        ) : (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px" }}>
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 14,
-            }}>
-              <span style={{
-                display: "flex", alignItems: "center", gap: 6,
-                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              }}><Trophy size={13} strokeWidth={2.5} />Classement · Top 5</span>
-              <button
-                onClick={() => setShowAll(true)}
-                style={{
-                  border: "none", background: "none", color: accent,
-                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  letterSpacing: "0.08em", textTransform: "uppercase",
-                  cursor: "pointer", padding: 0,
-                  display: "flex", alignItems: "center", gap: 4,
-                }}
-              >
-                Voir tout ({comp.contestants})
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                  <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square"/>
-                </svg>
-              </button>
-            </div>
-
-            {ranked.length === 0 ? (
-              <div style={{ padding: "24px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
-                Aucun participant pour le moment.
-              </div>
-            ) : ranked.map((p, rank) => {
-              const pct = Math.max(8, Math.round((p.points / topPoints) * 100));
-              return (
-                <div key={p.id ?? p.index} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "11px 0",
-                  borderBottom: rank < ranked.length - 1 ? "1px solid #f0f0f0" : "none",
-                }}>
-                  {/* Rank */}
-                  <span style={{
-                    width: 20, flexShrink: 0, textAlign: "center",
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: rank === 0 ? 16 : 12, fontWeight: 700,
-                    color: rank === 0 ? accent : "#ccc",
-                  }}>
-                    {rank === 0 ? "🥇" : rank + 1}
-                  </span>
-
-                  {/* Profile pic */}
-                  <div style={{
-                    width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                    overflow: "hidden", background: "#fff",
-                    border: rank === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                    boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
-                  }}>
-                    <EntityAvatar url={p.avatarUrl} name={p.name} />
-                  </div>
-
-                  {/* Name + points/coin above, full-width progress bar below */}
-                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                      <span style={{
-                        fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                        color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}>{p.name}</span>
-                      <span style={{
-                        display: "flex", alignItems: "center", gap: 4,
-                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                        color: rank === 0 ? accent : "#555", flexShrink: 0,
-                        transition: "color 0.3s",
-                      }}>
-                        🪙 {p.points.toLocaleString("fr-FR")}
-                      </span>
-                    </div>
-                    <div style={{ height: 4, background: "#f0f0f0", borderRadius: 2, overflow: "hidden" }}>
-                      <div
-                        className="bar-shimmer"
-                        style={{
-                          height: "100%", borderRadius: 2,
-                          width: `${pct}%`,
-                          background: rank === 0
-                            ? `linear-gradient(90deg, ${accent} 0%, ${accent}cc 50%, ${accent} 100%)`
-                            : "linear-gradient(90deg, #ddd 0%, #eee 50%, #ddd 100%)",
-                          transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            <div style={{ height: 12 }} />
-          </div>
-        )
-        )}
-
-        {/* ── TOURNAMENT BRACKET (mock) ────────────────────────────────
-            Poules → 8e de finale → Quart → Demi → Finale. See
-            src/CompetitionBoard/Bracket.tsx + ./utils's buildMockBracket
-            for how rounds/winners are derived — no persisted round/match
-            data behind this yet. */}
-        {activeTab === "participants" && (
-          <Bracket
-            bracket={bracket}
-            bracketCurrentRound={bracketCurrentRound}
-            accent={accent}
-            isCompleted={isCompleted}
-            isRegistration={isRegistration}
-          />
-        )}
-
-
-        {/* ── PARTICIPANTS STRIP (only for voting phase) ── */}
-        {activeTab === "medias" && !isRegistration && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", paddingTop: 14, paddingBottom: 14 }}>
-            {/* Organizer-only: media submitted by participants, awaiting approval.
-                Always visible to the organizer (not just when something's
-                pending) so there's a stable, discoverable place to check. */}
-            {currentUser?.isOrganizer && (
-              <div style={{ marginBottom: 16, paddingLeft: 8, paddingRight: 8 }}>
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 6,
-                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                  color: pendingUploads.length > 0 ? "#e74c3c" : "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-                  marginBottom: 10,
-                }}>
-                  <Clock size={13} strokeWidth={2.5} />
-                  Médias à approuver{pendingUploads.length > 0 ? ` (${pendingUploads.length})` : ""}
-                </div>
-                {pendingUploads.length === 0 ? (
-                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb", padding: "4px 0 2px" }}>
-                    Rien à approuver pour l'instant.
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {pendingUploads.map((item) => (
-                      <div key={item.id} style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        border: "1px solid #eee", padding: 8,
-                      }}>
-                        <div style={{ width: 46, height: 46, flexShrink: 0, overflow: "hidden", background: "#111" }}>
-                          {item.media_type === "video" ? (
-                            <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
-                          ) : (
-                            <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                          )}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {item.uploader_name}
-                          </div>
-                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#aaa" }}>
-                            {item.media_type === "video" ? "Vidéo" : "Photo"} envoyée
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => reviewUpload(item.id, "rejected")}
-                          style={{ border: "1px solid #eee", background: "#fff", color: "#999", width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                        >
-                          <X size={14} />
-                        </button>
-                        <button
-                          onClick={() => reviewUpload(item.id, "approved")}
-                          style={{ border: "none", background: accent, color: "#fff", width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                        >
-                          <Check size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-              marginBottom: 12, paddingLeft: 8, paddingRight: 8,
-            }}>
-              <ImageIcon size={13} strokeWidth={2.5} />
-              Médias des participants
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, paddingLeft: 8, paddingRight: 8 }}>
-              {/* "Mon album" — lets a registered participant manage their own uploads */}
-              {isRegistered && currentUser && (
-                <div
-                  onClick={() => setAlbumSheet(true)}
-                  style={{
-                    position: "relative", cursor: "pointer", aspectRatio: "1 / 1",
-                    border: `1.5px dashed ${accent}`, background: `${accent}0a`,
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
-                  }}
-                >
-                  {myUploads.some((u) => u.status === "pending") && (
-                    <span style={{
-                      position: "absolute", top: 7, right: 7,
-                      background: "#e74c3c", color: "#fff",
-                      fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-                      padding: "2px 6px",
-                    }}>
-                      En attente
-                    </span>
-                  )}
-                  <Plus size={20} color={accent} strokeWidth={2.5} />
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: accent }}>
-                    Mon album
-                  </span>
-                </div>
-              )}
-              {approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).slice(0, 11).map((item) => (
-                <div key={item.id} onClick={() => setMediaLightbox(item)} style={{ position: "relative", cursor: "pointer", aspectRatio: "1 / 1", overflow: "hidden", background: "#111" }}>
-                  {item.media_type === "video" ? (
-                    <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
-                  ) : (
-                    <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                  )}
-                  <div style={{
-                    position: "absolute", bottom: 0, left: 0, right: 0,
-                    padding: "5px 9px", background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)",
-                  }}>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {item.uploader_name}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).length > 11 && (
-                <div
-                  onClick={() => setShowAllAlbums(true)}
-                  style={{
-                    border: "1px dashed #ddd", background: "#fafafa",
-                    display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center",
-                    gap: 6, cursor: "pointer",
-                    aspectRatio: "1/1",
-                  }}
-                >
-                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#bbb" }}>
-                    +{approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).length - 11}
-                  </span>
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                    Voir tout
-                  </span>
-                </div>
-              )}
-              {approvedUploads.filter((u) => u.uploader_id !== currentUser?.id).length === 0 && !(isRegistered && currentUser) && (
-                <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "24px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
-                  Aucun média approuvé pour l'instant.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-
-        {/* ── TOP DONATEURS ── */}
-        {activeTab === "donateurs" && !isRegistration && (
-          <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 8px" }}>
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Gift size={14} color={accent} strokeWidth={2.5} />
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                  Top Donateurs
-                </span>
-              </div>
-              {giftLeaderboard.length === 0 && (
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb" }}>Aucun encore</span>
-              )}
-            </div>
-
-            {giftLeaderboard.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>🎁</div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
-                  Soyez le premier à envoyer un cadeau !
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {giftLeaderboard.map((donor, i) => {
-                  const isFirst = i === 0;
-                  const medals = ["🥇", "🥈", "🥉"];
-                  return (
-                    <div
-                      key={donor.id}
-                      onClick={() => { setSelectedDonor(donor); setDonorTab("all"); }}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        padding: "10px 10px",
-                        background: isFirst ? `${accent}0f` : donor.isMe ? "#f8f8f8" : "#fff",
-                        border: isFirst ? `1px solid ${accent}33` : donor.isMe ? "1px solid #e0e0e0" : "1px solid transparent",
-                        transition: "background 0.2s",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {/* Rank */}
-                      <div style={{ width: 24, textAlign: "center", flexShrink: 0 }}>
-                        {i < 3 ? (
-                          <span style={{ fontSize: 16 }}>{medals[i]}</span>
-                        ) : (
-                          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#bbb" }}>#{i + 1}</span>
-                        )}
-                      </div>
-                      {/* Avatar */}
-                      <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: isFirst ? `2px solid ${accent}` : "2px solid #eee" }}>
-                        <EntityAvatar url={donor.avatarUrl} name={donor.name} bg={donor.isMe ? "#111" : "#ddd"} color={donor.isMe ? "#fff" : "#666"} />
-                      </div>
-                      {/* Info */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: isFirst ? accent : "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {donor.name}
-                          </span>
-                          {donor.isMe && <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: accent, background: `${accent}18`, padding: "1px 5px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Vous</span>}
-                          {isFirst && <span style={{ fontSize: 13 }}>👑</span>}
-                        </div>
-                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 1 }}>
-                          {donor.giftCount} cadeau{donor.giftCount > 1 ? "x" : ""} · meilleur: {donor.topGift}
-                        </div>
-                      </div>
-                      {/* Total */}
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: isFirst ? accent : "#333" }}>
-                          🪙 {formatCoins(donor.totalSpent)}
-                        </div>
-                        <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.06em" }}>points</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── LIVE TAB (gifts + comments interleaved, TikTok-style) ── */}
-        {activeTab === "live" && (
-        <div style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "14px 16px 20px" }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
-            fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-            color: "#888", textTransform: "uppercase", letterSpacing: "0.1em",
-          }}>
-            {!isRegistration ? (
-              <span style={{
-                width: 7, height: 7, borderRadius: "50%", background: "#e74c3c",
-                display: "inline-block", animation: "pulse-dot 1s infinite",
-              }} />
-            ) : (
-              <MessageCircle size={13} strokeWidth={2.5} />
-            )}
-            Activité · Commentaires ({comments.length})
-          </div>
-
-          {/* Interleaved feed: gifts + comments, newest first */}
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {commentsLoading ? (
-              <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
-                Chargement…
-              </div>
-            ) : feedItems.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
-                Aucune activité pour le moment. Soyez le premier à commenter !
-              </div>
-            ) : feedItems.map((item, i) => {
-              const isLast = i === feedItems.length - 1;
-
-              if (item.type === "gift") {
-                const entry = item.entry;
-                return (
-                  <div key={item.key} style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "8px 0",
-                    borderBottom: isLast ? "none" : "1px solid #f5f5f5",
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{
-                        width: 26, height: 26, borderRadius: "50%",
-                        flexShrink: 0, overflow: "hidden",
-                        border: i === 0 ? `2px solid ${accent}` : "2px solid #eee",
-                      }}>
-                        <EntityAvatar url={entry.pAvatarUrl} name={entry.pName || fakeName(entry.pIndex)} />
-                      </div>
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", fontWeight: 500 }}>
-                        <span style={{ fontSize: 14 }}>{entry.gift.icon}</span>{" "}
-                        <span style={{ fontWeight: 700, color: accent }}>{entry.gift.name}</span>
-                        {" "}envoyé à{" "}
-                        <span style={{ color: accent, fontWeight: 700 }}>{entry.pName || fakeName(entry.pIndex)}</span>
-                      </span>
-                    </div>
-                    <span style={{
-                      fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb",
-                      fontWeight: 500, flexShrink: 0, marginLeft: 10,
-                    }}>{entry.ago}</span>
-                  </div>
-                );
-              }
-
-              const c = item.comment;
-              const liked = likedCommentIds.has(c.id);
-              const repliesOpen = expandedReplies.has(c.id);
-              const isReplying = replyingTo === c.id;
-              return (
-                <div key={item.key} style={{
-                  borderBottom: isLast ? "none" : "1px solid #f0f0f0",
-                  padding: "10px 0",
-                }}>
-                  {/* Main comment */}
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                    <div style={{
-                      width: 28, height: 28, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
-                      border: "1px solid #e0e0e0",
-                      background: c.isMine ? "#111" : "transparent",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
-                      {c.isMine ? (
-                        <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700 }}>
-                          {c.name.charAt(0).toUpperCase()}
-                        </span>
-                      ) : (
-                        <EntityAvatar url={c.avatarUrl} name={c.name} />
-                      )}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
-                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#333" }}>{c.name}</span>
-                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#bbb" }}>
-                          {c.minutesAgo === 0 ? "À l'instant" : `il y a ${fmtCommentTime(c.minutesAgo)}`}
-                        </span>
-                      </div>
-                      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#444", lineHeight: 1.4, margin: "0 0 6px" }}>{c.text}</p>
-                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                        <button onClick={() => handleToggleLike(c.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: liked ? "#e74c3c" : "#aaa" }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill={liked ? "#e74c3c" : "none"} stroke={liked ? "#e74c3c" : "#aaa"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                          {c.likes + (liked ? 1 : 0)}
-                        </button>
-                        <button
-                          onClick={() => { setReplyingTo(isReplying ? null : c.id); setReplyDraft(""); }}
-                          style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: isReplying ? accent : "#aaa" }}
-                        >
-                          Répondre
-                        </button>
-                        {c.replies?.length > 0 && (
-                          <button
-                            onClick={() => setExpandedReplies((prev) => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; })}
-                            style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: accent }}
-                          >
-                            {repliesOpen ? "Masquer" : `${c.replies.length} réponse${c.replies.length > 1 ? "s" : ""}`}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Reply input */}
-                  {isReplying && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, marginLeft: 38 }}>
-                      <input
-                        autoFocus
-                        type="text"
-                        value={replyDraft}
-                        onChange={(e) => setReplyDraft(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handlePostReply(c.id);
-                        }}
-                        placeholder={`Répondre à ${c.name}…`}
-                        style={{ flex: 1, minWidth: 0, border: "1px solid #e0e0e0", background: "#fafafa", padding: "7px 10px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#333", outline: "none" }}
-                      />
-                      <button
-                        onClick={() => handlePostReply(c.id)}
-                        style={{ border: "none", background: accent, color: "#fff", padding: "7px 12px", flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", display: "flex", alignItems: "center" }}
-                      ><Send size={13} /></button>
-                    </div>
-                  )}
-
-
-                  {/* Sub-comments */}
-                  {repliesOpen && c.replies?.length > 0 && (
-                    <div style={{ marginLeft: 38, marginTop: 8, borderLeft: `2px solid #f0f0f0`, paddingLeft: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-                      {c.replies.map((r) => {
-                        const rLiked = likedCommentIds.has(r.id);
-                        return (
-                          <div key={r.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                            <div style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #e0e0e0", background: r.isMine ? "#111" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              {r.isMine ? (
-                                <span style={{ color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700 }}>{r.name.charAt(0)}</span>
-                              ) : (
-                                <EntityAvatar url={r.avatarUrl} name={r.name} />
-                              )}
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
-                                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#333" }}>{r.name}</span>
-                                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#bbb" }}>
-                                  {r.minutesAgo === 0 ? "À l'instant" : `il y a ${fmtCommentTime(r.minutesAgo)}`}
-                                </span>
-                              </div>
-                              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#555", lineHeight: 1.4, margin: "0 0 4px" }}>{r.text}</p>
-                              <button onClick={() => handleToggleLike(r.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: rLiked ? "#e74c3c" : "#bbb" }}>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill={rLiked ? "#e74c3c" : "none"} stroke={rLiked ? "#e74c3c" : "#bbb"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                                {r.likes + (rLiked ? 1 : 0)}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        )}
 
       </div>
 
@@ -2930,7 +4761,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
       {!isRegistration && showGiftBar && (
         <div style={{
           position: "fixed", bottom: 0, left: 0, right: 0,
-          background: "#fff",
+          background: "#1a1a1a",
           borderTop: `2px solid ${accent}`,
           zIndex: 1001, padding: "14px 16px calc(10px + env(safe-area-inset-bottom, 0px))",
           boxShadow: "0 -4px 24px rgba(0,0,0,0.1)",
@@ -2959,12 +4790,12 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                       setGiftStep("participant");
                       setSelectedParticipant(null);
                     }}
-                    style={{ border: "none", background: "none", cursor: "pointer", color: "#888", padding: 0, lineHeight: 0, display: "flex", alignItems: "center" }}
+                    style={{ border: "none", background: "none", cursor: "pointer", color: "#7a7a7a", padding: 0, lineHeight: 0, display: "flex", alignItems: "center" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/></svg>
                   </button>
                 )}
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                   {giftStep === "participant"
                     ? "Choisir un participant"
                     : giftStep === "gift"
@@ -2975,7 +4806,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>
                   <Wallet size={14} strokeWidth={2.5} color={accent} />
                   {balance.toLocaleString("fr-FR")} HTG
                 </span>
@@ -2989,7 +4820,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                     setGiftPin("");
                     setGiftPinError(false);
                   }}
-                  style={{ border: "none", background: "#f5f5f5", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", color: "#666", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  style={{ border: "none", background: "#242424", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", color: "#9a9a9a", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                 >
                   <X size={14} strokeWidth={2.5} />
                 </button>
@@ -3000,7 +4831,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
             {giftStep === "participant" && (
               <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
                 {giftableParticipants.length === 0 ? (
-                  <div style={{ padding: "12px 4px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#aaa" }}>
+                  <div style={{ padding: "12px 4px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
                     Aucun participant à qui envoyer un cadeau pour le moment.
                   </div>
                 ) : giftableParticipants.slice(0, Math.min(comp.contestants, 15)).map((p) => (
@@ -3011,8 +4842,8 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                       flexShrink: 0, width: 72,
                       display: "flex", flexDirection: "column",
                       alignItems: "center", gap: 5,
-                      border: "1px solid #ddd",
-                      background: "#fff",
+                      border: "1px solid #3a3a3a",
+                      background: "#1a1a1a",
                       padding: "8px 4px",
                       cursor: "pointer",
                       transition: "border-color 0.15s, background 0.15s",
@@ -3021,10 +4852,10 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                     <div style={{ width: 36, height: 36, borderRadius: "50%", overflow: "hidden", border: `2px solid ${accent}22` }}>
                       <EntityAvatar url={p.avatarUrl} name={p.name} />
                     </div>
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#333", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 64 }}>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#c4c4c4", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 64 }}>
                       {p.name.split(" ")[0]}
                     </span>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, color: "#aaa" }}>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, color: "#7a7a7a" }}>
                       {fmtVotes(p.votes)} pts
                     </span>
                   </button>
@@ -3082,7 +4913,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                       >
                         <AnimatedGiftIcon emoji={gift.icon} size={44} />
                       </div>
-                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: affordable ? accent : "#bbb" }}>
+                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 800, color: affordable ? accent : "#7a7a7a" }}>
                         {gift.cost.toLocaleString("fr-FR")}
                       </span>
                     </button>
@@ -3098,22 +4929,22 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                   <>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "10px 0 18px" }}>
                       <AnimatedGiftIcon emoji={selectedGift.icon} size={72} />
-                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#666" }}>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#9a9a9a" }}>
                         {selectedGift.name}
                       </span>
                     </div>
 
-                    <div style={{ border: "1px solid #eee", borderRadius: 12, padding: "14px 16px", marginBottom: 14 }}>
+                    <div style={{ border: "1px solid #2a2a2a", borderRadius: 12, padding: "14px 16px", marginBottom: 14 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888" }}>Destinataire</span>
-                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>{selectedParticipant?.name}</span>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>Destinataire</span>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>{selectedParticipant?.name}</span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888" }}>Points</span>
-                        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>{selectedGift.cost.toLocaleString("fr-FR")} pts</span>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>Points</span>
+                        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>{selectedGift.cost.toLocaleString("fr-FR")} pts</span>
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 10, borderTop: "1px solid #f0f0f0" }}>
-                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#111" }}>Total à payer</span>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 10, borderTop: "1px solid #2a2a2a" }}>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#f2f2f2" }}>Total à payer</span>
                         <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 800, color: accent }}>
                           {giftPriceHTG(selectedGift).toLocaleString("fr-FR")} HTG
                         </span>
@@ -3137,9 +4968,9 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
 
                 {giftConfirmPhase === "pin" && (
                   <>
-                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#666", lineHeight: 1.5, marginBottom: 14, textAlign: "center" }}>
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9a9a9a", lineHeight: 1.5, marginBottom: 14, textAlign: "center" }}>
                       Entrez votre code PIN à 4 chiffres pour confirmer le paiement de{" "}
-                      <strong style={{ color: "#111" }}>{giftPriceHTG(selectedGift).toLocaleString("fr-FR")} HTG</strong>.
+                      <strong style={{ color: "#f2f2f2" }}>{giftPriceHTG(selectedGift).toLocaleString("fr-FR")} HTG</strong>.
                     </p>
                     <input
                       type="password"
@@ -3154,7 +4985,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                       style={{
                         width: "100%", textAlign: "center", letterSpacing: "0.5em",
                         fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 700,
-                        border: `1px solid ${giftPinError ? "#E74C3C" : "#ddd"}`,
+                        border: `1px solid ${giftPinError ? "#E74C3C" : "#3a3a3a"}`,
                         borderRadius: 10, padding: "12px 0", marginBottom: 8,
                         outline: "none",
                       }}
@@ -3267,7 +5098,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                       }}
                       style={{
                         width: "100%", border: "none", borderRadius: 10,
-                        background: giftPin.length === 4 && !giftSubmitting ? "#111" : "#ccc",
+                        background: giftPin.length === 4 && !giftSubmitting ? "#0d0d0d" : "#242424",
                         color: "#fff",
                         fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 700,
                         padding: "13px 0",
@@ -3286,22 +5117,22 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
 
       {/* ── DONOR GIFT HISTORY SCREEN ── */}
       {selectedDonor && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 1300, background: "#F2F2F0", overflowY: "auto" }}>
-          <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#fff", borderBottom: "1px solid #e0e0e0", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 1300, background: "#242424", overflowY: "auto" }}>
+          <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#1a1a1a", borderBottom: "1px solid #2a2a2a", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
             <button
               onClick={() => setSelectedDonor(null)}
-              style={{ border: "none", background: "#f5f5f5", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#333", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+              style={{ border: "none", background: "#242424", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#c4c4c4", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
             >
               <ArrowLeft size={17} strokeWidth={2.5} />
             </button>
-            <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "2px solid #eee" }}>
-              <EntityAvatar url={selectedDonor.avatarUrl} name={selectedDonor.name} bg={selectedDonor.isMe ? "#111" : "#ddd"} color={selectedDonor.isMe ? "#fff" : "#666"} />
+            <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "2px solid #2a2a2a" }}>
+              <EntityAvatar url={selectedDonor.avatarUrl} name={selectedDonor.name} bg={selectedDonor.isMe ? "#0d0d0d" : "#242424"} color={selectedDonor.isMe ? "#fff" : "#9a9a9a"} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 700, color: "#f2f2f2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {selectedDonor.name}
               </span>
-              <span style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#999" }}>
+              <span style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a" }}>
                 {selectedDonor.giftCount} cadeau{selectedDonor.giftCount > 1 ? "x" : ""} · 🪙 {formatCoins(selectedDonor.totalSpent)} points au total
               </span>
             </div>
@@ -3311,7 +5142,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
             {(!selectedDonor.gifts || selectedDonor.gifts.length === 0) ? (
               <div style={{ textAlign: "center", padding: "40px 0" }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>🎁</div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>Aucun cadeau enregistré</div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>Aucun cadeau enregistré</div>
               </div>
             ) : (() => {
               const sortedGifts = [...selectedDonor.gifts].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -3340,8 +5171,8 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                         style={{
                           flexShrink: 0, border: "none", borderRadius: 999,
                           padding: "7px 16px",
-                          background: donorTab === "all" ? "#111" : "#f0f0f0",
-                          color: donorTab === "all" ? "#fff" : "#666",
+                          background: donorTab === "all" ? "#0d0d0d" : "#242424",
+                          color: donorTab === "all" ? "#fff" : "#9a9a9a",
                           fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
                           cursor: "pointer", whiteSpace: "nowrap",
                         }}
@@ -3356,8 +5187,8 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                             flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
                             border: "none", borderRadius: 999,
                             padding: "6px 14px",
-                            background: donorTab === grp.name ? "#111" : "#f0f0f0",
-                            color: donorTab === grp.name ? "#fff" : "#666",
+                            background: donorTab === grp.name ? "#0d0d0d" : "#242424",
+                            color: donorTab === grp.name ? "#fff" : "#9a9a9a",
                             fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 800,
                             cursor: "pointer", whiteSpace: "nowrap",
                           }}
@@ -3376,19 +5207,19 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                         style={{
                           display: "flex", alignItems: "center", gap: 12,
                           padding: "13px 4px",
-                          borderBottom: i === filteredGifts.length - 1 ? "none" : "1px solid #ececec",
+                          borderBottom: i === filteredGifts.length - 1 ? "none" : "1px solid #2a2a2a",
                         }}
                       >
                         <div style={{ flexShrink: 0 }}>
                           <AnimatedGiftIcon emoji={g.icon} size={26} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13.5, fontWeight: 600, color: "#1a1a1a" }}>{g.name}</div>
-                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10.5, color: "#aaa", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13.5, fontWeight: 600, color: "#f2f2f2" }}>{g.name}</div>
+                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10.5, color: "#7a7a7a", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                             {g.recipientName ? `À ${g.recipientName} · ` : ""}{fmtAgoFr(Math.max(0, Math.floor((Date.now() - (g.timestamp || Date.now())) / 60000)))}
                           </div>
                         </div>
-                        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#111", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+                        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#f2f2f2", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
                           {g.cost.toLocaleString("fr-FR")}
                         </div>
                       </div>
@@ -3401,113 +5232,356 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
         </div>
       )}
 
-      {/* ── STICKY FOOTER CTA ── */}
-      {/* Comment composer on the Home and Live tabs (registration or not);
-          Register/Edit CTA on Participants/Médias/Donateurs. */}
-      {!showGiftBar && (() => {
-        const showComposerFooter = activeTab === "home" || activeTab === "live";
-        return (
-      <div style={{
-        position: "fixed", bottom: showComposerFooter ? 0 : 8, left: showComposerFooter ? 0 : 8, right: showComposerFooter ? 0 : 8,
-        background: "#fff",
-        borderTop: showComposerFooter ? "1px solid #eee" : "none",
-        borderRadius: showComposerFooter ? 0 : 20,
-        boxShadow: showComposerFooter ? "0 -2px 16px rgba(0,0,0,0.06)" : "0 -2px 24px rgba(0,0,0,0.15)",
-        padding: showComposerFooter ? "8px 10px calc(8px + env(safe-area-inset-bottom, 0px))" : "10px 12px",
-        zIndex: 1001,
-      }}>
+      {/* ── COMMENTS PANEL BACKDROP + SHEET ── */}
+      {/* Opened by tapping the comment-count button in the footer. Nests
+          three tabs: Comments (with a composer), Cadeaux (every gift sent —
+          who sent what to whom), and — while live only, since gifts can
+          only be sent during live — Donateurs, the top-donors leaderboard.
+          The footer's gift button no longer opens a view here; it's
+          dedicated solely to starting the send-a-gift flow. */}
+      {showCommentsPanel && (
+        <div
+          onClick={() => setShowCommentsPanel(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+          }}
+        />
+      )}
+      {showCommentsPanel && (
         <div style={{
-          maxWidth: 800, margin: "0 auto",
-          display: "flex", alignItems: "center", gap: 8,
+          position: "fixed", bottom: 0, left: 0, right: 0,
+          background: "#1a1a1a",
+          borderRadius: "16px 16px 0 0",
+          zIndex: 1001, height: "78vh", maxHeight: "78vh",
+          display: "flex", flexDirection: "column",
+          boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
         }}>
-          {!showComposerFooter ? (
-            isOwnCompetition ? (
-              <button
-                onClick={() => setShowEditModal(true)}
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderRadius: 999,
-                  background: "#f2f2f2",
-                  color: "#333",
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  padding: "13px 16px",
-                  cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                }}
-              >
-                <BadgeCheck size={15} strokeWidth={2.5} />
-                Modifier ma compétition
-              </button>
-            ) : isRegistered ? (
-              <div
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderRadius: 999,
-                  background: "#e8f8f3",
-                  color: "#00875A",
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  padding: "13px 16px",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                }}
-              >
-                <Check size={15} strokeWidth={2.5} />
-                Vous êtes inscrit
-              </div>
-            ) : (
-            // Registration footer
+          {/* Header */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "14px 16px", borderBottom: commentsPanelTab === "comments" ? "1px solid #2a2a2a" : "none", flexShrink: 0,
+          }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#f2f2f2" }}>
+              {commentsPanelTab === "comments"
+                ? `Commentaires · ${comments.length}`
+                : commentsPanelTab === "gifts"
+                ? `Cadeaux envoyés · ${giftFeedItems.length}`
+                : "Top Donateurs"}
+            </span>
             <button
-              onClick={() => {
-                onRegister?.(comp);
-                onClose();
-              }}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 999,
-                background: "#6C63FF",
-                color: "#fff",
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontWeight: 700,
-                fontSize: 13,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                padding: "13px 16px",
-                cursor: "pointer",
-                boxShadow: "0 4px 14px rgba(108,99,255,0.35)",
-                transition: "background 0.2s",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              }}
+              onClick={() => setShowCommentsPanel(false)}
+              style={{ border: "none", background: "#242424", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", color: "#9a9a9a", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
-              <Plus size={15} strokeWidth={2.5} />
-              S'inscrire maintenant
+              <X size={14} strokeWidth={2.5} />
             </button>
-            )
-          ) : (
-            // Voting footer — comment input with sticker + gift embedded, swapping to a send icon while typing
-            (() => {
-              const isTyping = commentDraft.trim().length > 0;
-              // Admins/organizers manage their own competition, they don't send themselves gifts —
-              // so the gift button is swapped out for an edit entry point instead. Once the
-              // competition is completed there's no one left to vote for, so the gift option
-              // disappears entirely rather than opening a flow with nothing to send to. And
-              // gifting itself isn't available until the competition goes live, so it's hidden
-              // during registration too.
-              const showGiftOption = !isOwnCompetition && !isRegistered && !isCompleted && !isRegistration;
-              // The composer now also covers the Home tab, which used to be the only place
-              // the Register CTA lived — so give unregistered visitors a way to register
-              // right from here too, in the same slot the Edit button occupies for organizers.
-              const showRegisterButton = isRegistration && !isOwnCompetition && !isRegistered;
-              return (
+          </div>
+
+          {/* Comments / Cadeaux / Donateurs tab switcher — Cadeaux hidden
+              during registration (no gifts exist yet), Donateurs shown
+              only while live. */}
+          {(!isRegistration || isLive) && (
+            <div style={{ display: "flex", borderBottom: "1px solid #2a2a2a", flexShrink: 0 }}>
+              {[
+                { key: "comments", label: "Commentaires" },
+                ...(!isRegistration ? [{ key: "gifts", label: "Cadeaux" }] : []),
+                ...(isLive ? [{ key: "donateurs", label: "Donateurs" }] : []),
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setCommentsPanelTab(tab.key)}
+                  style={{
+                    flex: 1, border: "none", background: "none", cursor: "pointer",
+                    padding: "11px 4px 9px",
+                    fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700,
+                    color: commentsPanelTab === tab.key ? "#f2f2f2" : "#7a7a7a",
+                    borderBottom: commentsPanelTab === tab.key ? `2px solid ${accent}` : "2px solid transparent",
+                    transition: "color 0.15s, border-color 0.15s",
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* ── Comments tab ── */}
+          {commentsPanelTab === "comments" && (
+          <>
+          {/* List */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "4px 16px" }}>
+            {commentsLoading ? (
+              <div style={{ textAlign: "center", padding: "24px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
+                Chargement…
+              </div>
+            ) : commentFeedItems.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "24px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
+                Aucun commentaire pour le moment. Soyez le premier !
+              </div>
+            ) : commentFeedItems.map((item, i) => renderCommentEntry(item, i === commentFeedItems.length - 1))}
+          </div>
+
+          {/* Composer — same posting logic as before, just living inside the panel now */}
+          <div style={{ borderTop: "1px solid #2a2a2a", padding: "10px 16px calc(10px + env(safe-area-inset-bottom, 0px))", flexShrink: 0 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                type="text"
+                autoFocus
+                value={commentDraft}
+                onChange={(e) => setCommentDraft(e.target.value)}
+                onFocus={() => { if (!currentUser) onRequestAuth?.(); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
+                placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
+                style={{
+                  width: "100%", minWidth: 0, border: "1px solid #2a2a2a", borderRadius: 999,
+                  background: "#242424", padding: "11px 52px 11px 16px",
+                  fontFamily: "Inter, sans-serif", fontSize: 13, color: "#f2f2f2", outline: "none",
+                }}
+              />
+              <button
+                onClick={handlePostComment}
+                disabled={!commentDraft.trim()}
+                style={{
+                  position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+                  width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
+                  border: "none", background: commentDraft.trim() ? accent : "#242424",
+                  cursor: commentDraft.trim() ? "pointer" : "default",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Send size={15} color="#fff" strokeWidth={2.2} />
+              </button>
+            </div>
+          </div>
+          </>
+          )}
+
+          {/* ── Cadeaux (gifts sent) tab — who sent what to whom ── */}
+          {commentsPanelTab === "gifts" && (
+            <div style={{ flex: 1, overflowY: "auto", padding: "8px 16px" }}>
+              {giftRowsLoading ? (
+                <div style={{ textAlign: "center", padding: "24px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
+                  Chargement…
+                </div>
+              ) : giftFeedItems.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "24px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
+                  Aucun cadeau envoyé pour le moment.
+                </div>
+              ) : giftFeedItems.map((item, i) => {
+                const entry = item.entry;
+                const isLast = i === giftFeedItems.length - 1;
+                return (
+                  <div key={item.key} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "10px 0",
+                    borderBottom: isLast ? "none" : "1px solid #242424",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <div style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: "1px solid #2a2a2a" }}>
+                        <EntityAvatar url={entry.senderAvatarUrl} name={entry.senderName || "Utilisateur"} />
+                      </div>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12.5, color: "#c4c4c4", fontWeight: 500, minWidth: 0 }}>
+                        <span style={{ fontWeight: 700 }}>{entry.senderName || "Utilisateur"}</span>
+                        {" "}a envoyé{" "}
+                        <span style={{ fontSize: 15 }}>{entry.gift.icon}</span>{" "}
+                        <span style={{ fontWeight: 700, color: accent }}>{entry.gift.name}</span>
+                        {" "}à{" "}
+                        <span style={{ color: accent, fontWeight: 700 }}>{entry.pName || fakeName(entry.pIndex)}</span>
+                      </span>
+                    </div>
+                    <span style={{
+                      fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a",
+                      fontWeight: 500, flexShrink: 0, marginLeft: 10,
+                    }}>{entry.ago}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── Donateurs tab — top-donor leaderboard, only reachable while live ── */}
+          {isLive && commentsPanelTab === "donateurs" && (
+            <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
+              {giftLeaderboard.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "24px 0" }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>🎁</div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a" }}>
+                    Soyez le premier à envoyer un cadeau !
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {giftLeaderboard.map((donor, i) => {
+                    const isFirst = i === 0;
+                    const medals = ["🥇", "🥈", "🥉"];
+                    return (
+                      <div
+                        key={donor.id}
+                        onClick={() => { setSelectedDonor(donor); setDonorTab("all"); }}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "10px 10px",
+                          background: isFirst ? `${accent}0f` : donor.isMe ? "#242424" : "#1a1a1a",
+                          border: isFirst ? `1px solid ${accent}33` : donor.isMe ? "1px solid #2a2a2a" : "1px solid transparent",
+                          transition: "background 0.2s",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {/* Rank */}
+                        <div style={{ width: 24, textAlign: "center", flexShrink: 0 }}>
+                          {i < 3 ? (
+                            <span style={{ fontSize: 16 }}>{medals[i]}</span>
+                          ) : (
+                            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#7a7a7a" }}>#{i + 1}</span>
+                          )}
+                        </div>
+                        {/* Avatar */}
+                        <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: isFirst ? `2px solid ${accent}` : "2px solid #2a2a2a" }}>
+                          <EntityAvatar url={donor.avatarUrl} name={donor.name} bg={donor.isMe ? "#0d0d0d" : "#242424"} color={donor.isMe ? "#fff" : "#9a9a9a"} />
+                        </div>
+                        {/* Info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: isFirst ? accent : "#f2f2f2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {donor.name}
+                            </span>
+                            {donor.isMe && <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: accent, background: `${accent}18`, padding: "1px 5px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Vous</span>}
+                            {isFirst && <span style={{ fontSize: 13 }}>👑</span>}
+                          </div>
+                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginTop: 1 }}>
+                            {donor.giftCount} cadeau{donor.giftCount > 1 ? "x" : ""} · meilleur: {donor.topGift}
+                          </div>
+                        </div>
+                        {/* Total */}
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: isFirst ? accent : "#c4c4c4" }}>
+                            🪙 {formatCoins(donor.totalSpent)}
+                          </div>
+                          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>points</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── STICKY FOOTER: SOCIAL INTERACTION BAR ── */}
+      {!showGiftBar && !showCommentsPanel && (() => {
+        const isTyping = commentDraft.trim().length > 0;
+        const glassmorphismBackground = "rgba(0,0,0,0.15)";
+        const glassmorphismBorder = "1px solid rgba(255,255,255,0.15)";
+        const glassmorphismBlur = "blur(6px)";
+
+        return (
+          <div style={{
+            position: "fixed", bottom: 0, left: 0, right: 0,
+            background: "transparent",
+            borderTop: "none",
+            boxShadow: "none",
+            padding: "8px 10px calc(8px + env(safe-area-inset-bottom, 0px))",
+            zIndex: 1001,
+          }}>
+            <div style={{
+              maxWidth: 800, margin: "0 auto",
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              {showRegisterButton ? (
+                <>
+                  {/* Register — wide primary action, solid background (not glass) */}
+                  <button
+                    onClick={() => {
+                      if (!currentUser) {
+                        onRequestAuth?.();
+                        return;
+                      }
+                      onRegister?.(comp);
+                      showToast?.("Inscription confirmée !");
+                    }}
+                    style={{
+                      flex: 1, height: 44, minWidth: 0, borderRadius: 999,
+                      border: "none", background: "#6C63FF",
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      boxShadow: "0 2px 8px rgba(108,99,255,0.35)",
+                    }}
+                  >
+                    <Plus size={18} color="#fff" strokeWidth={2.5} />
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 700, color: "#fff" }}>
+                      S'inscrire
+                    </span>
+                  </button>
+
+                  {/* Comments & Share — icon with diagonal badge counter */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                    <button
+                      onClick={() => setShowCommentsPanel(true)}
+                      title="Commentaires"
+                      style={{
+                        position: "relative",
+                        width: 40, height: 40, borderRadius: "50%",
+                        border: glassmorphismBorder, background: glassmorphismBackground,
+                        backdropFilter: glassmorphismBlur,
+                        WebkitBackdropFilter: glassmorphismBlur,
+                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <MessageCircle size={23} color="#fff" strokeWidth={2} />
+                      {comments.length > 0 && (
+                        <span style={{
+                          position: "absolute", top: -4, right: -4,
+                          minWidth: 16, height: 16, padding: "0 4px",
+                          borderRadius: 999, background: "#e74c3c", color: "#fff",
+                          border: "1.5px solid #1a1a1a",
+                          fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          lineHeight: 1,
+                          transform: "translate(25%, -25%)",
+                        }}>
+                          {comments.length}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={handleShareTap}
+                      disabled={isSharing}
+                      title="Partager"
+                      style={{
+                        position: "relative",
+                        width: 40, height: 40, borderRadius: "50%",
+                        border: glassmorphismBorder, background: glassmorphismBackground,
+                        backdropFilter: glassmorphismBlur,
+                        WebkitBackdropFilter: glassmorphismBlur,
+                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      {isSharing ? (
+                        <Loader2 size={23} color="#fff" strokeWidth={2} style={{ animation: "share-spin 0.6s linear infinite" }} />
+                      ) : (
+                        <PiShareFat size={23} color="#fff" strokeWidth={2} />
+                      )}
+                      {shareCount > 0 && (
+                        <span style={{
+                          position: "absolute", top: -4, right: -4,
+                          minWidth: 16, height: 16, padding: "0 4px",
+                          borderRadius: 999, background: accent, color: "#fff",
+                          border: "1.5px solid #1a1a1a",
+                          fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          lineHeight: 1,
+                          transform: "translate(25%, -25%)",
+                        }}>
+                          {shareCount}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </>
+              ) : (
                 <>
                   <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
                     <input
@@ -3518,120 +5592,190 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                       onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
                       placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
                       style={{
-                        width: "100%", minWidth: 0, border: "1px solid #ececec", borderRadius: 999,
-                        background: "#f5f5f5",
-                        padding: isTyping ? "11px 52px 11px 16px" : (showGiftOption ? "11px 90px 11px 16px" : "11px 52px 11px 16px"),
+                        width: "100%", minWidth: 0, borderRadius: 999,
+                        border: "1px solid rgba(255,255,255,0.15)", background: "#1a1a1a",
+                        padding: isTyping ? "11px 52px 11px 16px" : "11px 16px",
                         fontFamily: "Inter, sans-serif", fontSize: 13,
-                        color: "#111", outline: "none",
+                        color: "#fff", outline: "none",
                         transition: "padding 0.15s",
                       }}
                     />
-
-                    {isTyping ? (
-                      /* Send button — replaces sticker + gift while typing */
+                    {isTyping && (
                       <button
                         onClick={handlePostComment}
                         style={{
                           position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
                           width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
-                          border: "none", background: accent,
+                          border: glassmorphismBorder, background: glassmorphismBackground,
+                          backdropFilter: glassmorphismBlur,
+                          WebkitBackdropFilter: glassmorphismBlur,
                           boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
                           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                         }}
                       >
                         <Send size={15} color="#fff" strokeWidth={2.2} />
                       </button>
-                    ) : (
-                      <div style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 6 }}>
-                        {/* Sticker button */}
-                        <button
-                          title="Autocollants"
-                          style={{
-                            width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
-                            border: "none", background: "transparent",
-                            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                          }}
-                        >
-                          <Sticker size={17} color="#888" strokeWidth={2} />
-                        </button>
-
-                        {/* Gift button — hidden for the organizer/admin of this competition */}
-                        {showGiftOption && (
-                          <button
-                            onClick={() => {
-                              if (!currentUser) {
-                                onRequestAuth?.();
-                                return;
-                              }
-                              setShowGiftBar((v) => {
-                                if (v) {
-                                  setGiftStep("participant");
-                                  setSelectedParticipant(null);
-                                  setSelectedGift(null);
-                                  setGiftConfirmPhase("summary");
-                                  setGiftPin("");
-                                  setGiftPinError(false);
-                                }
-                                return !v;
-                              });
-                            }}
-                            style={{
-                              width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
-                              border: "none", background: showGiftBar ? `${accent}18` : "transparent",
-                              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                            }}
-                          >
-                            <Gift size={17} color={accent} strokeWidth={2.2} />
-                          </button>
-                        )}
-                      </div>
                     )}
                   </div>
 
-                  {/* Edit button — lives outside the input, replacing the gift entry point for the organizer/admin */}
-                  {isOwnCompetition ? (
-                    <button
-                      onClick={() => setShowEditModal(true)}
-                      title="Modifier la compétition"
-                      style={{
-                        width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
-                        border: "none", background: `${accent}18`,
-                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                      }}
-                    >
-                      <Pencil size={17} color={accent} strokeWidth={2.3} />
-                    </button>
-                  ) : showRegisterButton ? (
-                    /* Register button — same slot as Edit, gives unregistered visitors a way
-                       to register right from the composer during the registration phase. */
+                  {/* Comments — standalone button with diagonal badge counter */}
+                  <button
+                    onClick={() => setShowCommentsPanel(true)}
+                    title="Commentaires"
+                    style={{
+                      flexShrink: 0, width: 40, height: 40, borderRadius: "50%",
+                      border: glassmorphismBorder, background: glassmorphismBackground,
+                      backdropFilter: glassmorphismBlur,
+                      WebkitBackdropFilter: glassmorphismBlur,
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      position: "relative",
+                    }}
+                  >
+                    <MessageCircle size={21} color="#fff" strokeWidth={2} />
+                    {comments.length > 0 && (
+                      <span style={{
+                        position: "absolute", top: -4, right: -4,
+                        minWidth: 16, height: 16, padding: "0 4px",
+                        borderRadius: 999, background: "#e74c3c", color: "#fff",
+                        border: "1.5px solid #1a1a1a",
+                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        lineHeight: 1,
+                        transform: "translate(25%, -25%)",
+                      }}>
+                        {comments.length}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Share — standalone button with diagonal badge counter */}
+                  <button
+                    onClick={handleShareTap}
+                    disabled={isSharing}
+                    title="Partager"
+                    style={{
+                      flexShrink: 0, width: 40, height: 40, borderRadius: "50%",
+                      border: glassmorphismBorder, background: glassmorphismBackground,
+                      backdropFilter: glassmorphismBlur,
+                      WebkitBackdropFilter: glassmorphismBlur,
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      position: "relative",
+                    }}
+                  >
+                    {isSharing ? (
+                      <Loader2 size={21} color="#fff" strokeWidth={2} style={{ animation: "share-spin 0.6s linear infinite" }} />
+                    ) : (
+                      <PiShareFat size={21} color="#fff" strokeWidth={2} />
+                    )}
+                    {shareCount > 0 && (
+                      <span style={{
+                        position: "absolute", top: -4, right: -4,
+                        minWidth: 16, height: 16, padding: "0 4px",
+                        borderRadius: 999, background: accent, color: "#fff",
+                        border: "1.5px solid #1a1a1a",
+                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        lineHeight: 1,
+                        transform: "translate(25%, -25%)",
+                      }}>
+                        {shareCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Gifts — standalone button, dedicated solely to sending a gift.
+                      Viewing gifts sent / donateurs now lives inside the
+                      Comments panel instead. Only shown when the viewer is
+                      actually eligible to send. */}
+                  {showGiftOption && (
                     <button
                       onClick={() => {
                         if (!currentUser) {
                           onRequestAuth?.();
                           return;
                         }
-                        onRegister?.(comp);
-                        showToast?.("Inscription confirmée !");
+                        setGiftStep("participant");
+                        setSelectedParticipant(null);
+                        setSelectedGift(null);
+                        setGiftConfirmPhase("summary");
+                        setGiftPin("");
+                        setGiftPinError(false);
+                        setShowGiftBar(true);
                       }}
-                      title="S'inscrire"
+                      title="Envoyer un cadeau"
                       style={{
-                        width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
-                        border: "none", background: "#6C63FF",
+                        flexShrink: 0, width: 40, height: 40, borderRadius: "50%",
+                        border: glassmorphismBorder, background: glassmorphismBackground,
+                        backdropFilter: glassmorphismBlur,
+                        WebkitBackdropFilter: glassmorphismBlur,
                         cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                        boxShadow: "0 2px 8px rgba(108,99,255,0.35)",
+                        position: "relative",
                       }}
                     >
-                      <Plus size={18} color="#fff" strokeWidth={2.5} />
+                      <Gift size={21} color="#fff" strokeWidth={2} />
+                      {giftRows.length > 0 && (
+                        <span style={{
+                          position: "absolute", top: -4, right: -4,
+                          minWidth: 16, height: 16, padding: "0 4px",
+                          borderRadius: 999, background: accent, color: "#fff",
+                          border: "1.5px solid #1a1a1a",
+                          fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          lineHeight: 1,
+                          transform: "translate(25%, -25%)",
+                        }}>
+                          {giftRows.length}
+                        </span>
+                      )}
                     </button>
+                  )}
+
+                  {/* Outer slot — Edit for organizers, a subtle registered check otherwise, or nothing. */}
+                  {isOwnCompetition ? (
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      title="Modifier la compétition"
+                      style={{
+                        width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
+                        border: glassmorphismBorder, background: glassmorphismBackground,
+                        backdropFilter: glassmorphismBlur,
+                        WebkitBackdropFilter: glassmorphismBlur,
+                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <Pencil size={17} color="#fff" strokeWidth={2.3} />
+                    </button>
+                  ) : showRegisteredBadge ? (
+                    <div
+                      title="Vous êtes inscrit"
+                      style={{
+                        width: 40, height: 40, flexShrink: 0, borderRadius: "50%",
+                        border: glassmorphismBorder, background: glassmorphismBackground,
+                        backdropFilter: glassmorphismBlur,
+                        WebkitBackdropFilter: glassmorphismBlur,
+                        color: "#fff",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <Check size={17} strokeWidth={2.5} />
+                    </div>
                   ) : null}
                 </>
-              );
-            })()
-          )}
-        </div>
-      </div>
+              )}
+            </div>
+          </div>
         );
       })()}
+      <style>{`@keyframes share-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+
+      {showShareSheet && (
+        <ShareSheet
+          comp={comp}
+          accent={accent}
+          onClose={() => setShowShareSheet(false)}
+          onShared={() => setShareCount((n) => n + 1)}
+        />
+      )}
 
       {/* ── FLOATING LIVE COMMENTARY BUTTON ── */}
       {/* TEST STREAM: using SomaFM's free, freely-streamable "Groove Salad"
@@ -3642,7 +5786,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
           style={{
             position: "fixed",
             right: 14,
-            bottom: (isRegistration ? 8 : 0) + 78,
+            bottom: 78,
             zIndex: 1050,
             display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6,
           }}
@@ -3682,7 +5826,7 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
             <span style={{
               position: "absolute", top: -2, right: -2,
               width: 12, height: 12, borderRadius: "50%",
-              background: "#e74c3c", border: "2px solid #fff",
+              background: "#e74c3c", border: "2px solid #1a1a1a",
               animation: "pulse-dot 1.2s infinite",
             }} />
           </button>
@@ -3691,14 +5835,14 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
       )}
 
       {showAll && (
-        <ParticipantListOverlay comp={comp} onClose={() => setShowAll(false)} />
+        <ParticipantListOverlay comp={comp} participants={ranked} onClose={() => setShowAll(false)} />
       )}
 
       {showAllAlbums && (
         <AlbumGridOverlay
           items={approvedUploads.filter((u) => u.uploader_id !== currentUser?.id)}
           onClose={() => setShowAllAlbums(false)}
-          onOpenItem={(item) => setMediaLightbox(item)}
+          onOpenItem={(list, item) => openStories(list, item)}
         />
       )}
 
@@ -3714,6 +5858,44 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
         />
       )}
 
+      {showParticipantsSheet && (
+        <ParticipantsSheet
+          comp={comp}
+          accent={accent}
+          isRegistration={isRegistration}
+          liveRegistered={liveRegistered}
+          registrants={registrants}
+          registrantsLoading={registrantsLoading}
+          ranked={ranked}
+          topPoints={topPoints}
+          currentUser={currentUser}
+          canRemove={canRemoveParticipants}
+          onRemove={handleRemoveParticipant}
+          removingRegistrantId={removingRegistrantId}
+          onClose={() => setShowParticipantsSheet(false)}
+          onShowAllRegistrants={() => { setShowParticipantsSheet(false); setShowAllRegistrants(true); }}
+          onShowAllRanked={() => { setShowParticipantsSheet(false); setShowAll(true); }}
+        />
+      )}
+
+      {showMediaSheet && (
+        <MediaSheet
+          accent={accent}
+          isRegistration={isRegistration}
+          approvedUploads={approvedUploads}
+          pendingUploads={pendingUploads}
+          participantUploads={participantUploads}
+          currentUser={currentUser}
+          isRegistered={isRegistered}
+          participants={participantsFull}
+          onOpenItem={(list, item) => { setShowMediaSheet(false); openStories(list, item); }}
+          onOpenAlbum={() => { setShowMediaSheet(false); setAlbumSheet(true); }}
+          onOpenAllAlbums={() => { setShowMediaSheet(false); setShowAllAlbums(true); }}
+          onReviewUpload={reviewUpload}
+          onClose={() => setShowMediaSheet(false)}
+        />
+      )}
+
       {albumSheet && (
         <AlbumSheet
           accent={accent}
@@ -3724,48 +5906,54 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
         />
       )}
 
-      {mediaLightbox && (
-        <MediaLightbox item={mediaLightbox} onClose={() => setMediaLightbox(null)} />
+      {storyViewer && (
+        <MediaStoriesViewer
+          groups={storyViewer.groups}
+          groupIndex={storyViewer.groupIndex}
+          itemIndex={storyViewer.itemIndex}
+          onChangePosition={(g, i) => setStoryViewer((prev) => (prev ? { ...prev, groupIndex: g, itemIndex: i } : prev))}
+          onClose={() => setStoryViewer(null)}
+        />
       )}
 
       {showEditModal && (
         <div style={{
-          position: "fixed", inset: 0, background: "#fff",
+          position: "fixed", inset: 0, background: "#1a1a1a",
           zIndex: 2000, display: "flex", flexDirection: "column",
         }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "16px 16px", borderBottom: "1px solid #eee", flexShrink: 0,
+            padding: "16px 16px", borderBottom: "1px solid #2a2a2a", flexShrink: 0,
           }}>
             <button onClick={() => setShowEditModal(false)} style={{ border: "none", background: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}>
-              <ArrowLeft size={20} color="#333" />
+              <ArrowLeft size={20} color="#c4c4c4" />
             </button>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#f2f2f2" }}>
               Modifier la compétition
             </span>
             <button onClick={() => setShowEditModal(false)} style={{ border: "none", background: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}>
-              <X size={18} color="#999" />
+              <X size={18} color="#7a7a7a" />
             </button>
           </div>
 
           <div style={{ flex: 1, overflowY: "auto", padding: 20, paddingBottom: 100 }}>
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Titre</label>
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Titre</label>
             <input
               type="text"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #2a2a2a", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#c4c4c4", outline: "none", marginBottom: 14 }}
             />
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Édition</label>
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Édition</label>
             <input
               type="text"
               value={editEdition}
               onChange={(e) => setEditEdition(e.target.value)}
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #2a2a2a", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#c4c4c4", outline: "none", marginBottom: 14 }}
             />
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>État</label>
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>État</label>
             {/* Phase is never admin-editable — it's derived entirely from the
                 registration countdown + fill rate, the same way "completed" is
                 derived from the live countdown. An organizer picking "En direct"
@@ -3773,183 +5961,263 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                 stall a full one in "Inscriptions" past its deadline, so the
                 toggle that used to sit here has been replaced with a read-only
                 status. See `open_expired_registrations` (pg_cron, paired with
-                `close_expired_competitions`) for the actual transition logic:
-                once the registration deadline passes, it flips to "live" if
-                every place is taken, otherwise it pushes endsAt out by 24h and
-                leaves the competition open for registration. */}
+                `close_expired_competitions` and the `registrations_capacity_check`
+                trigger) for the actual transition logic: on "Fixe", registration
+                lasts exactly 1 week, or ends the moment every place is taken —
+                whichever comes first — then the live phase runs exactly 1 week.
+                "Date personnalisée" lets the admin override either value by hand. */}
             {isCompleted ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #eee", background: "#f7f7f7", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#999" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #2a2a2a", background: "#242424", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#7a7a7a" }}>
                 🏆 Terminée — archivée dans l'historique, l'état ne peut plus être modifié
               </div>
             ) : (
               <>
                 <div style={{
-                  display: "flex", alignItems: "center", gap: 8, border: "1px solid #eee",
-                  background: "#f7f7f7", borderRadius: 10, padding: "10px 12px", marginBottom: 6,
+                  display: "flex", alignItems: "center", gap: 8, border: "1px solid #2a2a2a",
+                  background: "#242424", borderRadius: 10, padding: "10px 12px", marginBottom: 6,
                   fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
-                  color: isRegistration ? "#888" : "#00B894",
+                  color: isRegistration ? "#7a7a7a" : "#00B894",
                 }}>
                   {isRegistration ? "🕒 Inscriptions" : "● En direct"}
                 </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14, lineHeight: 1.4 }}>
+                {isRegistration && (editEndsAt || comp.endsAt) && (
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: "#c4c4c4", marginBottom: 6 }}>
+                    Se termine le {fmtAbsoluteDateTime(editEndsAt ? new Date(editEndsAt).toISOString() : comp.endsAt)}
+                    {scheduleDirty && <span style={{ color: "#00B894" }}> (à enregistrer)</span>}
+                  </div>
+                )}
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 14, lineHeight: 1.4 }}>
                   {isRegistration
-                    ? "Passe automatiquement en direct dès que le compte à rebours se termine, si toutes les places sont prises. Sinon, les inscriptions sont prolongées de 24h."
-                    : "La durée de cette phase en direct a été fixée pendant les inscriptions et ne peut plus être modifiée à la main — voir la date de fin ci-dessous."}
+                    ? "Passe automatiquement en direct dès que toutes les places sont prises, sinon à la date de fin ci-dessous."
+                    : "Voir le compte à rebours ci-dessous."}
                 </div>
               </>
             )}
 
             {isRegistration && (
-            <>
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-              Durée des inscriptions
-            </label>
-            <input
-              type="datetime-local"
-              value={editEndsAt}
-              onChange={(e) => {
-                const next = e.target.value;
-                setEditEndsAt(next);
-                // Keep the compact label in sync with the precise date
-                // instead of blanking it out — both fields are required
-                // together before the edition can be saved/published.
-                setEditEnds(next ? fmtCountdown(new Date(next).toISOString()) : "");
-              }}
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
-            />
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14 }}>
-              Pilote le vrai compte à rebours.
-            </div>
-
-            {/* Set once now, while the edition is still in registration —
-                NOT editable once phase flips to "live". Stored as
-                live_duration_seconds and read by open_expired_registrations
-                only at the moment registration ends, to compute the real
-                ends_at for the live phase. There's no picker for this once
-                live starts; that's the whole point of locking it in here. */}
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-              Durée de la phase en direct
-            </label>
-            {(() => {
-              const regEndMs = editEndsAt ? new Date(editEndsAt).getTime() : Date.now();
-              const liveEndValue = editLiveDurationSeconds
-                ? toDatetimeLocal(new Date(regEndMs + editLiveDurationSeconds * 1000).toISOString())
-                : "";
-              return (
-                <input
-                  type="datetime-local"
-                  value={liveEndValue}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    if (!next) {
-                      setEditLiveDurationSeconds(null);
-                      return;
-                    }
-                    const diffSecs = Math.max(0, Math.round((new Date(next).getTime() - regEndMs) / 1000));
-                    setEditLiveDurationSeconds(diffSecs);
-                  }}
-                  style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
-                />
-              );
-            })()}
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
-              Combien de temps durera la phase en direct une fois les inscriptions closes — à définir maintenant, ce ne sera plus modifiable ensuite.
-            </div>
-
-            {durationIncomplete && (
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, fontWeight: 700, color: "#D35400", background: "#FDEDE3", border: "1px solid #F5C9A5", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
-                Choisissez une durée d'inscription (ou une date de fin précise) et une durée pour la phase en direct avant de pouvoir enregistrer.
+              <>
+              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                {[
+                  { key: "fixed", label: "Fixe (1 semaine)" },
+                  { key: "custom", label: "Date personnalisée" },
+                ].map((tab) => {
+                  const active = scheduleMode === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setScheduleMode(tab.key)}
+                      style={{
+                        flex: 1,
+                        border: active ? "1px solid #0d0d0d" : "1px solid #2a2a2a",
+                        background: active ? "#0d0d0d" : "#1a1a1a",
+                        color: active ? "#fff" : "#9a9a9a",
+                        borderRadius: 8,
+                        padding: "8px 10px",
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        WebkitTapHighlightColor: "transparent",
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </div>
-            )}
-            </>
+
+              {scheduleMode === "fixed" ? (
+                <div style={{ border: "1px solid #2a2a2a", background: "#242424", borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#c4c4c4", marginBottom: 4 }}>
+                    📅 Inscriptions : 1 semaine (ou moins si complet)
+                  </div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#c4c4c4", marginBottom: 4 }}>
+                    🔴 Phase en direct : 1 semaine
+                  </div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", lineHeight: 1.4, marginBottom: 10 }}>
+                    Durées par défaut, gérées automatiquement.
+                  </div>
+
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    Prolonger les inscriptions
+                  </div>
+                  {renderExtendStepper()}
+                </div>
+              ) : (
+                <>
+                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    Fin des inscriptions
+                  </label>
+                  <div style={{ marginBottom: 8 }}>
+                    <DateTimePills
+                      value={editEndsAt}
+                      minDate={toDatetimeLocal(new Date().toISOString()).split("T")[0]}
+                      onChange={(next) => {
+                        setEditEndsAt(next);
+                        setEditEnds(next ? fmtCountdown(new Date(next).toISOString()) : "");
+                        setScheduleDirty(true);
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: 4 }}>{renderExtendStepper()}</div>
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 14 }}>
+                    Pilote le vrai compte à rebours.
+                  </div>
+
+                  <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    Durée de la phase en direct
+                  </label>
+                  {renderLiveDurationStepper()}
+                  <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginTop: 8, marginBottom: 10 }}>
+                    Combien de temps durera la phase en direct une fois les inscriptions closes.
+                  </div>
+
+                  {scheduleIncomplete && (
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, fontWeight: 700, color: "#D35400", background: "#2e2013", border: "1px solid #4a3520", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
+                      Choisissez une date de fin d'inscription et une durée pour la phase en direct avant de pouvoir enregistrer.
+                    </div>
+                  )}
+                </>
+              )}
+              </>
             )}
 
             {isLive && (
-              <div style={{ border: "1px solid #eee", background: "#f7f7f7", borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#333", marginBottom: 4 }}>
+              <div style={{ border: "1px solid #2a2a2a", background: "#242424", borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#c4c4c4", marginBottom: 4 }}>
                   Se termine dans {editEnds || "—"}
                 </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", lineHeight: 1.4 }}>
-                  Durée verrouillée depuis les inscriptions — non modifiable à la main.
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", lineHeight: 1.4 }}>
+                  Verrouillée depuis les inscriptions — non modifiable à la main.
                 </div>
               </div>
             )}
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Places disponibles</label>
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Places disponibles</label>
             <input
               type="number"
               min="0"
               value={editContestants}
               onChange={(e) => setEditContestants(e.target.value)}
               placeholder="ex: 20"
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #2a2a2a", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#c4c4c4", outline: "none", marginBottom: 14 }}
             />
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Frais d'inscription (gourdes)</label>
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Frais d'inscription (gourdes)</label>
             <input
               type="number"
               min="0"
               value={editFee}
               onChange={(e) => setEditFee(e.target.value)}
               placeholder="ex: 100"
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #2a2a2a", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#c4c4c4", outline: "none", marginBottom: 14 }}
             />
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Description</label>
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Description</label>
             <textarea
               value={editDescription}
               onChange={(e) => setEditDescription(e.target.value)}
               placeholder="Décrivez la compétition, son format et son déroulement…"
               rows={4}
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14, resize: "vertical" }}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #2a2a2a", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#c4c4c4", outline: "none", marginBottom: 14, resize: "vertical" }}
             />
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Prix garanti (crédits)</label>
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Prix garanti (crédits)</label>
             <input
               type="number"
               min="0"
               value={editPrizeAmount}
               onChange={(e) => setEditPrizeAmount(e.target.value)}
               placeholder="ex: 500"
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 4 }}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #2a2a2a", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#c4c4c4", outline: "none", marginBottom: 4 }}
             />
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 14 }}>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 14 }}>
               Laissez vide pour ne définir aucun prix garanti.
             </div>
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Récompense additionnelle</label>
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Récompense additionnelle</label>
             <input
               type="text"
               value={editRewardExtra}
               onChange={(e) => setEditRewardExtra(e.target.value)}
               placeholder="ex: Trophée officiel et mise en avant"
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 14 }}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #2a2a2a", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#c4c4c4", outline: "none", marginBottom: 14 }}
             />
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Règlement (une règle par ligne)</label>
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Règlement (une règle par ligne)</label>
             <textarea
               value={editRules}
               onChange={(e) => setEditRules(e.target.value)}
               placeholder={"ex:\nInscription ouverte à tous.\nChaque participant doit soumettre…"}
               rows={6}
-              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #e0e0e0", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#333", outline: "none", marginBottom: 18, resize: "vertical" }}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid #2a2a2a", borderRadius: 10, padding: "10px 12px", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#c4c4c4", outline: "none", marginBottom: 18, resize: "vertical" }}
             />
 
-            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Galerie / miniatures</label>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginBottom: 10 }}>
-              Touchez <strong>Bannière</strong> sur une image pour en faire celle affichée sur la carte de la compétition et dans le carrousel de la page d'accueil.
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Bannière de cette compétition</label>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 10 }}>
+              Une image dédiée à cette compétition — affichée sur sa carte et dans le carrousel de l'accueil. Propre à cette compétition uniquement, jamais partagée avec une autre.
+            </div>
+            <div style={{
+              position: "relative", width: "100%", maxWidth: 220, aspectRatio: "16 / 9",
+              borderRadius: 10, overflow: "hidden", background: "#242424",
+              border: `1px solid ${editBannerUrl ? accent : "#3a3a3a"}`,
+              marginBottom: 18,
+            }}>
+              {editBannerUrl ? (
+                <img src={editBannerUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              ) : (
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <ImageIcon size={22} color="#555" />
+                </div>
+              )}
+              {uploadingBanner && (
+                <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700 }}>
+                  Envoi…
+                </div>
+              )}
+              {editBannerUrl && !uploadingBanner && (
+                <button
+                  onClick={handleRemoveBanner}
+                  style={{
+                    position: "absolute", top: 4, right: 4,
+                    width: 20, height: 20, borderRadius: "50%",
+                    border: "none", background: "rgba(0,0,0,0.55)", color: "#fff",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", padding: 0,
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+              <label style={{
+                position: "absolute", bottom: 4, left: 4, right: 4,
+                border: "none", borderRadius: 6,
+                background: "rgba(0,0,0,0.55)", color: "#fff",
+                fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: "0.04em",
+                padding: "4px 0", textAlign: "center",
+                cursor: uploadingBanner ? "default" : "pointer",
+              }}>
+                {editBannerUrl ? "Changer" : "Ajouter"}
+                <input type="file" accept="image/*" onChange={handleUploadBannerFile} disabled={uploadingBanner} style={{ display: "none" }} />
+              </label>
+            </div>
+
+            <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Galerie / miniatures</label>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#7a7a7a", marginBottom: 10 }}>
+              Photos supplémentaires, partagées entre toutes les éditions de cette série.
             </div>
             <div style={{
               display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8,
               marginBottom: 18,
             }}>
               {images.map((img) => {
-                const isBanner = editBannerUrl === img.url;
                 return (
                   <div key={img.id} style={{
                     position: "relative", width: "100%", aspectRatio: "1 / 1",
-                    borderRadius: 10, overflow: "hidden", background: "#f5f5f5",
-                    boxShadow: isBanner ? `0 0 0 2px ${accent}` : "none",
+                    borderRadius: 10, overflow: "hidden", background: "#242424",
                   }}>
                     <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     <button
@@ -3969,21 +6237,6 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
                         <X size={12} />
                       )}
                     </button>
-                    <button
-                      onClick={() => handleSetBanner(img.url)}
-                      style={{
-                        position: "absolute", bottom: 4, left: 4, right: 4,
-                        border: "none", borderRadius: 6,
-                        background: isBanner ? accent : "rgba(0,0,0,0.55)",
-                        color: "#fff",
-                        fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-                        textTransform: "uppercase", letterSpacing: "0.04em",
-                        padding: "4px 0",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {isBanner ? "★ Bannière" : "Bannière"}
-                    </button>
                   </div>
                 );
               })}
@@ -3991,15 +6244,15 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
               {/* Add wrapper — always the last tile in the grid */}
               <label style={{
                 width: "100%", aspectRatio: "1 / 1", borderRadius: 10,
-                border: "1.5px dashed #ccc", background: "#fafafa",
+                border: "1.5px dashed #4a4a4a", background: "#242424",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 cursor: uploadingImage ? "default" : "pointer",
               }}>
                 <input type="file" accept="image/*" onChange={handleAddImageFile} disabled={uploadingImage} style={{ display: "none" }} />
                 {uploadingImage ? (
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#999" }}>Envoi…</span>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#7a7a7a" }}>Envoi…</span>
                 ) : (
-                  <Plus size={22} color="#aaa" />
+                  <Plus size={22} color="#7a7a7a" />
                 )}
               </label>
             </div>
@@ -4007,18 +6260,18 @@ export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGi
 
           <div style={{
             display: "flex", gap: 10, padding: 16,
-            borderTop: "1px solid #eee", flexShrink: 0,
-            background: "#fff",
+            borderTop: "1px solid #2a2a2a", flexShrink: 0,
+            background: "#1a1a1a",
           }}>
             <button
               onClick={() => setShowEditModal(false)}
-              style={{ flex: 1, border: "1px solid #e0e0e0", background: "#fff", color: "#555", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer" }}
+              style={{ flex: 1, border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#9a9a9a", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer" }}
             >
               Annuler
             </button>
             <button
               onClick={handleSaveEdit}
-              disabled={savingEdit || !editTitle.trim() || durationIncomplete}
+              disabled={savingEdit || !editTitle.trim() || scheduleIncomplete}
               style={{ flex: 1, border: "none", background: accent, color: "#fff", borderRadius: 999, padding: "12px 16px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", cursor: savingEdit ? "default" : "pointer", opacity: savingEdit ? 0.7 : 1 }}
             >
               {savingEdit ? "Enregistrement…" : "Enregistrer"}
