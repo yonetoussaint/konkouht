@@ -523,6 +523,15 @@ function buildMockBracket(participants, comp) {
   let bracketSize = 2;
   while (bracketSize * 2 <= Math.min(pool.length, 16)) bracketSize *= 2;
 
+  // Every match-bearing round (poules matchdays, then each knockout round)
+  // gets the next slot on one running fixture calendar, so the whole
+  // tournament reads as a continuous schedule instead of separate dateless
+  // stages. "Groupes" is composition only, not a fixture, so it's the one
+  // round that carries no date.
+  const anchor = comp?.endsAt ? new Date(comp.endsAt) : new Date();
+  let dayIndex = 0;
+  const nextDate = () => new Date(anchor.getTime() + dayIndex++ * MATCHDAY_INTERVAL_MS);
+
   const rounds = [];
   if (pool.length > bracketSize) {
     const groupSize = 4;
@@ -537,7 +546,6 @@ function buildMockBracket(participants, comp) {
 
     const groupSchedules = groups.map((g) => scheduleGroupRoundRobin(g));
     const matchdayCount = groupSchedules.reduce((max, s) => Math.max(max, s.length), 0);
-    const anchor = comp?.endsAt ? new Date(comp.endsAt) : new Date();
     const matchdays = [];
     for (let d = 0; d < matchdayCount; d++) {
       const matches = [];
@@ -546,7 +554,7 @@ function buildMockBracket(participants, comp) {
           matches.push({ a, b, winner: (a.points || 0) >= (b.points || 0) ? a : b, groupIndex: gi });
         });
       });
-      matchdays.push({ date: new Date(anchor.getTime() + d * MATCHDAY_INTERVAL_MS), matches });
+      matchdays.push({ date: nextDate(), matches });
     }
     rounds.push({ name: "Phase de poules", type: "roundrobin", groups, matchdays, qualifiers });
   }
@@ -558,7 +566,7 @@ function buildMockBracket(participants, comp) {
       a, b,
       winner: (a.points || 0) >= (b.points || 0) ? a : b,
     }));
-    rounds.push({ name: KNOCKOUT_STAGE_NAMES[size] || `Tour de ${size}`, type: "knockout", matches });
+    rounds.push({ name: KNOCKOUT_STAGE_NAMES[size] || `Tour de ${size}`, type: "knockout", date: nextDate(), matches });
     entrants = matches.map((m) => m.winner);
   }
 
@@ -686,7 +694,16 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
           ))}
         </div>
       ) : (
-        <div key={round.name} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
+        <div key={round.name}>
+          {round.type === "knockout" && round.date && (
+            <div style={{
+              fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+              color: "#c4c4c4", marginBottom: 6,
+            }}>
+              {fmtMatchdayDate(round.date)}
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
           {round.type === "groups" ? (
             round.groups.map((group, gi) => (
               <div key={gi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
@@ -733,6 +750,7 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
               </div>
             ))
           )}
+          </div>
         </div>
       )}
     </div>
