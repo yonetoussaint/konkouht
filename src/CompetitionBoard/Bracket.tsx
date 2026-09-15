@@ -110,26 +110,33 @@ export default function Bracket({ bracket, bracketCurrentRound, accent, isComple
                   </div>
                 ))
               ) : (
-                round.matches.map((m, mi) => (
-                  <div key={mi} style={{ background: "#f8f7fc", borderRadius: 8, padding: "6px 8px" }}>
-                    {[m.a, m.b].map((p) => {
-                      const won = p === m.winner;
-                      return (
-                        <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
-                          <div style={{ width: 18, height: 18, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: won ? `1.5px solid ${accent}` : "none", opacity: won ? 1 : 0.5 }}>
-                            <EntityAvatar url={p.avatarUrl} name={p.name} />
+                <>
+                  {round.type === "knockout" && round.date && (
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      {fmtMatchdayDate(round.date)}
+                    </div>
+                  )}
+                  {round.matches.map((m, mi) => (
+                    <div key={mi} style={{ background: "#f8f7fc", borderRadius: 8, padding: "6px 8px" }}>
+                      {[m.a, m.b].map((p) => {
+                        const won = p === m.winner;
+                        return (
+                          <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
+                            <div style={{ width: 18, height: 18, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: won ? `1.5px solid ${accent}` : "none", opacity: won ? 1 : 0.5 }}>
+                              <EntityAvatar url={p.avatarUrl} name={p.name} />
+                            </div>
+                            <span style={{
+                              flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                              fontWeight: won ? 700 : 500, color: won ? "#222" : "#aaa",
+                              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                            }}>{p.name}</span>
+                            {won && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
                           </div>
-                          <span style={{
-                            flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
-                            fontWeight: won ? 700 : 500, color: won ? "#222" : "#aaa",
-                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                          }}>{p.name}</span>
-                          {won && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))
+                        );
+                      })}
+                    </div>
+                  ))}
+                </>
               )}
             </div>
           );
