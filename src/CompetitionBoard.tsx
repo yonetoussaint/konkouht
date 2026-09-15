@@ -3069,8 +3069,19 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // rather than real timing.
   const bracket = useMemo(() => {
     const pool = participantsFull.length >= 2 ? participantsFull : buildMockContestants(comp);
-    return buildMockBracket(pool);
-  }, [participantsFull, comp]);
+    const fullBracket = buildMockBracket(pool);
+    if (!fullBracket) return null;
+    // Registration hasn't produced a single match yet — the only thing
+    // that's real at this point is who'd land in which group, so every
+    // knockout round (which assumes group winners that don't exist yet)
+    // gets trimmed off. If the pool isn't even big enough to need a
+    // groups stage (goes straight to a knockout bracket), there's
+    // nothing genuine to preview yet, so there's no bracket at all.
+    if (isRegistration) {
+      return fullBracket[0]?.type === "groups" ? [fullBracket[0]] : null;
+    }
+    return fullBracket;
+  }, [participantsFull, comp, isRegistration]);
   const bracketCurrentRound = useMemo(() => {
     if (!bracket) return 0;
     if (isCompleted) return bracket.length - 1;
