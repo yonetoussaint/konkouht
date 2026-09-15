@@ -434,7 +434,7 @@ function buildParticipantsFromRegistrants(registrants) {
 }
 
 /* ─── TOURNAMENT BRACKET (mock) ──────────────────────────────────────────
-   Poules → 8e de finale → Quart → Demi → Finale, built from the same
+   Groupes → Poules → 8e de finale → Quart → Demi → Finale, built from the same
    registrant/points pool as Classement. Shown in every phase (falls back
    to generated mock contestants when there aren't 2+ real registrants
    yet). No persisted round/match data behind this yet — it's recomputed
@@ -472,6 +472,21 @@ function buildMockContestants(comp) {
   });
 }
 
+// All-play-all pairing within a single group — every player faces every
+// other player once. Winner picked the same deterministic way as knockout
+// matches (higher points wins), so it stays consistent with the rest of
+// the mock bracket.
+function roundRobinMatches(group) {
+  const matches = [];
+  for (let i = 0; i < group.length; i++) {
+    for (let j = i + 1; j < group.length; j++) {
+      const a = group[i], b = group[j];
+      matches.push({ a, b, winner: (a.points || 0) >= (b.points || 0) ? a : b });
+    }
+  }
+  return matches;
+}
+
 function buildMockBracket(participants) {
   const pool = (participants || []).filter(Boolean).slice().sort((a, b) => (b.points || 0) - (a.points || 0));
   if (pool.length < 2) return null;
@@ -488,7 +503,12 @@ function buildMockBracket(participants) {
     const groups = [];
     for (let i = 0; i < pool.length; i += groupSize) groups.push(pool.slice(i, i + groupSize));
     const qualifiers = pool.slice(0, bracketSize);
-    rounds.push({ name: "Phase de poules", type: "groups", groups, qualifiers });
+    // Two separate tabs sharing the same groups: "Groupes" is composition/
+    // standings (who's in which group, who's qualifying), "Phase de poules"
+    // is the actual round-robin matches played within each group.
+    rounds.push({ name: "Groupes", type: "groups", groups, qualifiers });
+    const groupMatches = groups.map((g) => roundRobinMatches(g));
+    rounds.push({ name: "Phase de poules", type: "roundrobin", groups, groupMatches, qualifiers });
   }
 
   let entrants = pool.slice(0, bracketSize);
@@ -611,6 +631,39 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
                   </div>
                 );
               })}
+            </div>
+          ))
+        ) : round.type === "roundrobin" ? (
+          round.groups.map((group, gi) => (
+            <div key={gi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                Groupe {String.fromCharCode(65 + gi)}
+              </div>
+              {round.groupMatches[gi].map((m, mi) => (
+                <div
+                  key={mi}
+                  style={{
+                    display: "flex", flexDirection: "column", gap: 2, padding: "5px 0",
+                    borderTop: mi > 0 ? "1px solid #2a2a2a" : "none",
+                  }}
+                >
+                  {[m.a, m.b].map((p) => {
+                    const won = p === m.winner;
+                    return (
+                      <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "1px 0" }}>
+                        <div style={{ width: 14, height: 14, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: won ? 1 : 0.5 }}>
+                          <EntityAvatar url={p.avatarUrl} name={p.name} />
+                        </div>
+                        <span style={{
+                          flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10,
+                          fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>{p.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           ))
         ) : (
@@ -3072,11 +3125,13 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     const fullBracket = buildMockBracket(pool);
     if (!fullBracket) return null;
     // Registration hasn't produced a single match yet — the only thing
-    // that's real at this point is who'd land in which group, so every
-    // knockout round (which assumes group winners that don't exist yet)
-    // gets trimmed off. If the pool isn't even big enough to need a
-    // groups stage (goes straight to a knockout bracket), there's
-    // nothing genuine to preview yet, so there's no bracket at all.
+    // that's real at this point is who'd land in which group, so both the
+    // round-robin "Phase de poules" round and every knockout round (which
+    // assume matches/group winners that don't exist yet) get trimmed off,
+    // leaving just the "Groupes" composition tab. If the pool isn't even
+    // big enough to need a groups stage (goes straight to a knockout
+    // bracket), there's nothing genuine to preview yet, so there's no
+    // bracket at all.
     if (isRegistration) {
       return fullBracket[0]?.type === "groups" ? [fullBracket[0]] : null;
     }
@@ -4370,7 +4425,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
         )}
 
         {/* ── TOURNAMENT BRACKET (mock) ────────────────────────────────
-            Poules → 8e de finale → Quart → Demi → Finale. See
+            Groupes → Poules → 8e de finale → Quart → Demi → Finale. See
             buildMockBracket above for how rounds/winners are derived —
             no persisted round/match data behind this yet. Shown in every
             phase, same as the section above. */}
