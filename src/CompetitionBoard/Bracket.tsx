@@ -72,6 +72,39 @@ export default function Bracket({ bracket, bracketCurrentRound, accent, isComple
                     })}
                   </div>
                 ))
+              ) : round.type === "roundrobin" ? (
+                round.groups.map((group, gi) => (
+                  <div key={gi} style={{ background: "#f8f7fc", borderRadius: 8, padding: "6px 8px" }}>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                      Groupe {String.fromCharCode(65 + gi)}
+                    </div>
+                    {round.groupMatches[gi].map((m, mi) => (
+                      <div
+                        key={mi}
+                        style={{
+                          display: "flex", flexDirection: "column", gap: 2, padding: "5px 0",
+                          borderTop: mi > 0 ? "1px solid #ece9f7" : "none",
+                        }}
+                      >
+                        {[m.a, m.b].map((p) => {
+                          const won = p === m.winner;
+                          return (
+                            <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "1px 0" }}>
+                              <div style={{ width: 14, height: 14, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: won ? 1 : 0.5 }}>
+                                <EntityAvatar url={p.avatarUrl} name={p.name} />
+                              </div>
+                              <span style={{
+                                flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10,
+                                fontWeight: won ? 700 : 500, color: won ? "#222" : "#aaa",
+                                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                              }}>{p.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                ))
               ) : (
                 round.matches.map((m, mi) => (
                   <div key={mi} style={{ background: "#f8f7fc", borderRadius: 8, padding: "6px 8px" }}>
