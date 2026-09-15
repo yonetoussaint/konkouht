@@ -209,6 +209,15 @@ export function buildParticipantsFromRegistrants(registrants) {
   }));
 }
 
+// Date-only label for a "Phase de poules" matchday header (e.g. "12 Oct") —
+// no time, since it's grouping a whole day's fixtures rather than pinning
+// one moment.
+export function fmtMatchdayDate(target) {
+  const d = new Date(target);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${FR_MONTH_ABBR[d.getMonth()]}`;
+}
+
 export function toDatetimeLocal(isoString) {
   if (!isoString) return "";
   const d = new Date(isoString);
@@ -257,22 +266,39 @@ export function buildMockContestants(comp) {
   });
 }
 
-// All-play-all pairing within a single group — every player faces every
-// other player once. Winner picked the same deterministic way as knockout
-// matches (higher points wins), so it stays consistent with the rest of
-// the mock bracket.
-export function roundRobinMatches(group) {
-  const matches = [];
-  for (let i = 0; i < group.length; i++) {
-    for (let j = i + 1; j < group.length; j++) {
-      const a = group[i], b = group[j];
-      matches.push({ a, b, winner: (a.points || 0) >= (b.points || 0) ? a : b });
+// Splits a single group's round-robin into "journées" (matchdays) using
+// the standard circle method: player 0 stays fixed, everyone else rotates
+// one seat each round, so across n-1 rounds every player faces every other
+// player exactly once and never plays twice on the same day. Returns an
+// array of rounds, each an array of [a, b] pairs (odd-sized groups get one
+// bye slot per round, silently dropped rather than paired).
+export function scheduleGroupRoundRobin(group) {
+  const seats = group.slice();
+  if (seats.length % 2 !== 0) seats.push(null); // bye
+  const n = seats.length;
+  if (n < 2) return [];
+  const half = n / 2;
+  let arr = seats.slice();
+  const rounds = [];
+  for (let r = 0; r < n - 1; r++) {
+    const pairs = [];
+    for (let i = 0; i < half; i++) {
+      const a = arr[i], b = arr[n - 1 - i];
+      if (a && b) pairs.push([a, b]);
     }
+    rounds.push(pairs);
+    arr = [arr[0], arr[n - 1], ...arr.slice(1, n - 1)];
   }
-  return matches;
+  return rounds;
 }
 
-export function buildMockBracket(participants) {
+// One matchday every this many milliseconds, starting from when
+// registration closes (or "now" if that isn't set yet) — just enough
+// spacing to read as a real fixture list since there's no persisted
+// schedule behind this yet.
+export const MATCHDAY_INTERVAL_MS = 2 * 24 * 60 * 60 * 1000;
+
+export function buildMockBracket(participants, comp) {
   const pool = (participants || []).filter(Boolean).slice().sort((a, b) => (b.points || 0) - (a.points || 0));
   if (pool.length < 2) return null;
 
@@ -290,10 +316,24 @@ export function buildMockBracket(participants) {
     const qualifiers = pool.slice(0, bracketSize);
     // Two separate tabs sharing the same groups: "Groupes" is composition/
     // standings (who's in which group, who's qualifying), "Phase de poules"
-    // is the actual round-robin matches played within each group.
+    // is the actual round-robin matches, laid out as a fixture list by
+    // matchday (across all groups) rather than one card per group.
     rounds.push({ name: "Groupes", type: "groups", groups, qualifiers });
-    const groupMatches = groups.map((g) => roundRobinMatches(g));
-    rounds.push({ name: "Phase de poules", type: "roundrobin", groups, groupMatches, qualifiers });
+
+    const groupSchedules = groups.map((g) => scheduleGroupRoundRobin(g));
+    const matchdayCount = groupSchedules.reduce((max, s) => Math.max(max, s.length), 0);
+    const anchor = comp?.endsAt ? new Date(comp.endsAt) : new Date();
+    const matchdays = [];
+    for (let d = 0; d < matchdayCount; d++) {
+      const matches = [];
+      groupSchedules.forEach((sched, gi) => {
+        (sched[d] || []).forEach(([a, b]) => {
+          matches.push({ a, b, winner: (a.points || 0) >= (b.points || 0) ? a : b, groupIndex: gi });
+        });
+      });
+      matchdays.push({ date: new Date(anchor.getTime() + d * MATCHDAY_INTERVAL_MS), matches });
+    }
+    rounds.push({ name: "Phase de poules", type: "roundrobin", groups, matchdays, qualifiers });
   }
 
   let entrants = pool.slice(0, bracketSize);
