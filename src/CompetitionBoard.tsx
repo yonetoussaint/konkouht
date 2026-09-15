@@ -205,6 +205,15 @@ const GIFT_CATALOG = [
   { id: "g30", name: "Couronne royale", icon: "👑", cost: 3000 },
 ];
 
+// Date-only label for a "Phase de poules" matchday header (e.g. "12 Oct") —
+// no time, since it's grouping a whole day's fixtures rather than pinning
+// one moment.
+function fmtMatchdayDate(target) {
+  const d = new Date(target);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${FR_MONTH_ABBR[d.getMonth()]}`;
+}
+
 function fmtAbsoluteDate(target) {
   const d = new Date(target);
   if (Number.isNaN(d.getTime())) return "";
@@ -472,22 +481,39 @@ function buildMockContestants(comp) {
   });
 }
 
-// All-play-all pairing within a single group — every player faces every
-// other player once. Winner picked the same deterministic way as knockout
-// matches (higher points wins), so it stays consistent with the rest of
-// the mock bracket.
-function roundRobinMatches(group) {
-  const matches = [];
-  for (let i = 0; i < group.length; i++) {
-    for (let j = i + 1; j < group.length; j++) {
-      const a = group[i], b = group[j];
-      matches.push({ a, b, winner: (a.points || 0) >= (b.points || 0) ? a : b });
+// Splits a single group's round-robin into "journées" (matchdays) using
+// the standard circle method: player 0 stays fixed, everyone else rotates
+// one seat each round, so across n-1 rounds every player faces every other
+// player exactly once and never plays twice on the same day. Returns an
+// array of rounds, each an array of [a, b] pairs (odd-sized groups get one
+// bye slot per round, silently dropped rather than paired).
+function scheduleGroupRoundRobin(group) {
+  const seats = group.slice();
+  if (seats.length % 2 !== 0) seats.push(null); // bye
+  const n = seats.length;
+  if (n < 2) return [];
+  const half = n / 2;
+  let arr = seats.slice();
+  const rounds = [];
+  for (let r = 0; r < n - 1; r++) {
+    const pairs = [];
+    for (let i = 0; i < half; i++) {
+      const a = arr[i], b = arr[n - 1 - i];
+      if (a && b) pairs.push([a, b]);
     }
+    rounds.push(pairs);
+    arr = [arr[0], arr[n - 1], ...arr.slice(1, n - 1)];
   }
-  return matches;
+  return rounds;
 }
 
-function buildMockBracket(participants) {
+// One matchday every this many milliseconds, starting from when
+// registration closes (or "now" if that isn't set yet) — just enough
+// spacing to read as a real fixture list since there's no persisted
+// schedule behind this yet.
+const MATCHDAY_INTERVAL_MS = 2 * 24 * 60 * 60 * 1000;
+
+function buildMockBracket(participants, comp) {
   const pool = (participants || []).filter(Boolean).slice().sort((a, b) => (b.points || 0) - (a.points || 0));
   if (pool.length < 2) return null;
 
@@ -505,10 +531,24 @@ function buildMockBracket(participants) {
     const qualifiers = pool.slice(0, bracketSize);
     // Two separate tabs sharing the same groups: "Groupes" is composition/
     // standings (who's in which group, who's qualifying), "Phase de poules"
-    // is the actual round-robin matches played within each group.
+    // is the actual round-robin matches, laid out as a fixture list by
+    // matchday (across all groups) rather than one card per group.
     rounds.push({ name: "Groupes", type: "groups", groups, qualifiers });
-    const groupMatches = groups.map((g) => roundRobinMatches(g));
-    rounds.push({ name: "Phase de poules", type: "roundrobin", groups, groupMatches, qualifiers });
+
+    const groupSchedules = groups.map((g) => scheduleGroupRoundRobin(g));
+    const matchdayCount = groupSchedules.reduce((max, s) => Math.max(max, s.length), 0);
+    const anchor = comp?.endsAt ? new Date(comp.endsAt) : new Date();
+    const matchdays = [];
+    for (let d = 0; d < matchdayCount; d++) {
+      const matches = [];
+      groupSchedules.forEach((sched, gi) => {
+        (sched[d] || []).forEach(([a, b]) => {
+          matches.push({ a, b, winner: (a.points || 0) >= (b.points || 0) ? a : b, groupIndex: gi });
+        });
+      });
+      matchdays.push({ date: new Date(anchor.getTime() + d * MATCHDAY_INTERVAL_MS), matches });
+    }
+    rounds.push({ name: "Phase de poules", type: "roundrobin", groups, matchdays, qualifiers });
   }
 
   let entrants = pool.slice(0, bracketSize);
@@ -608,87 +648,93 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
       </div>
 
       {/* Active round's content only — full width, self-contained */}
-      <div key={round.name} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
-        {round.type === "groups" ? (
-          round.groups.map((group, gi) => (
-            <div key={gi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                Groupe {String.fromCharCode(65 + gi)}
+      {round.type === "roundrobin" ? (
+        <div key={round.name} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {round.matchdays.map((matchday, di) => (
+            <div key={di}>
+              <div style={{
+                fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+                color: "#c4c4c4", marginBottom: 6,
+              }}>
+                Journée {di + 1} <span style={{ color: "#7a7a7a", fontWeight: 500 }}>— {fmtMatchdayDate(matchday.date)}</span>
               </div>
-              {group.map((p) => {
-                const qualified = round.qualifiers.includes(p);
-                return (
-                  <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
-                    <div style={{ width: 16, height: 16, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: qualified ? 1 : 0.4 }}>
-                      <EntityAvatar url={p.avatarUrl} name={p.name} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
+                {matchday.matches.map((m, mi) => (
+                  <div key={mi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
+                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                      Groupe {String.fromCharCode(65 + m.groupIndex)}
                     </div>
-                    <span style={{
-                      flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
-                      fontWeight: qualified ? 700 : 500, color: qualified ? "#f2f2f2" : "#7a7a7a",
-                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    }}>{p.name}</span>
-                    {qualified && <Check size={10} strokeWidth={3} color="#00A86B" style={{ flexShrink: 0 }} />}
-                  </div>
-                );
-              })}
-            </div>
-          ))
-        ) : round.type === "roundrobin" ? (
-          round.groups.map((group, gi) => (
-            <div key={gi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
-              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                Groupe {String.fromCharCode(65 + gi)}
-              </div>
-              {round.groupMatches[gi].map((m, mi) => (
-                <div
-                  key={mi}
-                  style={{
-                    display: "flex", flexDirection: "column", gap: 2, padding: "5px 0",
-                    borderTop: mi > 0 ? "1px solid #2a2a2a" : "none",
-                  }}
-                >
-                  {[m.a, m.b].map((p) => {
-                    const won = p === m.winner;
-                    return (
-                      <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "1px 0" }}>
-                        <div style={{ width: 14, height: 14, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: won ? 1 : 0.5 }}>
-                          <EntityAvatar url={p.avatarUrl} name={p.name} />
+                    {[m.a, m.b].map((p) => {
+                      const won = p === m.winner;
+                      return (
+                        <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
+                          <div style={{ width: 15, height: 15, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: won ? 1 : 0.5 }}>
+                            <EntityAvatar url={p.avatarUrl} name={p.name} />
+                          </div>
+                          <span style={{
+                            flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                            fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
+                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                          }}>{p.name}</span>
                         </div>
-                        <span style={{
-                          flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10,
-                          fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
-                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        }}>{p.name}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          ))
-        ) : (
-          round.matches.map((m, mi) => (
-            <div key={mi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
-              {[m.a, m.b].map((p) => {
-                const won = p === m.winner;
-                return (
-                  <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
-                    <div style={{ width: 18, height: 18, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: won ? `1.5px solid ${accent}` : "none", opacity: won ? 1 : 0.5 }}>
-                      <EntityAvatar url={p.avatarUrl} name={p.name} />
-                    </div>
-                    <span style={{
-                      flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
-                      fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
-                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    }}>{p.name}</span>
-                    {won && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
+                      );
+                    })}
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div key={round.name} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
+          {round.type === "groups" ? (
+            round.groups.map((group, gi) => (
+              <div key={gi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                  Groupe {String.fromCharCode(65 + gi)}
+                </div>
+                {group.map((p) => {
+                  const qualified = round.qualifiers.includes(p);
+                  return (
+                    <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
+                      <div style={{ width: 16, height: 16, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: qualified ? 1 : 0.4 }}>
+                        <EntityAvatar url={p.avatarUrl} name={p.name} />
+                      </div>
+                      <span style={{
+                        flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                        fontWeight: qualified ? 700 : 500, color: qualified ? "#f2f2f2" : "#7a7a7a",
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      }}>{p.name}</span>
+                      {qualified && <Check size={10} strokeWidth={3} color="#00A86B" style={{ flexShrink: 0 }} />}
+                    </div>
+                  );
+                })}
+              </div>
+            ))
+          ) : (
+            round.matches.map((m, mi) => (
+              <div key={mi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
+                {[m.a, m.b].map((p) => {
+                  const won = p === m.winner;
+                  return (
+                    <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
+                      <div style={{ width: 18, height: 18, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: won ? `1.5px solid ${accent}` : "none", opacity: won ? 1 : 0.5 }}>
+                        <EntityAvatar url={p.avatarUrl} name={p.name} />
+                      </div>
+                      <span style={{
+                        flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                        fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      }}>{p.name}</span>
+                      {won && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -3122,7 +3168,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   // rather than real timing.
   const bracket = useMemo(() => {
     const pool = participantsFull.length >= 2 ? participantsFull : buildMockContestants(comp);
-    const fullBracket = buildMockBracket(pool);
+    const fullBracket = buildMockBracket(pool, comp);
     if (!fullBracket) return null;
     // Registration hasn't produced a single match yet — the only thing
     // that's real at this point is who'd land in which group, so both the
