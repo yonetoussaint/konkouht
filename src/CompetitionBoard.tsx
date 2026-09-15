@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { hapticTap } from "./native";
-import { Player } from "@lottiefiles/react-lottie-player";
 import { Audio as AudioBarsLoader } from "react-loader-spinner";
 import {
   Trophy, Home, Wallet, Users, Bell, BadgeCheck, Play, Plus, Gift, X, Check,
-  ArrowLeft, Send, ChevronRight, ChevronLeft, MessageCircle,
-  Image as ImageIcon, Heart, Share2, Sticker, Info, Volume2, VolumeX, Hand,
+  ArrowLeft, Send, ChevronRight,
+  Image as ImageIcon, Heart, Share2, Sticker, Info,
   Clock, Pencil,
 } from "lucide-react";
 import {
@@ -14,928 +13,44 @@ import {
   hashStr,
   getRegistrationFee,
   fakeName,
-  FR_MONTH_ABBR,
-  MyAvatar,
   PLATFORM_ORGANIZER_SIGLE,
   WALLET_PIN,
   fetchRegistrations,
   refundRegistrationFee,
 } from "./App";
-
-async function fetchComments(editionId) {
-  const { data, error } = await supabase
-    .from("comments")
-    .select("*")
-    .eq("edition_id", editionId)
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    console.error("fetchComments error:", error);
-    return [];
-  }
-
-  const rows = data || [];
-  const repliesByParent = {};
-  rows.forEach((r) => {
-    if (r.parent_id) {
-      (repliesByParent[r.parent_id] ||= []).push(r);
-    }
-  });
-
-  return rows
-    .filter((r) => !r.parent_id)
-    .map((c) => ({ ...c, replies: repliesByParent[c.id] || [] }))
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-}
-
-async function insertComment({
-  editionId,
-  competitionId,
-  userId,
-  fullName,
-  avatarUrl,
-  text,
-  parentId = null,
-}) {
-  return supabase
-    .from("comments")
-    .insert({
-      edition_id: editionId,
-      competition_id: competitionId,
-      user_id: userId,
-      full_name: fullName,
-      avatar_url: avatarUrl,
-      text,
-      parent_id: parentId,
-    })
-    .select()
-    .single();
-}
-
-/* ─── registrations (edition-scoped) ──────────────────────────────────────
-   See the schema notes above (edition_id + avatar_url added, unique
-   constraint moved to (edition_id, user_id)). ───────────────────────── */
-
-// Keyed by edition_id now — a new season/edition starts back at 0
-// registrants, it doesn't inherit a previous edition's count.
-async function deleteRegistration(registrationId) {
-  const { error } = await supabase.from("registrations").delete().eq("id", registrationId);
-  return { error };
-}
-
-// Refunds a registration fee back into a participant's wallet after an
-// admin removal. Writes a wallet_transactions row first — same shape as a
-// MonCash deposit credit, so it shows up in the participant's transaction
-// history labeled as a refund — then updates wallet_balances directly.
-//
-// Note: the balance update here is read-then-write, not atomic. That
-// matches how the rest of this file already touches wallet_balances (no
-// RPC/stored procedure exists yet), so it carries the same small
-// race-condition risk as a concurrent deposit landing at the same instant.
-// If that ever becomes a real concern, replace this with a Postgres
-// function (e.g. `increment_wallet_balance(user_id, amount)`) called via
-// supabase.rpc(), which resolves it atomically server-side.
-function notoAnimatedEmojiUrl(emoji) {
-  const codepoints = Array.from(emoji)
-    .map((ch) => ch.codePointAt(0).toString(16))
-    .filter((cp) => cp !== "fe0f");
-  return `https://fonts.gstatic.com/s/e/notoemoji/latest/${codepoints.join("_")}/lottie.json`;
-}
-
-// Renders a gift's icon as an animated sticker instead of a static emoji
-// glyph. Falls back to the plain emoji if the animation fails to load
-// (e.g. no matching Noto animation exists for that emoji, or offline).
-function AnimatedGiftIcon({ emoji, size = 40 }) {
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return (
-      <span style={{ fontSize: size * 0.7, lineHeight: 1, display: "block" }}>
-        {emoji}
-      </span>
-    );
-  }
-
-  return (
-    <Player
-      src={notoAnimatedEmojiUrl(emoji)}
-      autoplay
-      loop
-      onEvent={(event) => {
-        if (event === "error") setFailed(true);
-      }}
-      style={{ width: size, height: size }}
-    />
-  );
-}
-
-// Gift "points" (shown on the icon) are not the same as the actual HTG
-// price charged — points are a display/prestige number, the real cost in
-// gourdes is derived from this rate (e.g. 50 points -> 45 HTG at 0.9).
-const POINTS_TO_HTG_RATE = 0.9;
-function giftPriceHTG(gift) {
-  return Math.round(gift.cost * POINTS_TO_HTG_RATE);
-}
-
-const GIFT_CATALOG = [
-  { id: "g1", name: "Applaudissement", icon: "👏", cost: 10 },
-  { id: "g2", name: "Pouce levé", icon: "👍", cost: 10 },
-  { id: "g3", name: "Cœur", icon: "❤️", cost: 15 },
-  { id: "g4", name: "Étoile", icon: "⭐", cost: 25 },
-  { id: "g5", name: "Ballon", icon: "🎈", cost: 25 },
-  { id: "g6", name: "Fleur", icon: "💐", cost: 30 },
-  { id: "g7", name: "Flamme", icon: "🔥", cost: 50 },
-  { id: "g8", name: "Éclair", icon: "⚡", cost: 50 },
-  { id: "g9", name: "Papillon", icon: "🦋", cost: 60 },
-  { id: "g10", name: "Confettis", icon: "🎉", cost: 75 },
-  { id: "g11", name: "Cadeau", icon: "🎁", cost: 100 },
-  { id: "g12", name: "Micro", icon: "🎤", cost: 100 },
-  { id: "g13", name: "Danse", icon: "💃", cost: 120 },
-  { id: "g14", name: "Couronne", icon: "👑", cost: 150 },
-  { id: "g15", name: "Feu d'artifice", icon: "🎆", cost: 180 },
-  { id: "g16", name: "Guitare", icon: "🎸", cost: 200 },
-  { id: "g17", name: "Arc-en-ciel", icon: "🌈", cost: 220 },
-  { id: "g18", name: "Médaille d'or", icon: "🥇", cost: 250 },
-  { id: "g19", name: "Trophée", icon: "🏆", cost: 300 },
-  { id: "g20", name: "Champagne", icon: "🍾", cost: 350 },
-  { id: "g21", name: "Fusée", icon: "🚀", cost: 400 },
-  { id: "g22", name: "Sirène", icon: "🧜‍♀️", cost: 450 },
-  { id: "g23", name: "Voiture de sport", icon: "🏎️", cost: 500 },
-  { id: "g24", name: "Lion", icon: "🦁", cost: 600 },
-  { id: "g25", name: "Diamant", icon: "💎", cost: 750 },
-  { id: "g26", name: "Yacht", icon: "🛥️", cost: 900 },
-  { id: "g27", name: "Château", icon: "🏰", cost: 1200 },
-  { id: "g28", name: "Avion privé", icon: "✈️", cost: 1500 },
-  { id: "g29", name: "Fusée spatiale", icon: "🛸", cost: 2000 },
-  { id: "g30", name: "Couronne royale", icon: "👑", cost: 3000 },
-];
-
-function fmtAbsoluteDate(target) {
-  const d = new Date(target);
-  if (Number.isNaN(d.getTime())) return "";
-  const date = d.getDate();
-  const month = FR_MONTH_ABBR[d.getMonth()];
-  let hours = d.getHours();
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-  return `${date} ${month}, ${hours}:${minutes} ${ampm}`;
-}
-
-// Date-only variant for CompCard's compact stats row — the card is small
-// enough that the time just adds noise once you already have the "Fin
-// inscr." / "Fin dans" label sitting right next to it.
-const COUNTDOWN_UNITS = [
-  { label: "Y", secs: 31536000 }, // 365d
-  { label: "M", secs: 2592000 },  // 30d ("month")
-  { label: "W", secs: 604800 },
-  { label: "D", secs: 86400 },
-  { label: "H", secs: 3600 },
-  { label: "M", secs: 60 },       // minute
-  { label: "S", secs: 1 },
-];
-function fmtCountdownSecs(s, unitCount = 3) {
-  if (!Number.isFinite(s) || s <= 0) return "Terminé";
-  let startIdx = COUNTDOWN_UNITS.findIndex((u) => s >= u.secs);
-  if (startIdx === -1) startIdx = COUNTDOWN_UNITS.length - 1;
-  let remaining = s;
-  return COUNTDOWN_UNITS.slice(startIdx, startIdx + unitCount)
-    .map((u) => {
-      const val = Math.floor(remaining / u.secs);
-      remaining -= val * u.secs;
-      return `${val}${u.label}`;
-    })
-    .join(" : ");
-}
-
-export function fmtCountdown(target) {
-  const diff = new Date(target).getTime() - Date.now();
-  if (Number.isNaN(diff)) return "";
-  return fmtCountdownSecs(Math.floor(diff / 1000));
-}
-
-// Compact prize amount for the card's tight stats-row cell ("50K HTG",
-// "1.2M HTG") — the full precise figure is shown on the competition's own
-// page, this is just a quick-glance number. Returns null when there's no
-// prize set yet (mock seed competitions, or an edition the organizer
-// hasn't filled in) so the caller can fall back to a placeholder dash.
-const COMMENTATORS = [
-  { name: "Marc Fontaine" },
-  { name: "Sophie Laurent" },
-  { name: "Thierry Dubois" },
-  { name: "Karine Joseph" },
-  { name: "Yves Baptiste" },
-];
-
-// Registration fee for a competition, in credits. Organizers can set an
-// explicit comp.fee from the edit screen; competitions that never had one
-// set fall back to a deterministic per-competition default so old data
-// keeps behaving the same as before this was editable.
-export function formatCoins(n) {
-  const abs = Math.abs(n);
-  if (abs >= 1000000) {
-    return (n / 1000000).toFixed(1).replace(".", ",").replace(",0", "") + "M";
-  }
-  if (abs >= 1000) {
-    return (n / 1000).toFixed(1).replace(".", ",").replace(",0", "") + "k";
-  }
-  return n.toLocaleString("fr-FR");
-}
-
-function EntityAvatar({ url, name, bg = "#ddd", color = "#666" }) {
-  if (url) {
-    return (
-      <img
-        src={url}
-        alt={name || ""}
-        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-      />
-    );
-  }
-  return (
-    <div style={{
-      width: "100%", height: "100%",
-      background: bg, color,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
-    }}>
-      {(name || "?").trim().charAt(0).toUpperCase()}
-    </div>
-  );
-}
-
-// Renders the *current* signed-in user's own avatar — a real photo once
-// they've set one, otherwise the initials circle used throughout the app.
-function buildParticipantsFromRegistrants(registrants) {
-  if (!registrants || registrants.length === 0) return [];
-  return registrants.map((r) => ({
-    index: Math.abs(hashStr(r.userId || r.id)) % 40,
-    id: r.id,
-    userId: r.userId,
-    name: r.name || r.full_name || "Participant",
-    avatarUrl: r.avatarUrl,
-    votes: 0,
-    points: 0,
-  }));
-}
-
-function toDatetimeLocal(isoString) {
-  if (!isoString) return "";
-  const d = new Date(isoString);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function fmtCommentTime(minutesAgo) {
-  if (minutesAgo < 60) return `${minutesAgo}min`;
-  const hours = Math.floor(minutesAgo / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}j`;
-}
-
-function fmtAgoFr(minutesAgo) {
-  if (minutesAgo < 60) return `Il y a ${minutesAgo} min`;
-  const hours = Math.floor(minutesAgo / 60);
-  if (hours < 24) return `Il y a ${hours} h`;
-  return `Il y a ${Math.floor(hours / 24)} j`;
-}
-
-/* ─── RULES / PRIZE / DESCRIPTION ───────────────────────────────────────── */
-
-function buildRulesInfo(comp) {
-  // No generated placeholder copy — only what the organizer has actually
-  // entered in the edit panel. Anything left blank stays blank in the UI.
-  return {
-    description: comp.description?.trim() ? comp.description : "",
-    rewardExtra: comp.rewardExtra?.trim() ? comp.rewardExtra : "",
-    rules: Array.isArray(comp.rules) && comp.rules.length > 0 ? comp.rules : [],
-  };
-}
-
-function ParticipantListOverlay({ comp, participants, onClose }) {
-  const accent = comp.accent;
-  // `participants` is passed down from CompetitionBoard, already synced with
-  // the real `registrations` table — real registrants only, never invented.
-  const ranked = participants || [];
-
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          background: "#fff",
-          borderBottom: "1px solid #e0e0e0",
-          padding: "14px 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          zIndex: 1,
-        }}
-      >
-        <button
-          onClick={onClose}
-          style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-      </div>
-
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-        {/* Column headers */}
-        <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #e0e0e0", marginBottom: 4 }}>
-          <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
-          <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Participant</span>
-          <span style={{ width: 90, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Votes</span>
-          <span style={{ width: 70, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Points</span>
-        </div>
-
-        {ranked.length === 0 ? (
-          <div style={{ padding: "40px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#aaa" }}>
-            Aucun participant pour le moment.
-          </div>
-        ) : ranked.map((p, rank) => (
-          <div
-            key={p.id ?? p.index}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "10px 0",
-              borderBottom: "1px solid #eee",
-            }}
-          >
-            <span
-              style={{
-                width: 32,
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: 13,
-                fontWeight: 700,
-                color: rank < 3 ? accent : "#bbb",
-              }}
-            >
-              {rank + 1}
-            </span>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{
-                  width: 28, height: 28, borderRadius: "50%",
-                  flexShrink: 0, overflow: "hidden",
-                  border: "1px solid #e0e0e0",
-                }}>
-                <EntityAvatar url={p.avatarUrl} name={p.name} />
-              </div>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 600 }}>{p.name}</span>
-            </div>
-            <span style={{ width: 90, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#333" }}>
-              {fmtVotes(p.votes)}
-            </span>
-            <span style={{ width: 70, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#aaa" }}>
-              {p.points}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── ALBUM GRID OVERLAY ─────────────────────────────────────────────────
-   Full grid of approved participant media — this is what "Voir tout" opens
-   from the Médias tab. Kept separate from ParticipantListOverlay, which is
-   the votes/ranking table used by the Classement tab's own "Voir tout". */
-
-function AlbumGridOverlay({ items, onClose, onOpenItem }) {
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
-      <div
-        style={{
-          position: "sticky", top: 0, background: "#fff",
-          borderBottom: "1px solid #e0e0e0", padding: "14px 16px",
-          display: "flex", alignItems: "center", gap: 12, zIndex: 1,
-        }}
-      >
-        <button
-          onClick={onClose}
-          style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: "#111" }}>
-          Médias des participants
-        </span>
-      </div>
-
-      <div style={{
-        maxWidth: 800, margin: "0 auto", padding: 12,
-        display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8,
-      }}>
-        {items.map((item) => (
-          <div key={item.id} onClick={() => onOpenItem(item)} style={{ position: "relative", cursor: "pointer", aspectRatio: "1 / 1", overflow: "hidden", background: "#111" }}>
-            {item.media_type === "video" ? (
-              <video src={item.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
-            ) : (
-              <img src={item.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-            )}
-            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "5px 9px", background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {item.uploader_name}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── REGISTRANT LIST OVERLAY ───────────────────────────────────────────── */
-
-function RegistrantListOverlay({ comp, registrants, accent, onClose, canRemove, onRemove, removingRegistrantId }) {
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "#F2F2F0", overflowY: "auto" }}>
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          background: "#fff",
-          borderBottom: "1px solid #e0e0e0",
-          padding: "14px 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          zIndex: 1,
-        }}
-      >
-        <button
-          onClick={onClose}
-          style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#333", padding: 0, lineHeight: 1 }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#333" }}>
-          Membres inscrits — {comp.title}
-        </span>
-      </div>
-
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-        {/* Column headers */}
-        <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px", borderBottom: "1px solid #e0e0e0", marginBottom: 4 }}>
-          <span style={{ width: 32, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>#</span>
-          <span style={{ flex: 1, fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Membre</span>
-          <span style={{ width: 100, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Date</span>
-          <span style={{ width: 80, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Frais</span>
-        </div>
-
-        {registrants.length === 0 ? (
-          <div style={{ padding: "40px 0", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#bbb" }}>
-            Aucune inscription pour le moment.
-          </div>
-        ) : registrants.map((r, i) => (
-          <div
-            key={r.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "10px 0",
-              borderBottom: "1px solid #eee",
-            }}
-          >
-            <span
-              style={{
-                width: 32,
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#bbb",
-              }}
-            >
-              {i + 1}
-            </span>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-              <div style={{
-                  width: 28, height: 28, borderRadius: "50%",
-                  flexShrink: 0,
-                  background: "#f0ebff", color: "#6C63FF",
-                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 700,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                {r.name.charAt(0).toUpperCase()}
-              </div>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#333", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
-            </div>
-            <span style={{ width: 100, textAlign: "right", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#999", lineHeight: 1.3 }}>
-              {r.date}<br />
-              <span style={{ fontSize: 11, color: "#bbb" }}>{r.time}</span>
-            </span>
-            <span style={{ width: 80, textAlign: "right", fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: accent }}>
-              {r.fee} gdes
-            </span>
-            {canRemove && (
-              <button
-                onClick={() => onRemove?.(r)}
-                disabled={removingRegistrantId === r.id}
-                title="Retirer ce participant"
-                style={{
-                  width: 26, height: 26, flexShrink: 0, marginLeft: 10,
-                  border: "1px solid #f3d0cd", borderRadius: "50%",
-                  background: "#fdf1f0", color: "#e74c3c",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: removingRegistrantId === r.id ? "default" : "pointer",
-                  opacity: removingRegistrantId === r.id ? 0.5 : 1,
-                  padding: 0,
-                }}
-              >
-                <X size={14} strokeWidth={2.5} />
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── ORGANISER BAR (organiser-follow, local state) ────────────────────── */
-
-function OrgBar({ comp, accent }) {
-  const [orgFollowed, setOrgFollowed] = useState(false);
-  const [orgFollowerCount, setOrgFollowerCount] = useState(comp.followers);
-  return (
-    <div style={{
-      background: "#fff",
-      borderBottom: "1px solid #e0e0e0",
-      padding: "12px 8px",
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      maxWidth: 800, margin: "0 auto",
-      boxSizing: "border-box", width: "100%",
-      position: "relative", left: "50%", transform: "translateX(-50%)",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: "50%",
-          background: accent, color: "#fff",
-          fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          {comp.organisateur.charAt(0)}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#111", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-            {comp.organisateur}
-            <BadgeCheck size={13} strokeWidth={2.5} color={accent} />
-          </span>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", fontWeight: 500 }}>
-            {fmtVotes(orgFollowerCount)} abonnés
-          </span>
-        </div>
-      </div>
-      <button
-        onClick={() => {
-          const wasFollowed = orgFollowed;
-          setOrgFollowed(!wasFollowed);
-          setOrgFollowerCount((c) => wasFollowed ? c - 1 : c + 1);
-        }}
-        style={{
-          border: `1px solid ${orgFollowed ? "#111" : accent}`,
-          background: orgFollowed ? "#111" : "transparent",
-          color: orgFollowed ? "#fff" : accent,
-          fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-          letterSpacing: "0.08em", textTransform: "uppercase",
-          padding: "6px 14px", cursor: "pointer",
-          display: "flex", alignItems: "center", gap: 5,
-          transition: "background 0.15s, color 0.15s, border-color 0.15s",
-        }}
-      >{orgFollowed
-        ? <><Check size={11} strokeWidth={3} /> Abonné</>
-        : <><Bell size={11} strokeWidth={2.5} /> S'abonner</>
-      }</button>
-    </div>
-  );
-}
-
-/* ─── ALBUM SHEET (Mon album) ────────────────────────────────────────────
-   Lets the current user manage their own uploaded participant media. Only
-   ever opened in "own" mode now — browsing other participants' media goes
-   through the real approved-media gallery + MediaLightbox instead. */
-
-function AlbumSheet({ accent, uploads = [], uploading = false, onUpload, onClose }) {
-  const subtitle = `${uploads.length} média${uploads.length > 1 ? "s" : ""} envoyé${uploads.length > 1 ? "s" : ""}`;
-  const statusLabel = { pending: "En attente", approved: "Approuvé", rejected: "Rejeté" };
-  const statusColor = { pending: "#e74c3c", approved: "#27ae60", rejected: "#999" };
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 1100,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex", alignItems: "flex-end", justifyContent: "center",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%", maxWidth: 480,
-          background: "#fff",
-          borderTop: `2px solid #111`,
-          maxHeight: "88vh",
-          display: "flex", flexDirection: "column",
-        }}
-      >
-        {/* Header */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "14px 16px 12px",
-          borderBottom: "1px solid #e0e0e0",
-          flexShrink: 0,
-        }}>
-          <div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
-              Mon album
-            </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#aaa", marginTop: 2 }}>
-              {subtitle}
-            </div>
-          </div>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#333", padding: 4, lineHeight: 0 }}>
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Scrollable content */}
-        <div style={{
-          overflowY: "auto",
-          padding: "16px 16px 24px",
-          display: "flex", flexDirection: "column", gap: 12,
-        }}>
-          <div style={{
-            background: "#faf9f7", border: "1px solid #eee",
-            padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12,
-            color: "#777", lineHeight: 1.6,
-          }}>
-            Ajoutez vos propres photos ou vidéos — elles seront visibles publiquement une fois approuvées par l'organisateur.
-          </div>
-
-          <label style={{
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            border: `1.5px dashed ${accent}`, background: `${accent}0a`,
-            padding: "14px 0", cursor: uploading ? "default" : "pointer",
-            opacity: uploading ? 0.6 : 1,
-          }}>
-            <input
-              type="file"
-              accept="image/*,video/*"
-              disabled={uploading}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload?.(f); e.target.value = ""; }}
-              style={{ display: "none" }}
-            />
-            <Plus size={16} color={accent} strokeWidth={2.5} />
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, color: accent }}>
-              {uploading ? "Envoi en cours…" : "Ajouter un média"}
-            </span>
-          </label>
-
-          {uploads.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "20px 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#bbb" }}>
-              Aucun média envoyé pour l'instant.
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-              {uploads.map((u) => (
-                <div key={u.id} style={{ position: "relative", aspectRatio: "1 / 1", overflow: "hidden", background: "#111" }}>
-                  {u.media_type === "video" ? (
-                    <video src={u.media_url} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} muted />
-                  ) : (
-                    <img src={u.media_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                  )}
-                  <span style={{
-                    position: "absolute", top: 6, right: 6,
-                    background: statusColor[u.status], color: "#fff",
-                    fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700,
-                    padding: "2px 6px",
-                  }}>
-                    {statusLabel[u.status]}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── MEDIA LIGHTBOX ─────────────────────────────────────────────────────
-   Full-screen viewer for a single approved participant_media row, opened
-   from the real "Médias des participants" gallery. */
-
-function MediaLightbox({ item, onClose }) {
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 1150,
-        background: "rgba(0,0,0,0.9)",
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      }}
-    >
-      <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, border: "none", background: "rgba(255,255,255,0.15)", borderRadius: "50%", width: 34, height: 34, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <X size={18} />
-      </button>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {item.media_type === "video" ? (
-          <video src={item.media_url} controls autoPlay style={{ width: "100%", maxHeight: "80vh", objectFit: "contain", display: "block" }} />
-        ) : (
-          <img src={item.media_url} alt="" style={{ width: "100%", maxHeight: "80vh", objectFit: "contain", display: "block" }} />
-        )}
-      </div>
-      <div style={{ marginTop: 12, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: "#fff" }}>
-        {item.uploader_name}
-      </div>
-    </div>
-  );
-}
-
-/* ─── LIVE COMMENTARY STREAM SHEET (X Spaces / podcast style) ─────────── */
-
-function RoomAvatar({ name, size = 56, speaking = false, ring, badge }) {
-  const initials = (name || "").trim() ? name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "?";
-  return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      <div style={{
-        width: size, height: size, borderRadius: "50%", overflow: "hidden",
-        border: speaking ? `2px solid ${ring || "#2ecc71"}` : "2px solid transparent",
-        boxSizing: "border-box",
-      }}>
-        <div style={{ width: "100%", height: "100%", background: "#333", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: size * 0.32, fontWeight: 700, color: "#fff" }}>{initials}</span>
-        </div>
-      </div>
-      {badge}
-      {speaking && (
-        <div style={{
-          position: "absolute", bottom: -3, right: -3,
-          width: 20, height: 20, borderRadius: "50%", background: "#111",
-          border: "2px solid #111",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <AudioBarsLoader height="11" width="11" color="#2ecc71" ariaLabel="parle" visible={true} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CommentaryStreamSheet({ comp, commentator, coSpeakers, accent, muted, onToggleMute, onClose }) {
-  const [requestSent, setRequestSent] = useState(false);
-  const baseSeed = Math.abs(hashStr(comp.id));
-  const listenerCount = 40 + (baseSeed % 900);
-  const listenerFaces = Array.from({ length: 6 }, (_, i) => (baseSeed + i * 13) % 60);
-  const speakers = [
-    { name: commentator.name, role: "Hôte", index: baseSeed % 40, speaking: true },
-    ...coSpeakers.map((s, i) => ({ name: s.name, role: "Intervenant", index: (baseSeed + (i + 1) * 9) % 40, speaking: i === 0 })),
-  ];
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 1200,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex", alignItems: "flex-end", justifyContent: "center",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%", maxWidth: 480,
-          background: "#111",
-          borderTop: "1px solid #2a2a2a",
-          maxHeight: "85vh",
-          display: "flex", flexDirection: "column",
-        }}
-      >
-        {/* Drag handle */}
-        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px", flexShrink: 0 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: "#333" }} />
-        </div>
-
-        {/* Header */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "6px 18px 12px", flexShrink: 0,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 800, color: "#e74c3c", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-              Salle audio en direct
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Réduire"
-            style={{
-              width: 26, height: 26, border: "none", background: "#1c1c1c", borderRadius: "50%",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <ChevronLeft size={14} color="#999" style={{ transform: "rotate(-90deg)" }} />
-          </button>
-        </div>
-
-        <div style={{ padding: "0 18px 22px", overflowY: "auto" }}>
-          {/* Speakers grid */}
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-            À l'antenne · {speakers.length}
-          </div>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            {speakers.map((s, i) => (
-              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 64 }}>
-                <RoomAvatar name={s.name} size={56} speaking={s.speaking} ring={accent} />
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#fff", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>
-                  {s.name.split(" ")[0]}
-                </div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 9, color: "#777" }}>{s.role}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Listeners */}
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginTop: 22, paddingTop: 16, borderTop: "1px solid #222",
-          }}>
-            <div style={{ display: "flex", alignItems: "center" }}>
-              {listenerFaces.map((idx, i) => (
-                <div key={i} style={{ marginLeft: i === 0 ? 0 : -8, border: "2px solid #111", borderRadius: "50%" }}>
-                  <RoomAvatar name="" size={26} />
-                </div>
-              ))}
-            </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#888" }}>
-              {listenerCount} auditeurs
-            </div>
-          </div>
-
-          {/* Description */}
-          <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#bbb", lineHeight: 1.5, marginTop: 16 }}>
-            Suivez le commentaire audio en direct de cette compétition — analyses, moments forts et ambiance, commentés en temps réel.
-          </div>
-
-          {/* Controls */}
-          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-            <button
-              onClick={() => setRequestSent(true)}
-              disabled={requestSent}
-              style={{
-                flex: 1, height: 44, borderRadius: 22, border: "1px solid #333",
-                background: requestSent ? "#1c1c1c" : accent,
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                cursor: requestSent ? "default" : "pointer",
-              }}
-            >
-              <Hand size={16} color={requestSent ? "#888" : "#111"} strokeWidth={2.2} />
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: requestSent ? "#888" : "#111" }}>
-                {requestSent ? "Demande envoyée" : "Demander à parler"}
-              </span>
-            </button>
-            <button
-              onClick={onToggleMute}
-              aria-label={muted ? "Activer le son" : "Couper le son"}
-              style={{
-                width: 44, height: 44, borderRadius: 22, border: "1px solid #333",
-                background: muted ? "#1c1c1c" : "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", flexShrink: 0,
-              }}
-            >
-              {muted ? <VolumeX size={16} color="#fff" strokeWidth={2.2} /> : <Volume2 size={16} color="#111" strokeWidth={2.2} />}
-            </button>
-          </div>
-
-          {/* Leave */}
-          <button
-            onClick={onClose}
-            style={{
-              width: "100%", background: "none", border: "none", cursor: "pointer",
-              marginTop: 14, padding: "8px 0",
-              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#e74c3c",
-            }}
-          >
-            Quitter la salle
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import {
+  fetchComments,
+  insertComment,
+  deleteRegistration,
+  giftPriceHTG,
+  GIFT_CATALOG,
+  fmtAbsoluteDate,
+  fmtCountdownSecs,
+  fmtCountdown,
+  COMMENTATORS,
+  formatCoins,
+  buildParticipantsFromRegistrants,
+  toDatetimeLocal,
+  buildMockContestants,
+  buildMockBracket,
+  fmtCommentTime,
+  fmtAgoFr,
+  buildRulesInfo,
+} from "./CompetitionBoard/utils";
+import EntityAvatar from "./CompetitionBoard/EntityAvatar";
+import AnimatedGiftIcon from "./CompetitionBoard/AnimatedGiftIcon";
+import ParticipantListOverlay from "./CompetitionBoard/ParticipantListOverlay";
+import AlbumGridOverlay from "./CompetitionBoard/AlbumGridOverlay";
+import RegistrantListOverlay from "./CompetitionBoard/RegistrantListOverlay";
+import OrgBar from "./CompetitionBoard/OrgBar";
+import AlbumSheet from "./CompetitionBoard/AlbumSheet";
+import MediaLightbox from "./CompetitionBoard/MediaLightbox";
+import CommentaryStreamSheet from "./CompetitionBoard/CommentaryStreamSheet";
+import Bracket from "./CompetitionBoard/Bracket";
 
 /* ─── COMPETITION BOARD (overlay) ──────────────────────────────────────── */
 
-export default function CompetitionBoard({ comp, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onCreateComp, onAddImage, onRemoveImage, startInEditMode = false, isNewEdition = false, onParticipantRemoved }) {
+export default function CompetitionBoard({ comp = {}, onClose, balance, onSendGift, onOpenBuy, onRegister, showToast, isRegistered, isFollowed, onToggleFollow, currentUser, onRequestAuth, onEditComp, onCreateComp, onAddImage, onRemoveImage, startInEditMode = false, isNewEdition = false, onParticipantRemoved }) {
   const isRegistration = comp.phase === "registration";
   const isCompleted = comp.phase === "completed";
   const registrationFee = getRegistrationFee(comp);
@@ -1590,6 +705,25 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   const thirdPlace = ranked[2];
   const leaderMargin = leader && secondPlace ? leader.points - secondPlace.points : null;
   const marginSafe = leaderMargin != null && leader.points > 0 ? leaderMargin / leader.points >= 0.15 : true;
+
+  // Tournament bracket — poules through finale, built from the same
+  // participant pool as Classement (see buildMockBracket above). Falls
+  // back to a generated mock contestant pool whenever there aren't at
+  // least 2 real registrants yet, so the bracket has something to show
+  // in every phase (registration/live/completed) instead of just hiding.
+  // Mock for now either way: no separate round data is persisted, so
+  // "current round" is simulated from a stable per-competition seed
+  // rather than real timing.
+  const bracket = useMemo(() => {
+    const pool = participantsFull.length >= 2 ? participantsFull : buildMockContestants(comp);
+    return buildMockBracket(pool);
+  }, [participantsFull, comp]);
+  const bracketCurrentRound = useMemo(() => {
+    if (!bracket) return 0;
+    if (isCompleted) return bracket.length - 1;
+    const seed = Math.abs(hashStr(comp.id + "_bracket_progress")) % 100;
+    return Math.min(bracket.length - 1, Math.floor((seed / 100) * bracket.length));
+  }, [bracket, isCompleted, comp.id]);
 
   // Momentum flash: leader just gained votes → brief "+X" burst + "hot" dot for a few seconds
   useEffect(() => {
@@ -3353,6 +2487,22 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
           </div>
         )
         )}
+
+        {/* ── TOURNAMENT BRACKET (mock) ────────────────────────────────
+            Poules → 8e de finale → Quart → Demi → Finale. See
+            src/CompetitionBoard/Bracket.tsx + ./utils's buildMockBracket
+            for how rounds/winners are derived — no persisted round/match
+            data behind this yet. */}
+        {activeTab === "participants" && (
+          <Bracket
+            bracket={bracket}
+            bracketCurrentRound={bracketCurrentRound}
+            accent={accent}
+            isCompleted={isCompleted}
+            isRegistration={isRegistration}
+          />
+        )}
+
 
         {/* ── PARTICIPANTS STRIP (only for voting phase) ── */}
         {activeTab === "medias" && !isRegistration && (
