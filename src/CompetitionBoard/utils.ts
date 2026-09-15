@@ -257,6 +257,21 @@ export function buildMockContestants(comp) {
   });
 }
 
+// All-play-all pairing within a single group — every player faces every
+// other player once. Winner picked the same deterministic way as knockout
+// matches (higher points wins), so it stays consistent with the rest of
+// the mock bracket.
+export function roundRobinMatches(group) {
+  const matches = [];
+  for (let i = 0; i < group.length; i++) {
+    for (let j = i + 1; j < group.length; j++) {
+      const a = group[i], b = group[j];
+      matches.push({ a, b, winner: (a.points || 0) >= (b.points || 0) ? a : b });
+    }
+  }
+  return matches;
+}
+
 export function buildMockBracket(participants) {
   const pool = (participants || []).filter(Boolean).slice().sort((a, b) => (b.points || 0) - (a.points || 0));
   if (pool.length < 2) return null;
@@ -273,7 +288,12 @@ export function buildMockBracket(participants) {
     const groups = [];
     for (let i = 0; i < pool.length; i += groupSize) groups.push(pool.slice(i, i + groupSize));
     const qualifiers = pool.slice(0, bracketSize);
-    rounds.push({ name: "Phase de poules", type: "groups", groups, qualifiers });
+    // Two separate tabs sharing the same groups: "Groupes" is composition/
+    // standings (who's in which group, who's qualifying), "Phase de poules"
+    // is the actual round-robin matches played within each group.
+    rounds.push({ name: "Groupes", type: "groups", groups, qualifiers });
+    const groupMatches = groups.map((g) => roundRobinMatches(g));
+    rounds.push({ name: "Phase de poules", type: "roundrobin", groups, groupMatches, qualifiers });
   }
 
   let entrants = pool.slice(0, bracketSize);
