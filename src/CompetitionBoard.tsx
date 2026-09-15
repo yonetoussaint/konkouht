@@ -3074,9 +3074,13 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   const bracketCurrentRound = useMemo(() => {
     if (!bracket) return 0;
     if (isCompleted) return bracket.length - 1;
+    // Registration hasn't produced a single vote yet, so there's no
+    // "progress" to fake — the bracket is a preview of who'd be in it,
+    // sitting at round 0, not a random mid-tournament snapshot.
+    if (isRegistration) return 0;
     const seed = Math.abs(hashStr(comp.id + "_bracket_progress")) % 100;
     return Math.min(bracket.length - 1, Math.floor((seed / 100) * bracket.length));
-  }, [bracket, isCompleted, comp.id]);
+  }, [bracket, isCompleted, isRegistration, comp.id]);
 
   // Momentum flash: leader just gained votes → brief "+X" burst + "hot" dot for a few seconds
   useEffect(() => {
