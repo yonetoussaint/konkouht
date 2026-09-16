@@ -67,6 +67,10 @@ export default function Bracket({ bracket, bracketCurrentRound, accent, isComple
                             fontWeight: qualified ? 700 : 500, color: qualified ? "#222" : "#aaa",
                             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                           }}>{p.name}</span>
+                          <span style={{
+                            flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10,
+                            fontWeight: 700, color: qualified ? accent : "#bbb",
+                          }}>{(p.points || 0).toLocaleString("fr-FR")}</span>
                           {qualified && <Check size={10} strokeWidth={3} color="#00A86B" style={{ flexShrink: 0 }} />}
                         </div>
                       );
@@ -102,6 +106,10 @@ export default function Bracket({ bracket, bracketCurrentRound, accent, isComple
                                 fontWeight: won ? 700 : 500, color: won ? "#222" : "#aaa",
                                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                               }}>{p.name}</span>
+                              <span style={{
+                                flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10,
+                                fontWeight: won ? 700 : 500, color: won ? accent : "#bbb",
+                              }}>{(p.points || 0).toLocaleString("fr-FR")}</span>
                             </div>
                           );
                         })}
@@ -130,6 +138,11 @@ export default function Bracket({ bracket, bracketCurrentRound, accent, isComple
                               fontWeight: won ? 700 : 500, color: won ? "#222" : "#aaa",
                               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                             }}>{p.name}</span>
+                            <span style={{
+                              flexShrink: 0, minWidth: 22, textAlign: "right",
+                              fontFamily: "'Space Grotesk', sans-serif", fontSize: 12,
+                              fontWeight: won ? 800 : 500, color: won ? accent : "#bbb",
+                            }}>{(p.points || 0).toLocaleString("fr-FR")}</span>
                             {won && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
                           </div>
                         );
