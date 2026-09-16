@@ -3724,11 +3724,6 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     ? { label: "En direct", bg: "#00B894", fg: "#fff", dot: true }
     : { label: "À venir", bg: "#F0A020", fg: "#1a1a1a", dot: false };
 
-  // Host / sponsor — comp.organisateur already carries this (set at
-  // creation time from currentUser or the platform sigle), just never
-  // surfaced in the board itself before now.
-  const hostName = comp.organisateur || null;
-
   // Live window: only endsAt + liveDurationSeconds are actually persisted
   // (no separate startsAt column), so the start is derived the same way
   // the rest of the board treats the live phase — end minus its duration.
@@ -3999,6 +3994,112 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
         overflow: "hidden",
       }}>
 
+      {/* ── ORGANISER PROFILE — moved right after the banner, first thing in the content sheet ── */}
+      <div style={{ background: "#1a1a1a", padding: "8px 10px" }}>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: 8,
+        }}>
+          <span style={{
+            display: "flex", alignItems: "center", gap: 6,
+            fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+            color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
+          }}>
+            <BadgeCheck size={13} strokeWidth={2.5} />
+            Organisateur
+          </span>
+          <button
+            onClick={() => showToast?.("Réseaux de l'organisateur — bientôt disponible")}
+            style={{
+              border: "none", background: "none", color: accent,
+              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+              letterSpacing: "0.08em", textTransform: "uppercase",
+              cursor: "pointer", padding: 0,
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            <Link2 size={12} strokeWidth={2.5} />
+            Voir les réseaux
+          </button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: "50%",
+            background: accent, color: "#fff",
+            fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+          }}>
+            {comp.organisateur.charAt(0)}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
+            <span style={{
+              fontFamily: "Inter, sans-serif", fontSize: 14.5, color: "#f2f2f2", fontWeight: 700,
+              display: "flex", alignItems: "center", gap: 4,
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            }}>
+              {comp.organisateur}
+              <BadgeCheck size={13} strokeWidth={2.5} color={accent} style={{ flexShrink: 0 }} />
+            </span>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a", fontWeight: 500 }}>
+              {fmtVotes(orgFollowerCount)} abonnés
+            </span>
+          </div>
+
+          {(() => {
+            const friendSeed = Math.abs(hashStr(comp.id + "_org_friends"));
+            const friendCount = 2 + (friendSeed % 4); // 2–5 mutuals
+            const friendNames = Array.from({ length: friendCount }, (_, i) => fakeName(friendSeed + i * 11));
+            return (
+              <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }} title={`Suivi par ${friendNames.join(", ")}`}>
+                {friendNames.slice(0, 3).map((name, i) => (
+                  <div key={i} style={{
+                    width: 22, height: 22, borderRadius: "50%", overflow: "hidden", flexShrink: 0,
+                    border: "2px solid #1a1a1a", marginLeft: i === 0 ? 0 : -8,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+                  }}>
+                    <EntityAvatar name={name} bg="#211f36" color="#6C63FF" />
+                  </div>
+                ))}
+                {friendCount > 3 && (
+                  <div style={{
+                    width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                    border: "2px solid #1a1a1a", marginLeft: -8,
+                    background: "#211f36", color: "#6C63FF",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+                  }}>
+                    +{friendCount - 3}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <button
+            onClick={() => {
+              const wasFollowed = orgFollowed;
+              setOrgFollowed(!wasFollowed);
+              setOrgFollowerCount((c) => wasFollowed ? c - 1 : c + 1);
+            }}
+            style={{
+              flexShrink: 0,
+              border: orgFollowed ? "1px solid #2a2a2a" : "none",
+              background: orgFollowed ? "#1a1a1a" : accent,
+              color: orgFollowed ? "#9a9a9a" : "#fff",
+              borderRadius: 999, padding: "8px 16px",
+              fontFamily: "Inter, sans-serif", fontSize: 12.5, fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            {orgFollowed ? "Abonné" : "Suivre"}
+          </button>
+        </div>
+      </div>
+
       {/* ── Thumbnail selector — lives inside the sheet so the curve never covers it. Only worth showing when there's something to switch between. ── */}
       {heroBannerSlides.length > 1 && (
         <div style={{ background: "#1a1a1a", padding: "12px 8px 8px", display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
@@ -4066,7 +4167,6 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
                 }}>{comp.edition}</span>
               )}
             </div>
-            {hostName && <div style={{ marginTop: 3 }}><OrganiserChip name={hostName} accent={accent} /></div>}
           </div>
           <div style={{
             flexShrink: 0, display: "flex", alignItems: "center", gap: 4,
@@ -4762,112 +4862,6 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
           isCompleted={isCompleted}
           isRegistration={isRegistration}
         />
-        </div>
-
-        {/* ── ORGANISER PROFILE — standalone section, own row below Participants ── */}
-        <div style={{ background: "#1a1a1a", padding: "8px 10px", borderTop: "8px solid #2a2a2a" }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 8,
-          }}>
-            <span style={{
-              display: "flex", alignItems: "center", gap: 6,
-              fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-              color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.1em",
-            }}>
-              <BadgeCheck size={13} strokeWidth={2.5} />
-              Organisateur
-            </span>
-            <button
-              onClick={() => showToast?.("Réseaux de l'organisateur — bientôt disponible")}
-              style={{
-                border: "none", background: "none", color: accent,
-                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
-                letterSpacing: "0.08em", textTransform: "uppercase",
-                cursor: "pointer", padding: 0,
-                display: "flex", alignItems: "center", gap: 4,
-              }}
-            >
-              <Link2 size={12} strokeWidth={2.5} />
-              Voir les réseaux
-            </button>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: "50%",
-              background: accent, color: "#fff",
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
-            }}>
-              {comp.organisateur.charAt(0)}
-            </div>
-
-            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
-              <span style={{
-                fontFamily: "Inter, sans-serif", fontSize: 14.5, color: "#f2f2f2", fontWeight: 700,
-                display: "flex", alignItems: "center", gap: 4,
-                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-              }}>
-                {comp.organisateur}
-                <BadgeCheck size={13} strokeWidth={2.5} color={accent} style={{ flexShrink: 0 }} />
-              </span>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a", fontWeight: 500 }}>
-                {fmtVotes(orgFollowerCount)} abonnés
-              </span>
-            </div>
-
-            {(() => {
-              const friendSeed = Math.abs(hashStr(comp.id + "_org_friends"));
-              const friendCount = 2 + (friendSeed % 4); // 2–5 mutuals
-              const friendNames = Array.from({ length: friendCount }, (_, i) => fakeName(friendSeed + i * 11));
-              return (
-                <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }} title={`Suivi par ${friendNames.join(", ")}`}>
-                  {friendNames.slice(0, 3).map((name, i) => (
-                    <div key={i} style={{
-                      width: 22, height: 22, borderRadius: "50%", overflow: "hidden", flexShrink: 0,
-                      border: "2px solid #1a1a1a", marginLeft: i === 0 ? 0 : -8,
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-                    }}>
-                      <EntityAvatar name={name} bg="#211f36" color="#6C63FF" />
-                    </div>
-                  ))}
-                  {friendCount > 3 && (
-                    <div style={{
-                      width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                      border: "2px solid #1a1a1a", marginLeft: -8,
-                      background: "#211f36", color: "#6C63FF",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700,
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-                    }}>
-                      +{friendCount - 3}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            <button
-              onClick={() => {
-                const wasFollowed = orgFollowed;
-                setOrgFollowed(!wasFollowed);
-                setOrgFollowerCount((c) => wasFollowed ? c - 1 : c + 1);
-              }}
-              style={{
-                flexShrink: 0,
-                border: orgFollowed ? "1px solid #2a2a2a" : "none",
-                background: orgFollowed ? "#1a1a1a" : accent,
-                color: orgFollowed ? "#9a9a9a" : "#fff",
-                borderRadius: 999, padding: "8px 16px",
-                fontFamily: "Inter, sans-serif", fontSize: 12.5, fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              {orgFollowed ? "Abonné" : "Suivre"}
-            </button>
-          </div>
         </div>
 
         {/* ── RULES (lower-priority disclosure, separate from the vitals above) ── */}
