@@ -20,31 +20,18 @@ html, body {
   background: #111;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-
-  /* Kills the rubber-band "pull to refresh" / bounce-past-the-edge feel
-     that instantly reads as "this is a website." */
   overscroll-behavior: none;
-
-  /* No browser text selection halo on tap-and-hold. */
   -webkit-user-select: none;
   user-select: none;
-
-  /* No blue/gray flash rectangle on tap (the single biggest tell). */
   -webkit-tap-highlight-color: transparent;
-
-  /* No callout menu ("Copy" / "Look Up") on long-press. */
   -webkit-touch-callout: none;
 }
 
-/* Text the user actually needs to select (comments, messages, form
-   inputs) opts back in explicitly. */
 input, textarea, [contenteditable="true"], .selectable-text {
   -webkit-user-select: text;
   user-select: text;
 }
 
-/* Input placeholders stay readable on both the light pages and the dark
-   homepage — a single neutral gray that reads on either surface. */
 input::placeholder,
 textarea::placeholder {
   color: #7a7a80;
@@ -55,12 +42,6 @@ textarea::placeholder {
   overscroll-behavior: none;
 }
 
-/* Opt-in only — do NOT blanket-match every element with overflowY in its
-   inline style. Forcing -webkit-overflow-scrolling: touch onto many
-   (especially large, stacked, full-screen) elements promotes each one
-   to its own compositing layer; that's the classic WebKit jank/memory
-   trap. Add class="native-scroll" to the specific scroll containers
-   that need momentum scrolling. */
 .native-scroll {
   -webkit-overflow-scrolling: touch;
 }
@@ -71,53 +52,36 @@ button, [role="button"], a {
   touch-action: manipulation;
 }
 
-/* ---- Touch press feedback ----
-   Native controls compress slightly under a finger; web controls
-   change color on :hover. Add this class to any tappable element
-   to get the tactile "give" a native control has. Pairs with
-   hapticTap() in native.ts for the buttons that matter (vote,
-   register, send gift, post comment). */
 .tap-scale {
   transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
   touch-action: manipulation;
 }
-.tap-scale:active {
-  transform: scale(0.96);
-}
-.tap-scale-sm {
-  touch-action: manipulation;
-}
-.tap-scale-sm:active {
-  transform: scale(0.98);
-}
+.tap-scale:active { transform: scale(0.96); }
+.tap-scale-sm { touch-action: manipulation; }
+.tap-scale-sm:active { transform: scale(0.98); }
 
-.safe-top    { padding-top: var(--safe-top); }
+.safe-top { padding-top: var(--safe-top); }
 .safe-bottom { padding-bottom: var(--safe-bottom); }
 
 @keyframes screen-push-in {
   from { transform: translateX(100%); }
-  to   { transform: translateX(0); }
+  to { transform: translateX(0); }
 }
 .screen-push-in {
   animation: screen-push-in 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-/* Competition board: compact tabs become a flat, sticky strip after the
-   user scrolls past the hero/header. The board already owns the scroll
-   container, so this uses its scroll timeline without another JS listener. */
+/* Competition board: flat tabs appear as soon as the hero/banner has
+   been passed, then stay fixed directly below the header. */
 @keyframes competition-tabs-reveal {
   0% {
     opacity: 0;
     transform: translateY(-8px);
     visibility: hidden;
   }
-  1% {
-    visibility: visible;
-  }
+  1% { visibility: visible; }
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -140,7 +104,7 @@ button, [role="button"], a {
   gap: 0 !important;
   background: #1a1a1a !important;
   border-bottom: 1px solid #2a2a2a !important;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.08) !important;
+  box-shadow: none !important;
   opacity: 0;
   transform: translateY(-8px);
   visibility: hidden;
@@ -148,14 +112,16 @@ button, [role="button"], a {
   scrollbar-width: none !important;
   animation: competition-tabs-reveal 1ms linear both;
   animation-timeline: scroll(nearest block);
-  animation-range: 140px 200px;
+  animation-range: 100px 140px;
 }
 
 [style*="scrollbar-width: none"][style*="padding: 10px 0px 2px"]::-webkit-scrollbar {
   display: none;
 }
 
+/* Clean text-only selector: no icons, pills, shadows, or rounded UI. */
 [style*="scrollbar-width: none"][style*="padding: 10px 0px 2px"] > button {
+  position: relative !important;
   height: 44px !important;
   padding: 0 13px !important;
   border: 0 !important;
@@ -167,13 +133,32 @@ button, [role="button"], a {
   white-space: nowrap;
 }
 
+[style*="scrollbar-width: none"][style*="padding: 10px 0px 2px"] > button svg {
+  display: none !important;
+}
+
+/* Active tab gets a simple bottom rule rather than a pill background. */
+[style*="scrollbar-width: none"][style*="padding: 10px 0px 2px"] > button[style*="color: rgb(255, 255, 255)"] {
+  border-bottom: 2px solid currentColor !important;
+}
+
 [style*="scrollbar-width: none"][style*="padding: 10px 0px 2px"] > button:first-child {
   margin-left: 0;
 }
 
+/* Remove the header's glass/blur treatment and its circular glass control UI. */
+[style*="position: sticky"][style*="top: 0px"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[style*="position: sticky"][style*="top: 0px"] button {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
 @supports not (animation-timeline: scroll()) {
-  /* Older WebViews keep the tabs hidden rather than showing them in the
-     wrong place; modern Android/iOS WebViews support scroll timelines. */
   [style*="scrollbar-width: none"][style*="padding: 10px 0px 2px"] {
     animation: none;
     visibility: hidden;
