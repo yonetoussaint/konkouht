@@ -227,6 +227,20 @@ function fmtAbsoluteDate(target) {
   return `${date} ${month}, ${hours}:${minutes} ${ampm}`;
 }
 
+// Time-only label for an individual match's kickoff (e.g. "2:30 PM") —
+// used on each match row so matches sharing a matchday/round each show
+// their own time instead of only the shared matchday/round date.
+function fmtMatchTime(target) {
+  const d = new Date(target);
+  if (Number.isNaN(d.getTime())) return "";
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  return `${hours}:${minutes} ${ampm}`;
+}
+
 // Date-only variant for CompCard's compact stats row — the card is small
 // enough that the time just adds noise once you already have the "Fin
 // inscr." / "Fin dans" label sitting right next to it.
@@ -513,6 +527,12 @@ function scheduleGroupRoundRobin(group) {
 // schedule behind this yet.
 const MATCHDAY_INTERVAL_MS = 2 * 24 * 60 * 60 * 1000;
 
+// Matches sharing a matchday/round don't all kick off at once — each one
+// gets its own slot, staggered this far apart from the day's base time, so
+// a fixture list reads like a real schedule instead of one blurry "same
+// day" block.
+const MATCH_TIME_STAGGER_MS = 40 * 60 * 1000;
+
 function buildMockBracket(participants, comp) {
   const pool = (participants || []).filter(Boolean).slice().sort((a, b) => (b.points || 0) - (a.points || 0));
   if (pool.length < 2) return null;
@@ -548,13 +568,20 @@ function buildMockBracket(participants, comp) {
     const matchdayCount = groupSchedules.reduce((max, s) => Math.max(max, s.length), 0);
     const matchdays = [];
     for (let d = 0; d < matchdayCount; d++) {
+      const dayDate = nextDate();
       const matches = [];
+      let matchIndex = 0;
       groupSchedules.forEach((sched, gi) => {
         (sched[d] || []).forEach(([a, b]) => {
-          matches.push({ a, b, winner: (a.points || 0) >= (b.points || 0) ? a : b, groupIndex: gi });
+          matches.push({
+            a, b,
+            winner: (a.points || 0) >= (b.points || 0) ? a : b,
+            groupIndex: gi,
+            time: new Date(dayDate.getTime() + matchIndex++ * MATCH_TIME_STAGGER_MS),
+          });
         });
       });
-      matchdays.push({ date: nextDate(), matches });
+      matchdays.push({ date: dayDate, matches });
     }
     rounds.push({ name: "Phase de poules", type: "roundrobin", groups, matchdays, qualifiers });
   }
@@ -562,11 +589,13 @@ function buildMockBracket(participants, comp) {
   let entrants = pool.slice(0, bracketSize);
   while (entrants.length >= 2) {
     const size = entrants.length;
-    const matches = pairForBracket(entrants).map(([a, b]) => ({
+    const roundDate = nextDate();
+    const matches = pairForBracket(entrants).map(([a, b], mi) => ({
       a, b,
       winner: (a.points || 0) >= (b.points || 0) ? a : b,
+      time: new Date(roundDate.getTime() + mi * MATCH_TIME_STAGGER_MS),
     }));
-    rounds.push({ name: KNOCKOUT_STAGE_NAMES[size] || `Tour de ${size}`, type: "knockout", date: nextDate(), matches });
+    rounds.push({ name: KNOCKOUT_STAGE_NAMES[size] || `Tour de ${size}`, type: "knockout", date: roundDate, matches });
     entrants = matches.map((m) => m.winner);
   }
 
@@ -706,8 +735,15 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
                 {matchday.matches.map((m, mi) => (
                   <div key={mi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
-                    <div style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                      Groupe {String.fromCharCode(65 + m.groupIndex)}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: 4 }}>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        Groupe {String.fromCharCode(65 + m.groupIndex)}
+                      </span>
+                      {m.time && (
+                        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a", flexShrink: 0 }}>
+                          {fmtMatchTime(m.time)}
+                        </span>
+                      )}
                     </div>
                     {(() => {
                       const leading = m.a.points === m.b.points ? null : (m.a.points > m.b.points ? m.a : m.b);
@@ -783,6 +819,11 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
           ) : (
             round.matches.map((m, mi) => (
               <div key={mi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
+                {m.time && (
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 9.5, fontWeight: 700, color: "#7a7a7a", marginBottom: 4 }}>
+                    {fmtMatchTime(m.time)}
+                  </div>
+                )}
                 {(() => {
                   const leading = m.a.points === m.b.points ? null : (m.a.points > m.b.points ? m.a : m.b);
                   return [m.a, m.b].map((p) => {
