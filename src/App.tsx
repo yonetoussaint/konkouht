@@ -922,6 +922,31 @@ export function formatCoins(n) {
 }
 
 export const FR_MONTH_ABBR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+export const FR_MONTH_FULL = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+];
+
+// The recurring monthly label every new edition gets going forward, e.g.
+// "Janvier 2026" — always the full 4-digit year, never the "2k26" shorthand.
+// Kept as its own field (comp.edition) separately from the base
+// competition name (comp.title) so the admin list/search can still tell
+// editions of the same series apart by this label alone.
+export function buildMonthlyEditionLabel(date = new Date()) {
+  return `${FR_MONTH_FULL[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+// Full public-facing title for a brand-new monthly edition, e.g.
+// "Concours de Beauté Janvier 2026" — the series' base title (from the
+// seed/template competition) with the current monthly label appended.
+// Only used to *pre-fill* the edit form when an admin starts a new
+// edition; they can still override it before publishing.
+export function buildMonthlyEditionTitle(baseTitle, date = new Date()) {
+  const base = (baseTitle || "").trim();
+  const label = buildMonthlyEditionLabel(date);
+  return base ? `${base} ${label}` : label;
+}
+
 export function fmtAbsoluteDateOnly(target) {
   const d = new Date(target);
   if (Number.isNaN(d.getTime())) return "";
@@ -2985,11 +3010,16 @@ export default function App() {
   function handleCreateDraftEdition(comp, niche) {
     const placeholderId =
       typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `pending-${Date.now()}`;
+    // Auto-name the new edition off today's month/year — e.g. base title
+    // "Concours de Beauté" → "Concours de Beauté Janvier 2026", edition
+    // label "Janvier 2026" — instead of leaving both blank for the admin
+    // to type from scratch every month. Still fully editable before saving.
+    const now = new Date();
     const blankEdition = {
       id: placeholderId,
       competitionId: comp.id,
-      title: null,
-      edition: null,
+      title: buildMonthlyEditionTitle(comp.title, now),
+      edition: buildMonthlyEditionLabel(now),
       ends: null,
       endsAt: null,
       phase: "registration",
