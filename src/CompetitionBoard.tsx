@@ -3992,10 +3992,9 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
         })()}
       </div>
 
-      {/* ── CONTENT SHEET — rounded top corners, sits flush below the hero ── */}
+      {/* ── CONTENT SHEET — sits flush below the hero, no seam/curve ── */}
       <div style={{
         position: "relative",
-        borderRadius: "22px 22px 0 0",
         background: "#242424",
         overflow: "hidden",
       }}>
