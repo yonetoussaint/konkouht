@@ -3791,9 +3791,18 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
   const navMediasRef = useRef(null);
   const navDonateursRef = useRef(null);
   const [activeNavTab, setActiveNavTab] = useState("accueil");
+  const navTabBarRef = useRef(null);
+  const HEADER_HEIGHT = 54; // height of the sticky transparent header above
   const scrollToNav = (key, ref) => {
     setActiveNavTab(key);
-    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const el = ref.current;
+    const container = scrollRef.current;
+    if (!el || !container) return;
+    // Account for the header + sticky tab bar sitting on top of the
+    // scroll area, so the target section isn't scrolled to underneath them.
+    const offset = HEADER_HEIGHT + (navTabBarRef.current?.offsetHeight || 0);
+    const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - offset;
+    container.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   };
   const navTabs = [
     { key: "accueil", label: "Accueil", icon: Home, ref: navAboutRef },
@@ -4265,8 +4274,24 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
           ))}
         </div>
 
-        {/* Competition navigation */}
-        <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", padding: "10px 0 2px" }}>
+        {/* Competition navigation — sticky just below the header once the
+            page scrolls, so it stays reachable instead of getting buried
+            under the top-info strip. Negative side margins let it bleed
+            full-width past this section's own padding while stuck. */}
+        <div
+          ref={navTabBarRef}
+          className="board-navtabs"
+          style={{
+            position: "sticky", top: HEADER_HEIGHT, zIndex: 49,
+            display: "flex", gap: 6, overflowX: "auto",
+            scrollbarWidth: "none", msOverflowStyle: "none",
+            background: "#1a1a1a",
+            margin: "0 -12px",
+            padding: "10px 12px 8px",
+            borderBottom: "1px solid #2a2a2a",
+          }}
+        >
+          <style>{`.board-navtabs::-webkit-scrollbar{display:none}`}</style>
           {navTabs.map((tab) => {
             const active = activeNavTab === tab.key;
             const Icon = tab.icon;
