@@ -4024,29 +4024,79 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: "50%",
-            background: accent, color: "#fff",
-            fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
-          }}>
-            {comp.organisateur.charAt(0)}
-          </div>
+          {(() => {
+            // Supports co-organised editions (comp.organisateurs — an array
+            // of names or {name, avatarUrl} objects) while staying fully
+            // backward-compatible with the single comp.organisateur string
+            // every existing edition already has. 2+ organisers stack their
+            // circles YouTube-collab style instead of showing one avatar.
+            const ORG_STACK_COLORS = [accent, "#6C63FF", "#00B894", "#F0A020"];
+            const organiserList = (Array.isArray(comp.organisateurs) && comp.organisateurs.length > 0
+              ? comp.organisateurs
+              : [comp.organisateur]
+            )
+              .filter(Boolean)
+              .map((o) => (typeof o === "string" ? { name: o, avatarUrl: null } : o));
+            const isCollab = organiserList.length > 1;
+            const displayName = organiserList.length <= 1
+              ? organiserList[0]?.name || ""
+              : organiserList.length === 2
+              ? `${organiserList[0].name} & ${organiserList[1].name}`
+              : `${organiserList[0].name}, ${organiserList[1].name} & ${organiserList.length - 2} autre${organiserList.length - 2 > 1 ? "s" : ""}`;
 
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
-            <span style={{
-              fontFamily: "Inter, sans-serif", fontSize: 14.5, color: "#f2f2f2", fontWeight: 700,
-              display: "flex", alignItems: "center", gap: 4,
-              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            }}>
-              {comp.organisateur}
-              <BadgeCheck size={13} strokeWidth={2.5} color={accent} style={{ flexShrink: 0 }} />
-            </span>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a", fontWeight: 500 }}>
-              {fmtVotes(orgFollowerCount)} abonnés
-            </span>
-          </div>
+            return (
+              <>
+                {isCollab ? (
+                  <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }} title={organiserList.map((o) => o.name).join(", ")}>
+                    {organiserList.slice(0, 3).map((o, i) => (
+                      <div key={i} style={{
+                        width: 40, height: 40, borderRadius: "50%", overflow: "hidden", flexShrink: 0,
+                        border: "2.5px solid #1a1a1a", marginLeft: i === 0 ? 0 : -14,
+                        zIndex: 3 - i, boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                      }}>
+                        <EntityAvatar url={o.avatarUrl} name={o.name} bg={ORG_STACK_COLORS[i % ORG_STACK_COLORS.length]} color="#fff" />
+                      </div>
+                    ))}
+                    {organiserList.length > 3 && (
+                      <div style={{
+                        width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                        border: "2.5px solid #1a1a1a", marginLeft: -14, zIndex: 0,
+                        background: "#242424", color: "#c4c4c4",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 700,
+                      }}>
+                        +{organiserList.length - 3}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{
+                    width: 44, height: 44, borderRadius: "50%",
+                    background: accent, color: "#fff",
+                    fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    {displayName.charAt(0)}
+                  </div>
+                )}
+
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
+                  <span style={{
+                    fontFamily: "Inter, sans-serif", fontSize: 14.5, color: "#f2f2f2", fontWeight: 700,
+                    display: "flex", alignItems: "center", gap: 4,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>
+                    {displayName}
+                    {!isCollab && <BadgeCheck size={13} strokeWidth={2.5} color={accent} style={{ flexShrink: 0 }} />}
+                  </span>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#7a7a7a", fontWeight: 500 }}>
+                    {isCollab ? "Compétition co-organisée" : `${fmtVotes(orgFollowerCount)} abonnés`}
+                  </span>
+                </div>
+              </>
+            );
+          })()}
 
           {(() => {
             const friendSeed = Math.abs(hashStr(comp.id + "_org_friends"));
