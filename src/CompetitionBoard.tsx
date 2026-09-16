@@ -3996,11 +3996,15 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
         })()}
       </div>
 
-      {/* ── CONTENT SHEET — sits flush below the hero, no seam/curve ── */}
+      {/* ── CONTENT SHEET — sits flush below the hero, no seam/curve ──
+          overflowX only (not overflow: hidden): a plain overflow:hidden
+          here would make this the sticky containing block instead of the
+          actual page scroller, breaking position:sticky for anything
+          inside it (like the nav tab bar below). */}
       <div style={{
         position: "relative",
         background: "#242424",
-        overflow: "hidden",
+        overflowX: "hidden",
       }}>
 
       {/* ── ORGANISER PROFILE — moved right after the banner, first thing in the content sheet ── */}
