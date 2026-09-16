@@ -9,7 +9,7 @@ import {
   Trophy, Home, Wallet, Users, Bell, BadgeCheck, Play, Plus, Gift, X, Check,
   ArrowLeft, Send, ChevronRight, ChevronLeft, MessageCircle,
   Image as ImageIcon, Heart, Share2, Bookmark, Info, Volume2, VolumeX, Hand,
-  Clock, Pencil, Link2, Loader2,
+  Clock, Pencil, Link2, Loader2, Calendar, Swords, LayoutGrid,
 } from "lucide-react";
 import {
   supabase,
@@ -3711,6 +3711,103 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
     return slides.length > 0 ? slides : [{ type: "placeholder" }];
   }, [comp.images, comp.bannerUrl]);
 
+  /* ── TOP INFO STRIP — logo/host/status, start–end progress, key numbers,
+     and section navigation. Reuses the same phase flags, bracket, and
+     resolveEndsAt() the rest of the board already computes, so this never
+     drifts from what the hero/sections below are showing. ────────────── */
+
+  // Tournament status — three states, "upcoming" is new (the hero banner
+  // only ever showed live/completed badges before this).
+  const tournamentStatus = isCompleted
+    ? { label: "Terminé", bg: "rgba(255,255,255,0.16)", fg: "#f2f2f2", dot: false }
+    : isLive
+    ? { label: "En direct", bg: "#00B894", fg: "#fff", dot: true }
+    : { label: "À venir", bg: "#F0A020", fg: "#1a1a1a", dot: false };
+
+  // Host / sponsor — comp.organisateur already carries this (set at
+  // creation time from currentUser or the platform sigle), just never
+  // surfaced in the board itself before now.
+  const hostName = comp.organisateur || null;
+
+  // Live window: only endsAt + liveDurationSeconds are actually persisted
+  // (no separate startsAt column), so the start is derived the same way
+  // the rest of the board treats the live phase — end minus its duration.
+  // Registration hasn't started the clock yet, so there's no start to show.
+  const FALLBACK_LIVE_SECONDS = 7 * 24 * 60 * 60;
+  const liveEndsAtResolved = resolveEndsAt();
+  const liveStartsAtResolved = isRegistration
+    ? null
+    : new Date(new Date(liveEndsAtResolved).getTime() - (comp.liveDurationSeconds || FALLBACK_LIVE_SECONDS) * 1000).toISOString();
+  const progressPct = isCompleted
+    ? 100
+    : isRegistration || !liveStartsAtResolved
+    ? 0
+    : (() => {
+        const start = new Date(liveStartsAtResolved).getTime();
+        const end = new Date(liveEndsAtResolved).getTime();
+        if (!(end > start)) return 0;
+        return Math.min(100, Math.max(0, Math.round(((Date.now() - start) / (end - start)) * 100)));
+      })();
+
+  // Full, untrimmed bracket (unlike `bracket` above, which drops the
+  // fixtures during registration) — only used here to total up how many
+  // matches the whole tournament will end up having.
+  const fullTournamentBracket = useMemo(() => {
+    const pool = participantsFull.length >= 2 ? participantsFull : buildMockContestants(comp);
+    return buildMockBracket(pool, comp);
+  }, [participantsFull, comp]);
+  const totalMatchesCount = useMemo(() => {
+    if (!fullTournamentBracket) return 0;
+    return fullTournamentBracket.reduce((sum, round) => {
+      if (round.type === "knockout") return sum + round.matches.length;
+      if (round.type === "roundrobin") return sum + round.matchdays.reduce((s, md) => s + md.matches.length, 0);
+      return sum; // "Groupes" is composition only, carries no matches of its own
+    }, 0);
+  }, [fullTournamentBracket]);
+
+  const currentStageLabel = isRegistration
+    ? "Inscriptions"
+    : isCompleted
+    ? "Terminé"
+    : bracket?.[bracketCurrentRound]?.name || "—";
+
+  // Next match — nearest future fixture date across the whole (untrimmed)
+  // bracket, so it still points ahead during registration once fixtures
+  // exist, and disappears once the competition is over.
+  const nextMatchAt = useMemo(() => {
+    if (isCompleted || !fullTournamentBracket) return null;
+    const now = Date.now();
+    const dates = [];
+    fullTournamentBracket.forEach((round) => {
+      if (round.type === "knockout" && round.date) dates.push(new Date(round.date).getTime());
+      if (round.type === "roundrobin") round.matchdays.forEach((md) => dates.push(new Date(md.date).getTime()));
+    });
+    const future = dates.filter((t) => t > now).sort((a, b) => a - b);
+    return future.length ? future[0] : null;
+  }, [fullTournamentBracket, isCompleted]);
+
+  // Competition navigation — scrolls to sections already rendered further
+  // down the page rather than swapping content, so it works without
+  // restructuring the existing always-rendered sections. Missing sections
+  // (e.g. no Médias once a competition is completed) just no-op.
+  const navAboutRef = useRef(null);
+  const navBracketRef = useRef(null);
+  const navParticipantsRef = useRef(null);
+  const navMediasRef = useRef(null);
+  const navDonateursRef = useRef(null);
+  const [activeNavTab, setActiveNavTab] = useState("accueil");
+  const scrollToNav = (key, ref) => {
+    setActiveNavTab(key);
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const navTabs = [
+    { key: "accueil", label: "Accueil", icon: Home, ref: navAboutRef },
+    { key: "classement", label: "Classement", icon: Swords, ref: navBracketRef },
+    { key: "participants", label: "Participants", icon: Users, ref: navParticipantsRef },
+    { key: "medias", label: "Médias", icon: ImageIcon, ref: navMediasRef },
+    { key: "donateurs", label: "Donateurs", icon: Gift, ref: navDonateursRef },
+  ];
+
   return (
     <div ref={scrollRef} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#242424", overflowY: "auto" }}>
 
@@ -3948,7 +4045,104 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
         </div>
       )}
 
-      <div style={{ padding: 0 }}>
+      {/* ── TOP INFO STRIP — logo, host, edition, status, start–end
+          progress, key numbers, and section navigation. ── */}
+      <div style={{ background: "#1a1a1a", borderTop: "8px solid #2a2a2a", padding: "14px 12px" }}>
+
+        {/* Logo + name/edition + host + status */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, overflow: "hidden", flexShrink: 0, border: "1px solid #2a2a2a" }}>
+            <EntityAvatar url={comp.logoUrl} name={comp.title} bg="#242424" color="#f2f2f2" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span style={{
+                fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 800, color: "#f2f2f2",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%",
+              }}>{comp.title}</span>
+              {comp.edition && (
+                <span style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 10.5, fontWeight: 700, color: accent,
+                  background: `${accent}1c`, padding: "2px 7px", borderRadius: 6,
+                }}>{comp.edition}</span>
+              )}
+            </div>
+            {hostName && <div style={{ marginTop: 3 }}><OrganiserChip name={hostName} accent={accent} /></div>}
+          </div>
+          <div style={{
+            flexShrink: 0, display: "flex", alignItems: "center", gap: 4,
+            fontFamily: "Inter, sans-serif", fontSize: 9.5, fontWeight: 800,
+            letterSpacing: "0.08em", textTransform: "uppercase",
+            color: tournamentStatus.fg, background: tournamentStatus.bg,
+            padding: "4px 9px", borderRadius: 8,
+          }}>
+            {tournamentStatus.dot && (
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#1a1a1a", display: "inline-block", animation: "pulse-dot 1s infinite" }} />
+            )}
+            {tournamentStatus.label}
+          </div>
+        </div>
+
+        {/* Start – end dates + progress bar */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "Inter, sans-serif", fontSize: 10.5, color: "#7a7a7a", marginBottom: 5 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Calendar size={11} strokeWidth={2.5} />
+              {liveStartsAtResolved ? fmtAbsoluteDate(liveStartsAtResolved) : "À déterminer"}
+            </span>
+            <span>{fmtAbsoluteDate(liveEndsAtResolved)}</span>
+          </div>
+          <div style={{ width: "100%", height: 5, borderRadius: 3, background: "#2a2a2a", overflow: "hidden" }}>
+            <div style={{ width: `${progressPct}%`, height: "100%", background: isCompleted ? "#7a7a7a" : accent, transition: "width 0.4s ease" }} />
+          </div>
+        </div>
+
+        {/* Key numbers */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderTop: "1px solid #2a2a2a", borderBottom: "1px solid #2a2a2a" }}>
+          {[
+            { icon: Users, label: "Équipes", value: comp.contestants ?? "—" },
+            { icon: Swords, label: "Matchs", value: totalMatchesCount || "—" },
+            { icon: LayoutGrid, label: "Étape", value: currentStageLabel },
+            { icon: Clock, label: "Prochain match", value: nextMatchAt ? fmtCountdown(nextMatchAt) : "—" },
+          ].map((s, i) => (
+            <div key={i} style={{ padding: "10px 4px", textAlign: "center", borderRight: i < 3 ? "1px solid #2a2a2a" : "none" }}>
+              <s.icon size={13} color={accent} strokeWidth={2.3} style={{ marginBottom: 3 }} />
+              <div style={{
+                fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, fontWeight: 800, color: "#f2f2f2",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>{s.value}</div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Competition navigation */}
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", padding: "10px 0 2px" }}>
+          {navTabs.map((tab) => {
+            const active = activeNavTab === tab.key;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => scrollToNav(tab.key, tab.ref)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
+                  fontFamily: "Inter, sans-serif", fontSize: 11.5, fontWeight: 700,
+                  padding: "7px 12px", borderRadius: 20, border: "none", cursor: "pointer",
+                  background: active ? accent : "#242424",
+                  color: active ? "#fff" : "#c4c4c4",
+                  transition: "background 0.2s, color 0.2s",
+                }}
+              >
+                <Icon size={13} strokeWidth={2.3} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ padding: 0 }} ref={navAboutRef}>
 
         {activeTab === "home" && (
         <>
@@ -4301,7 +4495,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
             )}
           </div>
         ) : (
-          <div style={{ background: "#1a1a1a", borderTop: "8px solid #2a2a2a" }}>
+          <div ref={navParticipantsRef} style={{ background: "#1a1a1a", borderTop: "8px solid #2a2a2a" }}>
             {isRegistration && (
               <div style={{ padding: "14px 10px 4px" }}>
                 <PreviewSectionHeader
@@ -4561,6 +4755,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
             buildMockBracket above for how rounds/winners are derived —
             no persisted round/match data behind this yet. Shown in every
             phase, same as the section above. */}
+        <div ref={navBracketRef}>
         <Bracket
           bracket={bracket}
           bracketCurrentRound={bracketCurrentRound}
@@ -4568,6 +4763,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
           isCompleted={isCompleted}
           isRegistration={isRegistration}
         />
+        </div>
 
         {/* ── ORGANISER PROFILE — standalone section, own row below Participants ── */}
         <div style={{ background: "#1a1a1a", padding: "8px 10px", borderTop: "8px solid #2a2a2a" }}>
@@ -4797,7 +4993,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
           const albums = Array.from(albumByUploader.values()).sort((a, b) => b.latestAt - a.latestAt);
 
           return (
-          <div style={{ background: "#1a1a1a", padding: "8px 0", borderTop: "8px solid #2a2a2a" }}>
+          <div ref={navMediasRef} style={{ background: "#1a1a1a", padding: "8px 0", borderTop: "8px solid #2a2a2a" }}>
             <PreviewSectionHeader
               icon={<ImageIcon size={13} strokeWidth={2.5} />}
               label="Médias"
@@ -4926,7 +5122,7 @@ export default function CompetitionBoard({ comp, onClose, balance, onSendGift, o
 
         {/* ── DONATEURS PREVIEW ── */}
         {!isRegistration && (
-          <div style={{ background: "#1a1a1a", padding: "8px 0", borderTop: "8px solid #2a2a2a" }}>
+          <div ref={navDonateursRef} style={{ background: "#1a1a1a", padding: "8px 0", borderTop: "8px solid #2a2a2a" }}>
             <PreviewSectionHeader
               icon={<Gift size={13} strokeWidth={2.5} />}
               label="Donateurs"
