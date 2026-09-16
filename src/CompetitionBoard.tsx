@@ -594,6 +594,10 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
   if (!bracket) return null;
 
   const round = bracket[activeRoundIdx];
+  // Whether the round currently being viewed is already finished, the one
+  // in progress, or hasn't started — drives whether matches show a
+  // decided winner, a live "who's ahead" read, or no result at all yet.
+  const roundState = isCompleted ? "done" : activeRoundIdx < bracketCurrentRound ? "done" : activeRoundIdx === bracketCurrentRound ? "current" : "upcoming";
 
   const selectRound = (idx) => {
     setActiveRoundIdx(idx);
@@ -628,7 +632,7 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
       >
         <style>{`.bracket-tabbar::-webkit-scrollbar{display:none}`}</style>
         {bracket.map((r, idx) => {
-          const roundState = idx < bracketCurrentRound ? "done" : idx === bracketCurrentRound ? "current" : "upcoming";
+          const roundState = isCompleted ? "done" : idx < bracketCurrentRound ? "done" : idx === bracketCurrentRound ? "current" : "upcoming";
           const isActive = idx === activeRoundIdx;
           return (
             <button
@@ -655,6 +659,39 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
         })}
       </div>
 
+      {/* Live / upcoming status for the round being viewed — a knockout or
+          poules round only ever shows a decided winner once it's actually
+          in the past; the in-progress round reads as "live" (ahead, not
+          won) and anything further out hasn't been played yet. */}
+      {round.type !== "groups" && roundState !== "done" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+          {roundState === "current" ? (
+            <span style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "3px 9px", borderRadius: 999,
+              background: "#ff3b3b1a", border: "1px solid #ff3b3b",
+            }}>
+              <span className="bracket-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff3b3b", flexShrink: 0 }} />
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 800, color: "#ff3b3b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                En direct
+              </span>
+            </span>
+          ) : (
+            <span style={{
+              padding: "3px 9px", borderRadius: 999, background: "#242424", border: "1px solid #333",
+              fontFamily: "Inter, sans-serif", fontSize: 9, fontWeight: 700, color: "#7a7a7a",
+              textTransform: "uppercase", letterSpacing: "0.06em",
+            }}>
+              À venir
+            </span>
+          )}
+        </div>
+      )}
+      <style>{`
+        @keyframes bracketLivePulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+        .bracket-live-dot { animation: bracketLivePulse 1.2s ease-in-out infinite; }
+      `}</style>
+
       {/* Active round's content only — full width, self-contained */}
       {round.type === "roundrobin" ? (
         <div key={round.name} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -672,25 +709,32 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
                     <div style={{ fontFamily: "Inter, sans-serif", fontSize: 8.5, fontWeight: 700, color: "#7a7a7a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
                       Groupe {String.fromCharCode(65 + m.groupIndex)}
                     </div>
-                    {[m.a, m.b].map((p) => {
-                      const won = p === m.winner;
-                      return (
-                        <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
-                          <div style={{ width: 15, height: 15, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: won ? 1 : 0.5 }}>
-                            <EntityAvatar url={p.avatarUrl} name={p.name} />
+                    {(() => {
+                      const leading = m.a.points === m.b.points ? null : (m.a.points > m.b.points ? m.a : m.b);
+                      return [m.a, m.b].map((p) => {
+                        const decided = roundState === "done" && p === m.winner;
+                        const ahead = roundState === "current" && p === leading;
+                        const emphasize = decided || ahead;
+                        return (
+                          <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
+                            <div style={{ width: 15, height: 15, borderRadius: "50%", overflow: "hidden", flexShrink: 0, opacity: roundState === "upcoming" ? 0.6 : emphasize ? 1 : 0.5 }}>
+                              <EntityAvatar url={p.avatarUrl} name={p.name} />
+                            </div>
+                            <span style={{
+                              flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                              fontWeight: emphasize ? 700 : 500, color: roundState === "upcoming" ? "#7a7a7a" : emphasize ? "#f2f2f2" : "#7a7a7a",
+                              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                            }}>{p.name}</span>
+                            {roundState !== "upcoming" && (
+                              <span style={{
+                                flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10,
+                                fontWeight: emphasize ? 700 : 500, color: decided ? accent : ahead ? "#ff3b3b" : "#7a7a7a",
+                              }}>{(p.points || 0).toLocaleString("fr-FR")}</span>
+                            )}
                           </div>
-                          <span style={{
-                            flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
-                            fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
-                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                          }}>{p.name}</span>
-                          <span style={{
-                            flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10,
-                            fontWeight: won ? 700 : 500, color: won ? accent : "#7a7a7a",
-                          }}>{(p.points || 0).toLocaleString("fr-FR")}</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 ))}
               </div>
@@ -739,27 +783,38 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
           ) : (
             round.matches.map((m, mi) => (
               <div key={mi} style={{ background: "#242424", borderRadius: 8, padding: "8px 10px" }}>
-                {[m.a, m.b].map((p) => {
-                  const won = p === m.winner;
-                  return (
-                    <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
-                      <div style={{ width: 18, height: 18, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: won ? `1.5px solid ${accent}` : "none", opacity: won ? 1 : 0.5 }}>
-                        <EntityAvatar url={p.avatarUrl} name={p.name} />
+                {(() => {
+                  const leading = m.a.points === m.b.points ? null : (m.a.points > m.b.points ? m.a : m.b);
+                  return [m.a, m.b].map((p) => {
+                    const decided = roundState === "done" && p === m.winner;
+                    const ahead = roundState === "current" && p === leading;
+                    const emphasize = decided || ahead;
+                    return (
+                      <div key={p.id ?? p.index} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
+                        <div style={{
+                          width: 18, height: 18, borderRadius: "50%", overflow: "hidden", flexShrink: 0,
+                          border: decided ? `1.5px solid ${accent}` : ahead ? "1.5px solid #ff3b3b" : "none",
+                          opacity: roundState === "upcoming" ? 0.6 : emphasize ? 1 : 0.5,
+                        }}>
+                          <EntityAvatar url={p.avatarUrl} name={p.name} />
+                        </div>
+                        <span style={{
+                          flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
+                          fontWeight: emphasize ? 700 : 500, color: roundState === "upcoming" ? "#7a7a7a" : emphasize ? "#f2f2f2" : "#7a7a7a",
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>{p.name}</span>
+                        {roundState !== "upcoming" && (
+                          <span style={{
+                            flexShrink: 0, minWidth: 22, textAlign: "right",
+                            fontFamily: "'Space Grotesk', sans-serif", fontSize: 12,
+                            fontWeight: emphasize ? 800 : 500, color: decided ? accent : ahead ? "#ff3b3b" : "#7a7a7a",
+                          }}>{(p.points || 0).toLocaleString("fr-FR")}</span>
+                        )}
+                        {decided && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
                       </div>
-                      <span style={{
-                        flex: 1, minWidth: 0, fontFamily: "Inter, sans-serif", fontSize: 10.5,
-                        fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}>{p.name}</span>
-                      <span style={{
-                        flexShrink: 0, minWidth: 22, textAlign: "right",
-                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 12,
-                        fontWeight: won ? 800 : 500, color: won ? accent : "#7a7a7a",
-                      }}>{(p.points || 0).toLocaleString("fr-FR")}</span>
-                      {won && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             ))
           )}
