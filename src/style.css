@@ -73,16 +73,15 @@ button, [role="button"], a {
 
 * { box-sizing: border-box; }
 
-/* Competition board: flat tabs appear as soon as the hero/banner has
-   been passed, then stay fixed directly below the header. */
+/* Competition board: flat tabs start fully hidden and gradually reveal
+   as the banner is scrolled past, then stay fixed directly below header. */
 @keyframes competition-tabs-reveal {
-  0% {
+  from {
     opacity: 0;
     transform: translateY(-8px);
     visibility: hidden;
   }
-  1% { visibility: visible; }
-  100% {
+  to {
     opacity: 1;
     transform: translateY(0);
     visibility: visible;
@@ -112,7 +111,7 @@ button, [role="button"], a {
   scrollbar-width: none !important;
   animation: competition-tabs-reveal 1ms linear both;
   animation-timeline: scroll(nearest block);
-  animation-range: 100px 140px;
+  animation-range: 0px 140px;
 }
 
 [style*="scrollbar-width: none"][style*="padding: 10px 0px 2px"]::-webkit-scrollbar {
