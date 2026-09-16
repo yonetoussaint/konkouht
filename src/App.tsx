@@ -765,7 +765,7 @@ const NICHES = [
     accent: "#E91E8C",
     icon: "✦",
     competitions: [
-      { id: "b1", title: "Concours de Beauté", edition: "Saison 1", phase: "live", contestants: 12, votes: 6240, ends: "2j 08h", organisateur: "FNCH", hot: true, followers: 22450, mediaType: "photo", registeredCount: 12 },
+      { id: "b1", title: "Concours de Beauté", edition: "Saison 1", phase: "live", contestants: 12, votes: 6240, ends: "2j 08h", organisateur: "FNCH", organisateurs: ["FNCH", "Prestige", "Malta H"], hot: true, followers: 22450, mediaType: "photo", registeredCount: 12 },
       { id: "b2", title: "Miss Élégance", edition: "Demi-finale", phase: "live", contestants: 8, votes: 4810, ends: "1j 12h", organisateur: "FNCH", hot: true, followers: 18300, mediaType: "photo", registeredCount: 8 },
       { id: "b3", title: "Top Model Open", edition: "Éliminatoires", phase: "registration", contestants: 20, votes: 0, ends: "5j 00h", organisateur: "FNCH", hot: false, followers: 9120, mediaType: "photo", registeredCount: 7 },
       { id: "b4", title: "Miss Univers Haïti", edition: "Édition 2025", phase: "completed", contestants: 16, votes: 15200, organisateur: "FNCH", hot: false, followers: 30000, mediaType: "photo", registeredCount: 16, winnerName: "Nadège Pierre", winnerPrize: 25000, closedAt: "2026-08-20T18:00:00Z" },
