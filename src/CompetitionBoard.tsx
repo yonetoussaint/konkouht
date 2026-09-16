@@ -684,6 +684,10 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
                             fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
                             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                           }}>{p.name}</span>
+                          <span style={{
+                            flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10,
+                            fontWeight: won ? 700 : 500, color: won ? accent : "#7a7a7a",
+                          }}>{(p.points || 0).toLocaleString("fr-FR")}</span>
                         </div>
                       );
                     })}
@@ -722,6 +726,10 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
                         fontWeight: qualified ? 700 : 500, color: qualified ? "#f2f2f2" : "#7a7a7a",
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                       }}>{p.name}</span>
+                      <span style={{
+                        flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10,
+                        fontWeight: 700, color: qualified ? accent : "#7a7a7a",
+                      }}>{(p.points || 0).toLocaleString("fr-FR")}</span>
                       {qualified && <Check size={10} strokeWidth={3} color="#00A86B" style={{ flexShrink: 0 }} />}
                     </div>
                   );
@@ -743,6 +751,11 @@ function Bracket({ bracket, bracketCurrentRound, accent, isCompleted, isRegistra
                         fontWeight: won ? 700 : 500, color: won ? "#f2f2f2" : "#7a7a7a",
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                       }}>{p.name}</span>
+                      <span style={{
+                        flexShrink: 0, minWidth: 22, textAlign: "right",
+                        fontFamily: "'Space Grotesk', sans-serif", fontSize: 12,
+                        fontWeight: won ? 800 : 500, color: won ? accent : "#7a7a7a",
+                      }}>{(p.points || 0).toLocaleString("fr-FR")}</span>
                       {won && round.name === "Finale" && <span style={{ fontSize: 11, flexShrink: 0 }}>🏆</span>}
                     </div>
                   );
