@@ -4,13 +4,12 @@ import SectionHeader from "./components/SectionHeader";
 import SectionShell from "./components/SectionShell";
 import BalanceCard from "./WalletPage/BalanceCard";
 import QuickActions from "./WalletPage/QuickActions";
-import DepositPanel from "./WalletPage/DepositPanel";
+import WalletDepositPage from "./WalletDepositPage";
 import TransactionHistory from "./WalletPage/TransactionHistory";
 import TransactionDetailSheet from "./WalletPage/TransactionDetailSheet";
 import { dedupeTransactions } from "./WalletPage/utils";
 import type { WalletPageProps } from "./WalletPage/types";
 
-// Design tokens for consistency
 const SPACING = {
   xs: 4,
   sm: 8,
@@ -56,23 +55,33 @@ export default function WalletPage({
 
   const handleRefresh = async () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    showToast?.('Balances refreshed', 'success');
+    showToast?.("Balances refreshed", "success");
   };
 
-  // Section action handlers
   const handleViewAllActions = () => {
-    showToast?.('View all quick actions');
+    showToast?.("View all quick actions");
   };
 
   const handleViewAllTransactions = () => {
-    showToast?.('View all transactions');
+    showToast?.("View all transactions");
   };
 
+  if (showDeposit) {
+    return (
+      <WalletDepositPage
+        balance={effectiveBalance}
+        transactions={dedupedTransactions}
+        onBack={() => setShowDeposit(false)}
+        showToast={showToast}
+      />
+    );
+  }
+
   return (
-    <div style={{ 
-      minHeight: "100vh", 
-      background: "#111", 
-      paddingBottom: 80 
+    <div style={{
+      minHeight: "100vh",
+      background: "#111",
+      paddingBottom: 80,
     }}>
       <PageHeader
         title="Portefeuille"
@@ -81,28 +90,27 @@ export default function WalletPage({
         borderColor="#2a2a2e"
       />
 
-      <div style={{ 
-        maxWidth: 600, 
-        margin: "0 auto", 
-        padding: `0 ${SPACING.md}px`
+      <div style={{
+        maxWidth: 600,
+        margin: "0 auto",
+        padding: `0 ${SPACING.md}px`,
       }}>
-        {/* Balance Card Section - no heading */}
         <SectionShell bleed={SPACING.md} paddingTop={SPACING.lg} paddingBottom={SPACING.md}>
           <BalanceCard
             wallet={{
-              currency: 'Haitian Gourde',
-              symbol: 'HTG',
+              currency: "Haitian Gourde",
+              symbol: "HTG",
               balance: effectiveBalance,
-              dayChange: dayChange,
-              dayChangePct: dayChangePct,
+              dayChange,
+              dayChangePct,
               chartData: [
-                { time: '00:00', value: effectiveBalance - 5000 },
-                { time: '04:00', value: effectiveBalance - 2000 },
-                { time: '08:00', value: effectiveBalance + 3000 },
-                { time: '12:00', value: effectiveBalance + 1000 },
-                { time: '16:00', value: effectiveBalance - 1000 },
-                { time: '20:00', value: effectiveBalance + 2000 },
-                { time: '24:00', value: effectiveBalance },
+                { time: "00:00", value: effectiveBalance - 5000 },
+                { time: "04:00", value: effectiveBalance - 2000 },
+                { time: "08:00", value: effectiveBalance + 3000 },
+                { time: "12:00", value: effectiveBalance + 1000 },
+                { time: "16:00", value: effectiveBalance - 1000 },
+                { time: "20:00", value: effectiveBalance + 2000 },
+                { time: "24:00", value: effectiveBalance },
               ],
             }}
             showBalance={showBalance}
@@ -112,7 +120,6 @@ export default function WalletPage({
           />
         </SectionShell>
 
-        {/* Quick Actions Section - with heading */}
         <SectionShell bleed={SPACING.md} paddingTop={SPACING.md} paddingBottom={SPACING.md}>
           <SectionHeader
             title="Quick Actions"
@@ -130,7 +137,6 @@ export default function WalletPage({
           />
         </SectionShell>
 
-        {/* Transactions Section - with heading */}
         <SectionShell bleed={SPACING.md} paddingTop={SPACING.lg} paddingBottom={SPACING.xxxl} noBorder>
           <SectionHeader
             title="Transactions"
@@ -141,7 +147,7 @@ export default function WalletPage({
             transactions={dedupedTransactions}
             onSelectTransaction={setSelectedTx}
             showToast={showToast}
-            showHeader={false} // Tell component to hide its internal header
+            showHeader={false}
           />
         </SectionShell>
       </div>
@@ -151,10 +157,6 @@ export default function WalletPage({
         allTransactions={dedupedTransactions}
         onClose={() => setSelectedTx(null)}
       />
-
-      {showDeposit && (
-        <DepositPanel onClose={() => setShowDeposit(false)} showToast={showToast} />
-      )}
     </div>
   );
 }
