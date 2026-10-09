@@ -338,3 +338,79 @@
   .m3-hero-slide, .m3-hero-slide img, .m3-hero-dot::before { transition: none; }
   .m3-news-track { animation: none; }
 }
+
+/* ── Category shortcuts ────────────────────────────────────── */
+
+.m3-cats {
+  display: flex;
+  gap: 8px;
+  padding: 0 8px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.m3-cats::-webkit-scrollbar { display: none; }
+
+.m3-cat {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 76px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--md-font);
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+.m3-cat-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  /* Expressive shape morph: squircle at rest, circle when selected */
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--md-surface-container-high));
+  color: var(--accent);
+  transition:
+    border-radius var(--md-spatial-fast) var(--md-spatial),
+    background var(--md-effects-fast) var(--md-effects),
+    color var(--md-effects-fast) var(--md-effects),
+    transform var(--md-spatial-fast) var(--md-spatial);
+}
+.m3-cat-icon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--md-effects-fast) var(--md-effects);
+}
+.m3-cat:hover .m3-cat-icon::after { opacity: 0.08; }
+.m3-cat:active .m3-cat-icon { transform: scale(0.92); }
+.m3-cat:focus-visible { outline: none; }
+.m3-cat:focus-visible .m3-cat-icon { outline: 2px solid var(--md-primary); outline-offset: 2px; }
+
+.m3-cat[aria-pressed="true"] .m3-cat-icon {
+  border-radius: var(--md-shape-full);
+  background: var(--accent);
+  color: #1a1410;
+}
+.m3-cat-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--md-on-surface-variant);
+  font: 500 12px/16px var(--md-font);
+  letter-spacing: 0.02em;
+}
+.m3-cat[aria-pressed="true"] .m3-cat-label { color: var(--md-on-surface); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  .m3-cat-icon { transition: none; }
+}

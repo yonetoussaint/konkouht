@@ -1,3 +1,4 @@
+import type React from "react";
 import SectionHeader from "./SectionHeader";
 import SectionShell from "./SectionShell";
 
@@ -24,94 +25,24 @@ export default function CategoryGrid({ categories, activeNiche, onSelect }) {
         />
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          overflowX: "auto",
-          paddingLeft: 8,
-          paddingRight: 8,
-          paddingBottom: 4,
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-        }}
-      >
-        <style>{`div::-webkit-scrollbar{display:none}`}</style>
+      <div className="m3-cats" role="group" aria-label="Catégories">
         {categories.map((cat) => {
           const Icon = cat.icon;
-          const accent = cat.accent || "#F5C542";
           const isActive = activeNiche === cat.label;
 
           return (
             <button
               key={cat.label}
+              type="button"
+              className="m3-cat"
+              aria-pressed={isActive}
+              style={{ "--accent": cat.accent || "#F5C542" } as React.CSSProperties}
               onClick={() => onSelect?.(cat.label)}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
-                width: 72,
-                flexShrink: 0,
-                background: "transparent",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-                transition: "transform 0.1s ease",
-                WebkitTapHighlightColor: "transparent",
-                fontFamily: "inherit",
-              }}
-              onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.94)")}
-              onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
-              {/* Circular button — the only interactive surface */}
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: "50%",
-                  background: isActive ? `${accent}14` : "#1c1c1f",
-                  border: `${isActive ? 2 : 1.5}px solid ${isActive ? accent : "#2a2a2e"}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: isActive
-                    ? `0 0 0 2px ${accent}22, 0 1px 4px rgba(0,0,0,0.5)`
-                    : "0 1px 4px rgba(0,0,0,0.4)",
-                  transition: "border-color 0.2s, background 0.2s, box-shadow 0.2s",
-                  flexShrink: 0,
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.borderColor = accent;
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.borderColor = "#2a2a2e";
-                }}
-              >
-                {Icon ? (
-                  <Icon size={20} strokeWidth={2} color={accent} />
-                ) : null}
-              </div>
-
-              {/* Title */}
-              <span
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: isActive ? accent : "#f2f2f2",
-                  textAlign: "center",
-                  lineHeight: 1.2,
-                  maxWidth: "100%",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  transition: "color 0.2s",
-                }}
-              >
-                {cat.label}
+              <span className="m3-cat-icon">
+                {Icon ? <Icon size={24} strokeWidth={2} /> : null}
               </span>
+              <span className="m3-cat-label">{cat.label}</span>
             </button>
           );
         })}
