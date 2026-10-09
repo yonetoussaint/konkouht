@@ -1,0 +1,179 @@
+/* ============================================================
+   Material 3 Expressive — foundation (dark scheme)
+   Seed: the gold/bronze of the home banner artwork.
+   Everything is namespaced `--md-*` / `.m3-*` so it can be adopted
+   section by section without touching other screens.
+   Rule: class-based styles only for sticky/fixed surfaces, because
+   style.css has attribute selectors that target inline
+   `position: sticky; top: 0px`.
+   ============================================================ */
+
+:root {
+  /* Color roles */
+  --md-surface: #14110e;
+  --md-surface-container-low: #1c1814;
+  --md-surface-container: #211c17;
+  --md-surface-container-high: #2b251f;
+  --md-surface-container-highest: #36302a;
+  --md-on-surface: #ece0d8;
+  --md-on-surface-variant: #d3c4b8;
+  --md-outline: #9c8f84;
+  --md-outline-variant: #4e453c;
+  --md-primary: #f0bf6a;
+  --md-on-primary: #432c00;
+  --md-primary-container: #5f4200;
+  --md-on-primary-container: #ffdea8;
+  --md-secondary-container: #504534;
+  --md-on-secondary-container: #f3e0c4;
+  --md-error: #ffb4ab;
+  --md-live: #ff6b5e;
+
+  /* Shape scale (Expressive adds larger steps) */
+  --md-shape-sm: 8px;
+  --md-shape-md: 12px;
+  --md-shape-lg: 16px;
+  --md-shape-xl: 28px;
+  --md-shape-full: 999px;
+
+  /* Type: Roboto Flex is the M3 reference face; variable weight + width */
+  --md-font: "Roboto Flex", "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Motion: spring-like curves (Expressive's "spatial" vs "effects") */
+  --md-spatial: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --md-spatial-fast: 0.35s;
+  --md-effects: cubic-bezier(0.2, 0, 0, 1);
+  --md-effects-fast: 0.15s;
+}
+
+/* ── Top app bar ───────────────────────────────────────────── */
+
+.m3-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--md-surface);
+  padding: 8px 12px 4px;
+  font-family: var(--md-font);
+}
+
+/* Search bar: 56dp pill, tonal container, no outline until focus */
+.m3-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 20px;
+  border-radius: var(--md-shape-full);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  transition:
+    background var(--md-effects-fast) var(--md-effects),
+    box-shadow var(--md-spatial-fast) var(--md-spatial);
+}
+.m3-search:focus-within {
+  background: var(--md-surface-container-highest);
+  box-shadow: 0 0 0 2px var(--md-primary);
+  color: var(--md-primary);
+}
+.m3-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--md-on-surface);
+  font: 400 16px/24px var(--md-font);
+  letter-spacing: 0.01em;
+}
+.m3-search input::placeholder { color: var(--md-on-surface-variant); opacity: 0.8; }
+.m3-search-clear {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: -8px;
+  border: 0;
+  border-radius: var(--md-shape-full);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  cursor: pointer;
+}
+.m3-search-clear:hover { background: color-mix(in srgb, var(--md-on-surface) 8%, transparent); }
+
+/* ── Filter chips ──────────────────────────────────────────── */
+
+.m3-chips {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.m3-chips::-webkit-scrollbar { display: none; }
+
+.m3-chip {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--md-outline-variant);
+  /* Expressive shape morph: unselected = rounded square, selected = pill */
+  border-radius: var(--md-shape-md);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  font: 500 14px/20px var(--md-font);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition:
+    border-radius var(--md-spatial-fast) var(--md-spatial),
+    background var(--md-effects-fast) var(--md-effects),
+    color var(--md-effects-fast) var(--md-effects),
+    transform var(--md-spatial-fast) var(--md-spatial);
+}
+/* State layer */
+.m3-chip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--md-effects-fast) var(--md-effects);
+  pointer-events: none;
+}
+.m3-chip:hover::after { opacity: 0.08; }
+.m3-chip:active { transform: scale(0.95); }
+.m3-chip:active::after { opacity: 0.12; }
+.m3-chip:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
+
+.m3-chip[aria-pressed="true"] {
+  border-color: transparent;
+  border-radius: var(--md-shape-full);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+.m3-chip svg { flex-shrink: 0; }
+
+.m3-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--md-live);
+  animation: m3-pulse 1.6s var(--md-effects) infinite;
+}
+@keyframes m3-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m3-chip, .m3-search { transition: none; }
+  .m3-live-dot { animation: none; }
+}

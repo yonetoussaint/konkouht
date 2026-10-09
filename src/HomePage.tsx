@@ -19,6 +19,7 @@ import {
   Bell,
   Users,
   Loader2,
+  X,
 } from "lucide-react";
 import CompCard from "./CompCard";
 import SectionHeader from "./components/SectionHeader";
@@ -446,115 +447,55 @@ export default function HomePage({
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#111", paddingBottom: 64 }}>
-      {/* ── HEADER ── */}
-      <header
-        style={{
-          borderBottom: "1px solid #2a2a2e",
-          background: "#111",
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
-        }}
-      >
-        <div style={{ padding: "8px" }}>
-          <div
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              border: `1px solid ${homeSearchFocused ? "#f5f5f5" : "#2a2a2e"}`,
-              background: "#1c1c1f",
-              height: 38,
-              borderRadius: 10,
-              padding: "0 10px",
-              transition: "border-color 0.15s",
-            }}
-          >
-            <Search
-              size={15}
-              color={homeSearchFocused ? "#f5f5f5" : "#7a7a80"}
-              strokeWidth={2.25}
-              style={{ flexShrink: 0 }}
-            />
-            <input
-              type="text"
-              placeholder="Rechercher une compétition..."
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              onFocus={() => onSearchFocusChange(true)}
-              onBlur={() => onSearchFocusChange(false)}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                border: "none",
-                outline: "none",
-                fontFamily: "Inter, sans-serif",
-                fontSize: 13,
-                fontWeight: 500,
-                color: "#f5f5f5",
-                background: "transparent",
-                height: "100%",
-              }}
-            />
-          </div>
+    <div style={{ minHeight: "100vh", background: "var(--md-surface, #111)", paddingBottom: 64 }}>
+      {/* ── HEADER (Material 3 Expressive: search bar + filter chips) ── */}
+      <header className="m3-topbar">
+        <div className="m3-search" role="search">
+          <Search size={22} strokeWidth={2} style={{ flexShrink: 0 }} />
+          <input
+            type="text"
+            placeholder="Rechercher une compétition"
+            aria-label="Rechercher une compétition"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            onFocus={() => onSearchFocusChange(true)}
+            onBlur={() => onSearchFocusChange(false)}
+          />
+          {query && (
+            <button
+              type="button"
+              className="m3-search-clear"
+              aria-label="Effacer la recherche"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onQueryChange("")}
+            >
+              <X size={20} strokeWidth={2} />
+            </button>
+          )}
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            padding: "0 8px 8px",
-            overflowX: "auto",
-            scrollbarWidth: "none",
-          }}
-        >
+        <div className="m3-chips" role="group" aria-label="Filtres">
           {HOME_TABS.map(({ key, label, icon: Icon, live }) => {
             const active = activeFilter === key;
             return (
               <button
                 key={key}
+                type="button"
+                className="m3-chip"
+                aria-pressed={active}
                 onClick={() => onFilterChange(key)}
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: active ? "#111" : "#c9c9c9",
-                  background: active ? "#fff" : "#202023",
-                  border: `1px solid ${active ? "#fff" : "#333"}`,
-                  borderRadius: 20,
-                  padding: "6px 14px",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  transition: "background 0.12s, color 0.12s",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  flexShrink: 0,
-                }}
               >
-                {Icon && <Icon size={12} strokeWidth={2.5} style={{ flexShrink: 0 }} />}
-                {label}
-                {live && (
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: "#E74C3C",
-                      display: "inline-block",
-                      animation: "pulse-dot 1s infinite",
-                    }}
-                  />
+                {active ? (
+                  <Check size={18} strokeWidth={2.25} />
+                ) : (
+                  Icon && <Icon size={18} strokeWidth={2} />
                 )}
+                {label}
+                {live && <span className="m3-live-dot" aria-hidden="true" />}
               </button>
             );
           })}
         </div>
-        <style>{`@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
       </header>
 
       <DownloadAppBanner
