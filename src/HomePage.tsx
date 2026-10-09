@@ -20,6 +20,7 @@ import {
   Users,
   Loader2,
   X,
+  Megaphone,
 } from "lucide-react";
 import CompCard from "./CompCard";
 import SectionHeader from "./components/SectionHeader";
@@ -43,43 +44,18 @@ const NEWS_ITEMS = [
 
 function NewsBand() {
   return (
-    <div
-      style={{
-        background: "#18181b",
-        borderTop: "1px solid #2a2a2e",
-        borderBottom: "2px solid #2a2a2e",
-        overflow: "hidden",
-        whiteSpace: "nowrap",
-        padding: "4px 0",
-      }}
-    >
-      <style>{`
-        @keyframes news-scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}</style>
-      <div
-        style={{
-          display: "inline-flex",
-          animation: "news-scroll 30s linear infinite",
-        }}
-      >
-        {[...NEWS_ITEMS, ...NEWS_ITEMS].map((item, i) => (
-          <span
-            key={i}
-            style={{
-              fontFamily: "Inter, sans-serif",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#fff",
-              letterSpacing: "0.02em",
-              padding: "0 20px",
-            }}
-          >
-            {item}
-          </span>
-        ))}
+    <div className="m3-news" role="marquee" aria-label="Actualités">
+      <span className="m3-news-icon" aria-hidden="true">
+        <Megaphone size={18} strokeWidth={2} />
+      </span>
+      <div className="m3-news-viewport">
+        <div className="m3-news-track">
+          {[...NEWS_ITEMS, ...NEWS_ITEMS].map((item, i) => (
+            <span key={i} className="m3-news-item">
+              {item}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -503,87 +479,42 @@ export default function HomePage({
         playStoreUrl={undefined}
       />
 
-      {/* ── BANNER SLIDER ── */}
+      {/* ── HERO BANNER (Material 3 Expressive carousel) ── */}
       {homeBannerSlides.length > 0 && (
-        <div
-          style={{
-            position: "relative",
-            width: "100%",
-            aspectRatio: "2.2 / 1",
-            overflow: "hidden",
-            borderBottom: "2px solid #2a2a2e",
-          }}
-        >
+        <section className="m3-hero" aria-roledescription="carrousel" aria-label="À la une">
           {homeBannerSlides.map((slide, i) => (
             <div
               key={slide.id}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                opacity: i === bannerIndex ? 1 : 0,
-                transition: "opacity 0.8s ease",
-              }}
+              className="m3-hero-slide"
+              data-active={i === bannerIndex}
+              aria-hidden={i !== bannerIndex}
+              style={{ background: slide.color }}
             >
-              <img
-                src={slide.image}
-                alt={slide.title}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  background: slide.color,
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: `linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.65) 100%)`,
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: `linear-gradient(90deg, ${slide.color}55 0%, transparent 60%)`,
-                  mixBlendMode: "multiply",
-                }}
-              />
+              <img src={slide.image} alt="" />
+              <div className="m3-hero-scrim" />
+              <div className="m3-hero-copy">
+                {slide.niche?.label && (
+                  <span className="m3-hero-tag">{slide.niche.label}</span>
+                )}
+                <h2 className="m3-hero-title">{slide.title}</h2>
+                {slide.edition && <p className="m3-hero-sub">{slide.edition}</p>}
+              </div>
             </div>
           ))}
 
-          <div
-            style={{
-              position: "absolute",
-              bottom: 16,
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              gap: 8,
-              zIndex: 2,
-            }}
-          >
-            {homeBannerSlides.map((_, i) => (
+          <div className="m3-hero-dots">
+            {homeBannerSlides.map((slide, i) => (
               <button
-                key={i}
+                key={slide.id}
+                type="button"
+                className="m3-hero-dot"
+                aria-label={`Diapositive ${i + 1}`}
+                aria-current={i === bannerIndex}
                 onClick={() => onBannerIndexChange(i)}
-                style={{
-                  width: i === bannerIndex ? 28 : 8,
-                  height: 8,
-                  border: "1px solid rgba(255,255,255,0.6)",
-                  background: i === bannerIndex ? "#fff" : "transparent",
-                  cursor: "pointer",
-                  transition: "all 0.25s ease",
-                  padding: 0,
-                }}
               />
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       <NewsBand />
