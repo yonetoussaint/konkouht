@@ -40,14 +40,16 @@ export default function SectionShell({
   children,
   as: Tag = "div",
   bleed = 0,
-  paddingTop = 8,
-  paddingBottom = 8,
+  paddingTop = 12,
+  paddingBottom = 12,
   noBorder = false,
 }) {
   return (
     <Tag
       style={{
-        borderBottom: noBorder ? "none" : SECTION_BORDER,
+        // Material 3 separates sections with whitespace, not rules.
+        // `noBorder` is kept so existing callers still compile.
+        borderBottom: "none",
         margin: bleed ? `0 -${bleed}px` : 0,
         paddingLeft: bleed || 0,
         paddingRight: bleed || 0,

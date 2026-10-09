@@ -25,54 +25,17 @@ export default function SectionHeader({ title, actionLabel, onAction }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        marginBottom: SPACING.md,
+        gap: SPACING.sm,
+        minHeight: 40,
+        marginBottom: SPACING.sm,
       }}
     >
-      <span
-        style={{
-          fontFamily: "'Inter', sans-serif",
-          fontSize: 16,
-          fontWeight: 600,
-          color: "#f2f2f2",
-          letterSpacing: "-0.01em",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {title}
-      </span>
+      <h2 className="m3-section-title" style={{ margin: 0 }}>{title}</h2>
 
       {actionLabel && onAction && (
-        <button
-          onClick={onAction}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            background: "transparent",
-            border: "none",
-            color: "#848e9c",
-            fontFamily: "'Inter', sans-serif",
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: "pointer",
-            padding: "4px 8px",
-            borderRadius: 6,
-            transition: "all 0.15s",
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = "#f2f2f2";
-            e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = "#848e9c";
-            e.currentTarget.style.background = "transparent";
-          }}
-        >
+        <button type="button" className="m3-text-btn" onClick={onAction}>
           {actionLabel}
-          <ChevronRight size={16} strokeWidth={2} />
+          <ChevronRight size={18} strokeWidth={2} />
         </button>
       )}
     </div>

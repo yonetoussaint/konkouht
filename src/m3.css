@@ -414,3 +414,168 @@
 @media (prefers-reduced-motion: reduce) {
   .m3-cat-icon { transition: none; }
 }
+
+/* ── Section headings and spacing (shared: Home + Wallet) ───── */
+
+.m3-section-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--md-on-surface);
+  font: 500 22px/28px var(--md-font);
+  letter-spacing: 0;
+}
+.m3-text-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  padding: 0 12px 0 16px;
+  margin-right: -4px;
+  border: 0;
+  border-radius: var(--md-shape-full);
+  background: transparent;
+  color: var(--md-primary);
+  font: 500 14px/20px var(--md-font);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background var(--md-effects-fast) var(--md-effects);
+}
+.m3-text-btn:hover { background: color-mix(in srgb, var(--md-primary) 8%, transparent); }
+.m3-text-btn:active { background: color-mix(in srgb, var(--md-primary) 12%, transparent); }
+.m3-text-btn:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 0; }
+
+/* ── Competition card ──────────────────────────────────────── */
+
+.m3-card {
+  flex-shrink: 0;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 288px;
+  padding: 8px 8px 12px;
+  border-radius: var(--md-shape-xl);
+  background: var(--md-surface-container);
+  color: var(--md-on-surface);
+  font-family: var(--md-font);
+  cursor: pointer;
+  user-select: none;
+  transition: transform var(--md-spatial-fast) var(--md-spatial);
+}
+.m3-card:active { transform: scale(0.98); }
+.m3-card--full { flex-shrink: 1; width: 100%; }
+
+.m3-card-media {
+  position: relative;
+  height: 140px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--md-surface-container-highest);
+}
+.m3-card--full .m3-card-media { height: 200px; }
+.m3-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.m3-card-media .m3-card-ph { width: 100%; height: 100%; display: grid; place-items: center; color: var(--md-outline); }
+.m3-card-tint { position: absolute; inset: 0; background: color-mix(in srgb, var(--accent) 30%, transparent); mix-blend-mode: multiply; }
+.m3-card-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(20, 17, 14, 0.7) 100%); }
+.m3-card-flags { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; justify-content: space-between; gap: 6px; }
+.m3-card-timer { position: absolute; right: 8px; bottom: 8px; }
+
+.m3-chip-s {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--md-shape-full);
+  background: rgba(20, 17, 14, 0.72);
+  color: #fff;
+  font: 500 12px/16px var(--md-font);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.m3-chip-s--live { background: #7a2a22; color: #ffdad6; }
+.m3-chip-s--reg { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.m3-chip-s--hot { background: #7a2a22; color: #ffdad6; }
+.m3-chip-s .m3-live-dot { width: 6px; height: 6px; background: currentColor; }
+
+.m3-card-body { display: flex; flex-direction: column; gap: 4px; padding: 0 8px; min-width: 0; }
+.m3-card-title {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 18px/24px var(--md-font);
+  letter-spacing: 0;
+}
+.m3-card-org { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--md-on-surface-variant); font: 400 14px/20px var(--md-font); }
+.m3-card-avatar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #1a1410;
+  font: 700 11px/1 var(--md-font);
+}
+.m3-card-org span:not(.m3-card-avatar) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.m3-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.m3-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: var(--md-shape-lg);
+  background: var(--md-surface-container-high);
+}
+.m3-stat b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px/20px var(--md-font); }
+.m3-stat small { color: var(--md-on-surface-variant); font: 400 11px/16px var(--md-font); letter-spacing: 0.03em; }
+.m3-stat--hot b { color: var(--md-error); }
+
+.m3-progress { display: flex; flex-direction: column; gap: 6px; padding: 0 8px; }
+.m3-progress-text { display: flex; justify-content: space-between; color: var(--md-on-surface-variant); font: 400 12px/16px var(--md-font); letter-spacing: 0.03em; }
+.m3-progress-track { height: 6px; border-radius: var(--md-shape-full); background: var(--md-surface-container-highest); overflow: hidden; }
+.m3-progress-fill { height: 100%; border-radius: inherit; background: var(--md-primary); transition: width 0.5s var(--md-effects); }
+.m3-progress-fill--full { background: #6fd6a4; }
+
+/* Buttons */
+.m3-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 48px;
+  margin: 0 4px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--md-shape-full);
+  overflow: hidden;
+  font: 500 15px/20px var(--md-font);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: border-radius var(--md-spatial-fast) var(--md-spatial), transform var(--md-spatial-fast) var(--md-spatial);
+}
+.m3-btn::after { content: ""; position: absolute; inset: 0; background: currentColor; opacity: 0; transition: opacity var(--md-effects-fast) var(--md-effects); }
+.m3-btn:hover::after { opacity: 0.08; }
+.m3-btn:active { border-radius: var(--md-shape-lg); transform: scale(0.98); }
+.m3-btn:active::after { opacity: 0.12; }
+.m3-btn:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
+.m3-btn > span { display: inline-flex; align-items: center; gap: 8px; }
+.m3-btn em { font: 400 13px/20px var(--md-font); font-style: normal; opacity: 0.8; }
+.m3-btn--filled { background: var(--md-primary); color: var(--md-on-primary); }
+.m3-btn--tonal { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.m3-btn--static { cursor: default; }
+.m3-btn--static::after { display: none; }
+.m3-btn--static:active { transform: none; border-radius: var(--md-shape-full); }
+.m3-btn--done { background: #1f4a37; color: #b4f0d3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .m3-card, .m3-btn { transition: none; }
+}
